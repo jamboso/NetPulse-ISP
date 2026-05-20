@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { subscriptionsTable, customersTable, plansTable, routersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 const router = Router();
 
@@ -166,20 +166,23 @@ function formatSub(
 
 router.get("/subscriptions", async (req, res) => {
   const { customerId, status } = req.query as Record<string, string>;
-  const rows = await db
+
+  const conditions = [];
+  if (customerId) conditions.push(eq(subscriptionsTable.customerId, parseInt(customerId)));
+  if (status) conditions.push(eq(subscriptionsTable.status, status));
+
+  const query = db
     .select()
     .from(subscriptionsTable)
     .leftJoin(customersTable, eq(subscriptionsTable.customerId, customersTable.id))
     .leftJoin(plansTable, eq(subscriptionsTable.planId, plansTable.id))
     .orderBy(subscriptionsTable.createdAt);
 
-  const filtered = rows.filter(r => {
-    if (customerId && r.subscriptions.customerId !== parseInt(customerId)) return false;
-    if (status && r.subscriptions.status !== status) return false;
-    return true;
-  });
+  const rows = conditions.length > 0
+    ? await query.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
+    : await query;
 
-  res.json(filtered.map(r => formatSub(r.subscriptions, r.customers, r.plans)));
+  res.json(rows.map(r => formatSub(r.subscriptions, r.customers, r.plans)));
 });
 
 router.post("/subscriptions", async (req, res) => {

@@ -22,19 +22,26 @@ import HotspotManager from "./pages/hotspot-manager";
 import CaptivePortal from "./pages/captive-portal";
 import Settings from "./pages/settings";
 
-class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+class ErrorBoundary extends Component<{ children: ReactNode; routeKey?: string }, { error: Error | null }> {
   state = { error: null };
   static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidUpdate(prevProps: { routeKey?: string }) {
+    if (prevProps.routeKey !== this.props.routeKey && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
   render() {
-    if (this.state.error) {
+    const err = this.state.error as Error | null;
+    if (err) {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center p-8">
           <p className="text-lg font-semibold text-gray-800">Something went wrong on this page.</p>
-          <p className="text-sm text-gray-500">Try refreshing or navigating to another section.</p>
+          <p className="text-xs font-mono text-red-500 bg-red-50 border border-red-200 rounded px-3 py-2 max-w-xl break-words">{err.message}</p>
+          <p className="text-sm text-gray-500">Try navigating to another page, or click below to retry.</p>
           <button
             className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
             onClick={() => this.setState({ error: null })}
-          >Reload page</button>
+          >Retry</button>
         </div>
       );
     }
@@ -98,8 +105,9 @@ function ClerkQueryClientCacheInvalidator() {
 }
 
 function ProtectedRoutes() {
+  const [location] = useLocation();
   return (
-    <ErrorBoundary>
+    <ErrorBoundary routeKey={location}>
     <Layout>
       <Switch>
         <Route path="/" component={Dashboard} />

@@ -181,7 +181,7 @@ function SubscriptionDialog({ open, onClose, initial, subId }: {
 export default function Subscriptions() {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
-  const { data: subscriptionsData, isLoading } = useListSubscriptions(statusFilter ? { status: statusFilter } : {});
+  const { data: subscriptionsData, isLoading } = useListSubscriptions(statusFilter ? { status: statusFilter } : undefined);
   const deleteMutation = useDeleteSubscription();
   const [dialog, setDialog] = useState<{ open: boolean; id?: number; initial?: SubForm }>({ open: false });
 
@@ -191,7 +191,7 @@ export default function Subscriptions() {
     qc.invalidateQueries({ queryKey: ["/api/subscriptions"] });
   };
 
-  const subs = Array.isArray(subscriptionsData) ? subscriptionsData : (subscriptionsData as { data?: typeof subscriptionsData[] } | undefined)?.data ?? subscriptionsData ?? [];
+  const subs: any[] = Array.isArray(subscriptionsData) ? subscriptionsData : [];
 
   return (
     <TooltipProvider>

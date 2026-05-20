@@ -171,16 +171,17 @@ router.get("/subscriptions", async (req, res) => {
   if (customerId) conditions.push(eq(subscriptionsTable.customerId, parseInt(customerId)));
   if (status) conditions.push(eq(subscriptionsTable.status, status));
 
-  const query = db
+  const base = db
     .select()
     .from(subscriptionsTable)
     .leftJoin(customersTable, eq(subscriptionsTable.customerId, customersTable.id))
-    .leftJoin(plansTable, eq(subscriptionsTable.planId, plansTable.id))
-    .orderBy(subscriptionsTable.createdAt);
+    .leftJoin(plansTable, eq(subscriptionsTable.planId, plansTable.id));
 
-  const rows = conditions.length > 0
-    ? await query.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
-    : await query;
+  const rows = await (conditions.length === 0
+    ? base.orderBy(subscriptionsTable.createdAt)
+    : conditions.length === 1
+      ? base.where(conditions[0]!).orderBy(subscriptionsTable.createdAt)
+      : base.where(and(...conditions)).orderBy(subscriptionsTable.createdAt));
 
   res.json(rows.map(r => formatSub(r.subscriptions, r.customers, r.plans)));
 });

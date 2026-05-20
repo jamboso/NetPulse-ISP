@@ -6,8 +6,9 @@ import { eq } from "drizzle-orm";
 
 const router = Router();
 
-// TCP probe: tries to open a TCP socket to host:port within timeoutMs
-function tcpProbe(host: string, port: number, timeoutMs = 2500): Promise<{ reachable: boolean; latencyMs: number | null }> {
+// ── TCP probe ────────────────────────────────────────────────────────────────
+
+function tcpProbe(host: string, port: number, timeoutMs = 1500): Promise<{ reachable: boolean; latencyMs: number | null }> {
   return new Promise((resolve) => {
     const start = Date.now();
     const sock = new net.Socket();
@@ -28,16 +29,27 @@ function tcpProbe(host: string, port: number, timeoutMs = 2500): Promise<{ reach
   });
 }
 
-// Determine the probe port for a given router
 function probePort(r: typeof routersTable.$inferSelect): number {
   if (r.routerType === "routeros") return r.port ?? (r.apiSsl ? 8729 : 8728);
   if (r.routerType === "juniper") return r.sshPort ?? r.netconfPort ?? 22;
-  // edgerouter
   return r.sshPort ?? 22;
 }
 
-// GET /routers/status — MUST be declared before /routers/:id
+// ── Server-side cache for /routers/status (15s TTL) ─────────────────────────
+
+let statusCache: { data: unknown; expiresAt: number } | null = null;
+const STATUS_TTL_MS = 15_000;
+
 router.get("/routers/status", async (_req, res) => {
+  const now = Date.now();
+
+  // Return cached result if still fresh
+  if (statusCache && now < statusCache.expiresAt) {
+    res.setHeader("Cache-Control", "public, max-age=15");
+    res.json(statusCache.data);
+    return;
+  }
+
   const rows = await db.select().from(routersTable).orderBy(routersTable.name);
   const checkedAt = new Date().toISOString();
 
@@ -74,15 +86,19 @@ router.get("/routers/status", async (_req, res) => {
     })
   );
 
+  statusCache = { data: results, expiresAt: now + STATUS_TTL_MS };
+  res.setHeader("Cache-Control", "public, max-age=15");
   res.json(results);
 });
 
 router.get("/routers", async (_req, res) => {
   const rows = await db.select().from(routersTable).orderBy(routersTable.createdAt);
+  res.setHeader("Cache-Control", "public, max-age=10");
   res.json(rows);
 });
 
 router.post("/routers", async (req, res) => {
+  statusCache = null; // invalidate status cache on changes
   const body = req.body;
   const [created] = await db.insert(routersTable).values({
     name: body.name,
@@ -109,6 +125,7 @@ router.get("/routers/:id", async (req, res) => {
 });
 
 router.patch("/routers/:id", async (req, res) => {
+  statusCache = null;
   const id = parseInt(req.params.id!);
   const body = req.body;
   const update: Record<string, unknown> = {};
@@ -125,6 +142,7 @@ router.patch("/routers/:id", async (req, res) => {
 });
 
 router.delete("/routers/:id", async (req, res) => {
+  statusCache = null;
   const id = parseInt(req.params.id!);
   await db.delete(routersTable).where(eq(routersTable.id, id));
   res.status(204).send();

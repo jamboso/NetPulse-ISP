@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { customersTable } from "./customers";
@@ -14,7 +14,10 @@ export const ticketsTable = pgTable("tickets", {
   assignedTo: text("assigned_to"),
   resolvedAt: text("resolved_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("tickets_customer_id_idx").on(t.customerId),
+  index("tickets_status_idx").on(t.status),
+]);
 
 export const ticketRepliesTable = pgTable("ticket_replies", {
   id: serial("id").primaryKey(),

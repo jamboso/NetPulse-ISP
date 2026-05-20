@@ -32,6 +32,7 @@ router.get("/dashboard/summary", async (_req, res) => {
     db.select({ count: sql<number>`count(*)` }).from(customersTable).where(sql`created_at >= ${monthStart}`),
   ]);
 
+  res.setHeader("Cache-Control", "public, max-age=30");
   res.json({
     totalCustomers: Number(customerCount[0]?.count ?? 0),
     activeSubscriptions: Number(activeSubCount[0]?.count ?? 0),
@@ -65,11 +66,11 @@ router.get("/dashboard/revenue", async (_req, res) => {
       revenue: Number(r.revenue),
       invoiceCount: Number(r.invoice_count),
     }));
+  res.setHeader("Cache-Control", "public, max-age=60");
   res.json(data);
 });
 
 router.get("/dashboard/activity", async (_req, res) => {
-  // Aggregate recent activity from multiple tables
   const rows = await db.execute(sql`
     (SELECT id, 'customer_created' as type, 'New customer added: ' || name as description, created_at as ts, id as entity_id, 'customer' as entity_type FROM customers ORDER BY created_at DESC LIMIT 5)
     UNION ALL
@@ -82,6 +83,7 @@ router.get("/dashboard/activity", async (_req, res) => {
     LIMIT 20
   `);
 
+  res.setHeader("Cache-Control", "public, max-age=30");
   res.json((rows.rows as Array<{ id: number; type: string; description: string; ts: string; entity_id: number; entity_type: string }>).map((r, i) => ({
     id: i + 1,
     type: r.type,
@@ -96,6 +98,7 @@ router.get("/dashboard/subscription-breakdown", async (_req, res) => {
   const rows = await db.execute(sql`
     SELECT status, COUNT(*) as count FROM subscriptions GROUP BY status
   `);
+  res.setHeader("Cache-Control", "public, max-age=30");
   res.json((rows.rows as Array<{ status: string; count: string }>).map(r => ({
     status: r.status,
     count: Number(r.count),

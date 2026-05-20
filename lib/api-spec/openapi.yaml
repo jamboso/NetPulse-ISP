@@ -3,20 +3,38 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: ISP Management System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: customers
+    description: Customer management
+  - name: plans
+    description: Internet service plans
+  - name: subscriptions
+    description: Customer subscriptions
+  - name: invoices
+    description: Billing and invoices
+  - name: payments
+    description: Payment records
+  - name: tickets
+    description: Support tickets
+  - name: equipment
+    description: Network equipment/routers
+  - name: ip-pools
+    description: IP address pool management
+  - name: dashboard
+    description: Dashboard analytics and summaries
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +42,852 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── DASHBOARD ────────────────────────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary statistics
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/revenue:
+    get:
+      operationId: getRevenueStats
+      tags: [dashboard]
+      summary: Get monthly revenue statistics
+      responses:
+        "200":
+          description: Revenue stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RevenuePoint"
+
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent system activity
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /dashboard/subscription-breakdown:
+    get:
+      operationId: getSubscriptionBreakdown
+      tags: [dashboard]
+      summary: Get subscription status breakdown
+      responses:
+        "200":
+          description: Subscription breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BreakdownItem"
+
+  # ── CUSTOMERS ────────────────────────────────────────────────────────────────
+  /customers:
+    get:
+      operationId: listCustomers
+      tags: [customers]
+      summary: List all customers
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of customers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerList"
+    post:
+      operationId: createCustomer
+      tags: [customers]
+      summary: Create a new customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+
+  /customers/{id}:
+    get:
+      operationId: getCustomer
+      tags: [customers]
+      summary: Get customer by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateCustomer
+      tags: [customers]
+      summary: Update a customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerUpdate"
+      responses:
+        "200":
+          description: Updated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+    delete:
+      operationId: deleteCustomer
+      tags: [customers]
+      summary: Delete a customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── PLANS ─────────────────────────────────────────────────────────────────────
+  /plans:
+    get:
+      operationId: listPlans
+      tags: [plans]
+      summary: List all service plans
+      responses:
+        "200":
+          description: Plans list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Plan"
+    post:
+      operationId: createPlan
+      tags: [plans]
+      summary: Create a new plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+
+  /plans/{id}:
+    get:
+      operationId: getPlan
+      tags: [plans]
+      summary: Get plan by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+    patch:
+      operationId: updatePlan
+      tags: [plans]
+      summary: Update a plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanUpdate"
+      responses:
+        "200":
+          description: Updated plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+    delete:
+      operationId: deletePlan
+      tags: [plans]
+      summary: Delete a plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── SUBSCRIPTIONS ─────────────────────────────────────────────────────────────
+  /subscriptions:
+    get:
+      operationId: listSubscriptions
+      tags: [subscriptions]
+      summary: List all subscriptions
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Subscriptions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subscription"
+    post:
+      operationId: createSubscription
+      tags: [subscriptions]
+      summary: Create a subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+
+  /subscriptions/{id}:
+    get:
+      operationId: getSubscription
+      tags: [subscriptions]
+      summary: Get subscription by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+    patch:
+      operationId: updateSubscription
+      tags: [subscriptions]
+      summary: Update a subscription
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionUpdate"
+      responses:
+        "200":
+          description: Updated subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+    delete:
+      operationId: deleteSubscription
+      tags: [subscriptions]
+      summary: Cancel/delete a subscription
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── INVOICES ──────────────────────────────────────────────────────────────────
+  /invoices:
+    get:
+      operationId: listInvoices
+      tags: [invoices]
+      summary: List all invoices
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceList"
+    post:
+      operationId: createInvoice
+      tags: [invoices]
+      summary: Create an invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      tags: [invoices]
+      summary: Get invoice by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+    patch:
+      operationId: updateInvoice
+      tags: [invoices]
+      summary: Update an invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceUpdate"
+      responses:
+        "200":
+          description: Updated invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+    delete:
+      operationId: deleteInvoice
+      tags: [invoices]
+      summary: Delete an invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── PAYMENTS ──────────────────────────────────────────────────────────────────
+  /payments:
+    get:
+      operationId: listPayments
+      tags: [payments]
+      summary: List all payments
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: invoiceId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payments list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+    post:
+      operationId: createPayment
+      tags: [payments]
+      summary: Record a payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+
+  /payments/{id}:
+    get:
+      operationId: getPayment
+      tags: [payments]
+      summary: Get payment by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+
+  # ── TICKETS ───────────────────────────────────────────────────────────────────
+  /tickets:
+    get:
+      operationId: listTickets
+      tags: [tickets]
+      summary: List all support tickets
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: priority
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tickets list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ticket"
+    post:
+      operationId: createTicket
+      tags: [tickets]
+      summary: Create a support ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+
+  /tickets/{id}:
+    get:
+      operationId: getTicket
+      tags: [tickets]
+      summary: Get ticket by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+    patch:
+      operationId: updateTicket
+      tags: [tickets]
+      summary: Update a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketUpdate"
+      responses:
+        "200":
+          description: Updated ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+    delete:
+      operationId: deleteTicket
+      tags: [tickets]
+      summary: Delete a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /tickets/{id}/reply:
+    post:
+      operationId: replyToTicket
+      tags: [tickets]
+      summary: Add a reply to a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketReplyInput"
+      responses:
+        "201":
+          description: Reply added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketReply"
+
+  /tickets/{id}/replies:
+    get:
+      operationId: getTicketReplies
+      tags: [tickets]
+      summary: Get replies for a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ticket replies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TicketReply"
+
+  # ── EQUIPMENT ─────────────────────────────────────────────────────────────────
+  /equipment:
+    get:
+      operationId: listEquipment
+      tags: [equipment]
+      summary: List all network equipment
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Equipment list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Equipment"
+    post:
+      operationId: createEquipment
+      tags: [equipment]
+      summary: Add network equipment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EquipmentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Equipment"
+
+  /equipment/{id}:
+    get:
+      operationId: getEquipment
+      tags: [equipment]
+      summary: Get equipment by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Equipment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Equipment"
+    patch:
+      operationId: updateEquipment
+      tags: [equipment]
+      summary: Update equipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EquipmentUpdate"
+      responses:
+        "200":
+          description: Updated equipment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Equipment"
+    delete:
+      operationId: deleteEquipment
+      tags: [equipment]
+      summary: Delete equipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── IP POOLS ──────────────────────────────────────────────────────────────────
+  /ip-pools:
+    get:
+      operationId: listIpPools
+      tags: [ip-pools]
+      summary: List all IP pools
+      responses:
+        "200":
+          description: IP pools
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IpPool"
+    post:
+      operationId: createIpPool
+      tags: [ip-pools]
+      summary: Create an IP pool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IpPoolInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IpPool"
+
+  /ip-pools/{id}:
+    get:
+      operationId: getIpPool
+      tags: [ip-pools]
+      summary: Get IP pool by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: IP pool
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IpPool"
+    patch:
+      operationId: updateIpPool
+      tags: [ip-pools]
+      summary: Update an IP pool
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IpPoolUpdate"
+      responses:
+        "200":
+          description: Updated IP pool
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IpPool"
+    delete:
+      operationId: deleteIpPool
+      tags: [ip-pools]
+      summary: Delete an IP pool
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +898,702 @@ components:
       required:
         - status
 
+    # ── DASHBOARD ──────────────────────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      required:
+        - totalCustomers
+        - activeSubscriptions
+        - overdueInvoices
+        - monthlyRevenue
+        - openTickets
+        - totalEquipment
+        - totalIpPools
+        - newCustomersThisMonth
+      properties:
+        totalCustomers:
+          type: integer
+        activeSubscriptions:
+          type: integer
+        overdueInvoices:
+          type: integer
+        monthlyRevenue:
+          type: number
+        openTickets:
+          type: integer
+        totalEquipment:
+          type: integer
+        totalIpPools:
+          type: integer
+        newCustomersThisMonth:
+          type: integer
+
+    RevenuePoint:
+      type: object
+      required: [month, revenue, invoiceCount]
+      properties:
+        month:
+          type: string
+        revenue:
+          type: number
+        invoiceCount:
+          type: integer
+
+    ActivityItem:
+      type: object
+      required: [id, type, description, timestamp, entityId, entityType]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        description:
+          type: string
+        timestamp:
+          type: string
+        entityId:
+          type: integer
+        entityType:
+          type: string
+
+    BreakdownItem:
+      type: object
+      required: [status, count]
+      properties:
+        status:
+          type: string
+        count:
+          type: integer
+
+    # ── CUSTOMERS ──────────────────────────────────────────────────────────────
+    Customer:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - phone
+        - address
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, terminated]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    CustomerList:
+      type: object
+      required: [data, total, page, limit]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Customer"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    CustomerInput:
+      type: object
+      required: [name, email, phone, address]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, terminated]
+        notes:
+          type: string
+
+    CustomerUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, terminated]
+        notes:
+          type: ["string", "null"]
+
+    # ── PLANS ──────────────────────────────────────────────────────────────────
+    Plan:
+      type: object
+      required:
+        - id
+        - name
+        - downloadSpeed
+        - uploadSpeed
+        - price
+        - billingCycle
+        - isActive
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        downloadSpeed:
+          type: integer
+          description: Download speed in Mbps
+        uploadSpeed:
+          type: integer
+          description: Upload speed in Mbps
+        price:
+          type: number
+        billingCycle:
+          type: string
+          enum: [monthly, quarterly, annually]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    PlanInput:
+      type: object
+      required: [name, downloadSpeed, uploadSpeed, price, billingCycle]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        downloadSpeed:
+          type: integer
+        uploadSpeed:
+          type: integer
+        price:
+          type: number
+        billingCycle:
+          type: string
+          enum: [monthly, quarterly, annually]
+        isActive:
+          type: boolean
+
+    PlanUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        downloadSpeed:
+          type: integer
+        uploadSpeed:
+          type: integer
+        price:
+          type: number
+        billingCycle:
+          type: string
+          enum: [monthly, quarterly, annually]
+        isActive:
+          type: boolean
+
+    # ── SUBSCRIPTIONS ──────────────────────────────────────────────────────────
+    Subscription:
+      type: object
+      required:
+        - id
+        - customerId
+        - planId
+        - status
+        - startDate
+        - createdAt
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        planId:
+          type: integer
+        status:
+          type: string
+          enum: [active, suspended, cancelled, expired]
+        startDate:
+          type: string
+        endDate:
+          type: ["string", "null"]
+        ipAddress:
+          type: ["string", "null"]
+        macAddress:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        customer:
+          $ref: "#/components/schemas/Customer"
+        plan:
+          $ref: "#/components/schemas/Plan"
+
+    SubscriptionInput:
+      type: object
+      required: [customerId, planId, startDate]
+      properties:
+        customerId:
+          type: integer
+        planId:
+          type: integer
+        status:
+          type: string
+          enum: [active, suspended, cancelled, expired]
+        startDate:
+          type: string
+        endDate:
+          type: string
+        ipAddress:
+          type: string
+        macAddress:
+          type: string
+
+    SubscriptionUpdate:
+      type: object
+      properties:
+        planId:
+          type: integer
+        status:
+          type: string
+          enum: [active, suspended, cancelled, expired]
+        endDate:
+          type: ["string", "null"]
+        ipAddress:
+          type: ["string", "null"]
+        macAddress:
+          type: ["string", "null"]
+
+    # ── INVOICES ───────────────────────────────────────────────────────────────
+    Invoice:
+      type: object
+      required:
+        - id
+        - customerId
+        - amount
+        - status
+        - dueDate
+        - createdAt
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        subscriptionId:
+          type: ["integer", "null"]
+        amount:
+          type: number
+        tax:
+          type: ["number", "null"]
+        total:
+          type: number
+        status:
+          type: string
+          enum: [draft, sent, paid, overdue, cancelled]
+        dueDate:
+          type: string
+        paidAt:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        customer:
+          $ref: "#/components/schemas/Customer"
+
+    InvoiceList:
+      type: object
+      required: [data, total, page, limit]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    InvoiceInput:
+      type: object
+      required: [customerId, amount, dueDate]
+      properties:
+        customerId:
+          type: integer
+        subscriptionId:
+          type: integer
+        amount:
+          type: number
+        tax:
+          type: number
+        status:
+          type: string
+          enum: [draft, sent, paid, overdue, cancelled]
+        dueDate:
+          type: string
+        notes:
+          type: string
+
+    InvoiceUpdate:
+      type: object
+      properties:
+        amount:
+          type: number
+        tax:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [draft, sent, paid, overdue, cancelled]
+        dueDate:
+          type: string
+        paidAt:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+
+    # ── PAYMENTS ───────────────────────────────────────────────────────────────
+    Payment:
+      type: object
+      required:
+        - id
+        - customerId
+        - invoiceId
+        - amount
+        - method
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        invoiceId:
+          type: integer
+        amount:
+          type: number
+        method:
+          type: string
+          enum: [cash, bank_transfer, mobile_money, card, cheque]
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+        reference:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        customer:
+          $ref: "#/components/schemas/Customer"
+
+    PaymentInput:
+      type: object
+      required: [customerId, invoiceId, amount, method]
+      properties:
+        customerId:
+          type: integer
+        invoiceId:
+          type: integer
+        amount:
+          type: number
+        method:
+          type: string
+          enum: [cash, bank_transfer, mobile_money, card, cheque]
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+        reference:
+          type: string
+        notes:
+          type: string
+
+    # ── TICKETS ────────────────────────────────────────────────────────────────
+    Ticket:
+      type: object
+      required:
+        - id
+        - customerId
+        - subject
+        - description
+        - status
+        - priority
+        - createdAt
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        subject:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        category:
+          type: ["string", "null"]
+        assignedTo:
+          type: ["string", "null"]
+        resolvedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        customer:
+          $ref: "#/components/schemas/Customer"
+
+    TicketInput:
+      type: object
+      required: [customerId, subject, description]
+      properties:
+        customerId:
+          type: integer
+        subject:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        category:
+          type: string
+        assignedTo:
+          type: string
+
+    TicketUpdate:
+      type: object
+      properties:
+        subject:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        category:
+          type: ["string", "null"]
+        assignedTo:
+          type: ["string", "null"]
+        resolvedAt:
+          type: ["string", "null"]
+
+    TicketReply:
+      type: object
+      required: [id, ticketId, message, author, isStaff, createdAt]
+      properties:
+        id:
+          type: integer
+        ticketId:
+          type: integer
+        message:
+          type: string
+        author:
+          type: string
+        isStaff:
+          type: boolean
+        createdAt:
+          type: string
+
+    TicketReplyInput:
+      type: object
+      required: [message, author, isStaff]
+      properties:
+        message:
+          type: string
+        author:
+          type: string
+        isStaff:
+          type: boolean
+
+    # ── EQUIPMENT ──────────────────────────────────────────────────────────────
+    Equipment:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - model
+        - ipAddress
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [router, switch, olt, onu, access_point, server, other]
+        model:
+          type: string
+        brand:
+          type: ["string", "null"]
+        ipAddress:
+          type: string
+        macAddress:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [online, offline, maintenance, unknown]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    EquipmentInput:
+      type: object
+      required: [name, type, model, ipAddress]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [router, switch, olt, onu, access_point, server, other]
+        model:
+          type: string
+        brand:
+          type: string
+        ipAddress:
+          type: string
+        macAddress:
+          type: string
+        location:
+          type: string
+        status:
+          type: string
+          enum: [online, offline, maintenance, unknown]
+        notes:
+          type: string
+
+    EquipmentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [router, switch, olt, onu, access_point, server, other]
+        model:
+          type: string
+        brand:
+          type: ["string", "null"]
+        ipAddress:
+          type: string
+        macAddress:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [online, offline, maintenance, unknown]
+        notes:
+          type: ["string", "null"]
+
+    # ── IP POOLS ───────────────────────────────────────────────────────────────
+    IpPool:
+      type: object
+      required:
+        - id
+        - name
+        - network
+        - gateway
+        - subnetMask
+        - totalIps
+        - usedIps
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        network:
+          type: string
+          description: CIDR notation e.g. 192.168.1.0/24
+        gateway:
+          type: string
+        subnetMask:
+          type: string
+        dns1:
+          type: ["string", "null"]
+        dns2:
+          type: ["string", "null"]
+        totalIps:
+          type: integer
+        usedIps:
+          type: integer
+        description:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    IpPoolInput:
+      type: object
+      required: [name, network, gateway, subnetMask]
+      properties:
+        name:
+          type: string
+        network:
+          type: string
+        gateway:
+          type: string
+        subnetMask:
+          type: string
+        dns1:
+          type: string
+        dns2:
+          type: string
+        description:
+          type: string
+
+    IpPoolUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        gateway:
+          type: string
+        subnetMask:
+          type: string
+        dns1:
+          type: ["string", "null"]
+        dns2:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]

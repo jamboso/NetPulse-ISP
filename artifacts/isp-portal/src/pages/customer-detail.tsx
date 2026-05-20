@@ -6,7 +6,7 @@ import {
   useListTickets 
 } from "@workspace/api-client-react";
 import { 
-  User, Mail, Phone, MapPin, Calendar, CreditCard, Receipt, LifeBuoy, ArrowLeft, Edit
+  User, Mail, Phone, MapPin, Calendar, CreditCard, Receipt, LifeBuoy, ArrowLeft, Edit, KeyRound
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -142,6 +142,7 @@ export default function CustomerDetail() {
                   <TableHeader className="bg-gray-50">
                     <TableRow>
                       <TableHead>Plan</TableHead>
+                      <TableHead>PPPoE Username</TableHead>
                       <TableHead>IP Address</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Start Date</TableHead>
@@ -149,11 +150,21 @@ export default function CustomerDetail() {
                   </TableHeader>
                   <TableBody>
                     {loadingSubs ? (
-                      <TableRow><TableCell colSpan={4}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
                     ) : subs.length > 0 ? (
                       subs.map((sub: any) => (
                         <TableRow key={sub.id}>
                           <TableCell className="font-medium text-gray-900">{sub.plan?.name || `Plan #${sub.planId}`}</TableCell>
+                          <TableCell>
+                            {sub.pppoeUsername ? (
+                              <span className="flex items-center gap-1 font-mono text-xs text-gray-700">
+                                <KeyRound className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                                {sub.pppoeUsername}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-xs">—</span>
+                            )}
+                          </TableCell>
                           <TableCell className="font-mono text-sm text-gray-600">{sub.ipAddress || '—'}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={`capitalize ${sub.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}>
@@ -164,7 +175,7 @@ export default function CustomerDetail() {
                         </TableRow>
                       ))
                     ) : (
-                      <TableRow><TableCell colSpan={4} className="h-24 text-center text-gray-500">No subscriptions found</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="h-24 text-center text-gray-500">No subscriptions found</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>

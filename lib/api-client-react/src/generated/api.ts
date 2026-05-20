@@ -50,6 +50,7 @@ import type {
   PlanInput,
   PlanUpdate,
   RevenuePoint,
+  RosLiveData,
   RouterDevice,
   RouterDeviceInput,
   RouterDeviceUpdate,
@@ -3820,6 +3821,83 @@ export const useCreateRouter = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getCreateRouterMutationOptions(options));
     }
+
+export const getGetRouterRosLiveUrl = (id: number,) => {
+
+
+
+
+  return `/api/routers/${id}/ros/live`
+}
+
+/**
+ * @summary Fetch live RouterOS data (interfaces, PPPoE, resources, DHCP, logs)
+ */
+export const getRouterRosLive = async (id: number, options?: RequestInit): Promise<RosLiveData> => {
+
+  return customFetch<RosLiveData>(getGetRouterRosLiveUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRouterRosLiveQueryKey = (id: number,) => {
+    return [
+    `/api/routers/${id}/ros/live`
+    ] as const;
+    }
+
+
+export const getGetRouterRosLiveQueryOptions = <TData = Awaited<ReturnType<typeof getRouterRosLive>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRouterRosLive>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRouterRosLiveQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRouterRosLive>>> = ({ signal }) => getRouterRosLive(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRouterRosLive>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRouterRosLiveQueryResult = NonNullable<Awaited<ReturnType<typeof getRouterRosLive>>>
+export type GetRouterRosLiveQueryError = ErrorType<void>
+
+
+/**
+ * @summary Fetch live RouterOS data (interfaces, PPPoE, resources, DHCP, logs)
+ */
+
+export function useGetRouterRosLive<TData = Awaited<ReturnType<typeof getRouterRosLive>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRouterRosLive>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRouterRosLiveQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetRouterUrl = (id: number,) => {
 

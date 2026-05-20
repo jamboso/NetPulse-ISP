@@ -1146,6 +1146,31 @@ export const CreateRouterBody = zod.object({
 
 
 /**
+ * @summary Fetch live RouterOS data (interfaces, PPPoE, resources, DHCP, logs)
+ */
+export const GetRouterRosLiveParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetRouterRosLiveResponse = zod.object({
+  "routerId": zod.number(),
+  "fetchedAt": zod.string(),
+  "error": zod.string().nullish(),
+  "identity": zod.record(zod.string(), zod.unknown()).optional(),
+  "resources": zod.record(zod.string(), zod.unknown()).optional(),
+  "interfaces": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "pppoeActive": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "dhcpLeases": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "ipAddresses": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "queues": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "logs": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "wirelessClients": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "bgpPeers": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "ospfNeighbors": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
+
+
+/**
  * @summary Get router by ID
  */
 export const GetRouterParams = zod.object({

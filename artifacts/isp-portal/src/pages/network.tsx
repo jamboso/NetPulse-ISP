@@ -7,9 +7,10 @@ import {
   EquipmentInput, EquipmentUpdate,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
 import {
   Plus, Server, Route, Wifi, Pencil, Trash2, ChevronDown,
-  CheckCircle2, Circle, WrenchIcon, AlertTriangle,
+  CheckCircle2, Circle, WrenchIcon, AlertTriangle, LayoutDashboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -556,6 +557,15 @@ export default function Network() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          {r.routerType === "routeros" && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-indigo-600"
+                              title="Live RouterOS Dashboard"
+                              asChild>
+                              <Link href={`/network/routers/${r.id}`}>
+                                <LayoutDashboard className="w-3.5 h-3.5" />
+                              </Link>
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
                             onClick={() => setRouterDialog({
                               open: true, id: r.id,

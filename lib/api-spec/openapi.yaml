@@ -971,6 +971,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/RouterDevice"
 
+  /routers/{id}/ros/live:
+    get:
+      operationId: getRouterRosLive
+      tags: [routers]
+      summary: Fetch live RouterOS data (interfaces, PPPoE, resources, DHCP, logs)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Live RouterOS data bundle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RosLiveData"
+        "404":
+          description: Router not found
+        "502":
+          description: Cannot reach RouterOS device
+
   /routers/{id}:
     get:
       operationId: getRouter
@@ -1994,3 +2017,65 @@ components:
           type: ["integer", "null"]
         enabled:
           type: boolean
+
+    RosLiveData:
+      type: object
+      required: [routerId, fetchedAt]
+      properties:
+        routerId:
+          type: integer
+        fetchedAt:
+          type: string
+        error:
+          type: ["string", "null"]
+        identity:
+          type: object
+          additionalProperties: true
+        resources:
+          type: object
+          additionalProperties: true
+        interfaces:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        pppoeActive:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        dhcpLeases:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        ipAddresses:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        queues:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        logs:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        wirelessClients:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        bgpPeers:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        ospfNeighbors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true

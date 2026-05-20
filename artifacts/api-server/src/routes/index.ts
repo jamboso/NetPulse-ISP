@@ -13,6 +13,7 @@ import ipPoolsRouter from "./ipPools";
 import mpesaRouter from "./mpesa";
 import settingsRouter from "./settings";
 import routersRouter from "./routers";
+import rosRouter from "./ros";
 
 const router: IRouter = Router();
 
@@ -37,5 +38,6 @@ router.use(equipmentRouter);
 router.use(ipPoolsRouter);
 router.use(settingsRouter);
 router.use(routersRouter);
+router.use(rosRouter);
 
 export default router;

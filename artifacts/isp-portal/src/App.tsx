@@ -16,6 +16,7 @@ import Payments from "./pages/payments";
 import Tickets from "./pages/tickets";
 import TicketDetail from "./pages/ticket-detail";
 import Network from "./pages/network";
+import RouterOSDashboard from "./pages/ros-dashboard";
 import Settings from "./pages/settings";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
@@ -87,6 +88,7 @@ function ProtectedRoutes() {
         <Route path="/tickets" component={Tickets} />
         <Route path="/tickets/:id" component={TicketDetail} />
         <Route path="/network" component={Network} />
+        <Route path="/network/routers/:id" component={RouterOSDashboard} />
         <Route path="/settings" component={Settings} />
         <Route>
           <div className="p-8 text-center text-gray-500">Page not found.</div>

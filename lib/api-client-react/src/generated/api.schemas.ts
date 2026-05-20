@@ -868,6 +868,46 @@ export interface RouterDeviceUpdate {
   enabled?: boolean;
 }
 
+export type RosLiveDataIdentity = { [key: string]: unknown };
+
+export type RosLiveDataResources = { [key: string]: unknown };
+
+export type RosLiveDataInterfacesItem = { [key: string]: unknown };
+
+export type RosLiveDataPppoeActiveItem = { [key: string]: unknown };
+
+export type RosLiveDataDhcpLeasesItem = { [key: string]: unknown };
+
+export type RosLiveDataIpAddressesItem = { [key: string]: unknown };
+
+export type RosLiveDataQueuesItem = { [key: string]: unknown };
+
+export type RosLiveDataLogsItem = { [key: string]: unknown };
+
+export type RosLiveDataWirelessClientsItem = { [key: string]: unknown };
+
+export type RosLiveDataBgpPeersItem = { [key: string]: unknown };
+
+export type RosLiveDataOspfNeighborsItem = { [key: string]: unknown };
+
+export interface RosLiveData {
+  routerId: number;
+  fetchedAt: string;
+  /** @nullable */
+  error?: string | null;
+  identity?: RosLiveDataIdentity;
+  resources?: RosLiveDataResources;
+  interfaces?: RosLiveDataInterfacesItem[];
+  pppoeActive?: RosLiveDataPppoeActiveItem[];
+  dhcpLeases?: RosLiveDataDhcpLeasesItem[];
+  ipAddresses?: RosLiveDataIpAddressesItem[];
+  queues?: RosLiveDataQueuesItem[];
+  logs?: RosLiveDataLogsItem[];
+  wirelessClients?: RosLiveDataWirelessClientsItem[];
+  bgpPeers?: RosLiveDataBgpPeersItem[];
+  ospfNeighbors?: RosLiveDataOspfNeighborsItem[];
+}
+
 export type ListCustomersParams = {
 search?: string;
 status?: string;

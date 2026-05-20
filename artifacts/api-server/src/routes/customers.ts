@@ -54,7 +54,7 @@ router.post("/customers", async (req, res) => {
 router.get("/customers/:id", async (req, res) => {
   const id = parseInt(req.params.id!);
   const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, id));
-  if (!customer) return res.status(404).json({ error: "Not found" });
+  if (!customer) { res.status(404).json({ error: "Not found" }); return; }
   res.json(customer);
 });
 
@@ -69,7 +69,7 @@ router.patch("/customers/:id", async (req, res) => {
   if (body.status !== undefined) update.status = body.status;
   if (body.notes !== undefined) update.notes = body.notes;
   const [updated] = await db.update(customersTable).set(update).where(eq(customersTable.id, id)).returning();
-  if (!updated) return res.status(404).json({ error: "Not found" });
+  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(updated);
 });
 

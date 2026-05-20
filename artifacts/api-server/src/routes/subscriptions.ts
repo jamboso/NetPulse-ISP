@@ -53,7 +53,7 @@ router.get("/subscriptions/:id", async (req, res) => {
     .leftJoin(customersTable, eq(subscriptionsTable.customerId, customersTable.id))
     .leftJoin(plansTable, eq(subscriptionsTable.planId, plansTable.id))
     .where(eq(subscriptionsTable.id, id));
-  if (!row) return res.status(404).json({ error: "Not found" });
+  if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(formatSub(row.subscriptions, row.customers, row.plans));
 });
 
@@ -67,7 +67,7 @@ router.patch("/subscriptions/:id", async (req, res) => {
   if (body.ipAddress !== undefined) update.ipAddress = body.ipAddress;
   if (body.macAddress !== undefined) update.macAddress = body.macAddress;
   const [updated] = await db.update(subscriptionsTable).set(update).where(eq(subscriptionsTable.id, id)).returning();
-  if (!updated) return res.status(404).json({ error: "Not found" });
+  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(updated);
 });
 

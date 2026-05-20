@@ -52,7 +52,7 @@ router.get("/tickets/:id", async (req, res) => {
     .from(ticketsTable)
     .leftJoin(customersTable, eq(ticketsTable.customerId, customersTable.id))
     .where(eq(ticketsTable.id, id));
-  if (!row) return res.status(404).json({ error: "Not found" });
+  if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ...row.tickets, customer: row.customers ?? null });
 });
 
@@ -71,7 +71,7 @@ router.patch("/tickets/:id", async (req, res) => {
   if (body.assignedTo !== undefined) update.assignedTo = body.assignedTo;
   if (body.resolvedAt !== undefined) update.resolvedAt = body.resolvedAt;
   const [updated] = await db.update(ticketsTable).set(update).where(eq(ticketsTable.id, id)).returning();
-  if (!updated) return res.status(404).json({ error: "Not found" });
+  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(updated);
 });
 

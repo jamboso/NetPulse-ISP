@@ -38,8 +38,8 @@ router.post("/payments", async (req, res) => {
     notes: body.notes ?? null,
   }).returning();
 
-  // Mark invoice as paid if payment is completed
-  if (payment!.status === "completed") {
+  // Mark invoice as paid if payment is completed and linked to an invoice
+  if (payment!.status === "completed" && payment!.invoiceId != null) {
     await db.update(invoicesTable).set({ status: "paid", paidAt: new Date().toISOString() })
       .where(eq(invoicesTable.id, payment!.invoiceId));
   }
@@ -54,7 +54,7 @@ router.get("/payments/:id", async (req, res) => {
     .from(paymentsTable)
     .leftJoin(customersTable, eq(paymentsTable.customerId, customersTable.id))
     .where(eq(paymentsTable.id, id));
-  if (!row) return res.status(404).json({ error: "Not found" });
+  if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(fmt(row.payments, row.customers));
 });
 

@@ -35,7 +35,7 @@ router.post("/equipment", async (req, res) => {
 router.get("/equipment/:id", async (req, res) => {
   const id = parseInt(req.params.id!);
   const [item] = await db.select().from(equipmentTable).where(eq(equipmentTable.id, id));
-  if (!item) return res.status(404).json({ error: "Not found" });
+  if (!item) { res.status(404).json({ error: "Not found" }); return; }
   res.json(item);
 });
 
@@ -53,7 +53,7 @@ router.patch("/equipment/:id", async (req, res) => {
   if (body.status !== undefined) update.status = body.status;
   if (body.notes !== undefined) update.notes = body.notes;
   const [updated] = await db.update(equipmentTable).set(update).where(eq(equipmentTable.id, id)).returning();
-  if (!updated) return res.status(404).json({ error: "Not found" });
+  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(updated);
 });
 

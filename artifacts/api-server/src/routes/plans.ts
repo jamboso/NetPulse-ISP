@@ -27,7 +27,7 @@ router.post("/plans", async (req, res) => {
 router.get("/plans/:id", async (req, res) => {
   const id = parseInt(req.params.id!);
   const [plan] = await db.select().from(plansTable).where(eq(plansTable.id, id));
-  if (!plan) return res.status(404).json({ error: "Not found" });
+  if (!plan) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ...plan, price: Number(plan.price) });
 });
 
@@ -43,7 +43,7 @@ router.patch("/plans/:id", async (req, res) => {
   if (body.billingCycle !== undefined) update.billingCycle = body.billingCycle;
   if (body.isActive !== undefined) update.isActive = body.isActive;
   const [updated] = await db.update(plansTable).set(update).where(eq(plansTable.id, id)).returning();
-  if (!updated) return res.status(404).json({ error: "Not found" });
+  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ...updated, price: Number(updated.price) });
 });
 

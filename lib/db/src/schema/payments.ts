@@ -6,8 +6,8 @@ import { invoicesTable } from "./invoices";
 
 export const paymentsTable = pgTable("payments", {
   id: serial("id").primaryKey(),
-  customerId: integer("customer_id").notNull().references(() => customersTable.id),
-  invoiceId: integer("invoice_id").notNull().references(() => invoicesTable.id),
+  customerId: integer("customer_id").references(() => customersTable.id),
+  invoiceId: integer("invoice_id").references(() => invoicesTable.id),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   method: text("method").notNull().default("cash"),
   status: text("status").notNull().default("completed"),

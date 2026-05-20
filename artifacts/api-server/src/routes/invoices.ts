@@ -62,7 +62,7 @@ router.get("/invoices/:id", async (req, res) => {
     .from(invoicesTable)
     .leftJoin(customersTable, eq(invoicesTable.customerId, customersTable.id))
     .where(eq(invoicesTable.id, id));
-  if (!row) return res.status(404).json({ error: "Not found" });
+  if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(fmt(row.invoices, row.customers));
 });
 
@@ -80,7 +80,7 @@ router.patch("/invoices/:id", async (req, res) => {
   if (body.paidAt !== undefined) update.paidAt = body.paidAt;
   if (body.notes !== undefined) update.notes = body.notes;
   const [updated] = await db.update(invoicesTable).set(update).where(eq(invoicesTable.id, id)).returning();
-  if (!updated) return res.status(404).json({ error: "Not found" });
+  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(fmt(updated));
 });
 

@@ -34,7 +34,7 @@ router.post("/ip-pools", async (req, res) => {
 router.get("/ip-pools/:id", async (req, res) => {
   const id = parseInt(req.params.id!);
   const [pool] = await db.select().from(ipPoolsTable).where(eq(ipPoolsTable.id, id));
-  if (!pool) return res.status(404).json({ error: "Not found" });
+  if (!pool) { res.status(404).json({ error: "Not found" }); return; }
   res.json(pool);
 });
 
@@ -49,7 +49,7 @@ router.patch("/ip-pools/:id", async (req, res) => {
   if (body.dns2 !== undefined) update.dns2 = body.dns2;
   if (body.description !== undefined) update.description = body.description;
   const [updated] = await db.update(ipPoolsTable).set(update).where(eq(ipPoolsTable.id, id)).returning();
-  if (!updated) return res.status(404).json({ error: "Not found" });
+  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(updated);
 });
 

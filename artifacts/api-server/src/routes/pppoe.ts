@@ -154,19 +154,7 @@ router.post("/routers/:id/ros/pppoe/setup", async (req, res) => {
     })
   );
 
-  // 2. Create/update PPP default profile
-  await tryStep("Configure PPP default profile", () =>
-    rosReq(ip, ssl ?? false, user, pass, "PATCH", "/ppp/profile/default", {
-      "local-address": localAddress,
-      "remote-address": poolName,
-      "use-compression": "no",
-      "use-encryption": "no",
-      "only-one": "no",
-      dns: dnsServers.split(",").map(s => s.trim()),
-    })
-  );
-
-  // 3. Create speed-tier profiles
+  // 2. Create speed-tier profiles
   const defaultProfiles = profiles.length > 0 ? profiles : [
     { name: "plan-2mbps", downloadKbps: 2048, uploadKbps: 1024 },
     { name: "plan-5mbps", downloadKbps: 5120, uploadKbps: 2048 },
@@ -185,7 +173,7 @@ router.post("/routers/:id/ros/pppoe/setup", async (req, res) => {
         "remote-address": poolName,
         "rate-limit": rateLimit,
         "session-timeout": p.sessionLimit ?? "0",
-        dns: dnsServers.split(",").map(s => s.trim()),
+        dns: dnsServers.split(",").map(s => s.trim()).join(","),
       })
     );
   }

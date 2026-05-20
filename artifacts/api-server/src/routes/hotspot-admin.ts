@@ -185,11 +185,11 @@ router.post("/routers/:id/ros/hotspot/setup", async (req, res) => {
     })
   );
 
-  // 6. DNS servers (optional)
+  // 6. DNS servers (optional) — /ip/dns is a singleton; servers must be a CSV string
   if (dnsServers) {
     await tryStep("Configure DNS servers", () =>
       rosReq(ip, ssl ?? false, user, pass, "PATCH", "/ip/dns", {
-        servers: dnsServers.split(",").map(s => s.trim()),
+        servers: dnsServers.split(",").map(s => s.trim()).join(","),
         "allow-remote-requests": "yes",
       })
     );

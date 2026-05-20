@@ -502,6 +502,9 @@ export default function Network() {
               <Badge variant="secondary" className="ml-1 bg-gray-200 text-gray-700 text-xs px-1.5">{ipPoolsData.length}</Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="hotspot" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Wifi className="w-4 h-4" /> Hotspot
+          </TabsTrigger>
         </TabsList>
 
         {/* ── ROUTERS ───────────────────────────────────────────────────── */}
@@ -774,6 +777,84 @@ export default function Network() {
                 )}
               </TableBody>
             </Table>
+          </div>
+        </TabsContent>
+
+        {/* ── HOTSPOT ───────────────────────────────────────────────────── */}
+        <TabsContent value="hotspot" className="mt-6">
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 rounded-xl p-5">
+              <div className="flex items-start gap-4">
+                <div className="bg-violet-600 p-2.5 rounded-xl shrink-0">
+                  <Wifi className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-violet-900 mb-1">Hotspot Management</h3>
+                  <p className="text-sm text-violet-700 mb-3">
+                    Each RouterOS router can run its own hotspot with a branded M-Pesa captive portal.
+                    Select a router below to configure its hotspot, manage packages, and view voucher history.
+                  </p>
+                  <p className="text-xs text-violet-500">
+                    Features: M-Pesa STK Push payments · Per-session voucher provisioning · Speed tier profiles · MAC auto-login · Walled garden for Safaricom APIs
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {loadingRouters ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-36 rounded-xl" />)}
+              </div>
+            ) : routersData && routersData.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {routersData.filter(r => r.routerType === "routeros").map(router => (
+                  <div key={router.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:border-violet-300 hover:shadow-md transition-all">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">{router.name}</h4>
+                        <p className="text-xs text-gray-500 mt-0.5">{router.ipAddress}</p>
+                        {router.location && <p className="text-xs text-gray-400">{router.location}</p>}
+                      </div>
+                      <Badge variant="outline" className="text-xs shrink-0 bg-violet-50 text-violet-700 border-violet-200">
+                        RouterOS
+                      </Badge>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <Link href={`/network/routers/${router.id}/hotspot`}
+                        className="flex-1 text-center bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold py-2 rounded-lg transition-colors">
+                        Manage Hotspot
+                      </Link>
+                      <a href={`/hotspot/${router.id}`} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-1 border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-medium px-3 py-2 rounded-lg transition-colors">
+                        Portal
+                      </a>
+                    </div>
+                  </div>
+                ))}
+                {routersData.filter(r => r.routerType !== "routeros").length > 0 && (
+                  <div className="col-span-full">
+                    <p className="text-xs text-gray-400 text-center py-2">
+                      {routersData.filter(r => r.routerType !== "routeros").length} non-RouterOS device(s) not shown — Hotspot is only supported on MikroTik RouterOS
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border-2 border-dashed border-gray-200 p-10 text-center">
+                <Wifi className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 font-medium mb-1">No RouterOS devices yet</p>
+                <p className="text-sm text-gray-400 mb-4">Add a MikroTik router on the Routers tab to enable hotspot management.</p>
+                <button
+                  className="text-blue-600 text-sm font-medium hover:underline"
+                  onClick={() => {
+                    const el = document.querySelector<HTMLButtonElement>('[data-value="routers"]') ?? document.querySelector<HTMLButtonElement>('[value="routers"]');
+                    el?.click();
+                  }}
+                >
+                  Go to Routers tab →
+                </button>
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>

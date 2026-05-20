@@ -8,3 +8,4 @@ export * from "./equipment";
 export * from "./ipPools";
 export * from "./settings";
 export * from "./routers";
+export * from "./hotspot";

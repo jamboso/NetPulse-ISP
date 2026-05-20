@@ -4,7 +4,7 @@ import { useGetRouterRosLive, useGetRouter } from "@workspace/api-client-react";
 import {
   ArrowLeft, RefreshCw, Wifi, Activity, Users, Server, HardDrive,
   Clock, AlertTriangle, CheckCircle2, XCircle, Terminal, Layers,
-  Network, Cpu, MemoryStick, Radio,
+  Network, Cpu, MemoryStick, Radio, Settings, Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -248,7 +248,17 @@ export default function RouterOSDashboard() {
             {res?.["architecture-name"] ? ` · ${res["architecture-name"]}` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <Button variant="outline" size="sm" className="gap-1.5 border-orange-200 text-orange-700 hover:bg-orange-50" asChild>
+            <Link href={`/network/routers/${routerId}/pppoe`}>
+              <Settings className="w-3.5 h-3.5" /> PPPoE Server
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50" asChild>
+            <Link href={`/network/routers/${routerId}/hotspot`}>
+              <Globe className="w-3.5 h-3.5" /> Hotspot
+            </Link>
+          </Button>
           <span className="text-xs text-gray-400">
             {lastRefreshed ? `Updated ${lastRefreshed.toLocaleTimeString()}` : ""}
           </span>

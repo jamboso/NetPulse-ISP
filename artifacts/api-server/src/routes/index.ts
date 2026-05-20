@@ -14,6 +14,9 @@ import mpesaRouter from "./mpesa";
 import settingsRouter from "./settings";
 import routersRouter from "./routers";
 import rosRouter from "./ros";
+import pppoeRouter from "./pppoe";
+import hotspotAdminRouter from "./hotspot-admin";
+import hotspotPortalRouter from "./hotspot-portal";
 
 const router: IRouter = Router();
 
@@ -23,6 +26,9 @@ router.use(healthRouter);
 // M-Pesa callback endpoints are public (Safaricom calls them directly)
 // but STK Push and status require auth — handled inside mpesaRouter
 router.use(mpesaRouter);
+
+// Hotspot portal API — public (captive portal for WiFi customers)
+router.use(hotspotPortalRouter);
 
 // All routes below require a valid Clerk session
 router.use(requireAuth);
@@ -39,5 +45,7 @@ router.use(ipPoolsRouter);
 router.use(settingsRouter);
 router.use(routersRouter);
 router.use(rosRouter);
+router.use(pppoeRouter);
+router.use(hotspotAdminRouter);
 
 export default router;

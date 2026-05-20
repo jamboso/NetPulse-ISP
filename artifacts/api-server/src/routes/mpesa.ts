@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { paymentsTable, invoicesTable, customersTable } from "@workspace/db";
+import { paymentsTable, invoicesTable, customersTable, hotspotVouchersTable, hotspotPackagesTable, routersTable } from "@workspace/db";
 import { eq, ilike } from "drizzle-orm";
 
 const router = Router();
@@ -143,6 +143,72 @@ router.post("/mpesa/callback", async (req, res) => {
   }
 
   try {
+    // ── Check if this is a hotspot voucher payment ─────────────────────────
+    const [pendingVoucher] = await db
+      .select()
+      .from(hotspotVouchersTable)
+      .where(eq(hotspotVouchersTable.checkoutRequestId, cb.CheckoutRequestID))
+      .limit(1);
+
+    if (pendingVoucher) {
+      // Provision hotspot access
+      const [pkg] = pendingVoucher.packageId
+        ? await db.select().from(hotspotPackagesTable).where(eq(hotspotPackagesTable.id, pendingVoucher.packageId))
+        : [null];
+      const [r] = await db.select().from(routersTable).where(eq(routersTable.id, pendingVoucher.routerId));
+
+      const expiresAt = new Date(Date.now() + ((pkg?.durationMinutes ?? 60) * 60 * 1000));
+      const profileName = pkg ? `hs-${
+        (pkg.downloadSpeedKbps ?? 0) >= 10240 ? "10mbps" :
+        (pkg.downloadSpeedKbps ?? 0) >= 5120 ? "5mbps" :
+        (pkg.downloadSpeedKbps ?? 0) >= 2048 ? "2mbps" : "1mbps"
+      }` : "hs-1mbps";
+
+      // Create hotspot user on RouterOS
+      if (r) {
+        try {
+          const scheme = r.apiSsl ? "https" : "http";
+          const creds = Buffer.from(`${r.username}:${r.password}`).toString("base64");
+          const timeLimitSeconds = (pkg?.durationMinutes ?? 60) * 60;
+
+          // Create hotspot user (MAC-based auto-login if MAC known)
+          await fetch(`${scheme}://${r.ipAddress}/rest/ip/hotspot/user`, {
+            method: "PUT",
+            headers: {
+              Authorization: `Basic ${creds}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name: pendingVoucher.username,
+              password: pendingVoucher.password,
+              profile: profileName,
+              "limit-uptime": `${timeLimitSeconds}s`,
+              ...(pkg?.dataLimitMb ? { "limit-bytes-total": String(pkg.dataLimitMb * 1024 * 1024) } : {}),
+              ...(pendingVoucher.macAddress ? { "mac-address": pendingVoucher.macAddress } : {}),
+              comment: `Voucher #${pendingVoucher.id} | Phone: ${pendingVoucher.phone} | Ref: ${mpesaRef}`,
+            }),
+          });
+          req.log.info({ voucherId: pendingVoucher.id, routerId: r.id }, "Hotspot user created on RouterOS");
+        } catch (e) {
+          req.log.error({ e }, "Failed to create RouterOS hotspot user");
+        }
+      }
+
+      // Update voucher status
+      await db.update(hotspotVouchersTable).set({
+        status: "active",
+        mpesaRef,
+        amountPaid: String(amount),
+        activatedAt: new Date(),
+        expiresAt,
+      }).where(eq(hotspotVouchersTable.id, pendingVoucher.id));
+
+      req.log.info({ mpesaRef, voucherId: pendingVoucher.id }, "Hotspot voucher activated");
+      res.json({ ResultCode: 0, ResultDesc: "Accepted" });
+      return;
+    }
+
+    // ── Standard ISP subscriber payment ───────────────────────────────────
     const [customer] = await db
       .select()
       .from(customersTable)

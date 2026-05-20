@@ -17,6 +17,9 @@ import Tickets from "./pages/tickets";
 import TicketDetail from "./pages/ticket-detail";
 import Network from "./pages/network";
 import RouterOSDashboard from "./pages/ros-dashboard";
+import PPPoESetup from "./pages/pppoe-setup";
+import HotspotManager from "./pages/hotspot-manager";
+import CaptivePortal from "./pages/captive-portal";
 import Settings from "./pages/settings";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
@@ -89,6 +92,8 @@ function ProtectedRoutes() {
         <Route path="/tickets/:id" component={TicketDetail} />
         <Route path="/network" component={Network} />
         <Route path="/network/routers/:id" component={RouterOSDashboard} />
+        <Route path="/network/routers/:id/pppoe" component={PPPoESetup} />
+        <Route path="/network/routers/:id/hotspot" component={HotspotManager} />
         <Route path="/settings" component={Settings} />
         <Route>
           <div className="p-8 text-center text-gray-500">Page not found.</div>
@@ -103,6 +108,7 @@ function AppRouter() {
     <Switch>
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
+      <Route path="/hotspot/:routerId" component={CaptivePortal} />
       <Route>
         <Show when="signed-in">
           <ProtectedRoutes />

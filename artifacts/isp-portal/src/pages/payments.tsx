@@ -1,38 +1,166 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { useListPayments } from "@workspace/api-client-react";
-import { Plus, Filter, CreditCard, ArrowDownToLine, Receipt } from "lucide-react";
+import {
+  useListPayments, useCreatePayment,
+  useListCustomers, useListInvoices,
+  type PaymentInput,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Plus, CreditCard, ArrowDownToLine, Receipt, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { format } from "date-fns";
 
+const STATUS_COLORS: Record<string, string> = {
+  completed: "bg-green-100 text-green-700 border-green-200",
+  pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  failed: "bg-red-100 text-red-700 border-red-200",
+  refunded: "bg-gray-100 text-gray-700 border-gray-200",
+};
+
+function methodIcon(m: string) {
+  if (m === "mpesa") return <Smartphone className="w-4 h-4 text-green-600" />;
+  if (m === "card") return <CreditCard className="w-4 h-4 text-gray-500" />;
+  if (m === "bank_transfer") return <ArrowDownToLine className="w-4 h-4 text-gray-500" />;
+  return <Receipt className="w-4 h-4 text-gray-500" />;
+}
+
+function formatMethod(m: string) {
+  if (m === "mpesa") return "M-Pesa";
+  return m.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+type PayForm = { customerId: string; invoiceId: string; amount: string; method: string; status: string; reference: string; notes: string };
+const EMPTY: PayForm = { customerId: "", invoiceId: "", amount: "", method: "mpesa", status: "completed", reference: "", notes: "" };
+
+function PaymentDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const createMutation = useCreatePayment();
+  const { data: customers } = useListCustomers({ limit: 200 });
+  const { data: invoicesData } = useListInvoices({ limit: 200 });
+  const [form, setForm] = useState<PayForm>(EMPTY);
+  const [saving, setSaving] = useState(false);
+  const set = (k: keyof PayForm, v: string) => setForm(p => ({ ...p, [k]: v }));
+
+  const invoices = (invoicesData as any)?.data ?? invoicesData ?? [];
+  const customerInvoices = form.customerId
+    ? invoices.filter((inv: any) => String(inv.customerId) === form.customerId && inv.status !== "paid" && inv.status !== "cancelled")
+    : [];
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await createMutation.mutateAsync({
+        data: {
+          customerId: Number(form.customerId),
+          invoiceId: Number(form.invoiceId),
+          amount: Number(form.amount),
+          method: form.method as PaymentInput["method"],
+          status: form.status as PaymentInput["status"],
+          reference: form.reference || undefined,
+          notes: form.notes || undefined,
+        } as PaymentInput,
+      });
+      await qc.invalidateQueries({ queryKey: ["/api/payments"] });
+      await qc.invalidateQueries({ queryKey: ["/api/invoices"] });
+      onClose();
+      setForm(EMPTY);
+    } finally { setSaving(false); }
+  };
+
+  const valid = form.customerId && form.invoiceId && form.amount && form.method;
+
+  return (
+    <Dialog open={open} onOpenChange={o => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Record Payment</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1"><Label>Customer *</Label>
+            <Select value={form.customerId} onValueChange={v => { set("customerId", v); set("invoiceId", ""); set("amount", ""); }}>
+              <SelectTrigger><SelectValue placeholder="Select customer…" /></SelectTrigger>
+              <SelectContent>
+                {customers?.data?.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1"><Label>Invoice *</Label>
+            <Select value={form.invoiceId} onValueChange={v => {
+              set("invoiceId", v);
+              const inv = invoices.find((i: any) => String(i.id) === v);
+              if (inv) set("amount", String(inv.total ?? inv.amount));
+            }}>
+              <SelectTrigger><SelectValue placeholder="Select invoice…" /></SelectTrigger>
+              <SelectContent>
+                {customerInvoices.length > 0
+                  ? customerInvoices.map((inv: any) => (
+                    <SelectItem key={inv.id} value={String(inv.id)}>
+                      INV-{String(inv.id).padStart(5, "0")} — ${(inv.total ?? inv.amount).toFixed(2)} ({inv.status})
+                    </SelectItem>
+                  ))
+                  : <SelectItem value="" disabled>No unpaid invoices</SelectItem>}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><Label>Amount *</Label>
+              <Input type="number" value={form.amount} onChange={e => set("amount", e.target.value)} placeholder="1500.00" />
+            </div>
+            <div className="space-y-1"><Label>Method *</Label>
+              <Select value={form.method} onValueChange={v => set("method", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mpesa">M-Pesa</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="card">Card</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><Label>Status</Label>
+              <Select value={form.status} onValueChange={v => set("status", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="refunded">Refunded</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1"><Label>Reference / TXN ID</Label>
+              <Input value={form.reference} onChange={e => set("reference", e.target.value)} placeholder="QH2K9XY4JF" />
+            </div>
+          </div>
+          <div className="space-y-1"><Label>Notes</Label>
+            <Textarea rows={2} className="resize-none" value={form.notes} onChange={e => set("notes", e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || !valid} className="bg-blue-600 hover:bg-blue-700 text-white">
+            {saving ? "Saving…" : "Record Payment"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Payments() {
-  const { data: paymentsData, isLoading } = useListPayments({ limit: 50 });
+  const { data: paymentsData, isLoading } = useListPayments({});
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-700 border-green-200';
-      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'failed': return 'bg-red-100 text-red-700 border-red-200';
-      case 'refunded': return 'bg-gray-100 text-gray-700 border-gray-200';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  const getMethodIcon = (method: string) => {
-    switch (method) {
-      case 'card': return <CreditCard className="w-4 h-4 text-gray-500" />;
-      case 'bank_transfer': return <ArrowDownToLine className="w-4 h-4 text-gray-500" />;
-      case 'cash': return <Receipt className="w-4 h-4 text-gray-500" />;
-      default: return <CreditCard className="w-4 h-4 text-gray-500" />;
-    }
-  };
-
-  const formatMethod = (method: string) => {
-    return method.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  };
+  const payments = (paymentsData as any)?.data ?? paymentsData ?? [];
 
   return (
     <div className="space-y-6">
@@ -41,27 +169,17 @@ export default function Payments() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Payments</h1>
           <p className="text-gray-500 text-sm">Track incoming revenue and transaction history.</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-          <Plus className="w-4 h-4 mr-2" />
-          Record Payment
+        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialogOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" /> Record Payment
         </Button>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-          <div className="flex items-center text-sm font-medium text-gray-700">
-            Recent Transactions
-          </div>
-          <Button variant="outline" size="sm" className="bg-white">
-            <Filter className="w-4 h-4 mr-2" /> Filter
-          </Button>
-        </div>
-
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-gray-50">
               <TableRow>
-                <TableHead>Transaction Ref</TableHead>
+                <TableHead>Ref / TXN</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Invoice</TableHead>
                 <TableHead>Amount</TableHead>
@@ -71,64 +189,35 @@ export default function Payments() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                  </TableRow>
-                ))
-              ) : paymentsData?.data && paymentsData.data.length > 0 ? (
-                paymentsData.data.map((payment) => (
+              {isLoading ? Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>{Array.from({ length: 8 }).map((__, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
+              )) : Array.isArray(payments) && payments.length > 0 ? (
+                payments.map((payment: any) => (
                   <TableRow key={payment.id} className="hover:bg-gray-50/50">
-                    <TableCell className="font-mono text-sm text-gray-500">
-                      {payment.reference || `TXN-${String(payment.id).padStart(6, '0')}`}
-                    </TableCell>
+                    <TableCell className="font-mono text-sm text-gray-500">{payment.reference || `TXN-${String(payment.id).padStart(6, "0")}`}</TableCell>
                     <TableCell className="font-medium text-gray-900">
-                      {payment.customer ? (
-                        <Link href={`/customers/${payment.customerId}`} className="hover:text-blue-600 hover:underline">
-                          {payment.customer.name}
-                        </Link>
-                      ) : `Customer #${payment.customerId}`}
+                      {payment.customer ? <Link href={`/customers/${payment.customerId}`} className="hover:text-blue-600 hover:underline">{payment.customer.name}</Link> : `Customer #${payment.customerId}`}
                     </TableCell>
-                    <TableCell className="font-mono text-sm text-blue-600 hover:underline cursor-pointer">
-                      INV-{String(payment.invoiceId).padStart(5, '0')}
-                    </TableCell>
-                    <TableCell className="font-bold text-gray-900">
-                      ${payment.amount.toFixed(2)}
+                    <TableCell className="font-mono text-sm text-blue-600">INV-{String(payment.invoiceId).padStart(5, "0")}</TableCell>
+                    <TableCell className="font-bold text-gray-900">${payment.amount.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 text-gray-700 text-sm">{methodIcon(payment.method)}{formatMethod(payment.method)}</div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2 text-gray-700 text-sm">
-                        {getMethodIcon(payment.method)}
-                        {formatMethod(payment.method)}
-                      </div>
+                      <Badge variant="outline" className={`capitalize ${STATUS_COLORS[payment.status] ?? ""}`}>{payment.status}</Badge>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`capitalize ${getStatusColor(payment.status)}`}>
-                        {payment.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-600">
-                      {format(new Date(payment.createdAt), 'MMM d, yyyy h:mm a')}
-                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">{format(new Date(payment.createdAt), "MMM d, yyyy h:mm a")}</TableCell>
                   </TableRow>
                 ))
               ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-gray-500">
-                    No payments found.
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={7} className="h-24 text-center text-gray-500">No payments recorded yet.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </div>
       </div>
+
+      <PaymentDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import {
   useListTickets 
 } from "@workspace/api-client-react";
 import { 
-  User, Mail, Phone, MapPin, Calendar, CreditCard, Receipt, LifeBuoy, ArrowLeft, MoreVertical, Edit
+  User, Mail, Phone, MapPin, Calendar, CreditCard, Receipt, LifeBuoy, ArrowLeft, Edit
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,24 +19,14 @@ export default function CustomerDetail() {
   const { id } = useParams();
   const customerId = parseInt(id || "0", 10);
 
-  const { data: customer, isLoading: loadingCustomer } = useGetCustomer(customerId, {
-    query: { enabled: !!customerId }
-  });
-  
-  const { data: subscriptionsData, isLoading: loadingSubs } = useListSubscriptions(
-    { customerId },
-    { query: { enabled: !!customerId } }
-  );
+  const { data: customer, isLoading: loadingCustomer } = useGetCustomer(customerId);
+  const { data: subscriptionsData, isLoading: loadingSubs } = useListSubscriptions({ customerId });
+  const { data: invoicesData, isLoading: loadingInvoices } = useListInvoices({ customerId, limit: 10 });
+  const { data: ticketsData, isLoading: loadingTickets } = useListTickets({ customerId });
 
-  const { data: invoicesData, isLoading: loadingInvoices } = useListInvoices(
-    { customerId, limit: 10 },
-    { query: { enabled: !!customerId } }
-  );
-
-  const { data: ticketsData, isLoading: loadingTickets } = useListTickets(
-    { customerId },
-    { query: { enabled: !!customerId } }
-  );
+  const subs = Array.isArray(subscriptionsData) ? subscriptionsData : [];
+  const tickets = Array.isArray(ticketsData) ? ticketsData : [];
+  const invoices = (invoicesData as any)?.data ?? invoicesData ?? [];
 
   if (loadingCustomer) {
     return (
@@ -44,9 +34,7 @@ export default function CustomerDetail() {
         <Skeleton className="h-8 w-32" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Skeleton className="h-[400px] rounded-xl" />
-          <div className="lg:col-span-2">
-            <Skeleton className="h-[400px] rounded-xl" />
-          </div>
+          <div className="lg:col-span-2"><Skeleton className="h-[400px] rounded-xl" /></div>
         </div>
       </div>
     );
@@ -57,9 +45,7 @@ export default function CustomerDetail() {
       <div className="text-center py-12">
         <h2 className="text-xl font-bold text-gray-900">Customer not found</h2>
         <p className="text-gray-500 mt-2">The customer you're looking for doesn't exist or has been deleted.</p>
-        <Button asChild className="mt-4">
-          <Link href="/customers">Back to Customers</Link>
-        </Button>
+        <Button asChild className="mt-4"><Link href="/customers">Back to Customers</Link></Button>
       </div>
     );
   }
@@ -82,27 +68,21 @@ export default function CustomerDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">{customer.name}</h1>
-            <Badge variant="outline" className={`capitalize ${getStatusColor(customer.status)}`}>
-              {customer.status}
-            </Badge>
+            <Badge variant="outline" className={`capitalize ${getStatusColor(customer.status)}`}>{customer.status}</Badge>
           </div>
           <p className="text-gray-500 text-sm">Customer ID: #{customer.id}</p>
         </div>
         <Button variant="outline" className="bg-white">
-          <Edit className="w-4 h-4 mr-2" />
-          Edit Profile
+          <Edit className="w-4 h-4 mr-2" /> Edit Profile
         </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Profile Info */}
         <div className="space-y-6">
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
             <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
-              <User className="w-4 h-4 mr-2 text-gray-500" />
-              Contact Information
+              <User className="w-4 h-4 mr-2 text-gray-500" /> Contact Information
             </h3>
-            
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <Mail className="w-4 h-4 text-gray-400 mt-0.5" />
@@ -111,7 +91,6 @@ export default function CustomerDetail() {
                   <a href={`mailto:${customer.email}`} className="text-sm text-blue-600 hover:underline">{customer.email}</a>
                 </div>
               </div>
-              
               <div className="flex items-start gap-3">
                 <Phone className="w-4 h-4 text-gray-400 mt-0.5" />
                 <div>
@@ -119,7 +98,6 @@ export default function CustomerDetail() {
                   <a href={`tel:${customer.phone}`} className="text-sm text-blue-600 hover:underline">{customer.phone}</a>
                 </div>
               </div>
-              
               <div className="flex items-start gap-3">
                 <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
                 <div>
@@ -127,7 +105,6 @@ export default function CustomerDetail() {
                   <p className="text-sm text-gray-600">{customer.address}</p>
                 </div>
               </div>
-
               <div className="flex items-start gap-3">
                 <Calendar className="w-4 h-4 text-gray-400 mt-0.5" />
                 <div>
@@ -137,7 +114,6 @@ export default function CustomerDetail() {
               </div>
             </div>
           </div>
-
           {customer.notes && (
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
               <h3 className="font-semibold text-gray-900 mb-2 text-sm">Staff Notes</h3>
@@ -146,24 +122,20 @@ export default function CustomerDetail() {
           )}
         </div>
 
-        {/* Right Column - Tabs */}
         <div className="lg:col-span-2">
           <Tabs defaultValue="subscriptions" className="w-full">
             <TabsList className="bg-gray-100 p-1 w-full justify-start rounded-lg mb-6">
               <TabsTrigger value="subscriptions" className="data-[state=active]:bg-white rounded-md">
-                <CreditCard className="w-4 h-4 mr-2" />
-                Subscriptions ({subscriptionsData?.data?.length || 0})
+                <CreditCard className="w-4 h-4 mr-2" /> Subscriptions ({subs.length})
               </TabsTrigger>
               <TabsTrigger value="invoices" className="data-[state=active]:bg-white rounded-md">
-                <Receipt className="w-4 h-4 mr-2" />
-                Invoices ({invoicesData?.data?.length || 0})
+                <Receipt className="w-4 h-4 mr-2" /> Invoices ({Array.isArray(invoices) ? invoices.length : 0})
               </TabsTrigger>
               <TabsTrigger value="tickets" className="data-[state=active]:bg-white rounded-md">
-                <LifeBuoy className="w-4 h-4 mr-2" />
-                Tickets ({ticketsData?.data?.length || 0})
+                <LifeBuoy className="w-4 h-4 mr-2" /> Tickets ({tickets.length})
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="subscriptions" className="m-0">
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                 <Table>
@@ -178,8 +150,8 @@ export default function CustomerDetail() {
                   <TableBody>
                     {loadingSubs ? (
                       <TableRow><TableCell colSpan={4}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
-                    ) : subscriptionsData?.data && subscriptionsData.data.length > 0 ? (
-                      subscriptionsData.data.map(sub => (
+                    ) : subs.length > 0 ? (
+                      subs.map((sub: any) => (
                         <TableRow key={sub.id}>
                           <TableCell className="font-medium text-gray-900">{sub.plan?.name || `Plan #${sub.planId}`}</TableCell>
                           <TableCell className="font-mono text-sm text-gray-600">{sub.ipAddress || '—'}</TableCell>
@@ -192,9 +164,7 @@ export default function CustomerDetail() {
                         </TableRow>
                       ))
                     ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center text-gray-500">No subscriptions found</TableCell>
-                      </TableRow>
+                      <TableRow><TableCell colSpan={4} className="h-24 text-center text-gray-500">No subscriptions found</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -215,11 +185,11 @@ export default function CustomerDetail() {
                   <TableBody>
                     {loadingInvoices ? (
                       <TableRow><TableCell colSpan={4}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
-                    ) : invoicesData?.data && invoicesData.data.length > 0 ? (
-                      invoicesData.data.map(invoice => (
+                    ) : Array.isArray(invoices) && invoices.length > 0 ? (
+                      invoices.map((invoice: any) => (
                         <TableRow key={invoice.id}>
                           <TableCell className="font-mono text-sm text-gray-600">INV-{String(invoice.id).padStart(5, '0')}</TableCell>
-                          <TableCell className="font-medium text-gray-900">${invoice.total?.toFixed(2) || invoice.amount.toFixed(2)}</TableCell>
+                          <TableCell className="font-medium text-gray-900">${(invoice.total ?? invoice.amount).toFixed(2)}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={`capitalize ${invoice.status === 'paid' ? 'bg-green-100 text-green-700' : invoice.status === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-gray-100'}`}>
                               {invoice.status}
@@ -231,9 +201,7 @@ export default function CustomerDetail() {
                         </TableRow>
                       ))
                     ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center text-gray-500">No invoices found</TableCell>
-                      </TableRow>
+                      <TableRow><TableCell colSpan={4} className="h-24 text-center text-gray-500">No invoices found</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -254,8 +222,8 @@ export default function CustomerDetail() {
                   <TableBody>
                     {loadingTickets ? (
                       <TableRow><TableCell colSpan={4}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
-                    ) : ticketsData?.data && ticketsData.data.length > 0 ? (
-                      ticketsData.data.map(ticket => (
+                    ) : tickets.length > 0 ? (
+                      tickets.map((ticket: any) => (
                         <TableRow key={ticket.id} className="cursor-pointer hover:bg-gray-50">
                           <TableCell className="font-mono text-sm text-gray-500">
                             <Link href={`/tickets/${ticket.id}`}>#{ticket.id}</Link>
@@ -270,9 +238,7 @@ export default function CustomerDetail() {
                         </TableRow>
                       ))
                     ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center text-gray-500">No support tickets found</TableCell>
-                      </TableRow>
+                      <TableRow><TableCell colSpan={4} className="h-24 text-center text-gray-500">No support tickets found</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>

@@ -1,11 +1,124 @@
-import { useListPlans, useCreatePlan } from "@workspace/api-client-react";
-import { Plus, Wifi, Zap, RefreshCcw } from "lucide-react";
+import { useState } from "react";
+import {
+  useListPlans, useCreatePlan, useUpdatePlan, useDeletePlan,
+  type PlanInput, type PlanUpdate,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Plus, Wifi, Zap, Pencil, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+
+type PlanForm = { name: string; description: string; downloadSpeed: string; uploadSpeed: string; price: string; billingCycle: string; isActive: boolean };
+const EMPTY: PlanForm = { name: "", description: "", downloadSpeed: "", uploadSpeed: "", price: "", billingCycle: "monthly", isActive: true };
+
+function PlanDialog({ open, onClose, initial, planId }: {
+  open: boolean; onClose: () => void; initial?: PlanForm; planId?: number;
+}) {
+  const qc = useQueryClient();
+  const createMutation = useCreatePlan();
+  const updateMutation = useUpdatePlan();
+  const [form, setForm] = useState<PlanForm>(initial ?? EMPTY);
+  const [saving, setSaving] = useState(false);
+  const set = (k: keyof PlanForm, v: string | boolean) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name,
+        description: form.description || undefined,
+        downloadSpeed: Number(form.downloadSpeed),
+        uploadSpeed: Number(form.uploadSpeed),
+        price: Number(form.price),
+        billingCycle: form.billingCycle as PlanInput["billingCycle"],
+        isActive: form.isActive,
+      };
+      if (planId) {
+        await updateMutation.mutateAsync({ id: planId, data: payload as PlanUpdate });
+      } else {
+        await createMutation.mutateAsync({ data: payload as PlanInput });
+      }
+      await qc.invalidateQueries({ queryKey: ["/api/plans"] });
+      onClose();
+    } finally { setSaving(false); }
+  };
+
+  const valid = form.name && form.downloadSpeed && form.uploadSpeed && form.price;
+
+  return (
+    <Dialog open={open} onOpenChange={o => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>{planId ? "Edit Plan" : "Create Plan"}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1"><Label>Plan Name *</Label>
+            <Input value={form.name} onChange={e => set("name", e.target.value)} placeholder="Basic Home 10Mbps" />
+          </div>
+          <div className="space-y-1"><Label>Description</Label>
+            <Textarea rows={2} className="resize-none" value={form.description} onChange={e => set("description", e.target.value)} placeholder="Suitable for light browsing and streaming" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><Label>Download (Mbps) *</Label>
+              <Input type="number" value={form.downloadSpeed} onChange={e => set("downloadSpeed", e.target.value)} placeholder="10" />
+            </div>
+            <div className="space-y-1"><Label>Upload (Mbps) *</Label>
+              <Input type="number" value={form.uploadSpeed} onChange={e => set("uploadSpeed", e.target.value)} placeholder="5" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><Label>Price *</Label>
+              <Input type="number" value={form.price} onChange={e => set("price", e.target.value)} placeholder="1500" />
+            </div>
+            <div className="space-y-1"><Label>Billing Cycle</Label>
+              <Select value={form.billingCycle} onValueChange={v => set("billingCycle", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                  <SelectItem value="annually">Annually</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Switch checked={form.isActive} onCheckedChange={v => set("isActive", v)} id="isActive" />
+            <Label htmlFor="isActive" className="cursor-pointer text-sm">Active (available for subscriptions)</Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || !valid} className="bg-blue-600 hover:bg-blue-700 text-white">
+            {saving ? "Saving…" : planId ? "Update Plan" : "Create Plan"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function Plans() {
+  const qc = useQueryClient();
   const { data: plans, isLoading } = useListPlans();
+  const deleteMutation = useDeletePlan();
+  const updateMutation = useUpdatePlan();
+  const [dialog, setDialog] = useState<{ open: boolean; id?: number; initial?: PlanForm }>({ open: false });
+
+  const handleDelete = async (id: number, name: string) => {
+    if (!confirm(`Delete plan "${name}"?`)) return;
+    await deleteMutation.mutateAsync({ id });
+    qc.invalidateQueries({ queryKey: ["/api/plans"] });
+  };
+
+  const handleToggleActive = async (id: number, isActive: boolean) => {
+    await updateMutation.mutateAsync({ id, data: { isActive: !isActive } as PlanUpdate });
+    qc.invalidateQueries({ queryKey: ["/api/plans"] });
+  };
 
   return (
     <div className="space-y-6">
@@ -14,69 +127,77 @@ export default function Plans() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Service Plans</h1>
           <p className="text-gray-500 text-sm">Manage internet packages and pricing tiers.</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-          <Plus className="w-4 h-4 mr-2" />
-          Create Plan
+        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialog({ open: true })}>
+          <Plus className="w-4 h-4 mr-2" /> Create Plan
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {isLoading ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-              <Skeleton className="h-8 w-1/2 mb-4" />
-              <Skeleton className="h-4 w-full mb-2" />
-              <Skeleton className="h-4 w-3/4 mb-6" />
-              <div className="space-y-3">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            </div>
-          ))
-        ) : plans && plans.length > 0 ? (
-          plans.map((plan) => (
-            <div key={plan.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow relative flex flex-col">
-              {!plan.isActive && (
-                <div className="absolute top-0 right-0 p-4">
-                  <Badge variant="secondary" className="bg-gray-100 text-gray-600">Inactive</Badge>
+        {isLoading ? Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <Skeleton className="h-8 w-1/2 mb-4" />
+            <Skeleton className="h-4 w-full mb-2" />
+            <Skeleton className="h-4 w-3/4 mb-6" />
+            <div className="space-y-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+          </div>
+        )) : plans && plans.length > 0 ? (
+          plans.map(plan => (
+            <div key={plan.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
+              <div className="p-5 flex-1">
+                <div className="flex items-start justify-between mb-1">
+                  <h3 className="text-lg font-bold text-gray-900">{plan.name}</h3>
+                  <Badge variant="outline" className={plan.isActive ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-100 text-gray-500 border-gray-200"}>
+                    {plan.isActive ? "Active" : "Inactive"}
+                  </Badge>
                 </div>
-              )}
-              <div className="p-6 border-b border-gray-100 flex-1">
-                <h3 className="text-xl font-bold text-gray-900 mb-2 pr-16">{plan.name}</h3>
-                <p className="text-sm text-gray-500 mb-6 h-10 line-clamp-2">{plan.description || "No description provided."}</p>
-                
-                <div className="flex items-baseline gap-1 mb-6">
+                <p className="text-sm text-gray-500 mb-4 min-h-[2.5rem] line-clamp-2">{plan.description || "No description."}</p>
+                <div className="flex items-baseline gap-1 mb-4">
                   <span className="text-3xl font-bold text-gray-900">${plan.price.toFixed(2)}</span>
                   <span className="text-sm text-gray-500">/{plan.billingCycle}</span>
                 </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center text-sm font-medium text-gray-700 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
-                    <Zap className="w-4 h-4 text-blue-600 mr-3" />
-                    <span className="w-20 text-gray-500">Download</span>
+                <div className="space-y-2">
+                  <div className="flex items-center text-sm bg-blue-50/60 p-2.5 rounded-lg border border-blue-100">
+                    <Zap className="w-4 h-4 text-blue-600 mr-2.5" />
+                    <span className="text-gray-500 w-20">Download</span>
                     <span className="text-blue-900 font-bold">{plan.downloadSpeed} Mbps</span>
                   </div>
-                  <div className="flex items-center text-sm font-medium text-gray-700 bg-green-50/50 p-3 rounded-lg border border-green-100">
-                    <Wifi className="w-4 h-4 text-green-600 mr-3" />
-                    <span className="w-20 text-gray-500">Upload</span>
+                  <div className="flex items-center text-sm bg-green-50/60 p-2.5 rounded-lg border border-green-100">
+                    <Wifi className="w-4 h-4 text-green-600 mr-2.5" />
+                    <span className="text-gray-500 w-20">Upload</span>
                     <span className="text-green-900 font-bold">{plan.uploadSpeed} Mbps</span>
                   </div>
                 </div>
               </div>
-              <div className="p-4 bg-gray-50 flex gap-3">
-                <Button variant="outline" className="flex-1 border-gray-300 bg-white">Edit</Button>
-                <Button variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50 px-3">
-                  Delete
+              <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                <Button variant="outline" size="sm" className="flex-1 bg-white"
+                  onClick={() => setDialog({ open: true, id: plan.id, initial: {
+                    name: plan.name, description: plan.description ?? "",
+                    downloadSpeed: String(plan.downloadSpeed), uploadSpeed: String(plan.uploadSpeed),
+                    price: String(plan.price), billingCycle: plan.billingCycle, isActive: plan.isActive,
+                  }})}>
+                  <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
+                </Button>
+                <Button variant="ghost" size="sm" className="text-gray-500 hover:text-orange-600 px-2"
+                  title={plan.isActive ? "Deactivate" : "Activate"}
+                  onClick={() => handleToggleActive(plan.id, plan.isActive)}>
+                  {plan.isActive ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                </Button>
+                <Button variant="ghost" size="sm" className="text-gray-500 hover:text-red-600 px-2"
+                  onClick={() => handleDelete(plan.id, plan.name)}>
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
             </div>
           ))
         ) : (
           <div className="col-span-full py-12 text-center text-gray-500 bg-white rounded-lg border border-gray-200 border-dashed">
-            No service plans found. Create one to get started.
+            No service plans yet.{" "}
+            <button className="text-blue-600 underline" onClick={() => setDialog({ open: true })}>Create one →</button>
           </div>
         )}
       </div>
+
+      <PlanDialog open={dialog.open} onClose={() => setDialog({ open: false })} initial={dialog.initial} planId={dialog.id} />
     </div>
   );
 }

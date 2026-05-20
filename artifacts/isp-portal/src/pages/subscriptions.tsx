@@ -1,28 +1,155 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { useListSubscriptions } from "@workspace/api-client-react";
-import { Plus, Filter } from "lucide-react";
+import {
+  useListSubscriptions, useCreateSubscription, useUpdateSubscription, useDeleteSubscription,
+  useListCustomers, useListPlans,
+  type SubscriptionInput, type SubscriptionUpdate,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Plus, Filter, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { format } from "date-fns";
 
-export default function Subscriptions() {
-  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
-  const { data: subscriptionsData, isLoading } = useListSubscriptions(
-    statusFilter ? { status: statusFilter } : {}
-  );
+const STATUS_COLORS: Record<string, string> = {
+  active: "bg-green-100 text-green-700 border-green-200",
+  suspended: "bg-orange-100 text-orange-700 border-orange-200",
+  cancelled: "bg-red-100 text-red-700 border-red-200",
+  expired: "bg-gray-100 text-gray-700 border-gray-200",
+};
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-700 border-green-200';
-      case 'suspended': return 'bg-orange-100 text-orange-700 border-orange-200';
-      case 'cancelled': return 'bg-red-100 text-red-700 border-red-200';
-      case 'expired': return 'bg-gray-100 text-gray-700 border-gray-200';
-      default: return 'bg-gray-100 text-gray-700';
-    }
+type SubForm = { customerId: string; planId: string; status: string; startDate: string; endDate: string; ipAddress: string; macAddress: string };
+const EMPTY: SubForm = { customerId: "", planId: "", status: "active", startDate: new Date().toISOString().slice(0, 10), endDate: "", ipAddress: "", macAddress: "" };
+
+function SubscriptionDialog({ open, onClose, initial, subId }: {
+  open: boolean; onClose: () => void; initial?: SubForm; subId?: number;
+}) {
+  const qc = useQueryClient();
+  const createMutation = useCreateSubscription();
+  const updateMutation = useUpdateSubscription();
+  const { data: customers } = useListCustomers({ limit: 200 });
+  const { data: plans } = useListPlans();
+  const [form, setForm] = useState<SubForm>(initial ?? EMPTY);
+  const [saving, setSaving] = useState(false);
+  const set = (k: keyof SubForm, v: string) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (subId) {
+        const upd: SubscriptionUpdate = {
+          planId: Number(form.planId) || undefined,
+          status: form.status as SubscriptionUpdate["status"],
+          endDate: form.endDate || null,
+          ipAddress: form.ipAddress || null,
+          macAddress: form.macAddress || null,
+        };
+        await updateMutation.mutateAsync({ id: subId, data: upd });
+      } else {
+        const inp: SubscriptionInput = {
+          customerId: Number(form.customerId),
+          planId: Number(form.planId),
+          status: form.status as SubscriptionInput["status"],
+          startDate: form.startDate,
+          endDate: form.endDate || undefined,
+          ipAddress: form.ipAddress || undefined,
+          macAddress: form.macAddress || undefined,
+        };
+        await createMutation.mutateAsync({ data: inp });
+      }
+      await qc.invalidateQueries({ queryKey: ["/api/subscriptions"] });
+      onClose();
+    } finally { setSaving(false); }
   };
+
+  const valid = subId ? (form.planId && form.status) : (form.customerId && form.planId && form.startDate);
+
+  return (
+    <Dialog open={open} onOpenChange={o => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>{subId ? "Edit Subscription" : "New Subscription"}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          {!subId && (
+            <div className="space-y-1"><Label>Customer *</Label>
+              <Select value={form.customerId} onValueChange={v => set("customerId", v)}>
+                <SelectTrigger><SelectValue placeholder="Select customer…" /></SelectTrigger>
+                <SelectContent>
+                  {customers?.data?.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="space-y-1"><Label>Plan *</Label>
+            <Select value={form.planId} onValueChange={v => set("planId", v)}>
+              <SelectTrigger><SelectValue placeholder="Select plan…" /></SelectTrigger>
+              <SelectContent>
+                {plans?.filter(p => p.isActive).map(p => (
+                  <SelectItem key={p.id} value={String(p.id)}>{p.name} — ${p.price}/{p.billingCycle}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1"><Label>Status</Label>
+            <Select value={form.status} onValueChange={v => set("status", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="suspended">Suspended</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {!subId && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label>Start Date *</Label>
+                <Input type="date" value={form.startDate} onChange={e => set("startDate", e.target.value)} />
+              </div>
+              <div className="space-y-1"><Label>End Date</Label>
+                <Input type="date" value={form.endDate} onChange={e => set("endDate", e.target.value)} />
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><Label>IP Address</Label>
+              <Input value={form.ipAddress} onChange={e => set("ipAddress", e.target.value)} placeholder="192.168.1.100" />
+            </div>
+            <div className="space-y-1"><Label>MAC Address</Label>
+              <Input value={form.macAddress} onChange={e => set("macAddress", e.target.value)} placeholder="AA:BB:CC:DD:EE:FF" />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || !valid} className="bg-blue-600 hover:bg-blue-700 text-white">
+            {saving ? "Saving…" : subId ? "Update" : "Create Subscription"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function Subscriptions() {
+  const qc = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const { data: subscriptionsData, isLoading } = useListSubscriptions(statusFilter ? { status: statusFilter } : {});
+  const deleteMutation = useDeleteSubscription();
+  const [dialog, setDialog] = useState<{ open: boolean; id?: number; initial?: SubForm }>({ open: false });
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete this subscription?")) return;
+    await deleteMutation.mutateAsync({ id });
+    qc.invalidateQueries({ queryKey: ["/api/subscriptions"] });
+  };
+
+  const subs = Array.isArray(subscriptionsData) ? subscriptionsData : (subscriptionsData as { data?: typeof subscriptionsData[] } | undefined)?.data ?? subscriptionsData ?? [];
 
   return (
     <div className="space-y-6">
@@ -31,30 +158,22 @@ export default function Subscriptions() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Subscriptions</h1>
           <p className="text-gray-500 text-sm">Manage active services and connections.</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-          <Plus className="w-4 h-4 mr-2" />
-          New Subscription
+        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialog({ open: true })}>
+          <Plus className="w-4 h-4 mr-2" /> New Subscription
         </Button>
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex gap-2">
-          <div className="flex items-center text-sm text-gray-500 mr-2">
-            <Filter className="w-4 h-4 mr-2" /> Filter:
-          </div>
-          {['all', 'active', 'suspended', 'cancelled', 'expired'].map((status) => (
-            <Button 
-              key={status}
-              variant={statusFilter === status || (status === 'all' && !statusFilter) ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setStatusFilter(status === 'all' ? undefined : status)}
-              className={statusFilter === status || (status === 'all' && !statusFilter) ? 'bg-blue-600' : 'bg-white'}
-            >
+        <div className="p-4 border-b border-gray-200 flex gap-2 flex-wrap">
+          <div className="flex items-center text-sm text-gray-500 mr-2"><Filter className="w-4 h-4 mr-2" /> Filter:</div>
+          {["all", "active", "suspended", "cancelled", "expired"].map(status => (
+            <Button key={status} variant={statusFilter === status || (status === "all" && !statusFilter) ? "default" : "outline"} size="sm"
+              onClick={() => setStatusFilter(status === "all" ? undefined : status)}
+              className={statusFilter === status || (status === "all" && !statusFilter) ? "bg-blue-600" : "bg-white"}>
               {status.charAt(0).toUpperCase() + status.slice(1)}
             </Button>
           ))}
         </div>
-
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-gray-50">
@@ -64,57 +183,53 @@ export default function Subscriptions() {
                 <TableHead>IP / MAC</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Start Date</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                  </TableRow>
-                ))
-              ) : subscriptionsData?.data && subscriptionsData.data.length > 0 ? (
-                subscriptionsData.data.map((sub) => (
+              {isLoading ? Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>{Array.from({ length: 6 }).map((__, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
+              )) : Array.isArray(subs) && subs.length > 0 ? (
+                (subs as ReturnType<typeof useListSubscriptions>["data"][]).map((sub: any) => (
                   <TableRow key={sub.id} className="hover:bg-gray-50/50">
                     <TableCell className="font-medium text-gray-900">
-                      {sub.customer ? (
-                        <Link href={`/customers/${sub.customerId}`} className="hover:text-blue-600 hover:underline">
-                          {sub.customer.name}
-                        </Link>
-                      ) : `Customer #${sub.customerId}`}
+                      {sub.customer ? <Link href={`/customers/${sub.customerId}`} className="hover:text-blue-600 hover:underline">{sub.customer.name}</Link> : `Customer #${sub.customerId}`}
+                    </TableCell>
+                    <TableCell>{sub.plan ? sub.plan.name : `Plan #${sub.planId}`}</TableCell>
+                    <TableCell>
+                      <div className="text-sm font-mono text-gray-600">{sub.ipAddress || "—"}</div>
+                      <div className="text-xs font-mono text-gray-400">{sub.macAddress || "—"}</div>
                     </TableCell>
                     <TableCell>
-                      {sub.plan ? sub.plan.name : `Plan #${sub.planId}`}
+                      <Badge variant="outline" className={`capitalize ${STATUS_COLORS[sub.status] ?? ""}`}>{sub.status}</Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="text-sm font-mono text-gray-600">{sub.ipAddress || '—'}</div>
-                      <div className="text-xs font-mono text-gray-400">{sub.macAddress || '—'}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`capitalize ${getStatusColor(sub.status)}`}>
-                        {sub.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-600">
-                      {format(new Date(sub.startDate), 'MMM d, yyyy')}
+                    <TableCell className="text-sm text-gray-600">{format(new Date(sub.startDate), "MMM d, yyyy")}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
+                          onClick={() => setDialog({ open: true, id: sub.id, initial: {
+                            customerId: String(sub.customerId), planId: String(sub.planId),
+                            status: sub.status, startDate: sub.startDate?.slice(0, 10) ?? "",
+                            endDate: sub.endDate?.slice(0, 10) ?? "", ipAddress: sub.ipAddress ?? "", macAddress: sub.macAddress ?? "",
+                          }})}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600" onClick={() => handleDelete(sub.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-gray-500">
-                    No subscriptions found.
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={6} className="h-24 text-center text-gray-500">No subscriptions found.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </div>
       </div>
+
+      <SubscriptionDialog open={dialog.open} onClose={() => setDialog({ open: false })} initial={dialog.initial} subId={dialog.id} />
     </div>
   );
 }

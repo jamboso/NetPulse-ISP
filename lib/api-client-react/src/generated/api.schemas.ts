@@ -654,6 +654,193 @@ export interface IpPoolUpdate {
   description?: string | null;
 }
 
+export interface Settings {
+  /** @nullable */
+  companyName?: string | null;
+  /** @nullable */
+  companyAddress?: string | null;
+  /** @nullable */
+  companyPhone?: string | null;
+  /** @nullable */
+  companyEmail?: string | null;
+  /** @nullable */
+  timezone?: string | null;
+  /** @nullable */
+  currency?: string | null;
+  /** @nullable */
+  invoicePrefix?: string | null;
+  /** @nullable */
+  invoiceDueDays?: string | null;
+  /** @nullable */
+  lateFeePercent?: string | null;
+  /** @nullable */
+  autoSuspendDays?: string | null;
+  /** @nullable */
+  gracePeriodDays?: string | null;
+  /** @nullable */
+  defaultRouterType?: string | null;
+  /** @nullable */
+  ntpServer?: string | null;
+  /** @nullable */
+  radiusServer?: string | null;
+  /** @nullable */
+  radiusSecret?: string | null;
+  /** @nullable */
+  smsProvider?: string | null;
+  /** @nullable */
+  smsApiKey?: string | null;
+  /** @nullable */
+  smsSenderId?: string | null;
+  /** @nullable */
+  telegramBotToken?: string | null;
+  /** @nullable */
+  telegramChatId?: string | null;
+  /** @nullable */
+  smtpHost?: string | null;
+  /** @nullable */
+  smtpPort?: string | null;
+  /** @nullable */
+  smtpUser?: string | null;
+  /** @nullable */
+  smtpPass?: string | null;
+  /** @nullable */
+  smtpFrom?: string | null;
+  /** @nullable */
+  mpesaConsumerKey?: string | null;
+  /** @nullable */
+  mpesaConsumerSecret?: string | null;
+  /** @nullable */
+  mpesaShortcode?: string | null;
+  /** @nullable */
+  mpesaPasskey?: string | null;
+  /** @nullable */
+  mpesaEnv?: string | null;
+  /** @nullable */
+  mpesaCallbackUrl?: string | null;
+}
+
+export interface SettingsInput {
+  companyName?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  timezone?: string;
+  currency?: string;
+  invoicePrefix?: string;
+  invoiceDueDays?: string;
+  lateFeePercent?: string;
+  autoSuspendDays?: string;
+  gracePeriodDays?: string;
+  defaultRouterType?: string;
+  ntpServer?: string;
+  radiusServer?: string;
+  radiusSecret?: string;
+  smsProvider?: string;
+  smsApiKey?: string;
+  smsSenderId?: string;
+  telegramBotToken?: string;
+  telegramChatId?: string;
+  smtpHost?: string;
+  smtpPort?: string;
+  smtpUser?: string;
+  smtpPass?: string;
+  smtpFrom?: string;
+  mpesaConsumerKey?: string;
+  mpesaConsumerSecret?: string;
+  mpesaShortcode?: string;
+  mpesaPasskey?: string;
+  mpesaEnv?: string;
+  mpesaCallbackUrl?: string;
+}
+
+export type RouterDeviceRouterType = typeof RouterDeviceRouterType[keyof typeof RouterDeviceRouterType];
+
+
+export const RouterDeviceRouterType = {
+  routeros: 'routeros',
+  juniper: 'juniper',
+  edgerouter: 'edgerouter',
+} as const;
+
+export interface RouterDevice {
+  id: number;
+  name: string;
+  routerType: RouterDeviceRouterType;
+  ipAddress: string;
+  /** @nullable */
+  port?: number | null;
+  username: string;
+  password?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  location?: string | null;
+  /** @nullable */
+  apiSsl?: boolean | null;
+  /** @nullable */
+  sshPort?: number | null;
+  /** @nullable */
+  netconfPort?: number | null;
+  enabled: boolean;
+  /** @nullable */
+  lastSeen?: string | null;
+  createdAt: string;
+}
+
+export type RouterDeviceInputRouterType = typeof RouterDeviceInputRouterType[keyof typeof RouterDeviceInputRouterType];
+
+
+export const RouterDeviceInputRouterType = {
+  routeros: 'routeros',
+  juniper: 'juniper',
+  edgerouter: 'edgerouter',
+} as const;
+
+export interface RouterDeviceInput {
+  name: string;
+  routerType: RouterDeviceInputRouterType;
+  ipAddress: string;
+  port?: number;
+  username: string;
+  password: string;
+  description?: string;
+  location?: string;
+  apiSsl?: boolean;
+  sshPort?: number;
+  netconfPort?: number;
+  enabled?: boolean;
+}
+
+export type RouterDeviceUpdateRouterType = typeof RouterDeviceUpdateRouterType[keyof typeof RouterDeviceUpdateRouterType];
+
+
+export const RouterDeviceUpdateRouterType = {
+  routeros: 'routeros',
+  juniper: 'juniper',
+  edgerouter: 'edgerouter',
+} as const;
+
+export interface RouterDeviceUpdate {
+  name?: string;
+  routerType?: RouterDeviceUpdateRouterType;
+  ipAddress?: string;
+  /** @nullable */
+  port?: number | null;
+  username?: string;
+  password?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  location?: string | null;
+  /** @nullable */
+  apiSsl?: boolean | null;
+  /** @nullable */
+  sshPort?: number | null;
+  /** @nullable */
+  netconfPort?: number | null;
+  enabled?: boolean;
+}
+
 export type ListCustomersParams = {
 search?: string;
 status?: string;

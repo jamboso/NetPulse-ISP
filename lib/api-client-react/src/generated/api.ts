@@ -50,6 +50,11 @@ import type {
   PlanInput,
   PlanUpdate,
   RevenuePoint,
+  RouterDevice,
+  RouterDeviceInput,
+  RouterDeviceUpdate,
+  Settings,
+  SettingsInput,
   Subscription,
   SubscriptionInput,
   SubscriptionUpdate,
@@ -3440,5 +3445,520 @@ export const useDeleteIpPool = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteIpPoolMutationOptions(options));
+    }
+
+export const getGetSettingsUrl = () => {
+
+
+
+
+  return `/api/settings`
+}
+
+/**
+ * @summary Get all app settings
+ */
+export const getSettings = async ( options?: RequestInit): Promise<Settings> => {
+
+  return customFetch<Settings>(getGetSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSettingsQueryKey = () => {
+    return [
+    `/api/settings`
+    ] as const;
+    }
+
+
+export const getGetSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettings>>> = ({ signal }) => getSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getSettings>>>
+export type GetSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get all app settings
+ */
+
+export function useGetSettings<TData = Awaited<ReturnType<typeof getSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateSettingsUrl = () => {
+
+
+
+
+  return `/api/settings`
+}
+
+/**
+ * @summary Update settings (partial)
+ */
+export const updateSettings = async (settingsInput: SettingsInput, options?: RequestInit): Promise<Settings> => {
+
+  return customFetch<Settings>(getUpdateSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      settingsInput,)
+  }
+);}
+
+
+
+
+export const getUpdateSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSettings>>, TError,{data: BodyType<SettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSettings>>, TError,{data: BodyType<SettingsInput>}, TContext> => {
+
+const mutationKey = ['updateSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSettings>>, {data: BodyType<SettingsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateSettings>>>
+    export type UpdateSettingsMutationBody = BodyType<SettingsInput>
+    export type UpdateSettingsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update settings (partial)
+ */
+export const useUpdateSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSettings>>, TError,{data: BodyType<SettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSettings>>,
+        TError,
+        {data: BodyType<SettingsInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateSettingsMutationOptions(options));
+    }
+
+export const getListRoutersUrl = () => {
+
+
+
+
+  return `/api/routers`
+}
+
+/**
+ * @summary List all managed routers
+ */
+export const listRouters = async ( options?: RequestInit): Promise<RouterDevice[]> => {
+
+  return customFetch<RouterDevice[]>(getListRoutersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRoutersQueryKey = () => {
+    return [
+    `/api/routers`
+    ] as const;
+    }
+
+
+export const getListRoutersQueryOptions = <TData = Awaited<ReturnType<typeof listRouters>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRouters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRoutersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRouters>>> = ({ signal }) => listRouters({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRouters>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRoutersQueryResult = NonNullable<Awaited<ReturnType<typeof listRouters>>>
+export type ListRoutersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all managed routers
+ */
+
+export function useListRouters<TData = Awaited<ReturnType<typeof listRouters>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRouters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRoutersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateRouterUrl = () => {
+
+
+
+
+  return `/api/routers`
+}
+
+/**
+ * @summary Add a router
+ */
+export const createRouter = async (routerDeviceInput: RouterDeviceInput, options?: RequestInit): Promise<RouterDevice> => {
+
+  return customFetch<RouterDevice>(getCreateRouterUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      routerDeviceInput,)
+  }
+);}
+
+
+
+
+export const getCreateRouterMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRouter>>, TError,{data: BodyType<RouterDeviceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createRouter>>, TError,{data: BodyType<RouterDeviceInput>}, TContext> => {
+
+const mutationKey = ['createRouter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createRouter>>, {data: BodyType<RouterDeviceInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createRouter(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateRouterMutationResult = NonNullable<Awaited<ReturnType<typeof createRouter>>>
+    export type CreateRouterMutationBody = BodyType<RouterDeviceInput>
+    export type CreateRouterMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a router
+ */
+export const useCreateRouter = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRouter>>, TError,{data: BodyType<RouterDeviceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createRouter>>,
+        TError,
+        {data: BodyType<RouterDeviceInput>},
+        TContext
+      > => {
+      return useMutation(getCreateRouterMutationOptions(options));
+    }
+
+export const getGetRouterUrl = (id: number,) => {
+
+
+
+
+  return `/api/routers/${id}`
+}
+
+/**
+ * @summary Get router by ID
+ */
+export const getRouter = async (id: number, options?: RequestInit): Promise<RouterDevice> => {
+
+  return customFetch<RouterDevice>(getGetRouterUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRouterQueryKey = (id: number,) => {
+    return [
+    `/api/routers/${id}`
+    ] as const;
+    }
+
+
+export const getGetRouterQueryOptions = <TData = Awaited<ReturnType<typeof getRouter>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRouter>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRouterQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRouter>>> = ({ signal }) => getRouter(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRouter>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRouterQueryResult = NonNullable<Awaited<ReturnType<typeof getRouter>>>
+export type GetRouterQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get router by ID
+ */
+
+export function useGetRouter<TData = Awaited<ReturnType<typeof getRouter>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRouter>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRouterQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateRouterUrl = (id: number,) => {
+
+
+
+
+  return `/api/routers/${id}`
+}
+
+/**
+ * @summary Update a router
+ */
+export const updateRouter = async (id: number,
+    routerDeviceUpdate: RouterDeviceUpdate, options?: RequestInit): Promise<RouterDevice> => {
+
+  return customFetch<RouterDevice>(getUpdateRouterUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      routerDeviceUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateRouterMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRouter>>, TError,{id: number;data: BodyType<RouterDeviceUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRouter>>, TError,{id: number;data: BodyType<RouterDeviceUpdate>}, TContext> => {
+
+const mutationKey = ['updateRouter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRouter>>, {id: number;data: BodyType<RouterDeviceUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateRouter(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRouterMutationResult = NonNullable<Awaited<ReturnType<typeof updateRouter>>>
+    export type UpdateRouterMutationBody = BodyType<RouterDeviceUpdate>
+    export type UpdateRouterMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a router
+ */
+export const useUpdateRouter = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRouter>>, TError,{id: number;data: BodyType<RouterDeviceUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateRouter>>,
+        TError,
+        {id: number;data: BodyType<RouterDeviceUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateRouterMutationOptions(options));
+    }
+
+export const getDeleteRouterUrl = (id: number,) => {
+
+
+
+
+  return `/api/routers/${id}`
+}
+
+/**
+ * @summary Delete a router
+ */
+export const deleteRouter = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteRouterUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteRouterMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRouter>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteRouter>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteRouter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteRouter>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteRouter(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteRouterMutationResult = NonNullable<Awaited<ReturnType<typeof deleteRouter>>>
+
+    export type DeleteRouterMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a router
+ */
+export const useDeleteRouter = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRouter>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteRouter>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteRouterMutationOptions(options));
     }
 

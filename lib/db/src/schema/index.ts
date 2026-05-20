@@ -6,3 +6,5 @@ export * from "./payments";
 export * from "./tickets";
 export * from "./equipment";
 export * from "./ipPools";
+export * from "./settings";
+export * from "./routers";

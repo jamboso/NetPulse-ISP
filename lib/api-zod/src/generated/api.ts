@@ -974,3 +974,230 @@ export const DeleteIpPoolParams = zod.object({
 })
 
 
+/**
+ * @summary Get all app settings
+ */
+export const GetSettingsResponse = zod.object({
+  "companyName": zod.string().nullish(),
+  "companyAddress": zod.string().nullish(),
+  "companyPhone": zod.string().nullish(),
+  "companyEmail": zod.string().nullish(),
+  "timezone": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "invoicePrefix": zod.string().nullish(),
+  "invoiceDueDays": zod.string().nullish(),
+  "lateFeePercent": zod.string().nullish(),
+  "autoSuspendDays": zod.string().nullish(),
+  "gracePeriodDays": zod.string().nullish(),
+  "defaultRouterType": zod.string().nullish(),
+  "ntpServer": zod.string().nullish(),
+  "radiusServer": zod.string().nullish(),
+  "radiusSecret": zod.string().nullish(),
+  "smsProvider": zod.string().nullish(),
+  "smsApiKey": zod.string().nullish(),
+  "smsSenderId": zod.string().nullish(),
+  "telegramBotToken": zod.string().nullish(),
+  "telegramChatId": zod.string().nullish(),
+  "smtpHost": zod.string().nullish(),
+  "smtpPort": zod.string().nullish(),
+  "smtpUser": zod.string().nullish(),
+  "smtpPass": zod.string().nullish(),
+  "smtpFrom": zod.string().nullish(),
+  "mpesaConsumerKey": zod.string().nullish(),
+  "mpesaConsumerSecret": zod.string().nullish(),
+  "mpesaShortcode": zod.string().nullish(),
+  "mpesaPasskey": zod.string().nullish(),
+  "mpesaEnv": zod.string().nullish(),
+  "mpesaCallbackUrl": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update settings (partial)
+ */
+export const UpdateSettingsBody = zod.object({
+  "companyName": zod.string().optional(),
+  "companyAddress": zod.string().optional(),
+  "companyPhone": zod.string().optional(),
+  "companyEmail": zod.string().optional(),
+  "timezone": zod.string().optional(),
+  "currency": zod.string().optional(),
+  "invoicePrefix": zod.string().optional(),
+  "invoiceDueDays": zod.string().optional(),
+  "lateFeePercent": zod.string().optional(),
+  "autoSuspendDays": zod.string().optional(),
+  "gracePeriodDays": zod.string().optional(),
+  "defaultRouterType": zod.string().optional(),
+  "ntpServer": zod.string().optional(),
+  "radiusServer": zod.string().optional(),
+  "radiusSecret": zod.string().optional(),
+  "smsProvider": zod.string().optional(),
+  "smsApiKey": zod.string().optional(),
+  "smsSenderId": zod.string().optional(),
+  "telegramBotToken": zod.string().optional(),
+  "telegramChatId": zod.string().optional(),
+  "smtpHost": zod.string().optional(),
+  "smtpPort": zod.string().optional(),
+  "smtpUser": zod.string().optional(),
+  "smtpPass": zod.string().optional(),
+  "smtpFrom": zod.string().optional(),
+  "mpesaConsumerKey": zod.string().optional(),
+  "mpesaConsumerSecret": zod.string().optional(),
+  "mpesaShortcode": zod.string().optional(),
+  "mpesaPasskey": zod.string().optional(),
+  "mpesaEnv": zod.string().optional(),
+  "mpesaCallbackUrl": zod.string().optional()
+})
+
+export const UpdateSettingsResponse = zod.object({
+  "companyName": zod.string().nullish(),
+  "companyAddress": zod.string().nullish(),
+  "companyPhone": zod.string().nullish(),
+  "companyEmail": zod.string().nullish(),
+  "timezone": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "invoicePrefix": zod.string().nullish(),
+  "invoiceDueDays": zod.string().nullish(),
+  "lateFeePercent": zod.string().nullish(),
+  "autoSuspendDays": zod.string().nullish(),
+  "gracePeriodDays": zod.string().nullish(),
+  "defaultRouterType": zod.string().nullish(),
+  "ntpServer": zod.string().nullish(),
+  "radiusServer": zod.string().nullish(),
+  "radiusSecret": zod.string().nullish(),
+  "smsProvider": zod.string().nullish(),
+  "smsApiKey": zod.string().nullish(),
+  "smsSenderId": zod.string().nullish(),
+  "telegramBotToken": zod.string().nullish(),
+  "telegramChatId": zod.string().nullish(),
+  "smtpHost": zod.string().nullish(),
+  "smtpPort": zod.string().nullish(),
+  "smtpUser": zod.string().nullish(),
+  "smtpPass": zod.string().nullish(),
+  "smtpFrom": zod.string().nullish(),
+  "mpesaConsumerKey": zod.string().nullish(),
+  "mpesaConsumerSecret": zod.string().nullish(),
+  "mpesaShortcode": zod.string().nullish(),
+  "mpesaPasskey": zod.string().nullish(),
+  "mpesaEnv": zod.string().nullish(),
+  "mpesaCallbackUrl": zod.string().nullish()
+})
+
+
+/**
+ * @summary List all managed routers
+ */
+export const ListRoutersResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "routerType": zod.enum(['routeros', 'juniper', 'edgerouter']),
+  "ipAddress": zod.string(),
+  "port": zod.number().nullish(),
+  "username": zod.string(),
+  "password": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "location": zod.string().nullish(),
+  "apiSsl": zod.boolean().nullish(),
+  "sshPort": zod.number().nullish(),
+  "netconfPort": zod.number().nullish(),
+  "enabled": zod.boolean(),
+  "lastSeen": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListRoutersResponse = zod.array(ListRoutersResponseItem)
+
+
+/**
+ * @summary Add a router
+ */
+export const CreateRouterBody = zod.object({
+  "name": zod.string(),
+  "routerType": zod.enum(['routeros', 'juniper', 'edgerouter']),
+  "ipAddress": zod.string(),
+  "port": zod.number().optional(),
+  "username": zod.string(),
+  "password": zod.string(),
+  "description": zod.string().optional(),
+  "location": zod.string().optional(),
+  "apiSsl": zod.boolean().optional(),
+  "sshPort": zod.number().optional(),
+  "netconfPort": zod.number().optional(),
+  "enabled": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Get router by ID
+ */
+export const GetRouterParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetRouterResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "routerType": zod.enum(['routeros', 'juniper', 'edgerouter']),
+  "ipAddress": zod.string(),
+  "port": zod.number().nullish(),
+  "username": zod.string(),
+  "password": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "location": zod.string().nullish(),
+  "apiSsl": zod.boolean().nullish(),
+  "sshPort": zod.number().nullish(),
+  "netconfPort": zod.number().nullish(),
+  "enabled": zod.boolean(),
+  "lastSeen": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update a router
+ */
+export const UpdateRouterParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateRouterBody = zod.object({
+  "name": zod.string().optional(),
+  "routerType": zod.enum(['routeros', 'juniper', 'edgerouter']).optional(),
+  "ipAddress": zod.string().optional(),
+  "port": zod.number().nullish(),
+  "username": zod.string().optional(),
+  "password": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "location": zod.string().nullish(),
+  "apiSsl": zod.boolean().nullish(),
+  "sshPort": zod.number().nullish(),
+  "netconfPort": zod.number().nullish(),
+  "enabled": zod.boolean().optional()
+})
+
+export const UpdateRouterResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "routerType": zod.enum(['routeros', 'juniper', 'edgerouter']),
+  "ipAddress": zod.string(),
+  "port": zod.number().nullish(),
+  "username": zod.string(),
+  "password": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "location": zod.string().nullish(),
+  "apiSsl": zod.boolean().nullish(),
+  "sshPort": zod.number().nullish(),
+  "netconfPort": zod.number().nullish(),
+  "enabled": zod.boolean(),
+  "lastSeen": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a router
+ */
+export const DeleteRouterParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+

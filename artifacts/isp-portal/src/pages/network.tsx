@@ -1,97 +1,592 @@
 import { useState } from "react";
-import { useListEquipment, useListIpPools } from "@workspace/api-client-react";
-import { Plus, Server, Route, Activity } from "lucide-react";
+import {
+  useListEquipment, useCreateEquipment, useUpdateEquipment, useDeleteEquipment,
+  useListIpPools, useCreateIpPool, useUpdateIpPool, useDeleteIpPool,
+  useListRouters, useCreateRouter, useUpdateRouter, useDeleteRouter,
+  RouterDeviceInputRouterType, RouterDeviceUpdateRouterType,
+  EquipmentInput, EquipmentUpdate,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Plus, Server, Route, Wifi, Pencil, Trash2, ChevronDown,
+  CheckCircle2, Circle, WrenchIcon, AlertTriangle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 
-export default function Network() {
-  const { data: equipmentData, isLoading: loadingEquipment } = useListEquipment();
-  const { data: ipPoolsData, isLoading: loadingIpPools } = useListIpPools();
+// ─── Types ────────────────────────────────────────────────────────────────────
+type RouterFormData = {
+  name: string; routerType: string; ipAddress: string; port: string;
+  username: string; password: string; description: string; location: string;
+  apiSsl: boolean; sshPort: string; netconfPort: string; enabled: boolean;
+};
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online': return 'bg-green-500';
-      case 'offline': return 'bg-red-500';
-      case 'maintenance': return 'bg-orange-500';
-      default: return 'bg-gray-400';
+type EquipmentFormData = {
+  name: string; type: string; model: string; brand: string; ipAddress: string;
+  macAddress: string; location: string; status: string; notes: string;
+};
+
+type IpPoolFormData = {
+  name: string; network: string; gateway: string; subnetMask: string;
+  dns1: string; dns2: string; description: string;
+};
+
+const ROUTER_DEFAULTS: RouterFormData = {
+  name: "", routerType: "routeros", ipAddress: "", port: "",
+  username: "admin", password: "", description: "", location: "",
+  apiSsl: false, sshPort: "", netconfPort: "", enabled: true,
+};
+
+const EQUIPMENT_DEFAULTS: EquipmentFormData = {
+  name: "", type: "router", model: "", brand: "", ipAddress: "",
+  macAddress: "", location: "", status: "online", notes: "",
+};
+
+const POOL_DEFAULTS: IpPoolFormData = {
+  name: "", network: "", gateway: "", subnetMask: "255.255.255.0",
+  dns1: "8.8.8.8", dns2: "8.8.4.4", description: "",
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function routerTypeLabel(t: string) {
+  return { routeros: "RouterOS", juniper: "JunOS", edgerouter: "EdgeRouter" }[t] ?? t;
+}
+
+function routerTypeBadgeClass(t: string) {
+  return {
+    routeros: "bg-blue-50 text-blue-700 border-blue-200",
+    juniper:  "bg-orange-50 text-orange-700 border-orange-200",
+    edgerouter: "bg-purple-50 text-purple-700 border-purple-200",
+  }[t] ?? "bg-gray-100 text-gray-600";
+}
+
+function statusDot(status: string) {
+  if (status === "online")      return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+  if (status === "offline")     return <Circle className="w-4 h-4 text-red-400" />;
+  if (status === "maintenance") return <WrenchIcon className="w-4 h-4 text-orange-400" />;
+  return <AlertTriangle className="w-4 h-4 text-gray-400" />;
+}
+
+// ─── Router Dialog ────────────────────────────────────────────────────────────
+function RouterDialog({
+  open, onClose, initial, routerId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  initial?: RouterFormData;
+  routerId?: number;
+}) {
+  const qc = useQueryClient();
+  const createMutation = useCreateRouter();
+  const updateMutation = useUpdateRouter();
+  const [form, setForm] = useState<RouterFormData>(initial ?? ROUTER_DEFAULTS);
+  const [saving, setSaving] = useState(false);
+
+  const set = (k: keyof RouterFormData, v: string | boolean) =>
+    setForm((p) => ({ ...p, [k]: v }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const basePayload = {
+        name: form.name,
+        ipAddress: form.ipAddress,
+        port: form.port ? parseInt(form.port) : undefined,
+        username: form.username,
+        password: form.password,
+        description: form.description || undefined,
+        location: form.location || undefined,
+        apiSsl: form.apiSsl,
+        sshPort: form.sshPort ? parseInt(form.sshPort) : undefined,
+        netconfPort: form.netconfPort ? parseInt(form.netconfPort) : undefined,
+        enabled: form.enabled,
+      };
+      if (routerId) {
+        await updateMutation.mutateAsync({
+          id: routerId,
+          data: { ...basePayload, routerType: form.routerType as RouterDeviceUpdateRouterType },
+        });
+      } else {
+        await createMutation.mutateAsync({
+          data: { ...basePayload, routerType: form.routerType as RouterDeviceInputRouterType },
+        });
+      }
+      await qc.invalidateQueries({ queryKey: ["/api/routers"] });
+      onClose();
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Network Infrastructure</h1>
-          <p className="text-gray-500 text-sm">Manage hardware and IP resources.</p>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{routerId ? "Edit Router" : "Add Router"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Name / Location *</Label>
+              <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Core-Router-01" />
+            </div>
+            <div className="space-y-1">
+              <Label>Router Type *</Label>
+              <Select value={form.routerType} onValueChange={(v) => set("routerType", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="routeros">MikroTik RouterOS</SelectItem>
+                  <SelectItem value="juniper">Juniper JunOS</SelectItem>
+                  <SelectItem value="edgerouter">Ubiquiti EdgeRouter</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>IP Address *</Label>
+              <Input value={form.ipAddress} onChange={(e) => set("ipAddress", e.target.value)}
+                placeholder={form.routerType === "routeros" ? "192.168.88.1" : "192.168.1.1"} />
+            </div>
+            <div className="space-y-1">
+              <Label>
+                {form.routerType === "routeros" ? "API Port" : "SSH Port"}
+              </Label>
+              <Input
+                type="number"
+                value={form.routerType === "routeros" ? form.port : form.sshPort}
+                onChange={(e) =>
+                  form.routerType === "routeros"
+                    ? set("port", e.target.value)
+                    : set("sshPort", e.target.value)
+                }
+                placeholder={form.routerType === "routeros" ? "8728" : "22"}
+              />
+            </div>
+          </div>
+
+          {form.routerType === "juniper" && (
+            <div className="space-y-1">
+              <Label>NETCONF Port</Label>
+              <Input type="number" value={form.netconfPort} onChange={(e) => set("netconfPort", e.target.value)} placeholder="830" />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Username *</Label>
+              <Input value={form.username} onChange={(e) => set("username", e.target.value)} placeholder="admin" />
+            </div>
+            <div className="space-y-1">
+              <Label>Password *</Label>
+              <Input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="••••••••" />
+            </div>
+          </div>
+
+          {form.routerType === "routeros" && (
+            <div className="flex items-center gap-3">
+              <Switch checked={form.apiSsl} onCheckedChange={(v) => set("apiSsl", v)} id="apiSsl" />
+              <Label htmlFor="apiSsl" className="text-sm cursor-pointer">Use SSL/TLS for API connection (port 8729)</Label>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <Label>Location</Label>
+            <Input value={form.location} onChange={(e) => set("location", e.target.value)} placeholder="Data Centre, Rack 3" />
+          </div>
+
+          <div className="space-y-1">
+            <Label>Description</Label>
+            <Textarea rows={2} value={form.description} onChange={(e) => set("description", e.target.value)} className="resize-none" placeholder="Core BGP router serving Zone A" />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Switch checked={form.enabled} onCheckedChange={(v) => set("enabled", v)} id="enabled" />
+            <Label htmlFor="enabled" className="text-sm cursor-pointer">Enabled (monitored by system)</Label>
+          </div>
         </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || !form.name || !form.ipAddress || !form.username}
+            className="bg-blue-600 hover:bg-blue-700 text-white">
+            {saving ? "Saving…" : routerId ? "Update" : "Add Router"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Equipment Dialog ────────────────────────────────────────────────────────
+function EquipmentDialog({
+  open, onClose, initial, equipmentId,
+}: {
+  open: boolean; onClose: () => void; initial?: EquipmentFormData; equipmentId?: number;
+}) {
+  const qc = useQueryClient();
+  const createMutation = useCreateEquipment();
+  const updateMutation = useUpdateEquipment();
+  const [form, setForm] = useState<EquipmentFormData>(initial ?? EQUIPMENT_DEFAULTS);
+  const [saving, setSaving] = useState(false);
+
+  const set = (k: keyof EquipmentFormData, v: string) => setForm((p) => ({ ...p, [k]: v }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (equipmentId) {
+        await updateMutation.mutateAsync({
+          id: equipmentId,
+          data: {
+            name: form.name, model: form.model, ipAddress: form.ipAddress,
+            brand: form.brand || null, macAddress: form.macAddress || null,
+            location: form.location || null, notes: form.notes || null,
+          } as EquipmentUpdate,
+        });
+      } else {
+        await createMutation.mutateAsync({
+          data: {
+            name: form.name, type: form.type, model: form.model, ipAddress: form.ipAddress,
+            brand: form.brand || undefined, macAddress: form.macAddress || undefined,
+            location: form.location || undefined, status: form.status || undefined,
+            notes: form.notes || undefined,
+          } as EquipmentInput,
+        });
+      }
+      await qc.invalidateQueries({ queryKey: ["/api/equipment"] });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{equipmentId ? "Edit Equipment" : "Add Equipment"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Name *</Label>
+              <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Core Switch 01" />
+            </div>
+            <div className="space-y-1">
+              <Label>Type *</Label>
+              <Select value={form.type} onValueChange={(v) => set("type", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["router","switch","olt","onu","access_point","server","other"].map((t) => (
+                    <SelectItem key={t} value={t}>{t.replace("_"," ")}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Brand</Label>
+              <Input value={form.brand} onChange={(e) => set("brand", e.target.value)} placeholder="Cisco" />
+            </div>
+            <div className="space-y-1">
+              <Label>Model *</Label>
+              <Input value={form.model} onChange={(e) => set("model", e.target.value)} placeholder="Catalyst 2960" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>IP Address *</Label>
+              <Input value={form.ipAddress} onChange={(e) => set("ipAddress", e.target.value)} placeholder="10.0.0.1" />
+            </div>
+            <div className="space-y-1">
+              <Label>MAC Address</Label>
+              <Input value={form.macAddress} onChange={(e) => set("macAddress", e.target.value)} placeholder="AA:BB:CC:DD:EE:FF" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Location</Label>
+              <Input value={form.location} onChange={(e) => set("location", e.target.value)} placeholder="Rack 2, DC Floor 1" />
+            </div>
+            <div className="space-y-1">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => set("status", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="online">Online</SelectItem>
+                  <SelectItem value="offline">Offline</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value="unknown">Unknown</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label>Notes</Label>
+            <Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} className="resize-none" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || !form.name || !form.ipAddress || !form.model}
+            className="bg-blue-600 hover:bg-blue-700 text-white">
+            {saving ? "Saving…" : equipmentId ? "Update" : "Add Equipment"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── IP Pool Dialog ───────────────────────────────────────────────────────────
+function IpPoolDialog({
+  open, onClose, initial, poolId,
+}: {
+  open: boolean; onClose: () => void; initial?: IpPoolFormData; poolId?: number;
+}) {
+  const qc = useQueryClient();
+  const createMutation = useCreateIpPool();
+  const updateMutation = useUpdateIpPool();
+  const [form, setForm] = useState<IpPoolFormData>(initial ?? POOL_DEFAULTS);
+  const [saving, setSaving] = useState(false);
+
+  const set = (k: keyof IpPoolFormData, v: string) => setForm((p) => ({ ...p, [k]: v }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name, network: form.network, gateway: form.gateway,
+        subnetMask: form.subnetMask, dns1: form.dns1 || undefined,
+        dns2: form.dns2 || undefined, description: form.description || undefined,
+      };
+      if (poolId) {
+        await updateMutation.mutateAsync({ id: poolId, data: payload });
+      } else {
+        await createMutation.mutateAsync({ data: payload });
+      }
+      await qc.invalidateQueries({ queryKey: ["/api/ip-pools"] });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{poolId ? "Edit IP Pool" : "Add IP Pool"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="space-y-1">
+            <Label>Pool Name *</Label>
+            <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Customer Pool A" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Network (CIDR) *</Label>
+              <Input value={form.network} onChange={(e) => set("network", e.target.value)} placeholder="192.168.1.0/24" />
+            </div>
+            <div className="space-y-1">
+              <Label>Gateway *</Label>
+              <Input value={form.gateway} onChange={(e) => set("gateway", e.target.value)} placeholder="192.168.1.1" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Subnet Mask *</Label>
+              <Input value={form.subnetMask} onChange={(e) => set("subnetMask", e.target.value)} placeholder="255.255.255.0" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Primary DNS</Label>
+              <Input value={form.dns1} onChange={(e) => set("dns1", e.target.value)} placeholder="8.8.8.8" />
+            </div>
+            <div className="space-y-1">
+              <Label>Secondary DNS</Label>
+              <Input value={form.dns2} onChange={(e) => set("dns2", e.target.value)} placeholder="8.8.4.4" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label>Description</Label>
+            <Textarea rows={2} value={form.description} onChange={(e) => set("description", e.target.value)} className="resize-none" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || !form.name || !form.network || !form.gateway}
+            className="bg-blue-600 hover:bg-blue-700 text-white">
+            {saving ? "Saving…" : poolId ? "Update" : "Add Pool"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+export default function Network() {
+  const { data: equipmentData, isLoading: loadingEquipment } = useListEquipment();
+  const { data: ipPoolsData, isLoading: loadingIpPools } = useListIpPools();
+  const { data: routersData, isLoading: loadingRouters } = useListRouters();
+
+  const deleteEquipment = useDeleteEquipment();
+  const deletePool = useDeleteIpPool();
+  const deleteRouter = useDeleteRouter();
+  const qc = useQueryClient();
+
+  // Router dialog
+  const [routerDialog, setRouterDialog] = useState<{ open: boolean; id?: number; initial?: RouterFormData }>({ open: false });
+  // Equipment dialog
+  const [equipDialog, setEquipDialog] = useState<{ open: boolean; id?: number; initial?: EquipmentFormData }>({ open: false });
+  // IP Pool dialog
+  const [poolDialog, setPoolDialog] = useState<{ open: boolean; id?: number; initial?: IpPoolFormData }>({ open: false });
+
+  const handleDeleteRouter = async (id: number) => {
+    if (!confirm("Delete this router?")) return;
+    await deleteRouter.mutateAsync({ id });
+    qc.invalidateQueries({ queryKey: ["/api/routers"] });
+  };
+
+  const handleDeleteEquipment = async (id: number) => {
+    if (!confirm("Delete this equipment?")) return;
+    await deleteEquipment.mutateAsync({ id });
+    qc.invalidateQueries({ queryKey: ["/api/equipment"] });
+  };
+
+  const handleDeletePool = async (id: number) => {
+    if (!confirm("Delete this IP pool?")) return;
+    await deletePool.mutateAsync({ id });
+    qc.invalidateQueries({ queryKey: ["/api/ip-pools"] });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Network Infrastructure</h1>
+        <p className="text-gray-500 text-sm">Manage routers, equipment, and IP resources.</p>
       </div>
 
-      <Tabs defaultValue="equipment" className="w-full">
-        <TabsList className="grid w-[400px] grid-cols-2 bg-gray-100">
-          <TabsTrigger value="equipment" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            <Server className="w-4 h-4 mr-2" />
-            Equipment
+      <Tabs defaultValue="routers" className="w-full">
+        <TabsList className="bg-gray-100">
+          <TabsTrigger value="routers" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Wifi className="w-4 h-4" /> Routers
+            {routersData && (
+              <Badge variant="secondary" className="ml-1 bg-gray-200 text-gray-700 text-xs px-1.5">{routersData.length}</Badge>
+            )}
           </TabsTrigger>
-          <TabsTrigger value="ippools" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            <Route className="w-4 h-4 mr-2" />
-            IP Pools
+          <TabsTrigger value="equipment" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Server className="w-4 h-4" /> Equipment
+            {equipmentData && (
+              <Badge variant="secondary" className="ml-1 bg-gray-200 text-gray-700 text-xs px-1.5">{equipmentData.length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="ippools" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Route className="w-4 h-4" /> IP Pools
+            {ipPoolsData && (
+              <Badge variant="secondary" className="ml-1 bg-gray-200 text-gray-700 text-xs px-1.5">{ipPoolsData.length}</Badge>
+            )}
           </TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="equipment" className="mt-6">
+
+        {/* ── ROUTERS ───────────────────────────────────────────────────── */}
+        <TabsContent value="routers" className="mt-6">
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
             <div className="p-4 border-b border-gray-200 flex justify-end">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white" size="sm">
-                <Plus className="w-4 h-4 mr-2" /> Add Equipment
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white" size="sm"
+                onClick={() => setRouterDialog({ open: true })}>
+                <Plus className="w-4 h-4 mr-2" /> Add Router
               </Button>
             </div>
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="w-10"></TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>IP Address</TableHead>
                   <TableHead>Location</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loadingEquipment ? (
-                  Array.from({ length: 5 }).map((_, i) => (
+                {loadingRouters ? (
+                  Array.from({ length: 3 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell><Skeleton className="h-4 w-4 rounded-full" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                      {Array.from({ length: 7 }).map((__, j) => (
+                        <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
+                      ))}
                     </TableRow>
                   ))
-                ) : equipmentData && equipmentData.length > 0 ? (
-                  equipmentData.map((item) => (
-                    <TableRow key={item.id} className="hover:bg-gray-50/50">
+                ) : routersData && routersData.length > 0 ? (
+                  routersData.map((r) => (
+                    <TableRow key={r.id} className="hover:bg-gray-50/50">
                       <TableCell>
-                        <div className="flex items-center justify-center w-8">
-                          <div className={`w-3 h-3 rounded-full ${getStatusColor(item.status)} shadow-sm`} title={item.status} />
-                        </div>
+                        <div className={`w-2 h-2 rounded-full mx-auto ${r.enabled ? "bg-green-500" : "bg-gray-300"}`} />
                       </TableCell>
-                      <TableCell className="font-medium text-gray-900">{item.name}</TableCell>
+                      <TableCell className="font-medium text-gray-900">{r.name}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="capitalize bg-gray-100 text-gray-700 border-0">
-                          {item.type.replace('_', ' ')}
+                        <Badge variant="outline" className={`text-xs ${routerTypeBadgeClass(r.routerType)}`}>
+                          {routerTypeLabel(r.routerType)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-mono text-sm text-gray-600">{item.ipAddress}</TableCell>
-                      <TableCell className="text-gray-500 text-sm">{item.location || '—'}</TableCell>
+                      <TableCell className="font-mono text-sm text-gray-600">
+                        {r.ipAddress}{r.port ? `:${r.port}` : ""}
+                      </TableCell>
+                      <TableCell className="text-gray-500 text-sm">{r.location || "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={r.enabled ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-100 text-gray-500"}>
+                          {r.enabled ? "Active" : "Disabled"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
+                            onClick={() => setRouterDialog({
+                              open: true, id: r.id,
+                              initial: {
+                                name: r.name, routerType: r.routerType, ipAddress: r.ipAddress,
+                                port: r.port?.toString() ?? "", username: r.username, password: r.password ?? "",
+                                description: r.description ?? "", location: r.location ?? "",
+                                apiSsl: r.apiSsl ?? false,
+                                sshPort: r.sshPort?.toString() ?? "", netconfPort: r.netconfPort?.toString() ?? "",
+                                enabled: r.enabled,
+                              },
+                            })}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600"
+                            onClick={() => handleDeleteRouter(r.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-gray-500">
-                      No equipment found.
+                    <TableCell colSpan={7} className="h-32 text-center text-gray-400">
+                      <Wifi className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">No routers added yet.</p>
+                      <Button variant="link" size="sm" className="mt-1 text-blue-600"
+                        onClick={() => setRouterDialog({ open: true })}>
+                        Add your first router →
+                      </Button>
                     </TableCell>
                   </TableRow>
                 )}
@@ -99,11 +594,97 @@ export default function Network() {
             </Table>
           </div>
         </TabsContent>
-        
+
+        {/* ── EQUIPMENT ─────────────────────────────────────────────────── */}
+        <TabsContent value="equipment" className="mt-6">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-gray-200 flex justify-end">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white" size="sm"
+                onClick={() => setEquipDialog({ open: true })}>
+                <Plus className="w-4 h-4 mr-2" /> Add Equipment
+              </Button>
+            </div>
+            <Table>
+              <TableHeader className="bg-gray-50">
+                <TableRow>
+                  <TableHead className="w-10">Status</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Brand / Model</TableHead>
+                  <TableHead>IP Address</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loadingEquipment ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      {Array.from({ length: 7 }).map((__, j) => (
+                        <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : equipmentData && equipmentData.length > 0 ? (
+                  equipmentData.map((item) => (
+                    <TableRow key={item.id} className="hover:bg-gray-50/50">
+                      <TableCell>
+                        <div className="flex items-center justify-center">
+                          {statusDot(item.status)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium text-gray-900">{item.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="capitalize bg-gray-100 text-gray-700 border-0 text-xs">
+                          {item.type.replace("_", " ")}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">
+                        {item.brand ? `${item.brand} ` : ""}{item.model}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm text-gray-600">{item.ipAddress}</TableCell>
+                      <TableCell className="text-gray-500 text-sm">{item.location || "—"}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
+                            onClick={() => setEquipDialog({
+                              open: true, id: item.id,
+                              initial: {
+                                name: item.name, type: item.type, model: item.model,
+                                brand: item.brand ?? "", ipAddress: item.ipAddress,
+                                macAddress: item.macAddress ?? "", location: item.location ?? "",
+                                status: item.status, notes: item.notes ?? "",
+                              },
+                            })}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600"
+                            onClick={() => handleDeleteEquipment(item.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-32 text-center text-gray-400">
+                      <Server className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">No equipment found.</p>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        {/* ── IP POOLS ──────────────────────────────────────────────────── */}
         <TabsContent value="ippools" className="mt-6">
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
             <div className="p-4 border-b border-gray-200 flex justify-end">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white" size="sm">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white" size="sm"
+                onClick={() => setPoolDialog({ open: true })}>
                 <Plus className="w-4 h-4 mr-2" /> Add IP Pool
               </Button>
             </div>
@@ -111,47 +692,63 @@ export default function Network() {
               <TableHeader className="bg-gray-50">
                 <TableRow>
                   <TableHead>Pool Name / CIDR</TableHead>
-                  <TableHead className="w-1/3">Usage</TableHead>
+                  <TableHead className="w-1/4">Usage</TableHead>
                   <TableHead>Gateway</TableHead>
                   <TableHead>DNS Servers</TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loadingIpPools ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell><Skeleton className="h-10 w-40" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-full" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                      {Array.from({ length: 5 }).map((__, j) => (
+                        <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
+                      ))}
                     </TableRow>
                   ))
                 ) : ipPoolsData && ipPoolsData.length > 0 ? (
                   ipPoolsData.map((pool) => {
-                    const usagePercent = Math.round((pool.usedIps / pool.totalIps) * 100);
+                    const usagePct = Math.round((pool.usedIps / Math.max(pool.totalIps, 1)) * 100);
                     return (
                       <TableRow key={pool.id} className="hover:bg-gray-50/50">
                         <TableCell>
                           <div className="font-medium text-gray-900">{pool.name}</div>
-                          <div className="font-mono text-sm text-blue-600 bg-blue-50 px-2 py-0.5 rounded inline-block mt-1">
+                          <code className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded mt-0.5 inline-block">
                             {pool.network}
-                          </div>
+                          </code>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-1.5 w-full pr-8">
+                          <div className="flex flex-col gap-1 w-full pr-4">
                             <div className="flex justify-between text-xs text-gray-500">
                               <span>{pool.usedIps} used</span>
-                              <span>{pool.totalIps - pool.usedIps} available</span>
+                              <span>{pool.totalIps - pool.usedIps} free</span>
                             </div>
-                            <Progress value={usagePercent} className="h-2 bg-gray-100" />
-                            <div className="text-right text-xs font-medium text-gray-700">{usagePercent}%</div>
+                            <Progress value={usagePct} className={`h-2 ${usagePct > 85 ? "[&>div]:bg-red-500" : usagePct > 60 ? "[&>div]:bg-yellow-500" : "[&>div]:bg-green-500"}`} />
+                            <div className="text-right text-xs font-medium text-gray-600">{usagePct}%</div>
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-sm text-gray-600">{pool.gateway}</TableCell>
+                        <TableCell className="font-mono text-sm text-gray-500">
+                          {pool.dns1 || "—"}{pool.dns2 ? <>, <br />{pool.dns2}</> : ""}
+                        </TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-1 font-mono text-sm text-gray-600">
-                            <span>{pool.dns1 || '—'}</span>
-                            {pool.dns2 && <span>{pool.dns2}</span>}
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
+                              onClick={() => setPoolDialog({
+                                open: true, id: pool.id,
+                                initial: {
+                                  name: pool.name, network: pool.network, gateway: pool.gateway,
+                                  subnetMask: pool.subnetMask, dns1: pool.dns1 ?? "",
+                                  dns2: pool.dns2 ?? "", description: pool.description ?? "",
+                                },
+                              })}>
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600"
+                              onClick={() => handleDeletePool(pool.id)}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -159,8 +756,9 @@ export default function Network() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center text-gray-500">
-                      No IP pools found.
+                    <TableCell colSpan={5} className="h-32 text-center text-gray-400">
+                      <Route className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">No IP pools configured.</p>
                     </TableCell>
                   </TableRow>
                 )}
@@ -169,6 +767,26 @@ export default function Network() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Dialogs */}
+      <RouterDialog
+        open={routerDialog.open}
+        onClose={() => setRouterDialog({ open: false })}
+        initial={routerDialog.initial}
+        routerId={routerDialog.id}
+      />
+      <EquipmentDialog
+        open={equipDialog.open}
+        onClose={() => setEquipDialog({ open: false })}
+        initial={equipDialog.initial}
+        equipmentId={equipDialog.id}
+      />
+      <IpPoolDialog
+        open={poolDialog.open}
+        onClose={() => setPoolDialog({ open: false })}
+        initial={poolDialog.initial}
+        poolId={poolDialog.id}
+      />
     </div>
   );
 }

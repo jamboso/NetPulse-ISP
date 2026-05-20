@@ -28,6 +28,10 @@ tags:
     description: IP address pool management
   - name: dashboard
     description: Dashboard analytics and summaries
+  - name: settings
+    description: Application settings
+  - name: routers
+    description: Managed router devices (RouterOS, Juniper, EdgeRouter)
 
 paths:
   /healthz:
@@ -888,6 +892,127 @@ paths:
         "204":
           description: Deleted
 
+  # ── SETTINGS ──────────────────────────────────────────────────────────────────
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get all app settings
+      responses:
+        "200":
+          description: Settings object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+    patch:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update settings (partial)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+
+  # ── ROUTERS ───────────────────────────────────────────────────────────────────
+  /routers:
+    get:
+      operationId: listRouters
+      tags: [routers]
+      summary: List all managed routers
+      responses:
+        "200":
+          description: Routers list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RouterDevice"
+    post:
+      operationId: createRouter
+      tags: [routers]
+      summary: Add a router
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RouterDeviceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouterDevice"
+
+  /routers/{id}:
+    get:
+      operationId: getRouter
+      tags: [routers]
+      summary: Get router by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Router
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouterDevice"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateRouter
+      tags: [routers]
+      summary: Update a router
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RouterDeviceUpdate"
+      responses:
+        "200":
+          description: Updated router
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouterDevice"
+    delete:
+      operationId: deleteRouter
+      tags: [routers]
+      summary: Delete a router
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
 components:
   schemas:
     HealthStatus:
@@ -1597,3 +1722,232 @@ components:
           type: ["string", "null"]
         description:
           type: ["string", "null"]
+
+    # ── SETTINGS ───────────────────────────────────────────────────────────────
+    Settings:
+      type: object
+      properties:
+        companyName:
+          type: ["string", "null"]
+        companyAddress:
+          type: ["string", "null"]
+        companyPhone:
+          type: ["string", "null"]
+        companyEmail:
+          type: ["string", "null"]
+        timezone:
+          type: ["string", "null"]
+        currency:
+          type: ["string", "null"]
+        invoicePrefix:
+          type: ["string", "null"]
+        invoiceDueDays:
+          type: ["string", "null"]
+        lateFeePercent:
+          type: ["string", "null"]
+        autoSuspendDays:
+          type: ["string", "null"]
+        gracePeriodDays:
+          type: ["string", "null"]
+        defaultRouterType:
+          type: ["string", "null"]
+        ntpServer:
+          type: ["string", "null"]
+        radiusServer:
+          type: ["string", "null"]
+        radiusSecret:
+          type: ["string", "null"]
+        smsProvider:
+          type: ["string", "null"]
+        smsApiKey:
+          type: ["string", "null"]
+        smsSenderId:
+          type: ["string", "null"]
+        telegramBotToken:
+          type: ["string", "null"]
+        telegramChatId:
+          type: ["string", "null"]
+        smtpHost:
+          type: ["string", "null"]
+        smtpPort:
+          type: ["string", "null"]
+        smtpUser:
+          type: ["string", "null"]
+        smtpPass:
+          type: ["string", "null"]
+        smtpFrom:
+          type: ["string", "null"]
+        mpesaConsumerKey:
+          type: ["string", "null"]
+        mpesaConsumerSecret:
+          type: ["string", "null"]
+        mpesaShortcode:
+          type: ["string", "null"]
+        mpesaPasskey:
+          type: ["string", "null"]
+        mpesaEnv:
+          type: ["string", "null"]
+        mpesaCallbackUrl:
+          type: ["string", "null"]
+
+    SettingsInput:
+      type: object
+      properties:
+        companyName:
+          type: string
+        companyAddress:
+          type: string
+        companyPhone:
+          type: string
+        companyEmail:
+          type: string
+        timezone:
+          type: string
+        currency:
+          type: string
+        invoicePrefix:
+          type: string
+        invoiceDueDays:
+          type: string
+        lateFeePercent:
+          type: string
+        autoSuspendDays:
+          type: string
+        gracePeriodDays:
+          type: string
+        defaultRouterType:
+          type: string
+        ntpServer:
+          type: string
+        radiusServer:
+          type: string
+        radiusSecret:
+          type: string
+        smsProvider:
+          type: string
+        smsApiKey:
+          type: string
+        smsSenderId:
+          type: string
+        telegramBotToken:
+          type: string
+        telegramChatId:
+          type: string
+        smtpHost:
+          type: string
+        smtpPort:
+          type: string
+        smtpUser:
+          type: string
+        smtpPass:
+          type: string
+        smtpFrom:
+          type: string
+        mpesaConsumerKey:
+          type: string
+        mpesaConsumerSecret:
+          type: string
+        mpesaShortcode:
+          type: string
+        mpesaPasskey:
+          type: string
+        mpesaEnv:
+          type: string
+        mpesaCallbackUrl:
+          type: string
+
+    # ── ROUTERS ────────────────────────────────────────────────────────────────
+    RouterDevice:
+      type: object
+      required: [id, name, routerType, ipAddress, username, enabled, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        routerType:
+          type: string
+          enum: [routeros, juniper, edgerouter]
+        ipAddress:
+          type: string
+        port:
+          type: ["integer", "null"]
+        username:
+          type: string
+        password:
+          type: string
+        description:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        apiSsl:
+          type: ["boolean", "null"]
+        sshPort:
+          type: ["integer", "null"]
+        netconfPort:
+          type: ["integer", "null"]
+        enabled:
+          type: boolean
+        lastSeen:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    RouterDeviceInput:
+      type: object
+      required: [name, routerType, ipAddress, username, password]
+      properties:
+        name:
+          type: string
+        routerType:
+          type: string
+          enum: [routeros, juniper, edgerouter]
+        ipAddress:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        password:
+          type: string
+        description:
+          type: string
+        location:
+          type: string
+        apiSsl:
+          type: boolean
+        sshPort:
+          type: integer
+        netconfPort:
+          type: integer
+        enabled:
+          type: boolean
+
+    RouterDeviceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        routerType:
+          type: string
+          enum: [routeros, juniper, edgerouter]
+        ipAddress:
+          type: string
+        port:
+          type: ["integer", "null"]
+        username:
+          type: string
+        password:
+          type: string
+        description:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        apiSsl:
+          type: ["boolean", "null"]
+        sshPort:
+          type: ["integer", "null"]
+        netconfPort:
+          type: ["integer", "null"]
+        enabled:
+          type: boolean

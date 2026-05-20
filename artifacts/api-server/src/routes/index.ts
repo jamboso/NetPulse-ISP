@@ -11,6 +11,8 @@ import ticketsRouter from "./tickets";
 import equipmentRouter from "./equipment";
 import ipPoolsRouter from "./ipPools";
 import mpesaRouter from "./mpesa";
+import settingsRouter from "./settings";
+import routersRouter from "./routers";
 
 const router: IRouter = Router();
 
@@ -33,5 +35,7 @@ router.use(paymentsRouter);
 router.use(ticketsRouter);
 router.use(equipmentRouter);
 router.use(ipPoolsRouter);
+router.use(settingsRouter);
+router.use(routersRouter);
 
 export default router;

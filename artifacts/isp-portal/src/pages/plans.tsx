@@ -15,8 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 
-type PlanForm = { name: string; description: string; downloadSpeed: string; uploadSpeed: string; price: string; billingCycle: string; isActive: boolean };
-const EMPTY: PlanForm = { name: "", description: "", downloadSpeed: "", uploadSpeed: "", price: "", billingCycle: "monthly", isActive: true };
+type PlanForm = { name: string; description: string; downloadSpeed: string; uploadSpeed: string; price: string; billingCycle: string; isActive: boolean; rosProfileName: string };
+const EMPTY: PlanForm = { name: "", description: "", downloadSpeed: "", uploadSpeed: "", price: "", billingCycle: "monthly", isActive: true, rosProfileName: "" };
 
 function PlanDialog({ open, onClose, initial, planId }: {
   open: boolean; onClose: () => void; initial?: PlanForm; planId?: number;
@@ -39,6 +39,7 @@ function PlanDialog({ open, onClose, initial, planId }: {
         price: Number(form.price),
         billingCycle: form.billingCycle as PlanInput["billingCycle"],
         isActive: form.isActive,
+        rosProfileName: form.rosProfileName || undefined,
       };
       if (planId) {
         await updateMutation.mutateAsync({ id: planId, data: payload as PlanUpdate });
@@ -85,6 +86,11 @@ function PlanDialog({ open, onClose, initial, planId }: {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="space-y-1">
+            <Label>RouterOS Profile Name</Label>
+            <Input value={form.rosProfileName} onChange={e => set("rosProfileName", e.target.value)} placeholder="e.g. plan-5mbps (leave blank for default)" />
+            <p className="text-xs text-gray-400">Maps to a PPP profile on RouterOS for speed limiting</p>
           </div>
           <div className="flex items-center gap-3">
             <Switch checked={form.isActive} onCheckedChange={v => set("isActive", v)} id="isActive" />
@@ -174,6 +180,7 @@ export default function Plans() {
                     name: plan.name, description: plan.description ?? "",
                     downloadSpeed: String(plan.downloadSpeed), uploadSpeed: String(plan.uploadSpeed),
                     price: String(plan.price), billingCycle: plan.billingCycle, isActive: plan.isActive,
+                    rosProfileName: (plan as any).rosProfileName ?? "",
                   }})}>
                   <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
                 </Button>

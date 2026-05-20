@@ -3,16 +3,20 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { customersTable } from "./customers";
 import { plansTable } from "./plans";
+import { routersTable } from "./routers";
 
 export const subscriptionsTable = pgTable("subscriptions", {
   id: serial("id").primaryKey(),
   customerId: integer("customer_id").notNull().references(() => customersTable.id),
   planId: integer("plan_id").notNull().references(() => plansTable.id),
+  routerId: integer("router_id").references(() => routersTable.id, { onDelete: "set null" }),
   status: text("status").notNull().default("active"),
   startDate: text("start_date").notNull(),
   endDate: text("end_date"),
   ipAddress: text("ip_address"),
   macAddress: text("mac_address"),
+  pppoeUsername: text("pppoe_username"),
+  pppoePassword: text("pppoe_password"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

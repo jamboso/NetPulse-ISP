@@ -16,4 +16,9 @@ export interface PlanUpdate {
   price?: number;
   billingCycle?: PlanUpdateBillingCycle;
   isActive?: boolean;
+  /**
+     * RouterOS PPP profile name (e.g. plan-5mbps)
+     * @nullable
+     */
+  rosProfileName?: string | null;
 }

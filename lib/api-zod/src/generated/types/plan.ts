@@ -19,5 +19,10 @@ export interface Plan {
   price: number;
   billingCycle: PlanBillingCycle;
   isActive: boolean;
+  /**
+     * RouterOS PPP profile name (e.g. plan-5mbps)
+     * @nullable
+     */
+  rosProfileName?: string | null;
   createdAt: string;
 }

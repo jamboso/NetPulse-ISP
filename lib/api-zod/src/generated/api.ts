@@ -173,6 +173,7 @@ export const ListPlansResponseItem = zod.object({
   "price": zod.number(),
   "billingCycle": zod.enum(['monthly', 'quarterly', 'annually']),
   "isActive": zod.boolean(),
+  "rosProfileName": zod.string().nullish().describe('RouterOS PPP profile name (e.g. plan-5mbps)'),
   "createdAt": zod.string()
 })
 export const ListPlansResponse = zod.array(ListPlansResponseItem)
@@ -188,7 +189,8 @@ export const CreatePlanBody = zod.object({
   "uploadSpeed": zod.number(),
   "price": zod.number(),
   "billingCycle": zod.enum(['monthly', 'quarterly', 'annually']),
-  "isActive": zod.boolean().optional()
+  "isActive": zod.boolean().optional(),
+  "rosProfileName": zod.string().optional().describe('RouterOS PPP profile name (e.g. plan-5mbps)')
 })
 
 
@@ -208,6 +210,7 @@ export const GetPlanResponse = zod.object({
   "price": zod.number(),
   "billingCycle": zod.enum(['monthly', 'quarterly', 'annually']),
   "isActive": zod.boolean(),
+  "rosProfileName": zod.string().nullish().describe('RouterOS PPP profile name (e.g. plan-5mbps)'),
   "createdAt": zod.string()
 })
 
@@ -226,7 +229,8 @@ export const UpdatePlanBody = zod.object({
   "uploadSpeed": zod.number().optional(),
   "price": zod.number().optional(),
   "billingCycle": zod.enum(['monthly', 'quarterly', 'annually']).optional(),
-  "isActive": zod.boolean().optional()
+  "isActive": zod.boolean().optional(),
+  "rosProfileName": zod.string().nullish().describe('RouterOS PPP profile name (e.g. plan-5mbps)')
 })
 
 export const UpdatePlanResponse = zod.object({
@@ -238,6 +242,7 @@ export const UpdatePlanResponse = zod.object({
   "price": zod.number(),
   "billingCycle": zod.enum(['monthly', 'quarterly', 'annually']),
   "isActive": zod.boolean(),
+  "rosProfileName": zod.string().nullish().describe('RouterOS PPP profile name (e.g. plan-5mbps)'),
   "createdAt": zod.string()
 })
 
@@ -267,6 +272,9 @@ export const ListSubscriptionsResponseItem = zod.object({
   "endDate": zod.string().nullish(),
   "ipAddress": zod.string().nullish(),
   "macAddress": zod.string().nullish(),
+  "routerId": zod.number().nullish().describe('RouterOS router to provision PPPoE secret on'),
+  "pppoeUsername": zod.string().nullish().describe('Auto-generated PPPoE username'),
+  "pppoePassword": zod.string().nullish().describe('Auto-generated PPPoE password'),
   "createdAt": zod.string(),
   "customer": zod.object({
   "id": zod.number(),
@@ -287,6 +295,7 @@ export const ListSubscriptionsResponseItem = zod.object({
   "price": zod.number(),
   "billingCycle": zod.enum(['monthly', 'quarterly', 'annually']),
   "isActive": zod.boolean(),
+  "rosProfileName": zod.string().nullish().describe('RouterOS PPP profile name (e.g. plan-5mbps)'),
   "createdAt": zod.string()
 }).optional()
 })
@@ -299,6 +308,7 @@ export const ListSubscriptionsResponse = zod.array(ListSubscriptionsResponseItem
 export const CreateSubscriptionBody = zod.object({
   "customerId": zod.number(),
   "planId": zod.number(),
+  "routerId": zod.number().optional().describe('RouterOS router to provision PPPoE secret on'),
   "status": zod.enum(['active', 'suspended', 'cancelled', 'expired']).optional(),
   "startDate": zod.string(),
   "endDate": zod.string().optional(),
@@ -323,6 +333,9 @@ export const GetSubscriptionResponse = zod.object({
   "endDate": zod.string().nullish(),
   "ipAddress": zod.string().nullish(),
   "macAddress": zod.string().nullish(),
+  "routerId": zod.number().nullish().describe('RouterOS router to provision PPPoE secret on'),
+  "pppoeUsername": zod.string().nullish().describe('Auto-generated PPPoE username'),
+  "pppoePassword": zod.string().nullish().describe('Auto-generated PPPoE password'),
   "createdAt": zod.string(),
   "customer": zod.object({
   "id": zod.number(),
@@ -343,6 +356,7 @@ export const GetSubscriptionResponse = zod.object({
   "price": zod.number(),
   "billingCycle": zod.enum(['monthly', 'quarterly', 'annually']),
   "isActive": zod.boolean(),
+  "rosProfileName": zod.string().nullish().describe('RouterOS PPP profile name (e.g. plan-5mbps)'),
   "createdAt": zod.string()
 }).optional()
 })
@@ -357,6 +371,7 @@ export const UpdateSubscriptionParams = zod.object({
 
 export const UpdateSubscriptionBody = zod.object({
   "planId": zod.number().optional(),
+  "routerId": zod.number().nullish(),
   "status": zod.enum(['active', 'suspended', 'cancelled', 'expired']).optional(),
   "endDate": zod.string().nullish(),
   "ipAddress": zod.string().nullish(),
@@ -372,6 +387,9 @@ export const UpdateSubscriptionResponse = zod.object({
   "endDate": zod.string().nullish(),
   "ipAddress": zod.string().nullish(),
   "macAddress": zod.string().nullish(),
+  "routerId": zod.number().nullish().describe('RouterOS router to provision PPPoE secret on'),
+  "pppoeUsername": zod.string().nullish().describe('Auto-generated PPPoE username'),
+  "pppoePassword": zod.string().nullish().describe('Auto-generated PPPoE password'),
   "createdAt": zod.string(),
   "customer": zod.object({
   "id": zod.number(),
@@ -392,6 +410,7 @@ export const UpdateSubscriptionResponse = zod.object({
   "price": zod.number(),
   "billingCycle": zod.enum(['monthly', 'quarterly', 'annually']),
   "isActive": zod.boolean(),
+  "rosProfileName": zod.string().nullish().describe('RouterOS PPP profile name (e.g. plan-5mbps)'),
   "createdAt": zod.string()
 }).optional()
 })

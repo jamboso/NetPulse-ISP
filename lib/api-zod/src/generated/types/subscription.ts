@@ -21,6 +21,21 @@ export interface Subscription {
   ipAddress?: string | null;
   /** @nullable */
   macAddress?: string | null;
+  /**
+     * RouterOS router to provision PPPoE secret on
+     * @nullable
+     */
+  routerId?: number | null;
+  /**
+     * Auto-generated PPPoE username
+     * @nullable
+     */
+  pppoeUsername?: string | null;
+  /**
+     * Auto-generated PPPoE password
+     * @nullable
+     */
+  pppoePassword?: string | null;
   createdAt: string;
   customer?: Customer;
   plan?: Plan;

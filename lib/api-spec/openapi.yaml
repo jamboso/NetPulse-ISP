@@ -1240,6 +1240,9 @@ components:
           enum: [monthly, quarterly, annually]
         isActive:
           type: boolean
+        rosProfileName:
+          type: ["string", "null"]
+          description: RouterOS PPP profile name (e.g. plan-5mbps)
         createdAt:
           type: string
 
@@ -1262,6 +1265,9 @@ components:
           enum: [monthly, quarterly, annually]
         isActive:
           type: boolean
+        rosProfileName:
+          type: string
+          description: RouterOS PPP profile name (e.g. plan-5mbps)
 
     PlanUpdate:
       type: object
@@ -1281,6 +1287,9 @@ components:
           enum: [monthly, quarterly, annually]
         isActive:
           type: boolean
+        rosProfileName:
+          type: ["string", "null"]
+          description: RouterOS PPP profile name (e.g. plan-5mbps)
 
     # ── SUBSCRIPTIONS ──────────────────────────────────────────────────────────
     Subscription:
@@ -1310,6 +1319,15 @@ components:
           type: ["string", "null"]
         macAddress:
           type: ["string", "null"]
+        routerId:
+          type: ["integer", "null"]
+          description: RouterOS router to provision PPPoE secret on
+        pppoeUsername:
+          type: ["string", "null"]
+          description: Auto-generated PPPoE username
+        pppoePassword:
+          type: ["string", "null"]
+          description: Auto-generated PPPoE password
         createdAt:
           type: string
         customer:
@@ -1325,6 +1343,9 @@ components:
           type: integer
         planId:
           type: integer
+        routerId:
+          type: integer
+          description: RouterOS router to provision PPPoE secret on
         status:
           type: string
           enum: [active, suspended, cancelled, expired]
@@ -1342,6 +1363,8 @@ components:
       properties:
         planId:
           type: integer
+        routerId:
+          type: ["integer", "null"]
         status:
           type: string
           enum: [active, suspended, cancelled, expired]

@@ -126,6 +126,11 @@ export interface Plan {
   price: number;
   billingCycle: PlanBillingCycle;
   isActive: boolean;
+  /**
+     * RouterOS PPP profile name (e.g. plan-5mbps)
+     * @nullable
+     */
+  rosProfileName?: string | null;
   createdAt: string;
 }
 
@@ -146,6 +151,8 @@ export interface PlanInput {
   price: number;
   billingCycle: PlanInputBillingCycle;
   isActive?: boolean;
+  /** RouterOS PPP profile name (e.g. plan-5mbps) */
+  rosProfileName?: string;
 }
 
 export type PlanUpdateBillingCycle = typeof PlanUpdateBillingCycle[keyof typeof PlanUpdateBillingCycle];
@@ -166,6 +173,11 @@ export interface PlanUpdate {
   price?: number;
   billingCycle?: PlanUpdateBillingCycle;
   isActive?: boolean;
+  /**
+     * RouterOS PPP profile name (e.g. plan-5mbps)
+     * @nullable
+     */
+  rosProfileName?: string | null;
 }
 
 export type SubscriptionStatus = typeof SubscriptionStatus[keyof typeof SubscriptionStatus];
@@ -190,6 +202,21 @@ export interface Subscription {
   ipAddress?: string | null;
   /** @nullable */
   macAddress?: string | null;
+  /**
+     * RouterOS router to provision PPPoE secret on
+     * @nullable
+     */
+  routerId?: number | null;
+  /**
+     * Auto-generated PPPoE username
+     * @nullable
+     */
+  pppoeUsername?: string | null;
+  /**
+     * Auto-generated PPPoE password
+     * @nullable
+     */
+  pppoePassword?: string | null;
   createdAt: string;
   customer?: Customer;
   plan?: Plan;
@@ -208,6 +235,8 @@ export const SubscriptionInputStatus = {
 export interface SubscriptionInput {
   customerId: number;
   planId: number;
+  /** RouterOS router to provision PPPoE secret on */
+  routerId?: number;
   status?: SubscriptionInputStatus;
   startDate: string;
   endDate?: string;
@@ -227,6 +256,8 @@ export const SubscriptionUpdateStatus = {
 
 export interface SubscriptionUpdate {
   planId?: number;
+  /** @nullable */
+  routerId?: number | null;
   status?: SubscriptionUpdateStatus;
   /** @nullable */
   endDate?: string | null;

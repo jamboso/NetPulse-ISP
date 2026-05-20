@@ -11,6 +11,7 @@ export const plansTable = pgTable("plans", {
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   billingCycle: text("billing_cycle").notNull().default("monthly"),
   isActive: boolean("is_active").notNull().default(true),
+  rosProfileName: text("ros_profile_name"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -9,6 +9,8 @@ import type { SubscriptionUpdateStatus } from './subscriptionUpdateStatus';
 
 export interface SubscriptionUpdate {
   planId?: number;
+  /** @nullable */
+  routerId?: number | null;
   status?: SubscriptionUpdateStatus;
   /** @nullable */
   endDate?: string | null;

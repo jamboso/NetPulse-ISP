@@ -10,6 +10,8 @@ import type { SubscriptionInputStatus } from './subscriptionInputStatus';
 export interface SubscriptionInput {
   customerId: number;
   planId: number;
+  /** RouterOS router to provision PPPoE secret on */
+  routerId?: number;
   status?: SubscriptionInputStatus;
   startDate: string;
   endDate?: string;

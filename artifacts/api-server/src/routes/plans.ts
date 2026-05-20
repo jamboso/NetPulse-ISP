@@ -20,6 +20,7 @@ router.post("/plans", async (req, res) => {
     price: String(body.price),
     billingCycle: body.billingCycle ?? "monthly",
     isActive: body.isActive ?? true,
+    rosProfileName: body.rosProfileName ?? null,
   }).returning();
   res.status(201).json({ ...plan, price: Number(plan!.price) });
 });
@@ -42,6 +43,7 @@ router.patch("/plans/:id", async (req, res) => {
   if (body.price !== undefined) update.price = String(body.price);
   if (body.billingCycle !== undefined) update.billingCycle = body.billingCycle;
   if (body.isActive !== undefined) update.isActive = body.isActive;
+  if (body.rosProfileName !== undefined) update.rosProfileName = body.rosProfileName;
   const [updated] = await db.update(plansTable).set(update).where(eq(plansTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ...updated, price: Number(updated.price) });

@@ -1085,6 +1085,25 @@ export const UpdateSettingsResponse = zod.object({
 
 
 /**
+ * @summary Live reachability status for all routers (TCP probe)
+ */
+export const GetRoutersStatusResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "routerType": zod.enum(['routeros', 'juniper', 'edgerouter']),
+  "ipAddress": zod.string(),
+  "port": zod.number().nullish(),
+  "location": zod.string().nullish(),
+  "enabled": zod.boolean(),
+  "reachable": zod.boolean(),
+  "latencyMs": zod.number().nullish(),
+  "lastSeen": zod.string().nullish(),
+  "checkedAt": zod.string().optional()
+})
+export const GetRoutersStatusResponse = zod.array(GetRoutersStatusResponseItem)
+
+
+/**
  * @summary List all managed routers
  */
 export const ListRoutersResponseItem = zod.object({

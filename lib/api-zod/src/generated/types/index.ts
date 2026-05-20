@@ -61,6 +61,8 @@ export * from './routerDeviceInputRouterType';
 export * from './routerDeviceRouterType';
 export * from './routerDeviceUpdate';
 export * from './routerDeviceUpdateRouterType';
+export * from './routerStatus';
+export * from './routerStatusRouterType';
 export * from './settings';
 export * from './settingsInput';
 export * from './subscription';

@@ -53,6 +53,7 @@ import type {
   RouterDevice,
   RouterDeviceInput,
   RouterDeviceUpdate,
+  RouterStatus,
   Settings,
   SettingsInput,
   Subscription,
@@ -3594,6 +3595,83 @@ export const useUpdateSettings = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getUpdateSettingsMutationOptions(options));
     }
+
+export const getGetRoutersStatusUrl = () => {
+
+
+
+
+  return `/api/routers/status`
+}
+
+/**
+ * @summary Live reachability status for all routers (TCP probe)
+ */
+export const getRoutersStatus = async ( options?: RequestInit): Promise<RouterStatus[]> => {
+
+  return customFetch<RouterStatus[]>(getGetRoutersStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRoutersStatusQueryKey = () => {
+    return [
+    `/api/routers/status`
+    ] as const;
+    }
+
+
+export const getGetRoutersStatusQueryOptions = <TData = Awaited<ReturnType<typeof getRoutersStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRoutersStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRoutersStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRoutersStatus>>> = ({ signal }) => getRoutersStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRoutersStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRoutersStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getRoutersStatus>>>
+export type GetRoutersStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Live reachability status for all routers (TCP probe)
+ */
+
+export function useGetRoutersStatus<TData = Awaited<ReturnType<typeof getRoutersStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRoutersStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRoutersStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListRoutersUrl = () => {
 

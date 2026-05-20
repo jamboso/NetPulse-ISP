@@ -924,6 +924,21 @@ paths:
                 $ref: "#/components/schemas/Settings"
 
   # ── ROUTERS ───────────────────────────────────────────────────────────────────
+  /routers/status:
+    get:
+      operationId: getRoutersStatus
+      tags: [routers]
+      summary: Live reachability status for all routers (TCP probe)
+      responses:
+        "200":
+          description: Array of router status objects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RouterStatus"
+
   /routers:
     get:
       operationId: listRouters
@@ -1922,6 +1937,34 @@ components:
           type: integer
         enabled:
           type: boolean
+
+    RouterStatus:
+      type: object
+      required: [id, name, routerType, ipAddress, enabled, reachable]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        routerType:
+          type: string
+          enum: [routeros, juniper, edgerouter]
+        ipAddress:
+          type: string
+        port:
+          type: ["integer", "null"]
+        location:
+          type: ["string", "null"]
+        enabled:
+          type: boolean
+        reachable:
+          type: boolean
+        latencyMs:
+          type: ["integer", "null"]
+        lastSeen:
+          type: ["string", "null"]
+        checkedAt:
+          type: string
 
     RouterDeviceUpdate:
       type: object

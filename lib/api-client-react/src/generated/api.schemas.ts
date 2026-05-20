@@ -811,6 +811,33 @@ export interface RouterDeviceInput {
   enabled?: boolean;
 }
 
+export type RouterStatusRouterType = typeof RouterStatusRouterType[keyof typeof RouterStatusRouterType];
+
+
+export const RouterStatusRouterType = {
+  routeros: 'routeros',
+  juniper: 'juniper',
+  edgerouter: 'edgerouter',
+} as const;
+
+export interface RouterStatus {
+  id: number;
+  name: string;
+  routerType: RouterStatusRouterType;
+  ipAddress: string;
+  /** @nullable */
+  port?: number | null;
+  /** @nullable */
+  location?: string | null;
+  enabled: boolean;
+  reachable: boolean;
+  /** @nullable */
+  latencyMs?: number | null;
+  /** @nullable */
+  lastSeen?: string | null;
+  checkedAt?: string;
+}
+
 export type RouterDeviceUpdateRouterType = typeof RouterDeviceUpdateRouterType[keyof typeof RouterDeviceUpdateRouterType];
 
 

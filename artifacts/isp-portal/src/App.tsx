@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, Component, type ReactNode } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk, RedirectToSignIn } from "@clerk/react";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
@@ -21,6 +21,26 @@ import PPPoESetup from "./pages/pppoe-setup";
 import HotspotManager from "./pages/hotspot-manager";
 import CaptivePortal from "./pages/captive-portal";
 import Settings from "./pages/settings";
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center p-8">
+          <p className="text-lg font-semibold text-gray-800">Something went wrong on this page.</p>
+          <p className="text-sm text-gray-500">Try refreshing or navigating to another section.</p>
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+            onClick={() => this.setState({ error: null })}
+          >Reload page</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL as string | undefined;
@@ -79,6 +99,7 @@ function ClerkQueryClientCacheInvalidator() {
 
 function ProtectedRoutes() {
   return (
+    <ErrorBoundary>
     <Layout>
       <Switch>
         <Route path="/" component={Dashboard} />
@@ -100,6 +121,7 @@ function ProtectedRoutes() {
         </Route>
       </Switch>
     </Layout>
+    </ErrorBoundary>
   );
 }
 

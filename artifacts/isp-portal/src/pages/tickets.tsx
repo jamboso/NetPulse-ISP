@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/formatDate";
 
 const PRIORITY_COLORS: Record<string, string> = {
   critical: "bg-red-100 text-red-700 border-red-200",
@@ -233,7 +233,7 @@ export default function Tickets() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-600">{format(new Date(ticket.createdAt), "MMM d, yyyy")}</TableCell>
+                    <TableCell className="text-sm text-gray-600">{formatDate(ticket.createdAt)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" asChild>

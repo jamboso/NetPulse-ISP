@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/formatDate";
 
 type CustomerForm = { name: string; email: string; phone: string; address: string; status: string; notes: string };
 const EMPTY: CustomerForm = { name: "", email: "", phone: "", address: "", status: "active", notes: "" };
@@ -183,7 +183,7 @@ export default function Customers() {
                         {customer.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-600">{format(new Date(customer.createdAt), "MMM d, yyyy")}</TableCell>
+                    <TableCell className="text-sm text-gray-600">{formatDate(customer.createdAt)}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

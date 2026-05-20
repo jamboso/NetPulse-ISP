@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/formatDate";
 
 const STATUS_COLORS: Record<string, string> = {
   completed: "bg-green-100 text-green-700 border-green-200",
@@ -206,7 +206,7 @@ export default function Payments() {
                     <TableCell>
                       <Badge variant="outline" className={`capitalize ${STATUS_COLORS[payment.status] ?? ""}`}>{payment.status}</Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-600">{format(new Date(payment.createdAt), "MMM d, yyyy h:mm a")}</TableCell>
+                    <TableCell className="text-sm text-gray-600">{formatDate(payment.createdAt, "MMM d, yyyy h:mm a")}</TableCell>
                   </TableRow>
                 ))
               ) : (

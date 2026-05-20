@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/formatDate";
 
 export default function CustomerDetail() {
   const { id } = useParams();
@@ -109,7 +109,7 @@ export default function CustomerDetail() {
                 <Calendar className="w-4 h-4 text-gray-400 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-gray-900">Customer Since</p>
-                  <p className="text-sm text-gray-600">{format(new Date(customer.createdAt), 'MMMM d, yyyy')}</p>
+                  <p className="text-sm text-gray-600">{formatDate(customer.createdAt, 'MMMM d, yyyy')}</p>
                 </div>
               </div>
             </div>
@@ -171,7 +171,7 @@ export default function CustomerDetail() {
                               {sub.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-gray-600">{format(new Date(sub.startDate), 'MMM d, yyyy')}</TableCell>
+                          <TableCell className="text-sm text-gray-600">{formatDate(sub.startDate)}</TableCell>
                         </TableRow>
                       ))
                     ) : (
@@ -207,7 +207,7 @@ export default function CustomerDetail() {
                             </Badge>
                           </TableCell>
                           <TableCell className={`text-sm ${invoice.status === 'overdue' ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
-                            {format(new Date(invoice.dueDate), 'MMM d, yyyy')}
+                            {formatDate(invoice.dueDate)}
                           </TableCell>
                         </TableRow>
                       ))
@@ -245,7 +245,7 @@ export default function CustomerDetail() {
                           <TableCell>
                             <Badge variant="outline" className="bg-gray-100 capitalize">{ticket.status.replace('_', ' ')}</Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-gray-600">{format(new Date(ticket.createdAt), 'MMM d, yyyy')}</TableCell>
+                          <TableCell className="text-sm text-gray-600">{formatDate(ticket.createdAt)}</TableCell>
                         </TableRow>
                       ))
                     ) : (

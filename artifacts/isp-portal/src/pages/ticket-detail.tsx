@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/formatDate";
 import { useUser } from "@clerk/react";
 
 export default function TicketDetail() {
@@ -113,7 +113,7 @@ export default function TicketDetail() {
               </div>
               <div className="text-xs text-gray-500 flex items-center">
                 <Clock className="w-3 h-3 mr-1" />
-                {format(new Date(ticket.createdAt), 'MMM d, yyyy h:mm a')}
+                {formatDate(ticket.createdAt, 'MMM d, yyyy h:mm a')}
               </div>
             </div>
             <div className="p-5 text-gray-800 whitespace-pre-wrap leading-relaxed">{ticket.description}</div>
@@ -136,7 +136,7 @@ export default function TicketDetail() {
                         <div className="text-xs text-gray-500">{reply.isStaff ? 'Staff Member' : 'Customer'}</div>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-500">{format(new Date(reply.createdAt), 'MMM d, h:mm a')}</div>
+                    <div className="text-xs text-gray-500">{formatDate(reply.createdAt, 'MMM d, h:mm a')}</div>
                   </div>
                   <div className="p-4 text-gray-800 whitespace-pre-wrap text-sm leading-relaxed">{reply.message}</div>
                 </div>

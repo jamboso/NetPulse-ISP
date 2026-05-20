@@ -16,7 +16,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDate } from "@/lib/formatDate";
+import { formatDistanceToNow, isValid } from "date-fns";
 import {
   LineChart,
   Line,
@@ -91,7 +92,7 @@ function RouterStatusPanel() {
           {dataUpdatedAt > 0 && (
             <span className="flex items-center gap-1 text-xs text-gray-400">
               <Clock className="w-3 h-3" />
-              {formatDistanceToNow(new Date(dataUpdatedAt), { addSuffix: true })}
+              {(() => { const d = new Date(dataUpdatedAt); return isValid(d) ? formatDistanceToNow(d, { addSuffix: true }) : "—"; })()}
             </span>
           )}
           <Button
@@ -199,7 +200,7 @@ function RouterCard({ router: r }: { router: RouterStatus }) {
         )}
         {r.lastSeen && (
           <span className="text-gray-400 ml-auto truncate">
-            {formatDistanceToNow(new Date(r.lastSeen), { addSuffix: true })}
+            {(() => { const d = new Date(r.lastSeen ?? ""); return isValid(d) ? formatDistanceToNow(d, { addSuffix: true }) : "never"; })()}
           </span>
         )}
       </div>
@@ -350,7 +351,7 @@ export default function Dashboard() {
                     {activity.type.charAt(0).toUpperCase() + activity.type.slice(1).replace("_", " ")}
                   </p>
                   <p className="text-sm text-gray-500 mt-0.5">{activity.description}</p>
-                  <p className="text-xs text-gray-400 mt-1">{format(new Date(activity.timestamp), "MMM d, yyyy h:mm a")}</p>
+                  <p className="text-xs text-gray-400 mt-1">{formatDate(activity.timestamp, "MMM d, yyyy h:mm a")}</p>
                 </div>
               </div>
             ))

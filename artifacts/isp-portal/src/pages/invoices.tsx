@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/formatDate";
 
 const STATUS_COLORS: Record<string, string> = {
   paid: "bg-green-100 text-green-700 border-green-200",
@@ -217,9 +217,9 @@ export default function Invoices() {
                     <TableCell>
                       <Badge variant="outline" className={`capitalize ${STATUS_COLORS[invoice.status] ?? ""}`}>{invoice.status}</Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-600">{format(new Date(invoice.createdAt), "MMM d, yyyy")}</TableCell>
+                    <TableCell className="text-sm text-gray-600">{formatDate(invoice.createdAt)}</TableCell>
                     <TableCell className={`text-sm ${invoice.status === "overdue" ? "text-red-600 font-medium" : "text-gray-600"}`}>
-                      {format(new Date(invoice.dueDate), "MMM d, yyyy")}
+                      {formatDate(invoice.dueDate)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">

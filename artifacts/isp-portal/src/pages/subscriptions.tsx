@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/formatDate";
 
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-green-100 text-green-700 border-green-200",
@@ -273,7 +273,7 @@ export default function Subscriptions() {
                     <TableCell>
                       <Badge variant="outline" className={`capitalize ${STATUS_COLORS[sub.status] ?? ""}`}>{sub.status}</Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-600">{format(new Date(sub.startDate), "MMM d, yyyy")}</TableCell>
+                    <TableCell className="text-sm text-gray-600">{formatDate(sub.startDate)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"

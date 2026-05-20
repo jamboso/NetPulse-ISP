@@ -203,15 +203,6 @@ router.post("/routers/:id/ros/pppoe/setup", async (req, res) => {
     })
   );
 
-  // 5. Enable IP forwarding (best effort)
-  await tryStep("Ensure IP forwarding", () =>
-    rosReq(ip, ssl ?? false, user, pass, "PATCH", "/ip/settings", {
-      "accept-redirects": "no",
-      "accept-source-route": "no",
-      "ip-forward": "yes",
-    })
-  );
-
   res.json({ success: errors.length === 0, steps, errors });
 });
 

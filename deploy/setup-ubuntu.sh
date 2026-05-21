@@ -7,13 +7,13 @@
 # ║  ██║ ╚████║███████╗   ██║   ██║     ╚██████╔╝███████╗███████║███████╗      ║
 # ║  ╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝      ╚═════╝ ╚══════╝╚══════╝╚══════╝      ║
 # ║                          ISP Management System                              ║
-# ║                    https://github.com/YOUR/REPO                             ║
+# ║               https://github.com/jamboso/NetPulse-ISP                       ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 #
 #  USAGE (one command, nothing else needed):
-#    curl -fsSL https://raw.githubusercontent.com/YOUR/REPO/main/deploy/setup-ubuntu.sh | sudo bash
+#    curl -fsSL https://raw.githubusercontent.com/jamboso/NetPulse-ISP/main/deploy/setup-ubuntu.sh | sudo bash
 #  OR with a custom repo URL:
-#    sudo bash setup-ubuntu.sh https://github.com/yourname/netpulse.git
+#    sudo bash setup-ubuntu.sh https://github.com/jamboso/NetPulse-ISP.git
 #
 #  Tested: Ubuntu 22.04 LTS, 24.04 LTS
 #  Takes:  ~5-8 minutes on a fresh server
@@ -21,7 +21,7 @@
 set -euo pipefail
 
 # ── Config (override with env vars if needed) ─────────────────────────────────
-REPO_URL="${NETPULSE_REPO:-${1:-}}"
+REPO_URL="${NETPULSE_REPO:-${1:-https://github.com/jamboso/NetPulse-ISP.git}}"
 APP_DIR="${NETPULSE_DIR:-/opt/netpulse}"
 DB_NAME="${NETPULSE_DB:-netpulse}"
 DB_USER="${NETPULSE_DB_USER:-netpulse}"
@@ -432,8 +432,9 @@ echo -e "${GREEN}${BOLD}║                                                     
 echo -e "${GREEN}${BOLD}║  ${NC}${BOLD}→ Open your browser:${NC}                                     ${GREEN}${BOLD}║${NC}"
 echo -e "${GREEN}${BOLD}║    ${CYAN}http://${SERVER_DOMAIN}${NC}                           ${GREEN}${BOLD}║${NC}"
 echo -e "${GREEN}${BOLD}║                                                          ║${NC}"
-echo -e "${GREEN}${BOLD}║  ${NC}${BOLD}→ Complete setup in browser:${NC}                             ${GREEN}${BOLD}║${NC}"
-echo -e "${GREEN}${BOLD}║    Sign in → Setup Wizard → enter company details        ║${NC}"
+echo -e "${GREEN}${BOLD}║  ${NC}${BOLD}→ First-time setup (runs once):${NC}                          ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║    ${CYAN}http://${SERVER_DOMAIN}/setup${NC}                      ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║    Create admin account + enter company details           ║${NC}"
 echo -e "${GREEN}${BOLD}║                                                          ║${NC}"
 echo -e "${GREEN}${BOLD}╠══════════════════════════════════════════════════════════╣${NC}"
 echo -e "${GREEN}${BOLD}║  ${NC}${BOLD}Auth configuration (better-auth, self-hosted):${NC}           ${GREEN}${BOLD}║${NC}"

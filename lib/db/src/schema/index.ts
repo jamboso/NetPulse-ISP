@@ -12,3 +12,5 @@ export * from "./hotspot";
 export * from "./usageSnapshots";
 export * from "./sessionLogs";
 export * from "./customerCommunications";
+export * from "./smsTemplates";
+export * from "./smsLogs";

@@ -22,6 +22,7 @@ import customerExtrasRouter from "./customer-extras";
 import macVendorRouter from "./mac-vendor";
 import complianceRouter from "./compliance";
 import smsRouter from "./sms";
+import smsTemplatesRouter from "./sms-templates";
 
 const router: IRouter = Router();
 
@@ -57,5 +58,6 @@ router.use(customerSessionsRouter);
 router.use(customerExtrasRouter);
 router.use(complianceRouter);
 router.use(smsRouter);
+router.use(smsTemplatesRouter);
 
 export default router;

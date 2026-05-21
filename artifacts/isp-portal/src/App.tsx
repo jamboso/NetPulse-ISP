@@ -22,6 +22,7 @@ import HotspotManager from "./pages/hotspot-manager";
 import CaptivePortal from "./pages/captive-portal";
 import Settings from "./pages/settings";
 import Compliance from "./pages/compliance";
+import SmsManager from "./pages/sms-manager";
 
 class ErrorBoundary extends Component<{ children: ReactNode; routeKey?: string }, { error: Error | null }> {
   state = { error: null };
@@ -126,6 +127,7 @@ function ProtectedRoutes() {
         <Route path="/network/routers/:id/hotspot" component={HotspotManager} />
         <Route path="/settings" component={Settings} />
         <Route path="/compliance" component={Compliance} />
+        <Route path="/sms" component={SmsManager} />
         <Route>
           <div className="p-8 text-center text-gray-500">Page not found.</div>
         </Route>

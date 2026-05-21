@@ -12,8 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend,
+  LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend, Cell,
 } from "recharts";
 
 // ── Utility helpers ─────────────────────────────────────────────────────────
@@ -550,18 +550,30 @@ export default function RouterOSDashboard() {
           {pppoeActive.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 p-5 mt-4">
               <h3 className="font-semibold text-gray-900 text-sm mb-1">Session Data Usage (Top 20)</h3>
-              <p className="text-xs text-gray-400 mb-4">Cumulative bytes since session start</p>
-              <ResponsiveContainer width="100%" height={240}>
-                <AreaChart data={pppoeActive.slice(0, 20).map(s => ({ name: s.name, tx: s.txBytes, rx: s.rxBytes }))}
-                  margin={{ top: 0, right: 0, left: 0, bottom: 40 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 9 }} angle={-30} textAnchor="end" interval={0} />
+              <p className="text-xs text-gray-400 mb-4">Cumulative bytes since session start · sorted by highest usage</p>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={pppoeActive
+                    .map(s => ({ name: s.name, tx: (s.txBytes as number) ?? 0, rx: (s.rxBytes as number) ?? 0 }))
+                    .sort((a, b) => (b.tx + b.rx) - (a.tx + a.rx))
+                    .slice(0, 20)}
+                  margin={{ top: 4, right: 8, left: 0, bottom: 50 }}
+                  barCategoryGap="25%"
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 9 }} angle={-35} textAnchor="end" interval={0} />
                   <YAxis tickFormatter={v => fmtBytes(v)} tick={{ fontSize: 9 }} width={65} />
-                  <Tooltip formatter={(v: number) => fmtBytes(v)} contentStyle={{ fontSize: 11 }} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Area type="monotone" dataKey="tx" name="TX Bytes" stroke="#3b82f6" fill="#dbeafe" strokeWidth={2} />
-                  <Area type="monotone" dataKey="rx" name="RX Bytes" stroke="#10b981" fill="#d1fae5" strokeWidth={2} />
-                </AreaChart>
+                  <Tooltip
+                    formatter={(v: number, name: string) => [fmtBytes(v), name === "tx" ? "TX (Upload)" : "RX (Download)"]}
+                    contentStyle={{ fontSize: 11 }}
+                  />
+                  <Legend
+                    formatter={name => name === "tx" ? "TX Bytes (Upload)" : "RX Bytes (Download)"}
+                    wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+                  />
+                  <Bar dataKey="tx" name="tx" fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={28} />
+                  <Bar dataKey="rx" name="rx" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={28} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           )}

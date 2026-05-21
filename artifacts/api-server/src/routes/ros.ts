@@ -136,7 +136,33 @@ router.get("/routers/:id/ros/live", async (req, res) => {
   ]);
 
   const ifaces = Array.isArray(interfacesRaw) ? (interfacesRaw as Record<string, string>[]).map(enrichInterface) : [];
-  const pppoe = Array.isArray(pppoeRaw) ? (pppoeRaw as Record<string, string>[]).map(enrichPppoe) : [];
+
+  // Build a map of interface name → bytes for fallback (RouterOS /ppp/active often returns 0 for bytes)
+  const ifaceByName = new Map<string, Record<string, string>>();
+  if (Array.isArray(interfacesRaw)) {
+    for (const iface of interfacesRaw as Record<string, string>[]) {
+      if (iface.name) ifaceByName.set(iface.name, iface);
+    }
+  }
+
+  const pppoe = Array.isArray(pppoeRaw)
+    ? (pppoeRaw as Record<string, string>[]).map(session => {
+        const base = enrichPppoe(session);
+        // If /ppp/active gave 0 bytes, try the matching PPPoE virtual interface
+        if ((base.txBytes as number) === 0 && (base.rxBytes as number) === 0) {
+          const ifaceName = session.interface || session.name; // e.g. "<pppoe-KS2153>" or username
+          const matched = ifaceByName.get(ifaceName) ?? ifaceByName.get(`<pppoe-${session.name}>`);
+          if (matched) {
+            return {
+              ...base,
+              txBytes: parseBytes(matched["tx-byte"]),
+              rxBytes: parseBytes(matched["rx-byte"]),
+            };
+          }
+        }
+        return base;
+      })
+    : [];
 
   res.json({
     routerId: id,

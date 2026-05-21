@@ -12,6 +12,7 @@ import {
   MessageSquare,
   MonitorDot,
   MapPin,
+  Smartphone,
   Settings as SettingsIcon,
   LogOut
 } from "lucide-react";
@@ -33,6 +34,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: "Subscriptions", href: "/subscriptions", icon: CreditCard },
     { name: "Invoices", href: "/invoices", icon: Receipt },
     { name: "Payments", href: "/payments", icon: CreditCard },
+    { name: "M-Pesa Live", href: "/mpesa", icon: Smartphone },
     { name: "Tickets", href: "/tickets", icon: LifeBuoy },
     { name: "Network", href: "/network", icon: ServerCrash },
     { name: "Network Map", href: "/map", icon: MapPin },

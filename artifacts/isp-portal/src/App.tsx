@@ -27,6 +27,7 @@ import Monitoring from "./pages/monitoring";
 import NetworkMap from "./pages/network-map";
 import SetupWizard from "./pages/setup-wizard";
 import SignInPage from "./pages/sign-in";
+import MpesaTransactions from "./pages/mpesa-transactions";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -116,6 +117,7 @@ function ProtectedRoutes() {
             <Route path="/subscriptions" component={Subscriptions} />
             <Route path="/invoices" component={Invoices} />
             <Route path="/payments" component={Payments} />
+            <Route path="/mpesa" component={MpesaTransactions} />
             <Route path="/tickets" component={Tickets} />
             <Route path="/tickets/:id" component={TicketDetail} />
             <Route path="/network" component={Network} />

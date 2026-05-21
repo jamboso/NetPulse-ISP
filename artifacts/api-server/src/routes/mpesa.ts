@@ -307,6 +307,40 @@ router.post("/mpesa/c2b/confirmation", async (req, res) => {
 });
 
 /*
+ * GET /api/mpesa/transactions
+ * Returns all M-Pesa payments ordered newest-first, with customer name joins.
+ */
+router.get("/mpesa/transactions", async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query["limit"] ?? 200), 500);
+    const rows = await db
+      .select({
+        id: paymentsTable.id,
+        amount: paymentsTable.amount,
+        status: paymentsTable.status,
+        reference: paymentsTable.reference,
+        notes: paymentsTable.notes,
+        createdAt: paymentsTable.createdAt,
+        invoiceId: paymentsTable.invoiceId,
+        customerId: paymentsTable.customerId,
+        customerName: customersTable.name,
+        customerPhone: customersTable.phone,
+      })
+      .from(paymentsTable)
+      .leftJoin(customersTable, eq(paymentsTable.customerId, customersTable.id))
+      .where(eq(paymentsTable.method, "mpesa"))
+      .orderBy(paymentsTable.createdAt)
+      .limit(limit);
+
+    // Return newest first
+    res.json({ data: rows.reverse(), total: rows.length });
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch M-Pesa transactions");
+    res.status(500).json({ error: "Failed to fetch transactions" });
+  }
+});
+
+/*
  * GET /api/mpesa/status
  * Returns M-Pesa configuration status (no secrets exposed).
  */

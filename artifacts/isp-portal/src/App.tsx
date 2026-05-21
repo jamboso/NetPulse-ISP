@@ -21,6 +21,7 @@ import PPPoESetup from "./pages/pppoe-setup";
 import HotspotManager from "./pages/hotspot-manager";
 import CaptivePortal from "./pages/captive-portal";
 import Settings from "./pages/settings";
+import Compliance from "./pages/compliance";
 
 class ErrorBoundary extends Component<{ children: ReactNode; routeKey?: string }, { error: Error | null }> {
   state = { error: null };
@@ -124,6 +125,7 @@ function ProtectedRoutes() {
         <Route path="/network/routers/:id/pppoe" component={PPPoESetup} />
         <Route path="/network/routers/:id/hotspot" component={HotspotManager} />
         <Route path="/settings" component={Settings} />
+        <Route path="/compliance" component={Compliance} />
         <Route>
           <div className="p-8 text-center text-gray-500">Page not found.</div>
         </Route>

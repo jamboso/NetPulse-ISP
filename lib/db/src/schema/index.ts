@@ -10,3 +10,4 @@ export * from "./settings";
 export * from "./routers";
 export * from "./hotspot";
 export * from "./usageSnapshots";
+export * from "./sessionLogs";

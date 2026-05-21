@@ -448,28 +448,50 @@ export default function CustomerDetail() {
     return () => clearInterval(id);
   }, [refetchSessions]);
 
-  // After each live session fetch, persist a snapshot for graphing
+  // After each live session fetch, persist a snapshot for graphing AND log session for compliance
   useEffect(() => {
     if (!sessions || !Array.isArray(sessions)) return;
-    const onlineSessions = sessions.filter((s: Session) => s.status === "online");
-    if (onlineSessions.length === 0) return;
     // Debounce — only save once per refetch cycle
     if (Date.now() - lastSavedAt.current < 20_000) return;
     lastSavedAt.current = Date.now();
 
-    saveSnapshot.mutate(
-      {
-        id: customerId,
-        data: {
-          snapshots: onlineSessions.map((s: Session) => ({
-            subscriptionId: s.subscriptionId,
-            bytesIn: s.bytesIn,
-            bytesOut: s.bytesOut,
-          })),
+    const onlineSessions = sessions.filter((s: Session) => s.status === "online");
+
+    // Snapshot save (for graph)
+    if (onlineSessions.length > 0) {
+      saveSnapshot.mutate(
+        {
+          id: customerId,
+          data: {
+            snapshots: onlineSessions.map((s: Session) => ({
+              subscriptionId: s.subscriptionId,
+              bytesIn: s.bytesIn,
+              bytesOut: s.bytesOut,
+            })),
+          },
         },
-      },
-      { onSuccess: () => refetchSnapshots() }
-    );
+        { onSuccess: () => refetchSnapshots() }
+      );
+    }
+
+    // Compliance session log — fire-and-forget for ALL sessions
+    const allSessionsPayload = (sessions as Session[]).map((s: Session) => ({
+      subscriptionId: s.subscriptionId,
+      pppoeUsername:  s.pppoeUsername ?? null,
+      ipAddress:      s.ipAddress ?? null,
+      macAddress:     s.callerMac ?? null,
+      sessionType:    s.sessionType ?? "pppoe",
+      routerName:     s.routerName ?? null,
+      bytesIn:        s.bytesIn,
+      bytesOut:       s.bytesOut,
+      online:         s.status === "online",
+    }));
+
+    fetch(`/api/customers/${customerId}/sessions/log`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessions: allSessionsPayload }),
+    }).catch(() => { /* non-critical */ });
   }, [dataUpdatedAt]);
 
   const handleRefresh = useCallback(() => {

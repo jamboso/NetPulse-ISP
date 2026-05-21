@@ -8,6 +8,7 @@ import {
   Receipt, 
   LifeBuoy, 
   ServerCrash, 
+  Shield,
   Settings as SettingsIcon,
   LogOut
 } from "lucide-react";
@@ -31,6 +32,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: "Payments", href: "/payments", icon: CreditCard },
     { name: "Tickets", href: "/tickets", icon: LifeBuoy },
     { name: "Network", href: "/network", icon: ServerCrash },
+    { name: "Compliance", href: "/compliance", icon: Shield },
     { name: "Settings", href: "/settings", icon: SettingsIcon },
   ];
 

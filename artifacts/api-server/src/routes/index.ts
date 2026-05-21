@@ -19,6 +19,7 @@ import hotspotAdminRouter from "./hotspot-admin";
 import hotspotPortalRouter from "./hotspot-portal";
 import customerSessionsRouter from "./customer-sessions";
 import macVendorRouter from "./mac-vendor";
+import complianceRouter from "./compliance";
 import smsRouter from "./sms";
 
 const router: IRouter = Router();
@@ -52,6 +53,7 @@ router.use(rosRouter);
 router.use(pppoeRouter);
 router.use(hotspotAdminRouter);
 router.use(customerSessionsRouter);
+router.use(complianceRouter);
 router.use(smsRouter);
 
 export default router;

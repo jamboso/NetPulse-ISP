@@ -128,13 +128,16 @@ function SessionCard({ session, subPlanName, snapshots }: SessionCardProps) {
   const isOnline = session.status === "online";
   const noRouter = session.status === "no_router";
 
-  // Build chart data: delta between consecutive snapshots (KB transferred per interval)
+  // Build chart data: throughput in Mbps over each snapshot interval
   const chartData = snapshots.map((s, i) => {
     const prev = snapshots[i - 1];
+    if (!prev) return { time: fmtTime(s.recordedAt), download: 0, upload: 0, index: i };
+    const secs = Math.max(1, (new Date(s.recordedAt).getTime() - new Date(prev.recordedAt).getTime()) / 1000);
+    const toMbps = (bytes: number) => parseFloat((Math.max(0, bytes) * 8 / (secs * 1_000_000)).toFixed(3));
     return {
       time: fmtTime(s.recordedAt),
-      download: prev ? Math.round(Math.max(0, s.bytesIn  - prev.bytesIn)  / 1024) : 0,
-      upload:   prev ? Math.round(Math.max(0, s.bytesOut - prev.bytesOut) / 1024) : 0,
+      download: toMbps(s.bytesIn  - prev.bytesIn),
+      upload:   toMbps(s.bytesOut - prev.bytesOut),
       index: i,
     };
   });
@@ -246,7 +249,7 @@ function SessionCard({ session, subPlanName, snapshots }: SessionCardProps) {
             return (
               <div>
                 <p className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
-                  <Signal className="w-3 h-3" /> Usage per Interval (KB / 30 s)
+                  <Signal className="w-3 h-3" /> Live Throughput (Mbps)
                 </p>
                 <ResponsiveContainer width="100%" height={140}>
                   <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -265,7 +268,7 @@ function SessionCard({ session, subPlanName, snapshots }: SessionCardProps) {
                     <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                     <Tooltip
                       contentStyle={{ fontSize: 11, borderRadius: 8 }}
-                      formatter={(v: number, name: string) => [`${v} KB`, name === "download" ? "↓ Download" : "↑ Upload"]}
+                      formatter={(v: number, name: string) => [`${v} Mbps`, name === "download" ? "↓ Download" : "↑ Upload"]}
                     />
                     <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} formatter={(v) => v === "download" ? "↓ Download" : "↑ Upload"} />
                     <Area type="monotone" dataKey="download" stroke="#22c55e" strokeWidth={2} fill={`url(#dl-${session.subscriptionId})`} dot={false} />

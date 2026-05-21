@@ -22,6 +22,10 @@ const SETTINGS_KEYS = [
   // M-Pesa
   "mpesaConsumerKey", "mpesaConsumerSecret", "mpesaShortcode",
   "mpesaPasskey", "mpesaEnv", "mpesaCallbackUrl",
+  // M-Pesa payment details (shown in SMS)
+  "mpesaPaybillNumber",
+  // Alert recipients
+  "alertPhone",
 ] as const;
 
 type SettingsKey = (typeof SETTINGS_KEYS)[number];

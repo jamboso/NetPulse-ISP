@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { startSessionPoller } from "./lib/sessionPoller";
 import { startSmsScheduler } from "./lib/smsScheduler";
+import { startRouterMonitor } from "./lib/routerMonitor";
 
 const rawPort = process.env["PORT"];
 
@@ -26,4 +27,5 @@ app.listen(port, (err) => {
   logger.info({ port }, "Server listening");
   startSessionPoller();
   startSmsScheduler();
+  startRouterMonitor();
 });

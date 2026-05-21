@@ -527,6 +527,20 @@ function SmsTab({ f, set }: { f: (k: string) => string; set: (k: string, v: stri
         </SectionCard>
       )}
 
+      {/* M-Pesa Paybill for SMS templates */}
+      {active && (
+        <SectionCard icon={Bell} title="M-Pesa Payment Details">
+          <SettingField
+            label="Paybill Number"
+            name="mpesaPaybillNumber"
+            value={f("mpesaPaybillNumber")}
+            onChange={set}
+            placeholder="e.g. 522522"
+            hint="Shown in expiry reminder SMS as the payment Paybill. Used by the {paybill} variable in SMS templates."
+          />
+        </SectionCard>
+      )}
+
       {/* Notification event toggles */}
       {active && (
         <SectionCard icon={Bell} title="Automatic Notifications">
@@ -550,6 +564,30 @@ function SmsTab({ f, set }: { f: (k: string) => string; set: (k: string, v: stri
           </div>
           <ToggleRow label="Ticket Status Changed" name="smsNotifyTicket"  value={f("smsNotifyTicket")}  onChange={set} hint="Notify when a support ticket is updated or resolved" />
           <ToggleRow label="New Account Welcome"   name="smsNotifyWelcome" value={f("smsNotifyWelcome")} onChange={set} hint="Send welcome SMS when a customer account is created" />
+        </SectionCard>
+      )}
+
+      {/* Router alert phone */}
+      {active && (
+        <SectionCard icon={Bell} title="Router Alert Notifications">
+          <SettingField
+            label="Alert Phone Number"
+            name="alertPhone"
+            value={f("alertPhone")}
+            onChange={set}
+            placeholder="07XXXXXXXX or +254XXXXXXXXX"
+            hint="SMS alerts for router going DOWN or coming back ONLINE are sent to this number. Leave blank to disable router alerts."
+          />
+          <div className="py-2.5 border-b border-gray-100 last:border-0">
+            <p className="text-xs text-gray-500">
+              The system checks each router every <strong>3 minutes</strong>. A state change is confirmed after
+              2 consecutive checks to avoid false positives. Messages sent:
+            </p>
+            <ul className="text-xs text-gray-500 list-disc list-inside mt-1 space-y-0.5">
+              <li><strong>OFFLINE:</strong> [NetPulse ALERT] Router "Name" (IP) is OFFLINE. Detected at …</li>
+              <li><strong>ONLINE:</strong> [NetPulse OK] Router "Name" (IP) is back ONLINE. Recovered at …</li>
+            </ul>
+          </div>
         </SectionCard>
       )}
 

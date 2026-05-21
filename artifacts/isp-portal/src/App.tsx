@@ -23,6 +23,7 @@ import CaptivePortal from "./pages/captive-portal";
 import Settings from "./pages/settings";
 import Compliance from "./pages/compliance";
 import SmsManager from "./pages/sms-manager";
+import Monitoring from "./pages/monitoring";
 
 class ErrorBoundary extends Component<{ children: ReactNode; routeKey?: string }, { error: Error | null }> {
   state = { error: null };
@@ -128,6 +129,7 @@ function ProtectedRoutes() {
         <Route path="/settings" component={Settings} />
         <Route path="/compliance" component={Compliance} />
         <Route path="/sms" component={SmsManager} />
+        <Route path="/monitoring" component={Monitoring} />
         <Route>
           <div className="p-8 text-center text-gray-500">Page not found.</div>
         </Route>

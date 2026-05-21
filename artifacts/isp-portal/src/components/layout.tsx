@@ -10,6 +10,7 @@ import {
   ServerCrash, 
   Shield,
   MessageSquare,
+  MonitorDot,
   Settings as SettingsIcon,
   LogOut
 } from "lucide-react";
@@ -33,6 +34,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: "Payments", href: "/payments", icon: CreditCard },
     { name: "Tickets", href: "/tickets", icon: LifeBuoy },
     { name: "Network", href: "/network", icon: ServerCrash },
+    { name: "Monitoring", href: "/monitoring", icon: MonitorDot },
     { name: "Compliance", href: "/compliance", icon: Shield },
     { name: "SMS Manager", href: "/sms", icon: MessageSquare },
     { name: "Settings", href: "/settings", icon: SettingsIcon },

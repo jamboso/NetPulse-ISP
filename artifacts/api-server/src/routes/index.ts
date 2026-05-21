@@ -23,6 +23,7 @@ import macVendorRouter from "./mac-vendor";
 import complianceRouter from "./compliance";
 import smsRouter from "./sms";
 import smsTemplatesRouter from "./sms-templates";
+import monitoringRouter from "./monitoring";
 
 const router: IRouter = Router();
 
@@ -59,5 +60,6 @@ router.use(customerExtrasRouter);
 router.use(complianceRouter);
 router.use(smsRouter);
 router.use(smsTemplatesRouter);
+router.use(monitoringRouter);
 
 export default router;

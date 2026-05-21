@@ -25,7 +25,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  AreaChart, Area, BarChart, Bar, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from "recharts";
 import { formatDate } from "@/lib/formatDate";
@@ -295,6 +296,99 @@ function StatBox({ icon, label, value }: { icon: React.ReactNode; label: string;
   );
 }
 
+// ── Billing Activity Chart ────────────────────────────────────────────────────
+
+const STATUS_COLOR: Record<string, string> = {
+  paid:     "#22c55e",
+  sent:     "#3b82f6",
+  overdue:  "#ef4444",
+  draft:    "#d1d5db",
+  void:     "#9ca3af",
+};
+
+function BillingActivityChart({ invoices }: { invoices: any[] }) {
+  if (!Array.isArray(invoices) || invoices.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+        <Receipt className="w-10 h-10 mb-3 text-gray-200" />
+        <p className="text-sm font-medium">No invoices yet</p>
+        <p className="text-xs mt-1">Invoices will appear here once generated.</p>
+      </div>
+    );
+  }
+
+  const sorted = [...invoices].sort(
+    (a, b) => new Date(a.dueDate ?? a.due_date ?? a.createdAt ?? a.created_at).getTime()
+           - new Date(b.dueDate ?? b.due_date ?? b.createdAt ?? b.created_at).getTime()
+  );
+
+  const chartData = sorted.map((inv: any) => {
+    const dateStr = inv.dueDate ?? inv.due_date ?? inv.createdAt ?? inv.created_at ?? "";
+    const label = dateStr
+      ? new Date(dateStr).toLocaleDateString("en-KE", { month: "short", year: "2-digit" })
+      : `#${inv.id}`;
+    return {
+      label,
+      amount: Number(inv.amount ?? 0),
+      status: inv.status ?? "draft",
+    };
+  });
+
+  const totalBilled = chartData.reduce((s, r) => s + r.amount, 0);
+  const totalPaid   = chartData.filter(r => r.status === "paid").reduce((s, r) => s + r.amount, 0);
+  const outstanding = totalBilled - totalPaid;
+
+  return (
+    <div className="space-y-4">
+      {/* KPI strip */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Total Billed",  value: `KES ${totalBilled.toLocaleString()}`,   color: "text-gray-900" },
+          { label: "Total Paid",    value: `KES ${totalPaid.toLocaleString()}`,      color: "text-green-600" },
+          { label: "Outstanding",   value: `KES ${outstanding.toLocaleString()}`,    color: outstanding > 0 ? "text-red-500" : "text-gray-400" },
+        ].map(kpi => (
+          <div key={kpi.label} className="bg-gray-50 rounded-lg p-3 border border-gray-100 text-center">
+            <p className="text-xs text-gray-500 mb-1">{kpi.label}</p>
+            <p className={`text-base font-bold ${kpi.color}`}>{kpi.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Bar chart */}
+      <ResponsiveContainer width="100%" height={180}>
+        <BarChart data={chartData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+          <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false}
+            tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+          <Tooltip
+            contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
+            formatter={(v: number, _: string, entry: any) => [
+              `KES ${v.toLocaleString()}`,
+              entry.payload.status.charAt(0).toUpperCase() + entry.payload.status.slice(1),
+            ]}
+          />
+          <Bar dataKey="amount" radius={[4, 4, 0, 0]} maxBarSize={48}>
+            {chartData.map((entry, i) => (
+              <Cell key={i} fill={STATUS_COLOR[entry.status] ?? "#d1d5db"} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-3 justify-center">
+        {Object.entries(STATUS_COLOR).map(([status, color]) => (
+          <span key={status} className="flex items-center gap-1.5 text-xs text-gray-500 capitalize">
+            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: color }} />
+            {status}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function CustomerDetail() {
@@ -507,8 +601,11 @@ export default function CustomerDetail() {
 
         {/* Main content */}
         <div className="lg:col-span-2">
-          <Tabs defaultValue="sessions" className="w-full">
+          <Tabs defaultValue="overview" className="w-full">
             <TabsList className="bg-gray-100 p-1 w-full justify-start rounded-lg mb-6 flex-wrap h-auto gap-1">
+              <TabsTrigger value="overview" className="data-[state=active]:bg-white rounded-md">
+                <Receipt className="w-4 h-4 mr-2" /> Overview
+              </TabsTrigger>
               <TabsTrigger value="sessions" className="data-[state=active]:bg-white rounded-md">
                 <Wifi className="w-4 h-4 mr-2" />
                 Live Sessions
@@ -528,6 +625,19 @@ export default function CustomerDetail() {
                 <LifeBuoy className="w-4 h-4 mr-2" /> Tickets ({tickets.length})
               </TabsTrigger>
             </TabsList>
+
+            {/* ── Overview tab ── */}
+            <TabsContent value="overview" className="m-0">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <h3 className="font-semibold text-gray-900 mb-5 flex items-center gap-2 text-sm">
+                  <Receipt className="w-4 h-4 text-blue-500" /> Billing Activity
+                </h3>
+                {loadingInvoices
+                  ? <Skeleton className="h-52 w-full rounded-lg" />
+                  : <BillingActivityChart invoices={Array.isArray(invoices) ? invoices : []} />
+                }
+              </div>
+            </TabsContent>
 
             {/* ── Live Sessions tab ── */}
             <TabsContent value="sessions" className="m-0">

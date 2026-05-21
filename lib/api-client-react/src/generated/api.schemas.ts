@@ -939,12 +939,69 @@ export interface RosLiveData {
   ospfNeighbors?: RosLiveDataOspfNeighborsItem[];
 }
 
+export type UsageSnapshotBatchSnapshotsItem = {
+  subscriptionId: number;
+  bytesIn: number;
+  bytesOut: number;
+};
+
+export interface UsageSnapshotBatch {
+  snapshots: UsageSnapshotBatchSnapshotsItem[];
+}
+
+export type CustomerSessionStatus = typeof CustomerSessionStatus[keyof typeof CustomerSessionStatus];
+
+
+export const CustomerSessionStatus = {
+  online: 'online',
+  offline: 'offline',
+  no_router: 'no_router',
+} as const;
+
+export type CustomerSessionSessionType = typeof CustomerSessionSessionType[keyof typeof CustomerSessionSessionType];
+
+
+export const CustomerSessionSessionType = {
+  pppoe: 'pppoe',
+  hotspot: 'hotspot',
+  none: 'none',
+} as const;
+
+export interface CustomerSession {
+  subscriptionId: number;
+  planName?: string | null;
+  routerName?: string | null;
+  pppoeUsername?: string | null;
+  pppoePassword?: string | null;
+  ipAddress?: string | null;
+  status: CustomerSessionStatus;
+  uptimeSeconds: number;
+  uptimeRaw?: string | null;
+  bytesIn: number;
+  bytesOut: number;
+  bytesInFormatted: string;
+  bytesOutFormatted: string;
+  callerMac?: string | null;
+  sessionType: CustomerSessionSessionType;
+  routerError?: string | null;
+}
+
+export interface UsageSnapshot {
+  id: number;
+  subscriptionId: number;
+  bytesIn: number;
+  bytesOut: number;
+  recordedAt: string;
+}
+
 export type ListCustomersParams = {
 search?: string;
 status?: string;
 page?: number;
 limit?: number;
 };
+
+export type GetCustomerUsageSnapshots200 = {[key: string]: UsageSnapshot[]};
 
 export type ListSubscriptionsParams = {
 customerId?: number;

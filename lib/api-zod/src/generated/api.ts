@@ -162,6 +162,66 @@ export const DeleteCustomerParams = zod.object({
 
 
 /**
+ * @summary Get live PPPoE/Hotspot session data for all customer subscriptions
+ */
+export const GetCustomerSessionsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetCustomerSessionsResponseItem = zod.object({
+  "subscriptionId": zod.number(),
+  "planName": zod.string().nullish(),
+  "routerName": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
+  "ipAddress": zod.string().nullish(),
+  "status": zod.enum(['online', 'offline', 'no_router']),
+  "uptimeSeconds": zod.number(),
+  "uptimeRaw": zod.string().nullish(),
+  "bytesIn": zod.number(),
+  "bytesOut": zod.number(),
+  "bytesInFormatted": zod.string(),
+  "bytesOutFormatted": zod.string(),
+  "callerMac": zod.string().nullish(),
+  "sessionType": zod.enum(['pppoe', 'hotspot', 'none']),
+  "routerError": zod.string().nullish()
+})
+export const GetCustomerSessionsResponse = zod.array(GetCustomerSessionsResponseItem)
+
+
+/**
+ * @summary Get historical usage snapshots for all customer subscriptions
+ */
+export const GetCustomerUsageSnapshotsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetCustomerUsageSnapshotsResponse = zod.record(zod.string(), zod.array(zod.object({
+  "id": zod.number(),
+  "subscriptionId": zod.number(),
+  "bytesIn": zod.number(),
+  "bytesOut": zod.number(),
+  "recordedAt": zod.coerce.date()
+})))
+
+
+/**
+ * @summary Save usage snapshots for graphing
+ */
+export const SaveUsageSnapshotParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SaveUsageSnapshotBody = zod.object({
+  "snapshots": zod.array(zod.object({
+  "subscriptionId": zod.number(),
+  "bytesIn": zod.number(),
+  "bytesOut": zod.number()
+}))
+})
+
+
+/**
  * @summary List all service plans
  */
 export const ListPlansResponseItem = zod.object({

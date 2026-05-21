@@ -17,6 +17,7 @@ import rosRouter from "./ros";
 import pppoeRouter from "./pppoe";
 import hotspotAdminRouter from "./hotspot-admin";
 import hotspotPortalRouter from "./hotspot-portal";
+import customerSessionsRouter from "./customer-sessions";
 
 const router: IRouter = Router();
 
@@ -47,5 +48,6 @@ router.use(routersRouter);
 router.use(rosRouter);
 router.use(pppoeRouter);
 router.use(hotspotAdminRouter);
+router.use(customerSessionsRouter);
 
 export default router;

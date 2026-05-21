@@ -9,3 +9,4 @@ export * from "./ipPools";
 export * from "./settings";
 export * from "./routers";
 export * from "./hotspot";
+export * from "./usageSnapshots";

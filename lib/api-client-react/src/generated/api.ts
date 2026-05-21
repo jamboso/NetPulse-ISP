@@ -25,11 +25,13 @@ import type {
   Customer,
   CustomerInput,
   CustomerList,
+  CustomerSession,
   CustomerUpdate,
   DashboardSummary,
   Equipment,
   EquipmentInput,
   EquipmentUpdate,
+  GetCustomerUsageSnapshots200,
   HealthStatus,
   Invoice,
   InvoiceInput,
@@ -64,7 +66,8 @@ import type {
   TicketInput,
   TicketReply,
   TicketReplyInput,
-  TicketUpdate
+  TicketUpdate,
+  UsageSnapshotBatch
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -836,6 +839,232 @@ export const useDeleteCustomer = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteCustomerMutationOptions(options));
+    }
+
+export const getGetCustomerSessionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/customers/${id}/sessions`
+}
+
+/**
+ * @summary Get live PPPoE/Hotspot session data for all customer subscriptions
+ */
+export const getCustomerSessions = async (id: number, options?: RequestInit): Promise<CustomerSession[]> => {
+
+  return customFetch<CustomerSession[]>(getGetCustomerSessionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCustomerSessionsQueryKey = (id: number,) => {
+    return [
+    `/api/customers/${id}/sessions`
+    ] as const;
+    }
+
+
+export const getGetCustomerSessionsQueryOptions = <TData = Awaited<ReturnType<typeof getCustomerSessions>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustomerSessions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCustomerSessionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCustomerSessions>>> = ({ signal }) => getCustomerSessions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCustomerSessions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCustomerSessionsQueryResult = NonNullable<Awaited<ReturnType<typeof getCustomerSessions>>>
+export type GetCustomerSessionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get live PPPoE/Hotspot session data for all customer subscriptions
+ */
+
+export function useGetCustomerSessions<TData = Awaited<ReturnType<typeof getCustomerSessions>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustomerSessions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCustomerSessionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetCustomerUsageSnapshotsUrl = (id: number,) => {
+
+
+
+
+  return `/api/customers/${id}/usage-snapshots`
+}
+
+/**
+ * @summary Get historical usage snapshots for all customer subscriptions
+ */
+export const getCustomerUsageSnapshots = async (id: number, options?: RequestInit): Promise<GetCustomerUsageSnapshots200> => {
+
+  return customFetch<GetCustomerUsageSnapshots200>(getGetCustomerUsageSnapshotsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCustomerUsageSnapshotsQueryKey = (id: number,) => {
+    return [
+    `/api/customers/${id}/usage-snapshots`
+    ] as const;
+    }
+
+
+export const getGetCustomerUsageSnapshotsQueryOptions = <TData = Awaited<ReturnType<typeof getCustomerUsageSnapshots>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustomerUsageSnapshots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCustomerUsageSnapshotsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCustomerUsageSnapshots>>> = ({ signal }) => getCustomerUsageSnapshots(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCustomerUsageSnapshots>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCustomerUsageSnapshotsQueryResult = NonNullable<Awaited<ReturnType<typeof getCustomerUsageSnapshots>>>
+export type GetCustomerUsageSnapshotsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get historical usage snapshots for all customer subscriptions
+ */
+
+export function useGetCustomerUsageSnapshots<TData = Awaited<ReturnType<typeof getCustomerUsageSnapshots>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustomerUsageSnapshots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCustomerUsageSnapshotsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSaveUsageSnapshotUrl = (id: number,) => {
+
+
+
+
+  return `/api/customers/${id}/sessions/snapshot`
+}
+
+/**
+ * @summary Save usage snapshots for graphing
+ */
+export const saveUsageSnapshot = async (id: number,
+    usageSnapshotBatch: UsageSnapshotBatch, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getSaveUsageSnapshotUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      usageSnapshotBatch,)
+  }
+);}
+
+
+
+
+export const getSaveUsageSnapshotMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveUsageSnapshot>>, TError,{id: number;data: BodyType<UsageSnapshotBatch>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveUsageSnapshot>>, TError,{id: number;data: BodyType<UsageSnapshotBatch>}, TContext> => {
+
+const mutationKey = ['saveUsageSnapshot'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveUsageSnapshot>>, {id: number;data: BodyType<UsageSnapshotBatch>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  saveUsageSnapshot(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveUsageSnapshotMutationResult = NonNullable<Awaited<ReturnType<typeof saveUsageSnapshot>>>
+    export type SaveUsageSnapshotMutationBody = BodyType<UsageSnapshotBatch>
+    export type SaveUsageSnapshotMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save usage snapshots for graphing
+ */
+export const useSaveUsageSnapshot = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveUsageSnapshot>>, TError,{id: number;data: BodyType<UsageSnapshotBatch>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveUsageSnapshot>>,
+        TError,
+        {id: number;data: BodyType<UsageSnapshotBatch>},
+        TContext
+      > => {
+      return useMutation(getSaveUsageSnapshotMutationOptions(options));
     }
 
 export const getListPlansUrl = () => {

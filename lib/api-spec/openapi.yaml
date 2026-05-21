@@ -211,6 +211,71 @@ paths:
         "204":
           description: Deleted
 
+  /customers/{id}/sessions:
+    get:
+      operationId: getCustomerSessions
+      tags: [customers]
+      summary: Get live PPPoE/Hotspot session data for all customer subscriptions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Live session data per subscription
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CustomerSession"
+
+  /customers/{id}/usage-snapshots:
+    get:
+      operationId: getCustomerUsageSnapshots
+      tags: [customers]
+      summary: Get historical usage snapshots for all customer subscriptions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Map of subscriptionId to array of usage snapshots
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/UsageSnapshot"
+
+  /customers/{id}/sessions/snapshot:
+    post:
+      operationId: saveUsageSnapshot
+      tags: [customers]
+      summary: Save usage snapshots for graphing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsageSnapshotBatch"
+      responses:
+        "201":
+          description: Saved
+
   # ── PLANS ─────────────────────────────────────────────────────────────────────
   /plans:
     get:
@@ -2102,3 +2167,85 @@ components:
           items:
             type: object
             additionalProperties: true
+
+    UsageSnapshotBatch:
+      type: object
+      required: [snapshots]
+      properties:
+        snapshots:
+          type: array
+          items:
+            type: object
+            required: [subscriptionId, bytesIn, bytesOut]
+            properties:
+              subscriptionId:
+                type: integer
+              bytesIn:
+                type: number
+              bytesOut:
+                type: number
+
+    CustomerSession:
+      type: object
+      required: [subscriptionId, status, sessionType, uptimeSeconds, bytesIn, bytesOut, bytesInFormatted, bytesOutFormatted]
+      properties:
+        subscriptionId:
+          type: integer
+        planName:
+          type: string
+          nullable: true
+        routerName:
+          type: string
+          nullable: true
+        pppoeUsername:
+          type: string
+          nullable: true
+        pppoePassword:
+          type: string
+          nullable: true
+        ipAddress:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [online, offline, no_router]
+        uptimeSeconds:
+          type: number
+        uptimeRaw:
+          type: string
+          nullable: true
+        bytesIn:
+          type: number
+        bytesOut:
+          type: number
+        bytesInFormatted:
+          type: string
+        bytesOutFormatted:
+          type: string
+        callerMac:
+          type: string
+          nullable: true
+        sessionType:
+          type: string
+          enum: [pppoe, hotspot, none]
+        routerError:
+          type: string
+          nullable: true
+
+    UsageSnapshot:
+      type: object
+      required: [id, subscriptionId, bytesIn, bytesOut, recordedAt]
+      properties:
+        id:
+          type: integer
+        subscriptionId:
+          type: integer
+        bytesIn:
+          type: number
+        bytesOut:
+          type: number
+        recordedAt:
+          type: string
+          format: date-time
+
+

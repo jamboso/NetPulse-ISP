@@ -78,7 +78,7 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
     <Dialog open={open} onOpenChange={o => !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>{customerId ? "Edit Customer" : "Add Customer"}</DialogTitle></DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
           <div className="space-y-1">
             <Label>Full Name *</Label>
             <Input value={form.name} onChange={e => set("name", e.target.value)} placeholder="John Doe" />

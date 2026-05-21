@@ -369,7 +369,7 @@ export default function Settings() {
 
 // ─── Provider metadata ────────────────────────────────────────────────────────
 const SMS_PROVIDERS = [
-  { value: "",                label: "Disabled" },
+  { value: "disabled",        label: "Disabled" },
   { value: "africas_talking", label: "Africa's Talking" },
   { value: "movesms",         label: "MoveSMS" },
   { value: "zettatel",        label: "Zettatel" },
@@ -429,8 +429,9 @@ function ToggleRow({ label, name, value, onChange, hint }: {
 
 function SmsTab({ f, set }: { f: (k: string) => string; set: (k: string, v: string) => void }) {
   const provider = f("smsProvider");
-  const fields   = provider ? PROVIDER_FIELDS[provider] : undefined;
-  const link     = provider ? PROVIDER_LINKS[provider] : undefined;
+  const active   = provider && provider !== "disabled";
+  const fields   = active ? PROVIDER_FIELDS[provider] : undefined;
+  const link     = active ? PROVIDER_LINKS[provider] : undefined;
 
   const [testPhone, setTestPhone] = useState("");
   const [testing, setTesting]     = useState(false);
@@ -527,7 +528,7 @@ function SmsTab({ f, set }: { f: (k: string) => string; set: (k: string, v: stri
       )}
 
       {/* Notification event toggles */}
-      {provider && (
+      {active && (
         <SectionCard icon={Bell} title="Automatic Notifications">
           <ToggleRow label="Invoice Created"     name="smsNotifyInvoice" value={f("smsNotifyInvoice")} onChange={set} hint="Send SMS when a new invoice is generated" />
           <ToggleRow label="Payment Received"    name="smsNotifyPayment" value={f("smsNotifyPayment")} onChange={set} hint="Confirm received payments with amount and reference" />
@@ -553,7 +554,7 @@ function SmsTab({ f, set }: { f: (k: string) => string; set: (k: string, v: stri
       )}
 
       {/* Test SMS */}
-      {provider && (
+      {active && (
         <SectionCard icon={Send} title="Test SMS">
           <div className="py-4 space-y-3">
             <p className="text-sm text-gray-500">

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { subscriptionsTable, customersTable, plansTable, routersTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { subscriptionsTable, customersTable, plansTable, routersTable, invoicesTable, paymentsTable } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
 
 const router = Router();
 
@@ -315,8 +315,18 @@ router.delete("/subscriptions/:id", async (req, res) => {
   const id = parseInt(req.params.id!);
   const [existing] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, id));
 
-  if (existing?.pppoeUsername && existing.routerId) {
+  if (!existing) { res.status(404).json({ error: "Subscription not found" }); return; }
+
+  if (existing.pppoeUsername && existing.routerId) {
     deletePPPoESecret(existing.routerId, existing.pppoeUsername, req.log);
+  }
+
+  // Cascade: delete payments → invoices → subscription
+  const invoices = await db.select({ id: invoicesTable.id }).from(invoicesTable).where(eq(invoicesTable.subscriptionId, id));
+  if (invoices.length > 0) {
+    const invoiceIds = invoices.map(i => i.id);
+    await db.delete(paymentsTable).where(inArray(paymentsTable.invoiceId, invoiceIds));
+    await db.delete(invoicesTable).where(inArray(invoicesTable.id, invoiceIds));
   }
 
   await db.delete(subscriptionsTable).where(eq(subscriptionsTable.id, id));

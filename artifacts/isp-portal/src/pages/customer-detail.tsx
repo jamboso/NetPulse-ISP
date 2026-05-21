@@ -265,7 +265,14 @@ function SessionCard({ session, subPlanName, snapshots }: SessionCardProps) {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="time" tick={{ fontSize: 10 }} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                    <YAxis
+                      tick={{ fontSize: 10 }}
+                      tickLine={false}
+                      axisLine={false}
+                      domain={[0, (dataMax: number) => Math.max(parseFloat((dataMax * 1.3).toFixed(2)), 0.1)]}
+                      tickFormatter={(v: number) => v >= 1 ? `${v.toFixed(1)}` : `${v.toFixed(2)}`}
+                      width={36}
+                    />
                     <Tooltip
                       contentStyle={{ fontSize: 11, borderRadius: 8 }}
                       formatter={(v: number, name: string) => [`${v} Mbps`, name === "download" ? "↓ Download" : "↑ Upload"]}

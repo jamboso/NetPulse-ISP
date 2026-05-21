@@ -10,9 +10,16 @@ const SETTINGS_KEYS = [
   "timezone", "currency", "invoicePrefix", "invoiceDueDays",
   "lateFeePercent", "autoSuspendDays", "gracePeriodDays",
   "defaultRouterType", "ntpServer", "radiusServer", "radiusSecret",
-  "smsProvider", "smsApiKey", "smsSenderId",
+  // SMS gateway
+  "smsProvider", "smsApiKey", "smsApiSecret", "smsSenderId",
+  "smsUsername", "smsEnvironment", "smsPartnerId", "smsClientId",
+  "smsNotifyInvoice", "smsNotifyPayment", "smsNotifyExpiry",
+  "smsNotifyTicket", "smsNotifyWelcome", "smsExpiryNotifyDays",
+  // Telegram
   "telegramBotToken", "telegramChatId",
+  // SMTP
   "smtpHost", "smtpPort", "smtpUser", "smtpPass", "smtpFrom",
+  // M-Pesa
   "mpesaConsumerKey", "mpesaConsumerSecret", "mpesaShortcode",
   "mpesaPasskey", "mpesaEnv", "mpesaCallbackUrl",
 ] as const;

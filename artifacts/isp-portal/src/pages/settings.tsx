@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Building2, CreditCard, Network, Bell, Smartphone, Save, CheckCircle2, AlertCircle } from "lucide-react";
+import { Building2, CreditCard, Network, Bell, Smartphone, Save, CheckCircle2, AlertCircle, MessageSquare, Send, Loader2 } from "lucide-react";
 
 type SettingsData = Record<string, string | null>;
 
@@ -195,6 +196,9 @@ export default function Settings() {
           <TabsTrigger value="notifications" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Bell className="w-3.5 h-3.5" /> Notifications
           </TabsTrigger>
+            <TabsTrigger value="sms" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <MessageSquare className="w-3.5 h-3.5" /> SMS
+          </TabsTrigger>
           <TabsTrigger value="mpesa" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Smartphone className="w-3.5 h-3.5" /> M-Pesa
           </TabsTrigger>
@@ -283,21 +287,10 @@ export default function Settings() {
         {/* ── NOTIFICATIONS ────────────────────────────────────────────────── */}
         <TabsContent value="notifications" className="mt-5 space-y-4">
           <SectionCard icon={Bell} title="SMS">
-            <SelectField
-              label="SMS Provider"
-              name="smsProvider"
-              value={f("smsProvider")}
-              onChange={set}
-              options={[
-                { value: "", label: "Disabled" },
-                { value: "africastalking", label: "Africa's Talking" },
-                { value: "infobip", label: "Infobip" },
-                { value: "twilio", label: "Twilio" },
-                { value: "nexmo", label: "Vonage (Nexmo)" },
-              ]}
-            />
-            <SettingField label="API Key" name="smsApiKey" value={f("smsApiKey")} onChange={set} secret placeholder="Your SMS API key" />
-            <SettingField label="Sender ID" name="smsSenderId" value={f("smsSenderId")} onChange={set} placeholder="MYISP" hint="Alphanumeric sender name (11 chars max)" />
+            <div className="py-3 text-sm text-gray-600 flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-blue-500 shrink-0" />
+              SMS settings have moved to the dedicated <strong>SMS</strong> tab above.
+            </div>
           </SectionCard>
 
           <SectionCard icon={Bell} title="Telegram Alerts">
@@ -312,6 +305,11 @@ export default function Settings() {
             <SettingField label="Password" name="smtpPass" value={f("smtpPass")} onChange={set} secret placeholder="app password" />
             <SettingField label="From Address" name="smtpFrom" value={f("smtpFrom")} onChange={set} placeholder="noreply@myisp.co.ke" hint="Displayed sender in customer emails" />
           </SectionCard>
+        </TabsContent>
+
+        {/* ── SMS ─────────────────────────────────────────────────────────── */}
+        <TabsContent value="sms" className="mt-5 space-y-4">
+          <SmsTab f={f} set={set} />
         </TabsContent>
 
         {/* ── M-PESA ──────────────────────────────────────────────────────── */}
@@ -365,6 +363,234 @@ export default function Settings() {
           </SectionCard>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// ─── Provider metadata ────────────────────────────────────────────────────────
+const SMS_PROVIDERS = [
+  { value: "",                label: "Disabled" },
+  { value: "africas_talking", label: "Africa's Talking" },
+  { value: "movesms",         label: "MoveSMS" },
+  { value: "zettatel",        label: "Zettatel" },
+  { value: "celcom_africa",   label: "Celcom Africa" },
+  { value: "hostpinnacle",    label: "HostPinnacle" },
+  { value: "mobilesasa",      label: "MobileSasa" },
+  { value: "onfonmedia",      label: "OnfonMedia" },
+  { value: "beem_africa",     label: "Beem Africa" },
+  { value: "advanta_africa",  label: "Advanta Africa" },
+];
+
+const PROVIDER_LINKS: Record<string, string> = {
+  africas_talking: "https://africastalking.com",
+  movesms:         "https://movesms.co.ke",
+  zettatel:        "https://portal.zettatel.com",
+  celcom_africa:   "https://celcomafrica.com",
+  hostpinnacle:    "https://sms.hostpinnacle.co.ke",
+  mobilesasa:      "https://mobilesasa.com",
+  onfonmedia:      "https://onfonmedia.co.ke",
+  beem_africa:     "https://beem.africa",
+  advanta_africa:  "https://quicksms.advantasms.com",
+};
+
+// Which fields each provider needs
+const PROVIDER_FIELDS: Record<string, {
+  apiKey?: string; apiSecret?: string; username?: string;
+  partnerId?: string; clientId?: string; environment?: boolean;
+}> = {
+  africas_talking: { apiKey: "API Key",  username: "AT Username", environment: true },
+  movesms:         { apiKey: "API Key",  partnerId: "Partner ID" },
+  zettatel:        { apiKey: "Password", username: "User ID" },
+  celcom_africa:   { apiKey: "API Key",  partnerId: "Partner ID" },
+  hostpinnacle:    { apiKey: "API Key",  partnerId: "Partner ID" },
+  mobilesasa:      { apiKey: "API Token" },
+  onfonmedia:      { apiKey: "API Key",  partnerId: "Partner ID", clientId: "Client ID" },
+  beem_africa:     { apiKey: "API Key",  apiSecret: "Secret Key" },
+  advanta_africa:  { apiKey: "API Key",  partnerId: "Partner ID" },
+};
+
+function ToggleRow({ label, name, value, onChange, hint }: {
+  label: string; name: string; value: string;
+  onChange: (n: string, v: string) => void; hint?: string;
+}) {
+  const on = value === "1" || value === "true";
+  return (
+    <div className="grid grid-cols-12 gap-3 items-center py-3 border-b border-gray-100 last:border-0">
+      <div className="col-span-8">
+        <p className="text-sm font-medium text-gray-700">{label}</p>
+        {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
+      </div>
+      <div className="col-span-4 flex justify-end">
+        <Switch checked={on} onCheckedChange={(v) => onChange(name, v ? "1" : "0")} />
+      </div>
+    </div>
+  );
+}
+
+function SmsTab({ f, set }: { f: (k: string) => string; set: (k: string, v: string) => void }) {
+  const provider = f("smsProvider");
+  const fields   = provider ? PROVIDER_FIELDS[provider] : undefined;
+  const link     = provider ? PROVIDER_LINKS[provider] : undefined;
+
+  const [testPhone, setTestPhone] = useState("");
+  const [testing, setTesting]     = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleTest = async () => {
+    if (!testPhone) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/sms/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: testPhone }),
+      });
+      const data = await res.json() as { success: boolean; message: string };
+      setTestResult(data);
+    } catch {
+      setTestResult({ success: false, message: "Request failed — is the server running?" });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Provider selector */}
+      <SectionCard icon={MessageSquare} title="SMS Provider">
+        <SelectField
+          label="Provider"
+          name="smsProvider"
+          value={f("smsProvider")}
+          onChange={set}
+          hint="All providers support Kenyan networks (Safaricom, Airtel, Telkom)"
+          options={SMS_PROVIDERS}
+        />
+        <SettingField
+          label="Sender ID"
+          name="smsSenderId"
+          value={f("smsSenderId")}
+          onChange={set}
+          placeholder="NetPulse"
+          hint="Alphanumeric name shown on recipient's phone (max 11 chars). Must be pre-registered."
+        />
+        {link && (
+          <div className="py-2.5 border-b border-gray-100">
+            <a href={link} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 underline">
+              <Send className="w-3.5 h-3.5" /> Sign up / get credentials at {link}
+            </a>
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Provider-specific credentials */}
+      {fields && (
+        <SectionCard icon={MessageSquare} title="Credentials">
+          {fields.username && (
+            <SettingField
+              label={fields.username}
+              name="smsUsername"
+              value={f("smsUsername")}
+              onChange={set}
+              placeholder={provider === "africas_talking" ? "sandbox" : "your-username"}
+              hint={provider === "africas_talking" ? "Use 'sandbox' for testing" : undefined}
+            />
+          )}
+          {fields.apiKey && (
+            <SettingField label={fields.apiKey} name="smsApiKey" value={f("smsApiKey")} onChange={set} secret placeholder="Your API key" />
+          )}
+          {fields.apiSecret && (
+            <SettingField label={fields.apiSecret} name="smsApiSecret" value={f("smsApiSecret")} onChange={set} secret placeholder="Your secret key" />
+          )}
+          {fields.partnerId && (
+            <SettingField label="Partner ID" name="smsPartnerId" value={f("smsPartnerId")} onChange={set} placeholder="Your partner ID" />
+          )}
+          {fields.clientId && (
+            <SettingField label="Client ID" name="smsClientId" value={f("smsClientId")} onChange={set} placeholder="Your client ID" />
+          )}
+          {fields.environment && (
+            <SelectField
+              label="Environment"
+              name="smsEnvironment"
+              value={f("smsEnvironment") || "sandbox"}
+              onChange={set}
+              hint="Use Sandbox for testing — no real SMS is sent"
+              options={[
+                { value: "sandbox",    label: "Sandbox (Testing)" },
+                { value: "production", label: "Production (Live)" },
+              ]}
+            />
+          )}
+        </SectionCard>
+      )}
+
+      {/* Notification event toggles */}
+      {provider && (
+        <SectionCard icon={Bell} title="Automatic Notifications">
+          <ToggleRow label="Invoice Created"     name="smsNotifyInvoice" value={f("smsNotifyInvoice")} onChange={set} hint="Send SMS when a new invoice is generated" />
+          <ToggleRow label="Payment Received"    name="smsNotifyPayment" value={f("smsNotifyPayment")} onChange={set} hint="Confirm received payments with amount and reference" />
+          <ToggleRow label="Subscription Expiring" name="smsNotifyExpiry" value={f("smsNotifyExpiry")} onChange={set} hint="Warn customers before their plan expires" />
+          <div className="grid grid-cols-12 gap-3 items-center py-2 border-b border-gray-100">
+            <div className="col-span-8" />
+            <div className="col-span-4">
+              <Input
+                type="number"
+                min={1}
+                max={30}
+                value={f("smsExpiryNotifyDays") || "3"}
+                onChange={(e) => set("smsExpiryNotifyDays", e.target.value)}
+                className="text-sm h-8"
+                placeholder="3"
+              />
+              <p className="text-xs text-gray-400 mt-0.5 text-right">days before</p>
+            </div>
+          </div>
+          <ToggleRow label="Ticket Status Changed" name="smsNotifyTicket"  value={f("smsNotifyTicket")}  onChange={set} hint="Notify when a support ticket is updated or resolved" />
+          <ToggleRow label="New Account Welcome"   name="smsNotifyWelcome" value={f("smsNotifyWelcome")} onChange={set} hint="Send welcome SMS when a customer account is created" />
+        </SectionCard>
+      )}
+
+      {/* Test SMS */}
+      {provider && (
+        <SectionCard icon={Send} title="Test SMS">
+          <div className="py-4 space-y-3">
+            <p className="text-sm text-gray-500">
+              Save your settings first, then send a test SMS to confirm everything is working.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                value={testPhone}
+                onChange={(e) => setTestPhone(e.target.value)}
+                placeholder="07XXXXXXXX or +254XXXXXXXXX"
+                className="text-sm max-w-xs"
+              />
+              <Button
+                onClick={handleTest}
+                disabled={testing || !testPhone}
+                className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shrink-0"
+                size="sm"
+              >
+                {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {testing ? "Sending…" : "Send Test SMS"}
+              </Button>
+            </div>
+            {testResult && (
+              <div className={`flex items-start gap-2 text-sm px-3 py-2.5 rounded-lg border ${
+                testResult.success
+                  ? "bg-green-50 border-green-200 text-green-700"
+                  : "bg-red-50 border-red-200 text-red-700"
+              }`}>
+                {testResult.success
+                  ? <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                  : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />}
+                <span>{testResult.message}</span>
+              </div>
+            )}
+          </div>
+        </SectionCard>
+      )}
     </div>
   );
 }

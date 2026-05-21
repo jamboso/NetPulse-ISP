@@ -1,0 +1,43 @@
+name: Deploy to Replit
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Trigger Replit Deployment
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Trigger Replit deployment
+        env:
+          REPLIT_DEPLOY_TOKEN: ${{ secrets.REPLIT_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$REPLIT_DEPLOY_TOKEN" ]; then
+            echo "REPLIT_DEPLOY_TOKEN is not set — skipping deployment trigger."
+            echo "Add REPLIT_DEPLOY_TOKEN to your GitHub repository secrets to enable automatic deployment."
+            exit 0
+          fi
+
+          echo "Triggering Replit deployment..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://api.replit.com/v1/deployments/trigger" \
+            -H "Authorization: Bearer $REPLIT_DEPLOY_TOKEN" \
+            -H "Content-Type: application/json")
+
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+
+          echo "Response: $BODY"
+          echo "HTTP status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "Deployment triggered successfully."
+          else
+            echo "Failed to trigger deployment (HTTP $HTTP_STATUS)."
+            exit 1
+          fi

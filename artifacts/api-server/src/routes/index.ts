@@ -24,6 +24,7 @@ import complianceRouter from "./compliance";
 import smsRouter from "./sms";
 import smsTemplatesRouter from "./sms-templates";
 import monitoringRouter from "./monitoring";
+import networkMapRouter from "./network-map";
 
 const router: IRouter = Router();
 
@@ -61,5 +62,6 @@ router.use(complianceRouter);
 router.use(smsRouter);
 router.use(smsTemplatesRouter);
 router.use(monitoringRouter);
+router.use(networkMapRouter);
 
 export default router;

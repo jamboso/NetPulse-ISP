@@ -14,3 +14,4 @@ export * from "./sessionLogs";
 export * from "./customerCommunications";
 export * from "./smsTemplates";
 export * from "./smsLogs";
+export * from "./splitters";

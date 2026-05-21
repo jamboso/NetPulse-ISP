@@ -41,12 +41,14 @@ router.get("/customers", async (req, res) => {
 router.post("/customers", async (req, res) => {
   const body = req.body;
   const [customer] = await db.insert(customersTable).values({
-    name: body.name,
-    email: body.email,
-    phone: body.phone,
-    address: body.address,
-    status: body.status ?? "active",
-    notes: body.notes ?? null,
+    name:      body.name,
+    email:     body.email,
+    phone:     body.phone,
+    address:   body.address,
+    status:    body.status ?? "active",
+    notes:     body.notes ?? null,
+    latitude:  body.latitude  != null ? Number(body.latitude)  : null,
+    longitude: body.longitude != null ? Number(body.longitude) : null,
   }).returning();
   res.status(201).json(customer);
 });
@@ -62,12 +64,14 @@ router.patch("/customers/:id", async (req, res) => {
   const id = parseInt(req.params.id!);
   const body = req.body;
   const update: Record<string, unknown> = {};
-  if (body.name !== undefined) update.name = body.name;
-  if (body.email !== undefined) update.email = body.email;
-  if (body.phone !== undefined) update.phone = body.phone;
-  if (body.address !== undefined) update.address = body.address;
-  if (body.status !== undefined) update.status = body.status;
-  if (body.notes !== undefined) update.notes = body.notes;
+  if (body.name      !== undefined) update.name      = body.name;
+  if (body.email     !== undefined) update.email     = body.email;
+  if (body.phone     !== undefined) update.phone     = body.phone;
+  if (body.address   !== undefined) update.address   = body.address;
+  if (body.status    !== undefined) update.status    = body.status;
+  if (body.notes     !== undefined) update.notes     = body.notes;
+  if (body.latitude  !== undefined) update.latitude  = body.latitude  != null ? Number(body.latitude)  : null;
+  if (body.longitude !== undefined) update.longitude = body.longitude != null ? Number(body.longitude) : null;
   const [updated] = await db.update(customersTable).set(update).where(eq(customersTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(updated);

@@ -158,8 +158,27 @@ router.get("/customers/:id/sessions", async (req, res) => {
         const hotspotSession = hotspotList.find((s: any) => s.user === sub.pppoeUsername);
 
         if (pppoeSession) {
-          const bytesIn = parseInt(pppoeSession["bytes-in"] ?? "0") || 0;
-          const bytesOut = parseInt(pppoeSession["bytes-out"] ?? "0") || 0;
+          let bytesIn  = parseInt(pppoeSession["bytes-in"]  ?? "0") || 0;
+          let bytesOut = parseInt(pppoeSession["bytes-out"] ?? "0") || 0;
+
+          // RouterOS REST API often omits bytes-in/bytes-out from /ppp/active.
+          // Fall back to the virtual PPPoE interface (<pppoe-USERNAME>) which
+          // always exposes rx-byte / tx-byte as session counters.
+          if (bytesIn === 0 && bytesOut === 0) {
+            try {
+              const ifaceName = `<pppoe-${sub.pppoeUsername}>`;
+              const ifaceData = await rosReq(
+                ip, ssl ?? false, user, pass, "GET",
+                `/interface?name=${encodeURIComponent(ifaceName)}`
+              ).catch(() => null);
+              const iface = Array.isArray(ifaceData) ? (ifaceData as any[])[0] : null;
+              if (iface) {
+                bytesIn  = parseInt(iface["rx-byte"] ?? "0") || 0;
+                bytesOut = parseInt(iface["tx-byte"] ?? "0") || 0;
+              }
+            } catch { /* ignore — keep 0 */ }
+          }
+
           return {
             subscriptionId: sub.id,
             planName: null,

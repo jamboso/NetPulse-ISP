@@ -15,7 +15,9 @@ import {
   User, Mail, Phone, MapPin, Calendar, CreditCard, Receipt,
   LifeBuoy, ArrowLeft, Edit, KeyRound, Wifi, WifiOff, Signal,
   Eye, EyeOff, RefreshCw, Download, Upload, Clock, Cpu,
-  MonitorSmartphone, AlertCircle, Router,
+  MonitorSmartphone, AlertCircle, Router, History, MessageSquare,
+  ClipboardList, HardDrive, Send, Trash2, Plus, ArrowDownToLine,
+  CheckCircle2, XCircle, ServerCrash, DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -499,6 +501,82 @@ export default function CustomerDetail() {
     refetchSessions();
   }, [refetchSessions]);
 
+  // ── New tab data ───────────────────────────────────────────────────────────
+
+  // Usage history (session logs)
+  const [sessionLogs, setSessionLogs]       = useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs]       = useState(false);
+  const [logFrom, setLogFrom]               = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10); });
+  const [logTo, setLogTo]                   = useState(() => new Date().toISOString().slice(0, 10));
+  const [activeTab, setActiveTab]           = useState("overview");
+
+  const fetchSessionLogs = useCallback(async () => {
+    setLoadingLogs(true);
+    try {
+      const r = await fetch(`/api/customers/${customerId}/session-logs?from=${logFrom}&to=${logTo}&limit=100`);
+      if (r.ok) setSessionLogs(await r.json());
+    } finally { setLoadingLogs(false); }
+  }, [customerId, logFrom, logTo]);
+
+  useEffect(() => { if (activeTab === "usage") fetchSessionLogs(); }, [activeTab, fetchSessionLogs]);
+
+  // Communications
+  const [comms, setComms]                   = useState<any[]>([]);
+  const [loadingComms, setLoadingComms]     = useState(false);
+  const [newComm, setNewComm]               = useState({ type: "note", direction: "outbound", subject: "", content: "" });
+  const [sendingComm, setSendingComm]       = useState(false);
+
+  const fetchComms = useCallback(async () => {
+    setLoadingComms(true);
+    try {
+      const r = await fetch(`/api/customers/${customerId}/communications`);
+      if (r.ok) setComms(await r.json());
+    } finally { setLoadingComms(false); }
+  }, [customerId]);
+
+  useEffect(() => { if (activeTab === "communication") fetchComms(); }, [activeTab, fetchComms]);
+
+  const submitComm = async () => {
+    if (!newComm.content.trim()) return;
+    setSendingComm(true);
+    try {
+      const r = await fetch(`/api/customers/${customerId}/communications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newComm),
+      });
+      if (r.ok) {
+        setNewComm({ type: "note", direction: "outbound", subject: "", content: "" });
+        fetchComms();
+      }
+    } finally { setSendingComm(false); }
+  };
+
+  const deleteComm = async (commId: number) => {
+    await fetch(`/api/customers/${customerId}/communications/${commId}`, { method: "DELETE" });
+    setComms(c => c.filter(x => x.id !== commId));
+  };
+
+  // Equipment
+  const [equipment, setEquipment]           = useState<any[]>([]);
+  const [loadingEquip, setLoadingEquip]     = useState(false);
+
+  useEffect(() => {
+    if (activeTab !== "equipment") return;
+    setLoadingEquip(true);
+    fetch(`/api/customers/${customerId}/equipment`)
+      .then(r => r.json()).then(setEquipment).catch(() => {})
+      .finally(() => setLoadingEquip(false));
+  }, [activeTab, customerId]);
+
+  // Payments (for audit log)
+  const [payments, setPayments]             = useState<any[]>([]);
+  useEffect(() => {
+    if (activeTab !== "audit") return;
+    fetch(`/api/customers/${customerId}/payments`)
+      .then(r => r.json()).then(setPayments).catch(() => {});
+  }, [activeTab, customerId]);
+
   const subs = Array.isArray(subscriptionsData) ? subscriptionsData : [];
   const tickets = Array.isArray(ticketsData) ? ticketsData : [];
   const invoices = (invoicesData as any)?.data ?? invoicesData ?? [];
@@ -653,7 +731,7 @@ export default function CustomerDetail() {
 
         {/* Main content */}
         <div className="lg:col-span-2">
-          <Tabs defaultValue="overview" className="w-full">
+          <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
             <TabsList className="bg-gray-100 p-1 w-full justify-start rounded-lg mb-6 flex-wrap h-auto gap-1">
               <TabsTrigger value="overview" className="data-[state=active]:bg-white rounded-md">
                 <Receipt className="w-4 h-4 mr-2" /> Overview
@@ -675,6 +753,18 @@ export default function CustomerDetail() {
               </TabsTrigger>
               <TabsTrigger value="tickets" className="data-[state=active]:bg-white rounded-md">
                 <LifeBuoy className="w-4 h-4 mr-2" /> Tickets ({tickets.length})
+              </TabsTrigger>
+              <TabsTrigger value="usage" className="data-[state=active]:bg-white rounded-md">
+                <History className="w-4 h-4 mr-2" /> Usage History
+              </TabsTrigger>
+              <TabsTrigger value="communication" className="data-[state=active]:bg-white rounded-md">
+                <MessageSquare className="w-4 h-4 mr-2" /> Communication
+              </TabsTrigger>
+              <TabsTrigger value="audit" className="data-[state=active]:bg-white rounded-md">
+                <ClipboardList className="w-4 h-4 mr-2" /> Audit Log
+              </TabsTrigger>
+              <TabsTrigger value="equipment" className="data-[state=active]:bg-white rounded-md">
+                <HardDrive className="w-4 h-4 mr-2" /> Equipment
               </TabsTrigger>
             </TabsList>
 
@@ -843,6 +933,317 @@ export default function CustomerDetail() {
                 </Table>
               </div>
             </TabsContent>
+
+            {/* ── Usage History tab ── */}
+            <TabsContent value="usage" className="m-0 space-y-4">
+              {/* Date filters */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-end gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
+                  <input type="date" value={logFrom} onChange={e => setLogFrom(e.target.value)}
+                    className="border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">To</label>
+                  <input type="date" value={logTo} onChange={e => setLogTo(e.target.value)}
+                    className="border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <Button size="sm" onClick={fetchSessionLogs} disabled={loadingLogs} className="bg-blue-600 hover:bg-blue-700">
+                  <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loadingLogs ? "animate-spin" : ""}`} /> Apply
+                </Button>
+                <span className="text-xs text-gray-400 ml-auto">{sessionLogs.length} sessions found</span>
+              </div>
+
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200 text-left text-[11px] text-gray-500 uppercase">
+                        <th className="px-4 py-3 font-medium">Session Start</th>
+                        <th className="px-4 py-3 font-medium">Session End</th>
+                        <th className="px-4 py-3 font-medium">Duration</th>
+                        <th className="px-4 py-3 font-medium">Device IP</th>
+                        <th className="px-4 py-3 font-medium">MAC</th>
+                        <th className="px-4 py-3 font-medium">Router</th>
+                        <th className="px-4 py-3 font-medium">Type</th>
+                        <th className="px-4 py-3 font-medium">↓ Download</th>
+                        <th className="px-4 py-3 font-medium">↑ Upload</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loadingLogs ? (
+                        [0,1,2,3,4].map(i => (
+                          <tr key={i} className="border-b border-gray-50">
+                            {[0,1,2,3,4,5,6,7,8].map(j => (
+                              <td key={j} className="px-4 py-3"><div className="h-3 bg-gray-100 rounded animate-pulse" /></td>
+                            ))}
+                          </tr>
+                        ))
+                      ) : sessionLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="px-4 py-12 text-center text-gray-400">
+                            <History className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+                            No session history in this date range.
+                          </td>
+                        </tr>
+                      ) : sessionLogs.map((s: any, i: number) => {
+                        const start = new Date(s.sessionStart);
+                        const end   = s.sessionEnd ? new Date(s.sessionEnd) : null;
+                        const durSecs = end ? Math.floor((end.getTime() - start.getTime()) / 1000) : null;
+                        const dur = durSecs === null ? "Active" : durSecs < 60 ? `${durSecs}s` : durSecs < 3600 ? `${Math.floor(durSecs/60)}m ${durSecs%60}s` : `${Math.floor(durSecs/3600)}h ${Math.floor((durSecs%3600)/60)}m`;
+                        const fmtB = (n: number) => n >= 1e9 ? `${(n/1e9).toFixed(2)} GB` : n >= 1e6 ? `${(n/1e6).toFixed(2)} MB` : n >= 1e3 ? `${(n/1e3).toFixed(1)} KB` : `${n} B`;
+                        return (
+                          <tr key={s.id} className={`border-b border-gray-50 ${i%2===0?"bg-white":"bg-gray-50/30"}`}>
+                            <td className="px-4 py-2.5 font-mono whitespace-nowrap">{start.toLocaleString("en-KE",{dateStyle:"short",timeStyle:"short"})}</td>
+                            <td className="px-4 py-2.5 font-mono whitespace-nowrap">
+                              {end ? end.toLocaleString("en-KE",{dateStyle:"short",timeStyle:"short"}) : <span className="text-green-600 font-medium">Active</span>}
+                            </td>
+                            <td className="px-4 py-2.5 whitespace-nowrap">{dur}</td>
+                            <td className="px-4 py-2.5 font-mono">{s.ipAddress ?? "—"}</td>
+                            <td className="px-4 py-2.5 font-mono text-[10px]">{s.macAddress ?? "—"}</td>
+                            <td className="px-4 py-2.5">{s.routerName ?? "—"}</td>
+                            <td className="px-4 py-2.5 capitalize">{s.sessionType}</td>
+                            <td className="px-4 py-2.5 text-green-700 font-medium">{fmtB(s.bytesIn ?? 0)}</td>
+                            <td className="px-4 py-2.5 text-orange-600 font-medium">{fmtB(s.bytesOut ?? 0)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── Communication tab ── */}
+            <TabsContent value="communication" className="m-0 space-y-4">
+              {/* Add new communication */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                <h3 className="font-semibold text-gray-900 text-sm mb-4 flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-blue-500" /> Add Note / Log Communication
+                </h3>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+                    <select
+                      value={newComm.type}
+                      onChange={e => setNewComm(c => ({ ...c, type: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="note">Staff Note</option>
+                      <option value="sms">SMS</option>
+                      <option value="email">Email</option>
+                      <option value="call">Phone Call</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Direction</label>
+                    <select
+                      value={newComm.direction}
+                      onChange={e => setNewComm(c => ({ ...c, direction: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="outbound">Outbound (to customer)</option>
+                      <option value="inbound">Inbound (from customer)</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Subject (optional)</label>
+                  <input
+                    type="text"
+                    value={newComm.subject}
+                    onChange={e => setNewComm(c => ({ ...c, subject: e.target.value }))}
+                    placeholder="e.g. Renewal reminder, Complaint call..."
+                    className="w-full border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Content</label>
+                  <textarea
+                    rows={3}
+                    value={newComm.content}
+                    onChange={e => setNewComm(c => ({ ...c, content: e.target.value }))}
+                    placeholder="Write your note or log what was communicated..."
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+                <Button onClick={submitComm} disabled={sendingComm || !newComm.content.trim()} className="bg-blue-600 hover:bg-blue-700 gap-2">
+                  <Send className="w-3.5 h-3.5" /> {sendingComm ? "Saving…" : "Save"}
+                </Button>
+              </div>
+
+              {/* Communication list */}
+              <div className="space-y-3">
+                {loadingComms ? (
+                  [0,1,2].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)
+                ) : comms.length === 0 ? (
+                  <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
+                    <MessageSquare className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                    <p className="text-sm text-gray-400">No communications logged yet.</p>
+                  </div>
+                ) : comms.map((c: any) => {
+                  const typeIcon: Record<string, React.ReactNode> = {
+                    note: <ClipboardList className="w-3.5 h-3.5" />,
+                    sms: <MessageSquare className="w-3.5 h-3.5" />,
+                    email: <Mail className="w-3.5 h-3.5" />,
+                    call: <Phone className="w-3.5 h-3.5" />,
+                  };
+                  const typeColor: Record<string, string> = {
+                    note: "bg-gray-100 text-gray-600",
+                    sms: "bg-blue-50 text-blue-600",
+                    email: "bg-purple-50 text-purple-600",
+                    call: "bg-green-50 text-green-600",
+                  };
+                  return (
+                    <div key={c.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${typeColor[c.type] ?? "bg-gray-100 text-gray-600"}`}>
+                            {typeIcon[c.type]} {c.type}
+                          </span>
+                          <Badge variant="outline" className={`text-[10px] capitalize ${c.direction === "inbound" ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>
+                            {c.direction}
+                          </Badge>
+                          {c.subject && <span className="text-xs font-medium text-gray-700">{c.subject}</span>}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[11px] text-gray-400">
+                            {new Date(c.createdAt).toLocaleString("en-KE",{dateStyle:"short",timeStyle:"short"})}
+                          </span>
+                          <button onClick={() => deleteComm(c.id)} className="text-gray-300 hover:text-red-400 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{c.content}</p>
+                      {c.sentBy && <p className="text-[11px] text-gray-400 mt-1">— {c.sentBy}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </TabsContent>
+
+            {/* ── Audit Log tab ── */}
+            <TabsContent value="audit" className="m-0">
+              {(() => {
+                // Build audit timeline from all loaded data
+                const events: Array<{ date: string; icon: React.ReactNode; color: string; title: string; detail?: string }> = [];
+
+                // Account created
+                if ((customer as any)?.createdAt) {
+                  events.push({ date: (customer as any).createdAt, icon: <User className="w-3.5 h-3.5" />, color: "bg-blue-100 text-blue-600", title: "Account created", detail: `Status: ${(customer as any).status}` });
+                }
+                // Subscriptions
+                for (const s of subs as any[]) {
+                  events.push({ date: s.startDate ?? s.createdAt, icon: <Wifi className="w-3.5 h-3.5" />, color: "bg-green-100 text-green-600", title: `Subscription started`, detail: s.plan?.name ?? `Plan #${s.planId}` });
+                  if (s.endDate) events.push({ date: s.endDate, icon: <WifiOff className="w-3.5 h-3.5" />, color: "bg-red-100 text-red-600", title: "Subscription ended", detail: s.plan?.name });
+                }
+                // Invoices
+                for (const inv of (Array.isArray(invoices) ? invoices : []) as any[]) {
+                  events.push({ date: inv.createdAt, icon: <Receipt className="w-3.5 h-3.5" />, color: "bg-gray-100 text-gray-600", title: `Invoice generated`, detail: `INV-${String(inv.id).padStart(5,"0")} · KES ${(inv.total ?? inv.amount)}` });
+                  if (inv.paidAt) events.push({ date: inv.paidAt, icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: "bg-emerald-100 text-emerald-600", title: "Invoice paid", detail: `INV-${String(inv.id).padStart(5,"0")}` });
+                  if (inv.status === "overdue") events.push({ date: inv.dueDate, icon: <XCircle className="w-3.5 h-3.5" />, color: "bg-red-100 text-red-600", title: "Invoice overdue", detail: `INV-${String(inv.id).padStart(5,"0")}` });
+                }
+                // Payments
+                for (const p of payments as any[]) {
+                  events.push({ date: p.createdAt, icon: <DollarSign className="w-3.5 h-3.5" />, color: "bg-emerald-100 text-emerald-600", title: `Payment received`, detail: `KES ${p.amount} via ${p.method}${p.reference ? ` · ${p.reference}` : ""}` });
+                }
+                // Tickets
+                for (const t of tickets as any[]) {
+                  events.push({ date: t.createdAt, icon: <LifeBuoy className="w-3.5 h-3.5" />, color: "bg-orange-100 text-orange-600", title: "Support ticket opened", detail: t.subject });
+                  if (t.status === "closed") events.push({ date: t.updatedAt ?? t.createdAt, icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: "bg-gray-100 text-gray-500", title: "Ticket closed", detail: t.subject });
+                }
+
+                events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+                return (
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    {events.length === 0 ? (
+                      <div className="p-10 text-center">
+                        <ClipboardList className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                        <p className="text-sm text-gray-400">No activity recorded yet.</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-50">
+                        {events.map((ev, i) => (
+                          <div key={i} className="flex items-start gap-4 px-5 py-3.5">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${ev.color}`}>
+                              {ev.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900">{ev.title}</p>
+                              {ev.detail && <p className="text-xs text-gray-500 truncate">{ev.detail}</p>}
+                            </div>
+                            <span className="text-[11px] text-gray-400 whitespace-nowrap shrink-0">
+                              {new Date(ev.date).toLocaleString("en-KE",{dateStyle:"short",timeStyle:"short"})}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </TabsContent>
+
+            {/* ── Equipment tab ── */}
+            <TabsContent value="equipment" className="m-0">
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+                    <HardDrive className="w-4 h-4 text-blue-500" /> Company Equipment at Premises
+                  </h3>
+                  <span className="text-xs text-gray-400">{equipment.length} device{equipment.length !== 1 ? "s" : ""}</span>
+                </div>
+                <Table>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow>
+                      <TableHead>Device</TableHead>
+                      <TableHead>Model</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>IP Address</TableHead>
+                      <TableHead>MAC</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loadingEquip ? (
+                      <TableRow><TableCell colSpan={7}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
+                    ) : equipment.length > 0 ? (
+                      equipment.map((eq: any) => (
+                        <TableRow key={eq.id}>
+                          <TableCell className="font-medium text-gray-900">{eq.name}</TableCell>
+                          <TableCell className="text-sm text-gray-600">{eq.brand ? `${eq.brand} ${eq.model}` : eq.model}</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center gap-1 text-xs">
+                              <ServerCrash className="w-3 h-3 text-gray-400" /> {eq.type}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-gray-600">{eq.ipAddress}</TableCell>
+                          <TableCell className="font-mono text-xs text-gray-500">{eq.macAddress ?? "—"}</TableCell>
+                          <TableCell className="text-sm text-gray-600">{eq.location ?? "—"}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={`capitalize text-xs ${eq.status === "online" ? "bg-green-50 text-green-700 border-green-200" : eq.status === "offline" ? "bg-red-50 text-red-700 border-red-200" : "bg-gray-100"}`}>
+                              {eq.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={7} className="py-12 text-center">
+                          <HardDrive className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                          <p className="text-sm text-gray-400">No equipment assigned to this customer.</p>
+                          <p className="text-xs text-gray-400 mt-1">Go to Network → Equipment and assign a device to this customer.</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+
           </Tabs>
         </div>
       </div>

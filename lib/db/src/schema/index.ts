@@ -11,3 +11,4 @@ export * from "./routers";
 export * from "./hotspot";
 export * from "./usageSnapshots";
 export * from "./sessionLogs";
+export * from "./customerCommunications";

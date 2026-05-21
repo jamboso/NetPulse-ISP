@@ -18,6 +18,7 @@ import pppoeRouter from "./pppoe";
 import hotspotAdminRouter from "./hotspot-admin";
 import hotspotPortalRouter from "./hotspot-portal";
 import customerSessionsRouter from "./customer-sessions";
+import customerExtrasRouter from "./customer-extras";
 import macVendorRouter from "./mac-vendor";
 import complianceRouter from "./compliance";
 import smsRouter from "./sms";
@@ -53,6 +54,7 @@ router.use(rosRouter);
 router.use(pppoeRouter);
 router.use(hotspotAdminRouter);
 router.use(customerSessionsRouter);
+router.use(customerExtrasRouter);
 router.use(complianceRouter);
 router.use(smsRouter);
 

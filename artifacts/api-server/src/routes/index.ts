@@ -18,12 +18,14 @@ import pppoeRouter from "./pppoe";
 import hotspotAdminRouter from "./hotspot-admin";
 import hotspotPortalRouter from "./hotspot-portal";
 import customerSessionsRouter from "./customer-sessions";
+import macVendorRouter from "./mac-vendor";
 import smsRouter from "./sms";
 
 const router: IRouter = Router();
 
 // Public routes — no auth required
 router.use(healthRouter);
+router.use(macVendorRouter);
 
 // M-Pesa callback endpoints are public (Safaricom calls them directly)
 // but STK Push and status require auth — handled inside mpesaRouter

@@ -240,45 +240,65 @@ function SessionCard({ session, subPlanName, snapshots }: SessionCardProps) {
         )}
 
         {/* Usage chart */}
-        {chartData.length >= 2 ? (
-          <div>
-            <p className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
-              <Signal className="w-3 h-3" /> Usage per Interval (KB / 30 s)
+        {(() => {
+          const hasBytes = chartData.some(d => d.download > 0 || d.upload > 0);
+          if (chartData.length >= 2 && hasBytes) {
+            return (
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
+                  <Signal className="w-3 h-3" /> Usage per Interval (KB / 30 s)
+                </p>
+                <ResponsiveContainer width="100%" height={140}>
+                  <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id={`dl-${session.subscriptionId}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id={`ul-${session.subscriptionId}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="time" tick={{ fontSize: 10 }} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      contentStyle={{ fontSize: 11, borderRadius: 8 }}
+                      formatter={(v: number, name: string) => [`${v} KB`, name === "download" ? "↓ Download" : "↑ Upload"]}
+                    />
+                    <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} formatter={(v) => v === "download" ? "↓ Download" : "↑ Upload"} />
+                    <Area type="monotone" dataKey="download" stroke="#22c55e" strokeWidth={2} fill={`url(#dl-${session.subscriptionId})`} dot={false} />
+                    <Area type="monotone" dataKey="upload" stroke="#f97316" strokeWidth={2} fill={`url(#ul-${session.subscriptionId})`} dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            );
+          }
+          if (chartData.length >= 2 && !hasBytes) {
+            return (
+              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                <span>
+                  Traffic counters are reporting 0 B. Enable <strong>IP → Traffic Flow</strong> or{" "}
+                  <strong>PPP → Accounting</strong> on your MikroTik router to see live usage graphs.
+                </span>
+              </div>
+            );
+          }
+          if (chartData.length === 1) {
+            return (
+              <p className="text-xs text-gray-400 text-center py-2">
+                Collecting data… graph will appear after the next refresh.
+              </p>
+            );
+          }
+          return (
+            <p className="text-xs text-gray-400 text-center py-2">
+              No usage history yet. Data is recorded each time this page refreshes.
             </p>
-            <ResponsiveContainer width="100%" height={140}>
-              <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id={`dl-${session.subscriptionId}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id={`ul-${session.subscriptionId}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="time" tick={{ fontSize: 10 }} tickLine={false} />
-                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{ fontSize: 11, borderRadius: 8 }}
-                  formatter={(v: number, name: string) => [`${v} KB`, name === "download" ? "↓ Download" : "↑ Upload"]}
-                />
-                <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} formatter={(v) => v === "download" ? "↓ Download" : "↑ Upload"} />
-                <Area type="monotone" dataKey="download" stroke="#22c55e" strokeWidth={2} fill={`url(#dl-${session.subscriptionId})`} dot={false} />
-                <Area type="monotone" dataKey="upload" stroke="#f97316" strokeWidth={2} fill={`url(#ul-${session.subscriptionId})`} dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        ) : chartData.length === 1 ? (
-          <p className="text-xs text-gray-400 text-center py-2">
-            Collecting data… graph will appear after the next refresh.
-          </p>
-        ) : (
-          <p className="text-xs text-gray-400 text-center py-2">
-            No usage history yet. Data is recorded each time this page refreshes.
-          </p>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

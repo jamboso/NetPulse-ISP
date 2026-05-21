@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 const cache = new Map<string, string | null>();
 
 function normalizeOui(mac: string): string {
-  return mac.replace(/[:\-\.]/g, "").slice(0, 6).toUpperCase();
+  const hex = mac.replace(/[:\-\.]/g, "").toUpperCase();
+  return `${hex.slice(0, 2)}:${hex.slice(2, 4)}:${hex.slice(4, 6)}`;
 }
 
 function isValidMac(mac: string) {
@@ -22,14 +23,11 @@ export function useMacVendor(mac: string | null | undefined) {
     let cancelled = false;
     setLoading(true);
 
-    fetch(`https://api.macvendors.com/${oui}`)
-      .then((res) => {
-        if (!res.ok) return null;
-        return res.text();
-      })
-      .then((text) => {
+    fetch(`/api/mac-vendor/${encodeURIComponent(oui)}`)
+      .then((res) => res.ok ? res.json() : { vendor: null })
+      .then((data: { vendor: string | null }) => {
         if (cancelled) return;
-        const result = text?.trim() || null;
+        const result = data.vendor?.trim() || null;
         cache.set(oui, result);
         setVendor(result);
       })

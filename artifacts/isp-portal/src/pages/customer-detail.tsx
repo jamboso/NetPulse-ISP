@@ -127,13 +127,16 @@ function SessionCard({ session, subPlanName, snapshots }: SessionCardProps) {
   const isOnline = session.status === "online";
   const noRouter = session.status === "no_router";
 
-  // Build chart data from snapshots
-  const chartData = snapshots.map((s, i) => ({
-    time: fmtTime(s.recordedAt),
-    download: Math.round(s.bytesIn / 1024),
-    upload: Math.round(s.bytesOut / 1024),
-    index: i,
-  }));
+  // Build chart data: delta between consecutive snapshots (KB transferred per interval)
+  const chartData = snapshots.map((s, i) => {
+    const prev = snapshots[i - 1];
+    return {
+      time: fmtTime(s.recordedAt),
+      download: prev ? Math.round(Math.max(0, s.bytesIn  - prev.bytesIn)  / 1024) : 0,
+      upload:   prev ? Math.round(Math.max(0, s.bytesOut - prev.bytesOut) / 1024) : 0,
+      index: i,
+    };
+  });
 
   return (
     <div className={`bg-white rounded-xl border-2 shadow-sm overflow-hidden transition-all ${
@@ -239,7 +242,7 @@ function SessionCard({ session, subPlanName, snapshots }: SessionCardProps) {
         {chartData.length >= 2 ? (
           <div>
             <p className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
-              <Signal className="w-3 h-3" /> Usage History (KB)
+              <Signal className="w-3 h-3" /> Usage per Interval (KB / 30 s)
             </p>
             <ResponsiveContainer width="100%" height={140}>
               <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>

@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "twJGbVXSByurerNuVavVA"
+uri = "file://deploy/NetPulse-Installation-Guide.pdf"
+type = "pdf"
+title = "NetPulse Installation Guide"

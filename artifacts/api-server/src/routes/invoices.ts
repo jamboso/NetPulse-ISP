@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { invoicesTable, customersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
+import { requireRole } from "../middlewares/requireRole";
 
 const router = Router();
 
@@ -38,7 +39,7 @@ router.get("/invoices", async (req, res) => {
   res.json({ data, total, page: pageNum, limit: limitNum });
 });
 
-router.post("/invoices", async (req, res) => {
+router.post("/invoices", requireRole("admin", "billing"), async (req, res) => {
   const body = req.body;
   const tax = body.tax ?? 0;
   const total = Number(body.amount) + Number(tax);
@@ -56,7 +57,7 @@ router.post("/invoices", async (req, res) => {
 });
 
 router.get("/invoices/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(req.params["id"] as string);
   const [row] = await db
     .select()
     .from(invoicesTable)
@@ -66,8 +67,8 @@ router.get("/invoices/:id", async (req, res) => {
   res.json(fmt(row.invoices, row.customers));
 });
 
-router.patch("/invoices/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+router.patch("/invoices/:id", requireRole("admin", "billing"), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
   const body = req.body;
   const update: Record<string, unknown> = {};
   if (body.amount !== undefined) update.amount = String(body.amount);
@@ -84,8 +85,8 @@ router.patch("/invoices/:id", async (req, res) => {
   res.json(fmt(updated));
 });
 
-router.delete("/invoices/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+router.delete("/invoices/:id", requireRole("admin"), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
   await db.delete(invoicesTable).where(eq(invoicesTable.id, id));
   res.status(204).send();
 });

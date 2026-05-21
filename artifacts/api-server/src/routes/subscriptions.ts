@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { subscriptionsTable, customersTable, plansTable, routersTable, invoicesTable, paymentsTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
+import { requireRole } from "../middlewares/requireRole";
 
 const router = Router();
 
@@ -186,7 +187,7 @@ router.get("/subscriptions", async (req, res) => {
   res.json(rows.map(r => formatSub(r.subscriptions, r.customers, r.plans)));
 });
 
-router.post("/subscriptions", async (req, res) => {
+router.post("/subscriptions", requireRole("admin", "billing"), async (req, res) => {
   const body = req.body as {
     customerId: number; planId: number; routerId?: number;
     status?: string; startDate: string; endDate?: string;
@@ -235,7 +236,7 @@ router.post("/subscriptions", async (req, res) => {
 });
 
 router.get("/subscriptions/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(req.params["id"] as string);
   const [row] = await db
     .select()
     .from(subscriptionsTable)
@@ -246,8 +247,8 @@ router.get("/subscriptions/:id", async (req, res) => {
   res.json(formatSub(row.subscriptions, row.customers, row.plans));
 });
 
-router.patch("/subscriptions/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+router.patch("/subscriptions/:id", requireRole("admin", "billing"), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
   const body = req.body as {
     planId?: number; routerId?: number | null; status?: string;
     endDate?: string | null; ipAddress?: string | null; macAddress?: string | null;
@@ -311,8 +312,8 @@ router.patch("/subscriptions/:id", async (req, res) => {
   res.json(updated);
 });
 
-router.delete("/subscriptions/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+router.delete("/subscriptions/:id", requireRole("admin"), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
   const [existing] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, id));
 
   if (!existing) { res.status(404).json({ error: "Subscription not found" }); return; }

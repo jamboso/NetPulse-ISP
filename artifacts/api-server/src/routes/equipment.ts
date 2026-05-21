@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { equipmentTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { requireRole } from "../middlewares/requireRole";
 
 const router = Router();
 
@@ -16,7 +17,7 @@ router.get("/equipment", async (req, res) => {
   res.json(filtered);
 });
 
-router.post("/equipment", async (req, res) => {
+router.post("/equipment", requireRole("admin", "technician"), async (req, res) => {
   const body = req.body;
   const [eq_] = await db.insert(equipmentTable).values({
     name: body.name,
@@ -33,14 +34,14 @@ router.post("/equipment", async (req, res) => {
 });
 
 router.get("/equipment/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(req.params["id"] as string);
   const [item] = await db.select().from(equipmentTable).where(eq(equipmentTable.id, id));
   if (!item) { res.status(404).json({ error: "Not found" }); return; }
   res.json(item);
 });
 
-router.patch("/equipment/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+router.patch("/equipment/:id", requireRole("admin", "technician"), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
   const body = req.body;
   const update: Record<string, unknown> = {};
   if (body.name !== undefined) update.name = body.name;
@@ -57,8 +58,8 @@ router.patch("/equipment/:id", async (req, res) => {
   res.json(updated);
 });
 
-router.delete("/equipment/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+router.delete("/equipment/:id", requireRole("admin"), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
   await db.delete(equipmentTable).where(eq(equipmentTable.id, id));
   res.status(204).send();
 });

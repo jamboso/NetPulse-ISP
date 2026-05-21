@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { settingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { requireRole } from "../middlewares/requireRole";
 
 const router = Router();
 
@@ -42,12 +43,12 @@ async function loadSettings(): Promise<Record<string, string | null>> {
   return result;
 }
 
-router.get("/settings", async (_req, res) => {
+router.get("/settings", requireRole("admin"), async (_req, res) => {
   const settings = await loadSettings();
   res.json(settings);
 });
 
-router.patch("/settings", async (req, res) => {
+router.patch("/settings", requireRole("admin"), async (req, res) => {
   const body = req.body as Partial<Record<SettingsKey, string>>;
 
   for (const [key, value] of Object.entries(body)) {

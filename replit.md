@@ -38,6 +38,9 @@ A full-featured ISP Management SaaS for managing customers, service plans, subsc
 - Auth uses better-auth (not Clerk); session verified server-side via `requireAuth` middleware
 - `requireAuth` middleware guards all routes in `artifacts/api-server/src/routes/index.ts` except: health, mac-vendor, setup, mpesa callbacks, hotspot-portal
 - Unauthenticated API requests return 401
+- RBAC: `requireRole(...roles)` middleware in `artifacts/api-server/src/middlewares/requireRole.ts`; insufficient role returns 403
+- Roles: `admin` (full access), `billing` (invoices/payments/subscriptions/customers), `support` (customers read/write, tickets), `technician` (equipment/IP pools/network infra)
+- Role is stored on the `users` table (`role` column, default `"admin"`)
 - Numeric DB fields (`price`, `amount`) stored as `numeric`, converted via `Number()` in routes
 - `isStaff` in ticket_replies stored as `text` ("true"/"false") for compatibility
 

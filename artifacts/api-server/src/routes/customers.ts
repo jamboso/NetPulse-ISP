@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { customersTable, subscriptionsTable, invoicesTable, paymentsTable, ticketsTable, ticketRepliesTable } from "@workspace/db";
 import { eq, ilike, or, sql, inArray } from "drizzle-orm";
+import { requireRole } from "../middlewares/requireRole";
 
 const router = Router();
 
@@ -38,7 +39,7 @@ router.get("/customers", async (req, res) => {
   res.json({ data, total: Number(countResult[0]?.count ?? 0), page: pageNum, limit: limitNum });
 });
 
-router.post("/customers", async (req, res) => {
+router.post("/customers", requireRole("admin", "billing", "support"), async (req, res) => {
   const body = req.body;
   const [customer] = await db.insert(customersTable).values({
     name:      body.name,
@@ -54,14 +55,14 @@ router.post("/customers", async (req, res) => {
 });
 
 router.get("/customers/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(req.params["id"] as string);
   const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, id));
   if (!customer) { res.status(404).json({ error: "Not found" }); return; }
   res.json(customer);
 });
 
-router.patch("/customers/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+router.patch("/customers/:id", requireRole("admin", "billing", "support"), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
   const body = req.body;
   const update: Record<string, unknown> = {};
   if (body.name      !== undefined) update.name      = body.name;
@@ -77,8 +78,8 @@ router.patch("/customers/:id", async (req, res) => {
   res.json(updated);
 });
 
-router.delete("/customers/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+router.delete("/customers/:id", requireRole("admin"), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
 
   // Cascade: ticket_replies → tickets → payments → invoices → subscriptions → customer
   const tickets = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(eq(ticketsTable.customerId, id));

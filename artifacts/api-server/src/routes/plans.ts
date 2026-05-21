@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { plansTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { requireRole } from "../middlewares/requireRole";
 
 const router = Router();
 
@@ -10,7 +11,7 @@ router.get("/plans", async (_req, res) => {
   res.json(plans.map(p => ({ ...p, price: Number(p.price) })));
 });
 
-router.post("/plans", async (req, res) => {
+router.post("/plans", requireRole("admin"), async (req, res) => {
   const body = req.body;
   const [plan] = await db.insert(plansTable).values({
     name: body.name,
@@ -26,14 +27,14 @@ router.post("/plans", async (req, res) => {
 });
 
 router.get("/plans/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(req.params["id"] as string);
   const [plan] = await db.select().from(plansTable).where(eq(plansTable.id, id));
   if (!plan) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ...plan, price: Number(plan.price) });
 });
 
-router.patch("/plans/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+router.patch("/plans/:id", requireRole("admin"), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
   const body = req.body;
   const update: Record<string, unknown> = {};
   if (body.name !== undefined) update.name = body.name;
@@ -49,8 +50,8 @@ router.patch("/plans/:id", async (req, res) => {
   res.json({ ...updated, price: Number(updated.price) });
 });
 
-router.delete("/plans/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+router.delete("/plans/:id", requireRole("admin"), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
   await db.delete(plansTable).where(eq(plansTable.id, id));
   res.status(204).send();
 });

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { paymentsTable, customersTable, invoicesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { requireRole } from "../middlewares/requireRole";
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.get("/payments", async (req, res) => {
   res.json(filtered.map(r => fmt(r.payments, r.customers)));
 });
 
-router.post("/payments", async (req, res) => {
+router.post("/payments", requireRole("admin", "billing"), async (req, res) => {
   const body = req.body;
   const [payment] = await db.insert(paymentsTable).values({
     customerId: body.customerId,
@@ -38,7 +39,6 @@ router.post("/payments", async (req, res) => {
     notes: body.notes ?? null,
   }).returning();
 
-  // Mark invoice as paid if payment is completed and linked to an invoice
   if (payment!.status === "completed" && payment!.invoiceId != null) {
     await db.update(invoicesTable).set({ status: "paid", paidAt: new Date().toISOString() })
       .where(eq(invoicesTable.id, payment!.invoiceId));

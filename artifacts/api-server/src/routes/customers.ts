@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { customersTable } from "@workspace/db";
-import { eq, ilike, or, sql } from "drizzle-orm";
+import { customersTable, subscriptionsTable, invoicesTable, paymentsTable, ticketsTable, ticketRepliesTable } from "@workspace/db";
+import { eq, ilike, or, sql, inArray } from "drizzle-orm";
 
 const router = Router();
 
@@ -75,6 +75,23 @@ router.patch("/customers/:id", async (req, res) => {
 
 router.delete("/customers/:id", async (req, res) => {
   const id = parseInt(req.params.id!);
+
+  // Cascade: ticket_replies → tickets → payments → invoices → subscriptions → customer
+  const tickets = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(eq(ticketsTable.customerId, id));
+  if (tickets.length > 0) {
+    const ticketIds = tickets.map(t => t.id);
+    await db.delete(ticketRepliesTable).where(inArray(ticketRepliesTable.ticketId, ticketIds));
+    await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
+  }
+
+  const invoices = await db.select({ id: invoicesTable.id }).from(invoicesTable).where(eq(invoicesTable.customerId, id));
+  if (invoices.length > 0) {
+    const invoiceIds = invoices.map(i => i.id);
+    await db.delete(paymentsTable).where(inArray(paymentsTable.invoiceId, invoiceIds));
+    await db.delete(invoicesTable).where(inArray(invoicesTable.id, invoiceIds));
+  }
+
+  await db.delete(subscriptionsTable).where(eq(subscriptionsTable.customerId, id));
   await db.delete(customersTable).where(eq(customersTable.id, id));
   res.status(204).send();
 });

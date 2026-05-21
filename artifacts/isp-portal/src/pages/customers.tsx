@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import {
-  useListCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer,
-  type CustomerInput, type CustomerUpdate,
-} from "@workspace/api-client-react";
+import { useListCustomers, useDeleteCustomer } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, MoreHorizontal, Mail, Phone, MapPin, Pencil, Trash2, UserX, UserCheck } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Mail, Phone, MapPin, Pencil, Trash2, UserX, UserCheck, LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,52 +15,90 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDate } from "@/lib/formatDate";
 
-type CustomerForm = { name: string; email: string; phone: string; address: string; status: string; notes: string };
-const EMPTY: CustomerForm = { name: "", email: "", phone: "", address: "", status: "active", notes: "" };
+const API = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+type CustomerForm = {
+  name: string; email: string; phone: string; address: string;
+  status: string; notes: string; latitude: string; longitude: string;
+};
+const EMPTY: CustomerForm = {
+  name: "", email: "", phone: "", address: "",
+  status: "active", notes: "", latitude: "", longitude: "",
+};
 
 function CustomerDialog({ open, onClose, initial, customerId }: {
   open: boolean; onClose: () => void; initial?: CustomerForm; customerId?: number;
 }) {
   const qc = useQueryClient();
-  const createMutation = useCreateCustomer();
-  const updateMutation = useUpdateCustomer();
   const [form, setForm] = useState<CustomerForm>(initial ?? EMPTY);
   const [saving, setSaving] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
   const set = (k: keyof CustomerForm, v: string) => setForm(p => ({ ...p, [k]: v }));
+
+  const getGpsLocation = () => {
+    if (!navigator.geolocation) return;
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        set("latitude",  pos.coords.latitude.toFixed(6));
+        set("longitude", pos.coords.longitude.toFixed(6));
+        setGpsLoading(false);
+      },
+      () => setGpsLoading(false),
+      { timeout: 8000 }
+    );
+  };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      if (customerId) {
-        await updateMutation.mutateAsync({ id: customerId, data: { ...form } as CustomerUpdate });
-      } else {
-        await createMutation.mutateAsync({ data: { ...form } as CustomerInput });
-      }
+      const body = {
+        name:      form.name,
+        email:     form.email,
+        phone:     form.phone,
+        address:   form.address,
+        status:    form.status,
+        notes:     form.notes || null,
+        latitude:  form.latitude  ? parseFloat(form.latitude)  : null,
+        longitude: form.longitude ? parseFloat(form.longitude) : null,
+      };
+      const url    = customerId ? `${API}/api/customers/${customerId}` : `${API}/api/customers`;
+      const method = customerId ? "PATCH" : "POST";
+      const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error("Save failed");
       await qc.invalidateQueries({ queryKey: ["/api/customers"] });
+      await qc.invalidateQueries({ queryKey: ["network-map"] });
       onClose();
     } finally { setSaving(false); }
   };
+
+  const hasCoords = !!form.latitude && !!form.longitude;
 
   return (
     <Dialog open={open} onOpenChange={o => !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>{customerId ? "Edit Customer" : "Add Customer"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div className="space-y-1"><Label>Full Name *</Label>
+          <div className="space-y-1">
+            <Label>Full Name *</Label>
             <Input value={form.name} onChange={e => set("name", e.target.value)} placeholder="John Doe" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><Label>Email *</Label>
+            <div className="space-y-1">
+              <Label>Email *</Label>
               <Input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="john@example.com" />
             </div>
-            <div className="space-y-1"><Label>Phone *</Label>
+            <div className="space-y-1">
+              <Label>Phone *</Label>
               <Input value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="+254 700 000 000" />
             </div>
           </div>
-          <div className="space-y-1"><Label>Address *</Label>
+          <div className="space-y-1">
+            <Label>Address *</Label>
             <Textarea rows={2} className="resize-none" value={form.address} onChange={e => set("address", e.target.value)} placeholder="123 Main St, Nairobi" />
           </div>
-          <div className="space-y-1"><Label>Status</Label>
+          <div className="space-y-1">
+            <Label>Status</Label>
             <Select value={form.status} onValueChange={v => set("status", v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -73,14 +108,67 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1"><Label>Notes</Label>
+          <div className="space-y-1">
+            <Label>Notes</Label>
             <Textarea rows={2} className="resize-none" value={form.notes} onChange={e => set("notes", e.target.value)} />
           </div>
+
+          {/* ── Map coordinates ── */}
+          <div className="space-y-1.5 pt-1 border-t">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-blue-500" /> Map Location
+                {hasCoords && <span className="text-[10px] font-normal text-green-600 bg-green-50 border border-green-200 rounded px-1.5 py-0.5 ml-1">Pinned ✓</span>}
+              </Label>
+              <Button type="button" variant="outline" size="sm"
+                className="h-7 gap-1.5 text-xs"
+                onClick={getGpsLocation}
+                disabled={gpsLoading}
+              >
+                <LocateFixed className={`w-3 h-3 ${gpsLoading ? "animate-spin" : ""}`} />
+                {gpsLoading ? "Getting…" : "Use My Location"}
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-gray-500">Latitude</Label>
+                <Input
+                  className="font-mono text-sm h-8"
+                  value={form.latitude}
+                  onChange={e => set("latitude", e.target.value)}
+                  placeholder="-1.286389"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-gray-500">Longitude</Label>
+                <Input
+                  className="font-mono text-sm h-8"
+                  value={form.longitude}
+                  onChange={e => set("longitude", e.target.value)}
+                  placeholder="36.817223"
+                />
+              </div>
+            </div>
+            {hasCoords && (
+              <button
+                type="button"
+                className="text-[10px] text-gray-400 hover:text-red-500 underline underline-offset-2"
+                onClick={() => { set("latitude", ""); set("longitude", ""); }}
+              >
+                Clear coordinates
+              </button>
+            )}
+            <p className="text-[10px] text-gray-400">Coordinates place this customer on the Network Map. You can also pick from the map page.</p>
+          </div>
         </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !form.name || !form.email || !form.phone || !form.address}
-            className="bg-blue-600 hover:bg-blue-700 text-white">
+          <Button
+            onClick={handleSave}
+            disabled={saving || !form.name || !form.email || !form.phone || !form.address}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
             {saving ? "Saving…" : customerId ? "Update" : "Add Customer"}
           </Button>
         </DialogFooter>
@@ -90,8 +178,8 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  active: "bg-green-100 text-green-700 hover:bg-green-100",
-  suspended: "bg-orange-100 text-orange-700 hover:bg-orange-100",
+  active:     "bg-green-100 text-green-700 hover:bg-green-100",
+  suspended:  "bg-orange-100 text-orange-700 hover:bg-orange-100",
   terminated: "bg-red-100 text-red-700 hover:bg-red-100",
 };
 
@@ -100,7 +188,6 @@ export default function Customers() {
   const [search, setSearch] = useState("");
   const { data: customersData, isLoading } = useListCustomers({ search, limit: 50 });
   const deleteMutation = useDeleteCustomer();
-  const updateMutation = useUpdateCustomer();
 
   const [dialog, setDialog] = useState<{ open: boolean; id?: number; initial?: CustomerForm }>({ open: false });
 
@@ -111,7 +198,10 @@ export default function Customers() {
   };
 
   const handleStatusChange = async (id: number, status: string) => {
-    await updateMutation.mutateAsync({ id, data: { status } as CustomerUpdate });
+    await fetch(`${API}/api/customers/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
     qc.invalidateQueries({ queryKey: ["/api/customers"] });
   };
 
@@ -166,7 +256,7 @@ export default function Customers() {
                             {customer.name}
                           </Link>
                           <div className="flex items-center text-xs text-gray-400 mt-0.5">
-                            <MapPin className="w-3 h-3 mr-1" />
+                            <MapPin className={`w-3 h-3 mr-1 ${(customer as any).latitude ? "text-green-500" : ""}`} />
                             <span className="truncate max-w-[180px]">{customer.address}</span>
                           </div>
                         </div>
@@ -193,8 +283,16 @@ export default function Customers() {
                           <DropdownMenuItem asChild><Link href={`/customers/${customer.id}`}>View Details</Link></DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setDialog({
                             open: true, id: customer.id,
-                            initial: { name: customer.name, email: customer.email, phone: customer.phone,
-                              address: customer.address, status: customer.status, notes: customer.notes ?? "" },
+                            initial: {
+                              name:      customer.name,
+                              email:     customer.email,
+                              phone:     customer.phone,
+                              address:   customer.address,
+                              status:    customer.status,
+                              notes:     customer.notes ?? "",
+                              latitude:  (customer as any).latitude  != null ? String((customer as any).latitude)  : "",
+                              longitude: (customer as any).longitude != null ? String((customer as any).longitude) : "",
+                            },
                           })}>
                             <Pencil className="w-4 h-4 mr-2" /> Edit
                           </DropdownMenuItem>
@@ -224,7 +322,12 @@ export default function Customers() {
         </div>
       </div>
 
-      <CustomerDialog open={dialog.open} onClose={() => setDialog({ open: false })} initial={dialog.initial} customerId={dialog.id} />
+      <CustomerDialog
+        open={dialog.open}
+        onClose={() => setDialog({ open: false })}
+        initial={dialog.initial}
+        customerId={dialog.id}
+      />
     </div>
   );
 }

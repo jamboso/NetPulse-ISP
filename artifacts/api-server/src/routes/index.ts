@@ -10,7 +10,7 @@ import paymentsRouter from "./payments";
 import ticketsRouter from "./tickets";
 import equipmentRouter from "./equipment";
 import ipPoolsRouter from "./ipPools";
-import mpesaRouter from "./mpesa";
+import { mpesaPublicRouter, mpesaProtectedRouter } from "./mpesa";
 import settingsRouter from "./settings";
 import routersRouter from "./routers";
 import rosRouter from "./ros";
@@ -35,15 +35,17 @@ router.use(healthRouter);
 router.use(macVendorRouter);
 router.use(setupRouter); // setup wizard API — public
 
-// M-Pesa callback endpoints are public (Safaricom calls them directly)
-// but STK Push and status require auth — handled inside mpesaRouter
-router.use(mpesaRouter);
+// M-Pesa callback endpoints are public (Safaricom calls them directly with no session)
+router.use(mpesaPublicRouter);
 
 // Hotspot portal API — public (captive portal for WiFi customers)
 router.use(hotspotPortalRouter);
 
-// All routes below require a valid Clerk session
+// All routes below require a valid session
 router.use(requireAuth);
+
+// M-Pesa staff actions (STK Push initiation, config status check) — auth required
+router.use(mpesaProtectedRouter);
 
 router.use(dashboardRouter);
 router.use(customersRouter);

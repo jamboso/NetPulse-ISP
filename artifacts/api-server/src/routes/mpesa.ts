@@ -3,14 +3,21 @@ import { db } from "@workspace/db";
 import { paymentsTable, invoicesTable, customersTable, hotspotVouchersTable, hotspotPackagesTable, routersTable } from "@workspace/db";
 import { eq, ilike } from "drizzle-orm";
 
-const router = Router();
+// ── Public router ─────────────────────────────────────────────────────────────
+// These endpoints are called directly by Safaricom and must remain unauthenticated.
+export const mpesaPublicRouter = Router();
+
+// ── Protected router ──────────────────────────────────────────────────────────
+// These endpoints are called by staff and require a valid session.
+export const mpesaProtectedRouter = Router();
 
 /*
  * POST /api/mpesa/stk-push
  * Initiates a Safaricom Daraja STK Push (Lipa Na M-Pesa Online).
  * Body: { phone, amount, invoiceId, accountRef, description }
+ * Requires auth — staff only.
  */
-router.post("/mpesa/stk-push", async (req, res) => {
+mpesaProtectedRouter.post("/mpesa/stk-push", async (req, res) => {
   const { phone, amount, invoiceId, accountRef, description } = req.body as {
     phone?: string;
     amount?: number;
@@ -99,11 +106,30 @@ router.post("/mpesa/stk-push", async (req, res) => {
 });
 
 /*
+ * GET /api/mpesa/status
+ * Returns M-Pesa configuration status (no secrets exposed).
+ * Requires auth — staff only.
+ */
+mpesaProtectedRouter.get("/mpesa/status", (_req, res) => {
+  res.json({
+    configured: !!(
+      process.env.MPESA_CONSUMER_KEY &&
+      process.env.MPESA_CONSUMER_SECRET &&
+      process.env.MPESA_SHORTCODE &&
+      process.env.MPESA_PASSKEY &&
+      process.env.MPESA_CALLBACK_URL
+    ),
+    environment: process.env.MPESA_ENV ?? "sandbox",
+    shortcode: process.env.MPESA_SHORTCODE ?? null,
+  });
+});
+
+/*
  * POST /api/mpesa/callback
  * Receives Safaricom STK Push result callback.
- * This endpoint must be publicly reachable (no auth guard).
+ * Public — Safaricom calls this directly, no session available.
  */
-router.post("/mpesa/callback", async (req, res) => {
+mpesaPublicRouter.post("/mpesa/callback", async (req, res) => {
   const body = req.body as {
     Body?: {
       stkCallback?: {
@@ -258,16 +284,18 @@ router.post("/mpesa/callback", async (req, res) => {
 /*
  * POST /api/mpesa/c2b/validation
  * C2B validation URL — Safaricom calls this to validate before processing.
+ * Public — Safaricom calls this directly.
  */
-router.post("/mpesa/c2b/validation", (_req, res) => {
+mpesaPublicRouter.post("/mpesa/c2b/validation", (_req, res) => {
   res.json({ ResultCode: "0", ResultDesc: "Accepted" });
 });
 
 /*
  * POST /api/mpesa/c2b/confirmation
  * C2B confirmation URL — Safaricom confirms a successful payment.
+ * Public — Safaricom calls this directly.
  */
-router.post("/mpesa/c2b/confirmation", async (req, res) => {
+mpesaPublicRouter.post("/mpesa/c2b/confirmation", async (req, res) => {
   const body = req.body as {
     TransID?: string;
     TransAmount?: string;
@@ -309,8 +337,9 @@ router.post("/mpesa/c2b/confirmation", async (req, res) => {
 /*
  * GET /api/mpesa/transactions
  * Returns all M-Pesa payments ordered newest-first, with customer name joins.
+ * Requires auth — staff only.
  */
-router.get("/mpesa/transactions", async (req, res) => {
+mpesaProtectedRouter.get("/mpesa/transactions", async (req, res) => {
   try {
     const limit = Math.min(Number(req.query["limit"] ?? 200), 500);
     const rows = await db
@@ -339,23 +368,3 @@ router.get("/mpesa/transactions", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch transactions" });
   }
 });
-
-/*
- * GET /api/mpesa/status
- * Returns M-Pesa configuration status (no secrets exposed).
- */
-router.get("/mpesa/status", (_req, res) => {
-  res.json({
-    configured: !!(
-      process.env.MPESA_CONSUMER_KEY &&
-      process.env.MPESA_CONSUMER_SECRET &&
-      process.env.MPESA_SHORTCODE &&
-      process.env.MPESA_PASSKEY &&
-      process.env.MPESA_CALLBACK_URL
-    ),
-    environment: process.env.MPESA_ENV ?? "sandbox",
-    shortcode: process.env.MPESA_SHORTCODE ?? null,
-  });
-});
-
-export default router;

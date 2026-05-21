@@ -17,7 +17,7 @@ A full-featured ISP Management SaaS for managing customers, service plans, subsc
 - Frontend: React + Vite (artifact: `artifacts/isp-portal`, preview path `/`)
 - API: Express 5 (artifact: `artifacts/api-server`, path `/api`)
 - DB: PostgreSQL + Drizzle ORM
-- Auth: Clerk (`@clerk/react` v6 on frontend, `@clerk/express` on backend)
+- Auth: better-auth (email/password; session cookies; `@workspace/db` adapter)
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Charts: Recharts
@@ -35,8 +35,9 @@ A full-featured ISP Management SaaS for managing customers, service plans, subsc
 ## Architecture decisions
 
 - Contract-first API: OpenAPI spec → Orval codegen → typed React Query hooks
-- Clerk auth v6: uses `Show` component (not `SignedIn`/`SignedOut`) for auth gating; `RedirectToSignIn` for unauthenticated redirects
-- API routes are currently open (no auth middleware guard on backend routes)
+- Auth uses better-auth (not Clerk); session verified server-side via `requireAuth` middleware
+- `requireAuth` middleware guards all routes in `artifacts/api-server/src/routes/index.ts` except: health, mac-vendor, setup, mpesa callbacks, hotspot-portal
+- Unauthenticated API requests return 401
 - Numeric DB fields (`price`, `amount`) stored as `numeric`, converted via `Number()` in routes
 - `isStaff` in ticket_replies stored as `text` ("true"/"false") for compatibility
 
@@ -50,7 +51,7 @@ A full-featured ISP Management SaaS for managing customers, service plans, subsc
 - **Payments**: record and view payments against invoices
 - **Support Tickets**: create/reply/close tickets, staff vs. customer replies
 - **Network**: equipment inventory + IP pool management
-- **Settings**: user profile via Clerk UserProfile component
+- **Settings**: user profile and account settings
 
 ## User preferences
 
@@ -58,10 +59,10 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-- `@clerk/react` v6 exports `Show` (with `when="signed-in"` / `when="signed-out"` props) — NOT `SignedIn`/`SignedOut` components
-- Do NOT import from `@clerk/react/internal` or `@clerk/themes` — neither is available
 - Vite HMR may serve stale module cache after import changes; restart the workflow to force a clean rebuild
 - Always run `pnpm --filter @workspace/api-spec run codegen` after editing `openapi.yaml`
+- better-auth session is cookie-based; frontend must send `credentials: "include"` on API requests
+- `BETTER_AUTH_URL` env var must match the server's public origin for session cookies to work correctly
 
 ## Pointers
 

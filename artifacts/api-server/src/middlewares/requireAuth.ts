@@ -8,7 +8,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
-    (req as Request & { user: typeof session.user }).user = session.user;
+    req.user = session.user;
     next();
   } catch {
     res.status(401).json({ error: "Unauthorized" });

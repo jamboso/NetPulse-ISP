@@ -99,7 +99,15 @@ export async function sendSms(
         { senderID: sender, message, phone },
         { Authorization: `Bearer ${s.smsApiKey}`, "Content-Type": "application/json", Accept: "application/json" }, true);
       const d = JSON.parse(r.text);
-      return (d?.success === true || d?.status === 1)
+      const isOk = d?.success === true
+        || d?.status === 1
+        || d?.status === "1"
+        || d?.status === 200
+        || d?.status === "200"
+        || String(d?.responseCode ?? "") === "200"
+        || String(d?.message ?? "").toLowerCase() === "accepted"
+        || r.ok;
+      return isOk
         ? { success: true, message: `MobileSasa: ${d?.message ?? "OK"}`, raw: r.text }
         : { success: false, message: `MobileSasa: ${d?.message ?? "error"}`, raw: r.text };
     }

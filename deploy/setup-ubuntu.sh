@@ -81,7 +81,7 @@ echo -e "  ${BOLD}ISP Management System — Production Installer${NC}"
 echo -e "  ${DIM}Log: $LOG_FILE${NC}"
 echo ""
 echo -e "  ${GREEN}●${NC} ${DIM}This script installs everything automatically.${NC}"
-echo -e "  ${GREEN}●${NC} ${DIM}No API keys needed — complete setup in your browser.${NC}"
+echo -e "  ${GREEN}●${NC} ${DIM}No external API keys needed — auth runs on your server.${NC}"
 echo ""
 sleep 1
 
@@ -240,6 +240,7 @@ if [[ -f "$ENV_FILE" ]] && [[ "$UPGRADE" == "true" ]]; then
     echo "DATABASE_URL=${DATABASE_URL}" >> "$ENV_FILE"
   fi
 else
+  BETTER_AUTH_SECRET=$(openssl rand -hex 32)
   SESSION_SECRET=$(openssl rand -hex 64)
   SERVER_IP=$(hostname -I | awk '{print $1}')
 
@@ -255,14 +256,11 @@ PORT=${APP_PORT}
 # PostgreSQL — auto-generated, do not change unless you move the DB
 DATABASE_URL=${DATABASE_URL}
 
-# ── Clerk Authentication ──────────────────────────────────────────────────────
-# Get these from https://dashboard.clerk.com → Create a PRODUCTION app
-# Then add your domain under: Production app → Domains
-CLERK_PUBLISHABLE_KEY=pk_live_REPLACE_ME
-CLERK_SECRET_KEY=sk_live_REPLACE_ME
-
-# Build-time vars (used when rebuilding the frontend, see deploy/update.sh)
-VITE_CLERK_PUBLISHABLE_KEY=pk_live_REPLACE_ME
+# ── Authentication (better-auth) ──────────────────────────────────────────────
+# Auto-generated secret — keep this private
+BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+# Set to your public domain once DNS is configured
+BETTER_AUTH_URL=http://${SERVER_IP}
 
 # Session secret (auto-generated)
 SESSION_SECRET=${SESSION_SECRET}
@@ -297,15 +295,7 @@ info "Building API server..."
 pnpm --filter @workspace/api-server run build 2>&1 | tail -5
 
 info "Building frontend..."
-# Use placeholder Clerk key if real one not set yet
-VITE_KEY="${VITE_CLERK_PUBLISHABLE_KEY:-pk_live_REPLACE_ME}"
-if [[ "$VITE_KEY" == "pk_live_REPLACE_ME" ]]; then
-  warn "Clerk key not configured yet — frontend built with placeholder"
-  warn "After adding keys to .env, run: bash ${APP_DIR}/deploy/update.sh"
-fi
-
 PORT=3000 BASE_PATH=/ \
-  VITE_CLERK_PUBLISHABLE_KEY="$VITE_KEY" \
   NODE_ENV=production \
   pnpm --filter @workspace/isp-portal run build 2>&1 | tail -5
 
@@ -446,13 +436,12 @@ echo -e "${GREEN}${BOLD}║  ${NC}${BOLD}→ Complete setup in browser:${NC}    
 echo -e "${GREEN}${BOLD}║    Sign in → Setup Wizard → enter company details        ║${NC}"
 echo -e "${GREEN}${BOLD}║                                                          ║${NC}"
 echo -e "${GREEN}${BOLD}╠══════════════════════════════════════════════════════════╣${NC}"
-echo -e "${GREEN}${BOLD}║  ${NC}${BOLD}Clerk API Keys (required for login):${NC}                     ${GREEN}${BOLD}║${NC}"
-echo -e "${GREEN}${BOLD}║    1. Go to https://dashboard.clerk.com                  ║${NC}"
-echo -e "${GREEN}${BOLD}║    2. Create a PRODUCTION app                            ║${NC}"
-echo -e "${GREEN}${BOLD}║    3. Add domain: ${SERVER_DOMAIN}                  ${GREEN}${BOLD}║${NC}"
-echo -e "${GREEN}${BOLD}║    4. Edit ${APP_DIR}/.env                               ║${NC}"
-echo -e "${GREEN}${BOLD}║       Set CLERK_PUBLISHABLE_KEY + CLERK_SECRET_KEY       ║${NC}"
-echo -e "${GREEN}${BOLD}║    5. Run: bash ${APP_DIR}/deploy/update.sh              ║${NC}"
+echo -e "${GREEN}${BOLD}║  ${NC}${BOLD}Auth configuration (better-auth, self-hosted):${NC}           ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║    BETTER_AUTH_SECRET auto-generated in .env             ║${NC}"
+echo -e "${GREEN}${BOLD}║    Update BETTER_AUTH_URL once you have a domain:        ║${NC}"
+echo -e "${GREEN}${BOLD}║    1. Edit ${APP_DIR}/.env                               ║${NC}"
+echo -e "${GREEN}${BOLD}║       Set BETTER_AUTH_URL=https://yourdomain.com         ║${NC}"
+echo -e "${GREEN}${BOLD}║    2. Run: bash ${APP_DIR}/deploy/update.sh              ║${NC}"
 echo -e "${GREEN}${BOLD}║                                                          ║${NC}"
 echo -e "${GREEN}${BOLD}╠══════════════════════════════════════════════════════════╣${NC}"
 echo -e "${GREEN}${BOLD}║  ${NC}${DIM}Useful commands:${NC}                                         ${GREEN}${BOLD}║${NC}"

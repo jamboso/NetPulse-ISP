@@ -58,19 +58,11 @@ pnpm --filter @workspace/api-server run build 2>&1 | tail -5
 ok "API server built"
 
 # ── 5. Build frontend ─────────────────────────────────────────────────────
-VITE_KEY="${VITE_CLERK_PUBLISHABLE_KEY:-}"
-if [[ -z "$VITE_KEY" || "$VITE_KEY" == "pk_live_REPLACE_ME" ]]; then
-  warn "VITE_CLERK_PUBLISHABLE_KEY not set — skipping frontend build"
-  warn "Add keys to $APP_DIR/.env then re-run this script"
-else
-  info "Building frontend..."
-  PORT=3000 BASE_PATH=/ \
-    VITE_CLERK_PUBLISHABLE_KEY="$VITE_KEY" \
-    VITE_CLERK_PROXY_URL="${VITE_CLERK_PROXY_URL:-}" \
-    NODE_ENV=production \
-    pnpm --filter @workspace/isp-portal run build 2>&1 | tail -5
-  ok "Frontend built"
-fi
+info "Building frontend..."
+PORT=3000 BASE_PATH=/ \
+  NODE_ENV=production \
+  pnpm --filter @workspace/isp-portal run build 2>&1 | tail -5
+ok "Frontend built"
 
 # ── 6. Run DB migrations ──────────────────────────────────────────────────
 info "Running database migrations..."

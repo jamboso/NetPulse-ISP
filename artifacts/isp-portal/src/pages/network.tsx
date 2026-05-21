@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useMacVendor } from "@/hooks/useMacVendor";
 import {
   useListEquipment, useCreateEquipment, useUpdateEquipment, useDeleteEquipment,
   useListIpPools, useCreateIpPool, useUpdateIpPool, useDeleteIpPool,
@@ -240,8 +241,18 @@ function EquipmentDialog({
   const updateMutation = useUpdateEquipment();
   const [form, setForm] = useState<EquipmentFormData>(initial ?? EQUIPMENT_DEFAULTS);
   const [saving, setSaving] = useState(false);
+  const [brandAutoFilled, setBrandAutoFilled] = useState(false);
 
   const set = (k: keyof EquipmentFormData, v: string) => setForm((p) => ({ ...p, [k]: v }));
+
+  const { vendor: detectedVendor, loading: vendorLoading } = useMacVendor(form.macAddress);
+
+  useEffect(() => {
+    if (detectedVendor && !form.brand) {
+      set("brand", detectedVendor);
+      setBrandAutoFilled(true);
+    }
+  }, [detectedVendor]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -298,8 +309,20 @@ function EquipmentDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label>Brand</Label>
-              <Input value={form.brand} onChange={(e) => set("brand", e.target.value)} placeholder="Cisco" />
+              <Label className="flex items-center gap-1.5">
+                Brand
+                {vendorLoading && (
+                  <span className="text-[10px] text-blue-500 animate-pulse">looking up…</span>
+                )}
+                {brandAutoFilled && !vendorLoading && (
+                  <span className="text-[10px] text-green-600 bg-green-50 border border-green-200 rounded px-1">auto-detected</span>
+                )}
+              </Label>
+              <Input
+                value={form.brand}
+                onChange={(e) => { set("brand", e.target.value); setBrandAutoFilled(false); }}
+                placeholder={vendorLoading ? "Detecting…" : "Cisco"}
+              />
             </div>
             <div className="space-y-1">
               <Label>Model *</Label>
@@ -313,7 +336,17 @@ function EquipmentDialog({
             </div>
             <div className="space-y-1">
               <Label>MAC Address</Label>
-              <Input value={form.macAddress} onChange={(e) => set("macAddress", e.target.value)} placeholder="AA:BB:CC:DD:EE:FF" />
+              <Input
+                value={form.macAddress}
+                onChange={(e) => { set("macAddress", e.target.value); setBrandAutoFilled(false); }}
+                placeholder="AA:BB:CC:DD:EE:FF"
+              />
+              {detectedVendor && (
+                <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                  {detectedVendor}
+                </p>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -652,8 +685,15 @@ export default function Network() {
                           {item.type.replace("_", " ")}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600">
-                        {item.brand ? `${item.brand} ` : ""}{item.model}
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          {item.brand && (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded px-1.5 py-0.5 w-fit">
+                              {item.brand}
+                            </span>
+                          )}
+                          <span className="text-sm text-gray-600">{item.model}</span>
+                        </div>
                       </TableCell>
                       <TableCell className="font-mono text-sm text-gray-600">{item.ipAddress}</TableCell>
                       <TableCell className="text-gray-500 text-sm">{item.location || "—"}</TableCell>

@@ -1,5 +1,6 @@
 import { useParams, Link } from "wouter";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useMacVendor } from "@/hooks/useMacVendor";
 import {
   useGetCustomer,
   useListSubscriptions,
@@ -86,6 +87,23 @@ function PasswordField({ password }: { password: string | null }) {
         {show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
       </button>
     </span>
+  );
+}
+
+function MacVendorRow({ mac }: { mac: string }) {
+  const { vendor, loading } = useMacVendor(mac);
+  return (
+    <div className="flex items-center gap-2 text-xs text-gray-500">
+      <Cpu className="w-3.5 h-3.5 flex-shrink-0" />
+      <span className="font-mono">{mac}</span>
+      {loading && <span className="text-gray-300 animate-pulse">detecting…</span>}
+      {!loading && vendor && (
+        <span className="inline-flex items-center gap-1 bg-blue-50 border border-blue-100 text-blue-700 rounded px-1.5 py-0.5 font-medium">
+          {vendor}
+        </span>
+      )}
+      {!loading && !vendor && <span className="text-gray-400">MAC Address</span>}
+    </div>
   );
 }
 
@@ -212,13 +230,9 @@ function SessionCard({ session, subPlanName, snapshots }: SessionCardProps) {
           </div>
         </div>
 
-        {/* MAC */}
+        {/* MAC + vendor */}
         {session.callerMac && (
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <Cpu className="w-3.5 h-3.5" />
-            <span className="font-mono">{session.callerMac}</span>
-            <span className="text-gray-400">MAC Address</span>
-          </div>
+          <MacVendorRow mac={session.callerMac} />
         )}
 
         {/* Usage chart */}

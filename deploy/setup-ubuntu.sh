@@ -1,214 +1,367 @@
 #!/usr/bin/env bash
-# ═══════════════════════════════════════════════════════════════════════════════
-#  NetPulse ISP Manager — Ubuntu Server Setup Script
-#  Tested on Ubuntu 22.04 LTS / 24.04 LTS
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  ███╗   ██╗███████╗████████╗██████╗ ██╗   ██╗██╗     ███████╗███████╗      ║
+# ║  ████╗  ██║██╔════╝╚══██╔══╝██╔══██╗██║   ██║██║     ██╔════╝██╔════╝      ║
+# ║  ██╔██╗ ██║█████╗     ██║   ██████╔╝██║   ██║██║     ███████╗█████╗        ║
+# ║  ██║╚██╗██║██╔══╝     ██║   ██╔═══╝ ██║   ██║██║     ╚════██║██╔══╝        ║
+# ║  ██║ ╚████║███████╗   ██║   ██║     ╚██████╔╝███████╗███████║███████╗      ║
+# ║  ╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝      ╚═════╝ ╚══════╝╚══════╝╚══════╝      ║
+# ║                          ISP Management System                              ║
+# ║                    https://github.com/YOUR/REPO                             ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 #
-#  Usage:
-#    wget -O setup.sh https://raw.githubusercontent.com/YOUR/REPO/main/deploy/setup-ubuntu.sh
-#    bash setup.sh https://github.com/YOUR/REPO.git
+#  USAGE (one command, nothing else needed):
+#    curl -fsSL https://raw.githubusercontent.com/YOUR/REPO/main/deploy/setup-ubuntu.sh | sudo bash
+#  OR with a custom repo URL:
+#    sudo bash setup-ubuntu.sh https://github.com/yourname/netpulse.git
 #
-#  What this does:
-#    1. Installs Node.js 24, pnpm, PM2
-#    2. Installs PostgreSQL and creates a database
-#    3. Clones your GitHub repo to /opt/netpulse
-#    4. Guides you through .env configuration
-#    5. Installs dependencies, builds everything, runs migrations
-#    6. Starts the app with PM2 (auto-restart on crash / reboot)
-#    7. Installs and configures nginx as reverse proxy
-# ═══════════════════════════════════════════════════════════════════════════════
+#  Tested: Ubuntu 22.04 LTS, 24.04 LTS
+#  Takes:  ~5-8 minutes on a fresh server
+# ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-# ── Colours ────────────────────────────────────────────────────────────────────
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
-info()    { echo -e "${CYAN}▶ $*${NC}"; }
-success() { echo -e "${GREEN}✓ $*${NC}"; }
-warn()    { echo -e "${YELLOW}⚠ $*${NC}"; }
-die()     { echo -e "${RED}✗ $*${NC}"; exit 1; }
+# ── Config (override with env vars if needed) ─────────────────────────────────
+REPO_URL="${NETPULSE_REPO:-${1:-}}"
+APP_DIR="${NETPULSE_DIR:-/opt/netpulse}"
+DB_NAME="${NETPULSE_DB:-netpulse}"
+DB_USER="${NETPULSE_DB_USER:-netpulse}"
+APP_PORT="${NETPULSE_PORT:-8080}"
+LOG_FILE="/var/log/netpulse/install.log"
+START_TIME=$(date +%s)
 
-# ── Must run as root ───────────────────────────────────────────────────────────
-[[ $EUID -ne 0 ]] && die "Run as root: sudo bash $0 <github-repo-url>"
+# ── Colours ───────────────────────────────────────────────────────────────────
+BOLD='\033[1m';    DIM='\033[2m'
+RED='\033[0;31m';  GREEN='\033[0;32m';  YELLOW='\033[1;33m'
+CYAN='\033[0;36m'; BLUE='\033[0;34m';   PURPLE='\033[0;35m'; NC='\033[0m'
 
-REPO_URL="${1:-}"
-APP_DIR="/opt/netpulse"
-DB_NAME="netpulse"
-DB_USER="netpulse"
+# ── Logging ───────────────────────────────────────────────────────────────────
+mkdir -p /var/log/netpulse
+exec > >(tee -a "$LOG_FILE") 2>&1
 
+STEP=0; TOTAL=9
+step() {
+  STEP=$((STEP+1))
+  local elapsed=$(( $(date +%s) - START_TIME ))
+  echo ""
+  echo -e "${BLUE}${BOLD}┌─────────────────────────────────────────────────────${NC}"
+  echo -e "${BLUE}${BOLD}│ [${STEP}/${TOTAL}] $*${NC}  ${DIM}(${elapsed}s elapsed)${NC}"
+  echo -e "${BLUE}${BOLD}└─────────────────────────────────────────────────────${NC}"
+}
+ok()   { echo -e "  ${GREEN}✓${NC}  $*"; }
+info() { echo -e "  ${CYAN}→${NC}  $*"; }
+warn() { echo -e "  ${YELLOW}⚠${NC}  $*"; }
+die()  {
+  echo ""
+  echo -e "${RED}${BOLD}╔══ INSTALLATION FAILED ══════════════════════════════${NC}"
+  echo -e "${RED}║  $*${NC}"
+  echo -e "${RED}║  Full log: $LOG_FILE${NC}"
+  echo -e "${RED}╚════════════════════════════════════════════════════${NC}"
+  exit 1
+}
+
+trap 'die "Unexpected error on line $LINENO. Last command: $BASH_COMMAND"' ERR
+
+# ── Root check ────────────────────────────────────────────────────────────────
+[[ $EUID -ne 0 ]] && die "Run as root:  sudo bash $0"
+
+# ── Banner ────────────────────────────────────────────────────────────────────
+clear
 echo ""
-echo "═══════════════════════════════════════════════════════"
-echo "   NetPulse ISP Manager — Production Setup"
-echo "═══════════════════════════════════════════════════════"
+echo -e "${CYAN}${BOLD}"
+cat << 'BANNER'
+  ███╗   ██╗███████╗████████╗██████╗ ██╗   ██╗██╗     ███████╗███████╗
+  ████╗  ██║██╔════╝╚══██╔══╝██╔══██╗██║   ██║██║     ██╔════╝██╔════╝
+  ██╔██╗ ██║█████╗     ██║   ██████╔╝██║   ██║██║     ███████╗█████╗
+  ██║╚██╗██║██╔══╝     ██║   ██╔═══╝ ██║   ██║██║     ╚════██║██╔══╝
+  ██║ ╚████║███████╗   ██║   ██║      ╚████╔╝ ███████╗███████║███████╗
+  ╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝       ╚═══╝  ╚══════╝╚══════╝╚══════╝
+BANNER
+echo -e "${NC}"
+echo -e "  ${BOLD}ISP Management System — Production Installer${NC}"
+echo -e "  ${DIM}Log: $LOG_FILE${NC}"
 echo ""
+echo -e "  ${GREEN}●${NC} ${DIM}This script installs everything automatically.${NC}"
+echo -e "  ${GREEN}●${NC} ${DIM}No API keys needed — complete setup in your browser.${NC}"
+echo ""
+sleep 1
 
-# ── 1. System packages ─────────────────────────────────────────────────────────
-info "Updating system packages..."
-apt-get update -qq
-apt-get install -y -qq curl git nginx postgresql postgresql-contrib openssl
+# ─────────────────────────────────────────────────────────────────────────────
+step "Pre-flight checks"
+# ─────────────────────────────────────────────────────────────────────────────
 
-# ── 2. Node.js 24 ─────────────────────────────────────────────────────────────
-if ! command -v node &>/dev/null || [[ $(node -e "process.exit(parseInt(process.version.slice(1)) < 24 ? 1 : 0)" 2>/dev/null; echo $?) -ne 0 ]]; then
-  info "Installing Node.js 24..."
-  curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
-  apt-get install -y -qq nodejs
+# OS check
+if [[ -f /etc/os-release ]]; then
+  source /etc/os-release
+  info "OS: $PRETTY_NAME"
+  if [[ "$ID" != "ubuntu" ]]; then
+    warn "This installer is optimised for Ubuntu. Other Debian systems may work."
+  fi
+  VER_NUM="${VERSION_ID%%.*}"
+  if [[ $VER_NUM -lt 20 ]]; then
+    die "Ubuntu 20.04+ required (found $VERSION_ID)"
+  fi
+  ok "Ubuntu $VERSION_ID supported"
 fi
-success "Node.js $(node --version) ready"
 
-# ── 3. pnpm ────────────────────────────────────────────────────────────────────
+# RAM check
+RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+RAM_MB=$((RAM_KB/1024))
+if [[ $RAM_MB -lt 900 ]]; then
+  warn "Only ${RAM_MB}MB RAM detected. 1GB+ recommended for smooth operation."
+else
+  ok "${RAM_MB}MB RAM available"
+fi
+
+# Disk check
+DISK_FREE_GB=$(df -BG / | awk 'NR==2{print $4}' | tr -d 'G')
+if [[ $DISK_FREE_GB -lt 5 ]]; then
+  die "Only ${DISK_FREE_GB}GB disk space free. Need at least 5GB."
+fi
+ok "${DISK_FREE_GB}GB disk space free"
+
+# Internet check
+if curl -fsS --max-time 5 https://1.1.1.1 -o /dev/null; then
+  ok "Internet connectivity confirmed"
+else
+  die "No internet connection. This installer requires internet access."
+fi
+
+# Upgrade vs fresh install detection
+if [[ -d "$APP_DIR/.git" ]]; then
+  UPGRADE=true
+  warn "Existing NetPulse installation detected at $APP_DIR"
+  info "Running upgrade mode instead of fresh install..."
+  echo ""
+  read -rp "  Upgrade existing installation? [Y/n]: " _confirm
+  _confirm="${_confirm:-Y}"
+  [[ "$_confirm" =~ ^[Yy]$ ]] || die "Upgrade cancelled."
+else
+  UPGRADE=false
+  ok "Fresh installation — no existing install detected"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+step "Installing system packages"
+# ─────────────────────────────────────────────────────────────────────────────
+export DEBIAN_FRONTEND=noninteractive
+info "Updating package lists..."
+apt-get update -qq
+
+info "Installing: git, nginx, postgresql, openssl, curl, ufw..."
+apt-get install -y -qq \
+  git nginx postgresql postgresql-contrib \
+  openssl curl wget ca-certificates gnupg \
+  software-properties-common ufw
+ok "System packages installed"
+
+# ─────────────────────────────────────────────────────────────────────────────
+step "Installing Node.js 24"
+# ─────────────────────────────────────────────────────────────────────────────
+if command -v node &>/dev/null && node -e "process.exit(parseInt(process.version.slice(1)) >= 24 ? 0 : 1)" 2>/dev/null; then
+  ok "Node.js $(node --version) already installed"
+else
+  info "Downloading NodeSource setup script..."
+  curl -fsSL https://deb.nodesource.com/setup_24.x | bash - >/dev/null
+  apt-get install -y -qq nodejs
+  ok "Node.js $(node --version) installed"
+fi
+
 if ! command -v pnpm &>/dev/null; then
   info "Installing pnpm..."
   npm install -g pnpm@latest --silent
 fi
-success "pnpm $(pnpm --version) ready"
+ok "pnpm $(pnpm --version) ready"
 
-# ── 4. PM2 ────────────────────────────────────────────────────────────────────
 if ! command -v pm2 &>/dev/null; then
   info "Installing PM2..."
   npm install -g pm2@latest --silent
 fi
-success "PM2 $(pm2 --version) ready"
+ok "PM2 $(pm2 --version) ready"
 
-# ── 5. PostgreSQL ─────────────────────────────────────────────────────────────
-info "Setting up PostgreSQL..."
+# ─────────────────────────────────────────────────────────────────────────────
+step "Setting up PostgreSQL database"
+# ─────────────────────────────────────────────────────────────────────────────
 systemctl enable postgresql --quiet
 systemctl start postgresql
 
 DB_PASSWORD=$(openssl rand -hex 24)
 
-# Create DB user + database if they don't exist
-sudo -u postgres psql -tc "SELECT 1 FROM pg_user WHERE usename = '$DB_USER'" | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+sudo -u postgres psql -tc "SELECT 1 FROM pg_user WHERE usename='$DB_USER'" | grep -q 1 \
+  && info "DB user '$DB_USER' already exists" \
+  || { sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" > /dev/null; ok "Created DB user"; }
 
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1 \
+  && info "Database '$DB_NAME' already exists" \
+  || { sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" > /dev/null; ok "Created database '$DB_NAME'"; }
 
 DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}"
-success "PostgreSQL: database '$DB_NAME' ready"
+ok "PostgreSQL ready → $DB_NAME"
 
-# ── 6. Clone / update repo ────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+step "Deploying application code"
+# ─────────────────────────────────────────────────────────────────────────────
+
+# If no repo URL provided, check if we're already inside a git repo
 if [[ -z "$REPO_URL" ]]; then
-  echo ""
-  read -rp "GitHub repo URL (e.g. https://github.com/yourname/netpulse.git): " REPO_URL
+  if [[ -d "$APP_DIR/.git" ]]; then
+    info "Using existing repo at $APP_DIR"
+  elif [[ -f "$(pwd)/package.json" ]] && grep -q "netpulse\|@workspace" "$(pwd)/package.json" 2>/dev/null; then
+    warn "No GitHub repo URL given. Using current directory."
+    APP_DIR="$(pwd)"
+  else
+    echo ""
+    echo -e "  ${YELLOW}No GitHub repository URL was provided.${NC}"
+    read -rp "  GitHub repo URL (e.g. https://github.com/you/netpulse.git): " REPO_URL
+    [[ -z "$REPO_URL" ]] && die "Repo URL is required."
+  fi
 fi
 
-if [[ -d "$APP_DIR/.git" ]]; then
-  info "Repo already cloned, pulling latest..."
-  git -C "$APP_DIR" pull origin main
-else
-  info "Cloning repo to $APP_DIR..."
-  git clone "$REPO_URL" "$APP_DIR"
+if [[ -n "$REPO_URL" ]]; then
+  if [[ "$UPGRADE" == "true" ]]; then
+    info "Pulling latest changes..."
+    git -C "$APP_DIR" pull origin main
+  else
+    info "Cloning repo to $APP_DIR..."
+    git clone "$REPO_URL" "$APP_DIR"
+    ok "Code cloned"
+  fi
 fi
-success "Code at $APP_DIR"
 
-# ── 7. Configure .env ─────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+step "Writing environment configuration"
+# ─────────────────────────────────────────────────────────────────────────────
 ENV_FILE="$APP_DIR/.env"
 
-if [[ -f "$ENV_FILE" ]]; then
-  warn ".env already exists, skipping interactive setup. Edit $ENV_FILE manually if needed."
+if [[ -f "$ENV_FILE" ]] && [[ "$UPGRADE" == "true" ]]; then
+  info ".env already exists — preserving existing configuration"
+  source "$ENV_FILE" 2>/dev/null || true
+  # Update DATABASE_URL if it changed
+  if ! grep -q "DATABASE_URL" "$ENV_FILE"; then
+    echo "DATABASE_URL=${DATABASE_URL}" >> "$ENV_FILE"
+  fi
 else
-  echo ""
-  echo "═══════════════════════════════════════════════════════"
-  echo "   Clerk Authentication Setup"
-  echo "   Go to https://dashboard.clerk.com, create a"
-  echo "   PRODUCTION app, and paste the API keys below."
-  echo "═══════════════════════════════════════════════════════"
-  echo ""
-  read -rp "  Clerk Publishable Key (pk_live_...): " CLERK_PUB_KEY
-  read -rp "  Clerk Secret Key      (sk_live_...): " CLERK_SEC_KEY
-  echo ""
-  read -rp "  Your domain or server IP (e.g. isp.mycompany.com): " SERVER_DOMAIN
   SESSION_SECRET=$(openssl rand -hex 64)
+  SERVER_IP=$(hostname -I | awk '{print $1}')
 
-  cat > "$ENV_FILE" <<EOF
-# NetPulse production environment
+  cat > "$ENV_FILE" << EOF
+# ─── NetPulse Production Configuration ───────────────────────────────────────
+# Generated: $(date)
+# Edit and restart: pm2 restart netpulse
+# ─────────────────────────────────────────────────────────────────────────────
+
 NODE_ENV=production
-PORT=8080
+PORT=${APP_PORT}
 
+# PostgreSQL — auto-generated, do not change unless you move the DB
 DATABASE_URL=${DATABASE_URL}
 
-CLERK_PUBLISHABLE_KEY=${CLERK_PUB_KEY}
-CLERK_SECRET_KEY=${CLERK_SEC_KEY}
+# ── Clerk Authentication ──────────────────────────────────────────────────────
+# Get these from https://dashboard.clerk.com → Create a PRODUCTION app
+# Then add your domain under: Production app → Domains
+CLERK_PUBLISHABLE_KEY=pk_live_REPLACE_ME
+CLERK_SECRET_KEY=sk_live_REPLACE_ME
 
+# Build-time vars (used when rebuilding the frontend, see deploy/update.sh)
+VITE_CLERK_PUBLISHABLE_KEY=pk_live_REPLACE_ME
+
+# Session secret (auto-generated)
 SESSION_SECRET=${SESSION_SECRET}
 
+# Frontend dist path (served in production)
 FRONTEND_DIST_PATH=${APP_DIR}/artifacts/isp-portal/dist/public
 
-# Build-time frontend vars (used by setup/update scripts)
-VITE_CLERK_PUBLISHABLE_KEY=${CLERK_PUB_KEY}
-VITE_CLERK_PROXY_URL=https://${SERVER_DOMAIN}/api/__clerk
-
-SERVER_DOMAIN=${SERVER_DOMAIN}
+# Your domain or server IP (for nginx / HTTPS)
+SERVER_DOMAIN=${SERVER_IP}
 EOF
 
-  success ".env written to $ENV_FILE"
+  ok ".env written to $ENV_FILE"
 fi
 
-# Load env
-set -o allexport; source "$ENV_FILE"; set +o allexport
-
-# ── 8. Log directory ──────────────────────────────────────────────────────────
-mkdir -p /var/log/netpulse
-chown -R www-data:www-data /var/log/netpulse 2>/dev/null || true
-
-# ── 9. Install dependencies ───────────────────────────────────────────────────
-info "Installing Node.js dependencies..."
+# ─────────────────────────────────────────────────────────────────────────────
+step "Building application"
+# ─────────────────────────────────────────────────────────────────────────────
 cd "$APP_DIR"
-pnpm install --frozen-lockfile
-success "Dependencies installed"
 
-# ── 10. Build shared libs ─────────────────────────────────────────────────────
+# Load env vars for build
+set -o allexport
+source "$ENV_FILE" 2>/dev/null || true
+set +o allexport
+
+info "Installing Node.js dependencies (this takes ~1-2 minutes)..."
+pnpm install --frozen-lockfile 2>&1 | tail -3
+
 info "Building shared libraries..."
-pnpm run typecheck:libs
-success "Libs built"
+pnpm run typecheck:libs 2>&1 | tail -3
 
-# ── 11. Build API server ──────────────────────────────────────────────────────
 info "Building API server..."
-pnpm --filter @workspace/api-server run build
-success "API server built"
+pnpm --filter @workspace/api-server run build 2>&1 | tail -5
 
-# ── 12. Build frontend ────────────────────────────────────────────────────────
-info "Building frontend (this may take ~30 seconds)..."
+info "Building frontend..."
+# Use placeholder Clerk key if real one not set yet
+VITE_KEY="${VITE_CLERK_PUBLISHABLE_KEY:-pk_live_REPLACE_ME}"
+if [[ "$VITE_KEY" == "pk_live_REPLACE_ME" ]]; then
+  warn "Clerk key not configured yet — frontend built with placeholder"
+  warn "After adding keys to .env, run: bash ${APP_DIR}/deploy/update.sh"
+fi
+
 PORT=3000 BASE_PATH=/ \
-  VITE_CLERK_PUBLISHABLE_KEY="$VITE_CLERK_PUBLISHABLE_KEY" \
-  VITE_CLERK_PROXY_URL="${VITE_CLERK_PROXY_URL:-}" \
+  VITE_CLERK_PUBLISHABLE_KEY="$VITE_KEY" \
   NODE_ENV=production \
-  pnpm --filter @workspace/isp-portal run build
-success "Frontend built → $APP_DIR/artifacts/isp-portal/dist/public"
+  pnpm --filter @workspace/isp-portal run build 2>&1 | tail -5
 
-# ── 13. Run DB migrations ─────────────────────────────────────────────────────
-info "Running database migrations..."
+ok "Build complete"
+
+# ─────────────────────────────────────────────────────────────────────────────
+step "Running database migrations"
+# ─────────────────────────────────────────────────────────────────────────────
+info "Applying schema to database..."
 pnpm --filter @workspace/db run push
-success "Database schema up to date"
+ok "Database schema up to date"
 
-# ── 14. PM2 — start / restart ─────────────────────────────────────────────────
-info "Starting app with PM2..."
+# ─────────────────────────────────────────────────────────────────────────────
+step "Starting application with PM2"
+# ─────────────────────────────────────────────────────────────────────────────
+mkdir -p /var/log/netpulse
+
 pm2 delete netpulse 2>/dev/null || true
 pm2 start "$APP_DIR/deploy/ecosystem.config.cjs"
-pm2 save
+pm2 save --force
 
-# Enable PM2 to start on server reboot
-PM2_STARTUP=$(pm2 startup systemd -u root --hp /root | tail -1)
+# Auto-start on server reboot
+PM2_STARTUP=$(pm2 startup systemd -u root --hp /root 2>/dev/null | tail -1)
 eval "$PM2_STARTUP" 2>/dev/null || true
 
-success "App running with PM2 (name: netpulse)"
+ok "NetPulse started with PM2"
 
-# ── 15. nginx ─────────────────────────────────────────────────────────────────
-DOMAIN="${SERVER_DOMAIN:-_}"
+# ─────────────────────────────────────────────────────────────────────────────
+step "Configuring nginx"
+# ─────────────────────────────────────────────────────────────────────────────
+SERVER_DOMAIN="${SERVER_DOMAIN:-_}"
 NGINX_CONF="/etc/nginx/sites-available/netpulse"
 
-info "Configuring nginx..."
+cat > "$NGINX_CONF" << NGINXEOF
+# ─── NetPulse nginx configuration ────────────────────────────────────────────
+# Generated: $(date)
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Write nginx config (substituting the real domain and app dir)
-cat > "$NGINX_CONF" <<NGINXEOF
 server {
     listen 80;
     listen [::]:80;
-    server_name ${DOMAIN};
+    server_name ${SERVER_DOMAIN};
 
+    # Logs
+    access_log /var/log/nginx/netpulse-access.log;
+    error_log  /var/log/nginx/netpulse-error.log;
+
+    # Compression
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
     gzip_min_length 1024;
+    gzip_vary on;
 
+    # API reverse proxy
     location /api {
-        proxy_pass         http://127.0.0.1:8080;
+        proxy_pass         http://127.0.0.1:${APP_PORT};
         proxy_http_version 1.1;
         proxy_set_header   Upgrade \$http_upgrade;
         proxy_set_header   Connection 'upgrade';
@@ -218,17 +371,21 @@ server {
         proxy_set_header   X-Forwarded-Proto \$scheme;
         proxy_read_timeout 60s;
         proxy_buffering    off;
+        client_max_body_size 50m;
     }
 
+    # Frontend static files
     root ${APP_DIR}/artifacts/isp-portal/dist/public;
     index index.html;
 
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
+    # Cache immutable assets forever
+    location ~* \.(js|css|woff2?|png|jpg|jpeg|gif|ico|svg)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
         try_files \$uri =404;
     }
 
+    # SPA fallback
     location / {
         try_files \$uri \$uri/ /index.html;
     }
@@ -237,28 +394,77 @@ NGINXEOF
 
 ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/netpulse
 rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+nginx -t && systemctl enable nginx --quiet && systemctl reload nginx
+ok "nginx configured and running"
 
-nginx -t && systemctl reload nginx
-success "nginx configured and running"
+# ── Firewall ──────────────────────────────────────────────────────────────────
+if command -v ufw &>/dev/null; then
+  ufw allow 22/tcp   comment "SSH"       >/dev/null 2>&1 || true
+  ufw allow 80/tcp   comment "HTTP"      >/dev/null 2>&1 || true
+  ufw allow 443/tcp  comment "HTTPS"     >/dev/null 2>&1 || true
+  ufw allow 1194/tcp comment "OpenVPN"   >/dev/null 2>&1 || true
+  ufw allow 1812/udp comment "RADIUS"    >/dev/null 2>&1 || true
+  ufw allow 1813/udp comment "RADIUS-Acct" >/dev/null 2>&1 || true
+  echo "y" | ufw enable >/dev/null 2>&1 || true
+  ok "Firewall configured (22, 80, 443, 1194, 1812, 1813)"
+fi
 
-# ── Done ───────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Health check — wait for app to come up
+# ─────────────────────────────────────────────────────────────────────────────
+info "Waiting for app to start..."
+HEALTHY=false
+for i in {1..15}; do
+  if curl -fsS "http://localhost:80/api/healthz" -o /dev/null 2>/dev/null; then
+    HEALTHY=true; break
+  fi
+  sleep 2
+done
+
+ELAPSED=$(( $(date +%s) - START_TIME ))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Done!
+# ─────────────────────────────────────────────────────────────────────────────
 echo ""
-echo "═══════════════════════════════════════════════════════"
-echo -e "${GREEN}   ✅  NetPulse is LIVE!${NC}"
-echo "═══════════════════════════════════════════════════════"
+echo -e "${GREEN}${BOLD}╔══════════════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}${BOLD}║            NetPulse Installation Complete! ✓             ║${NC}"
+echo -e "${GREEN}${BOLD}╠══════════════════════════════════════════════════════════╣${NC}"
+
+if [[ "$HEALTHY" == "true" ]]; then
+  echo -e "${GREEN}${BOLD}║  Status: ${GREEN}● RUNNING${BOLD}                                        ║${NC}"
+else
+  echo -e "${GREEN}${BOLD}║  Status: ${YELLOW}● STARTING (allow 30 more seconds)${BOLD}               ║${NC}"
+fi
+
+echo -e "${GREEN}${BOLD}╠══════════════════════════════════════════════════════════╣${NC}"
+echo -e "${GREEN}${BOLD}║                                                          ║${NC}"
+echo -e "${GREEN}${BOLD}║  ${NC}${BOLD}→ Open your browser:${NC}                                     ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║    ${CYAN}http://${SERVER_DOMAIN}${NC}                           ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║                                                          ║${NC}"
+echo -e "${GREEN}${BOLD}║  ${NC}${BOLD}→ Complete setup in browser:${NC}                             ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║    Sign in → Setup Wizard → enter company details        ║${NC}"
+echo -e "${GREEN}${BOLD}║                                                          ║${NC}"
+echo -e "${GREEN}${BOLD}╠══════════════════════════════════════════════════════════╣${NC}"
+echo -e "${GREEN}${BOLD}║  ${NC}${BOLD}Clerk API Keys (required for login):${NC}                     ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║    1. Go to https://dashboard.clerk.com                  ║${NC}"
+echo -e "${GREEN}${BOLD}║    2. Create a PRODUCTION app                            ║${NC}"
+echo -e "${GREEN}${BOLD}║    3. Add domain: ${SERVER_DOMAIN}                  ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║    4. Edit ${APP_DIR}/.env                               ║${NC}"
+echo -e "${GREEN}${BOLD}║       Set CLERK_PUBLISHABLE_KEY + CLERK_SECRET_KEY       ║${NC}"
+echo -e "${GREEN}${BOLD}║    5. Run: bash ${APP_DIR}/deploy/update.sh              ║${NC}"
+echo -e "${GREEN}${BOLD}║                                                          ║${NC}"
+echo -e "${GREEN}${BOLD}╠══════════════════════════════════════════════════════════╣${NC}"
+echo -e "${GREEN}${BOLD}║  ${NC}${DIM}Useful commands:${NC}                                         ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║  ${DIM}  pm2 status              — app process status${NC}            ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║  ${DIM}  pm2 logs netpulse       — live logs${NC}                     ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║  ${DIM}  bash ${APP_DIR}/deploy/update.sh  — update${NC}              ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║  ${DIM}  cat $LOG_FILE           — full install log${NC}              ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║                                                          ║${NC}"
+echo -e "${GREEN}${BOLD}║  ${DIM}Next: add HTTPS with Let's Encrypt (certbot):${NC}             ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║  ${DIM}  apt install certbot python3-certbot-nginx${NC}               ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║  ${DIM}  certbot --nginx -d ${SERVER_DOMAIN}${NC}               ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}╚══════════════════════════════════════════════════════════╝${NC}"
 echo ""
-echo "  App URL   : http://${DOMAIN}"
-echo "  Logs      : pm2 logs netpulse"
-echo "  Status    : pm2 status"
-echo "  Update    : cd $APP_DIR && bash deploy/update.sh"
-echo ""
-echo "  Next step (HTTPS / SSL):"
-echo "    sudo apt install certbot python3-certbot-nginx"
-echo "    sudo certbot --nginx -d ${DOMAIN}"
-echo ""
-echo "  ⚠  Make sure your Clerk dashboard has this domain"
-echo "     added under: Production app → Domains"
-echo ""
-echo "  Database credentials saved in: $ENV_FILE"
-echo "  Keep that file private — do NOT commit it to git."
+echo -e "  ${DIM}Total install time: ${ELAPSED}s · Log: $LOG_FILE${NC}"
 echo ""

@@ -1,4 +1,4 @@
-import { useEffect, useRef, Component, type ReactNode } from "react";
+import { useEffect, useRef, useState, Component, type ReactNode } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk, RedirectToSignIn } from "@clerk/react";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
@@ -25,6 +25,7 @@ import Compliance from "./pages/compliance";
 import SmsManager from "./pages/sms-manager";
 import Monitoring from "./pages/monitoring";
 import NetworkMap from "./pages/network-map";
+import SetupWizard from "./pages/setup-wizard";
 
 class ErrorBoundary extends Component<{ children: ReactNode; routeKey?: string }, { error: Error | null }> {
   state = { error: null };
@@ -108,12 +109,34 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+function SetupGuard({ children }: { children: React.ReactNode }) {
+  const [location, setLocation] = useLocation();
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    if (location === "/setup") { setChecked(true); return; }
+    fetch("/api/setup/status")
+      .then((r) => r.json())
+      .then((d: { complete: boolean }) => {
+        if (!d.complete) setLocation("/setup");
+      })
+      .catch(() => {})
+      .finally(() => setChecked(true));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!checked) return null;
+  return <>{children}</>;
+}
+
 function ProtectedRoutes() {
   const [location] = useLocation();
   return (
     <ErrorBoundary routeKey={location}>
+    <SetupGuard>
     <Layout>
       <Switch>
+        <Route path="/setup" component={SetupWizard} />
         <Route path="/" component={Dashboard} />
         <Route path="/customers" component={Customers} />
         <Route path="/customers/:id" component={CustomerDetail} />
@@ -137,6 +160,7 @@ function ProtectedRoutes() {
         </Route>
       </Switch>
     </Layout>
+    </SetupGuard>
     </ErrorBoundary>
   );
 }

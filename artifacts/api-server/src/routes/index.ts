@@ -26,12 +26,14 @@ import smsTemplatesRouter from "./sms-templates";
 import monitoringRouter from "./monitoring";
 import networkMapRouter from "./network-map";
 import infrastructureRouter from "./infrastructure";
+import setupRouter from "./setup";
 
 const router: IRouter = Router();
 
 // Public routes — no auth required
 router.use(healthRouter);
 router.use(macVendorRouter);
+router.use(setupRouter); // setup wizard API — public
 
 // M-Pesa callback endpoints are public (Safaricom calls them directly)
 // but STK Push and status require auth — handled inside mpesaRouter

@@ -12,6 +12,8 @@ import {
 } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import path from "path";
+import { existsSync } from "fs";
 
 const app: Express = express();
 
@@ -73,6 +75,22 @@ app.use(
 app.use("/api", router);
 
 app.use("/api/mpesa", mpesaLimiter);
+
+// Production: serve built frontend static files when FRONTEND_DIST_PATH is set
+// (not needed when nginx handles static files, but useful for simple single-process deploys)
+if (process.env.NODE_ENV === "production" && process.env.FRONTEND_DIST_PATH) {
+  const frontendDist = process.env.FRONTEND_DIST_PATH;
+  if (existsSync(frontendDist)) {
+    app.use(express.static(frontendDist, { index: false, maxAge: "1y", immutable: true }));
+    // Serve index.html for any unmatched path (SPA client-side routing)
+    app.get("*", (_req: Request, res: Response) => {
+      res.sendFile(path.join(frontendDist, "index.html"));
+    });
+    logger.info({ frontendDist }, "Serving frontend static files");
+  } else {
+    logger.warn({ frontendDist }, "FRONTEND_DIST_PATH does not exist — static serving skipped");
+  }
+}
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: "Not found" });

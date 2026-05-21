@@ -20,6 +20,7 @@ export const routersTable = pgTable("routers", {
   // Status
   enabled: boolean("enabled").notNull().default(true),
   lastSeen: timestamp("last_seen"),
+  monitorState: text("monitor_state"), // persisted: "online" | "offline" | null
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

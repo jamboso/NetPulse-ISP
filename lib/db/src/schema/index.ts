@@ -16,3 +16,4 @@ export * from "./smsTemplates";
 export * from "./smsLogs";
 export * from "./splitters";
 export * from "./infrastructure";
+export * from "./users";

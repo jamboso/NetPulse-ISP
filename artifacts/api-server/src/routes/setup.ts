@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import { db, settingsTable } from "@workspace/db";
+import { db, settingsTable, usersTable } from "@workspace/db";
+import { auth } from "../lib/auth";
 
 const router = Router();
 
@@ -25,21 +26,35 @@ router.get("/setup/status", async (_req, res) => {
   }
 });
 
-// Public first run — saves initial settings.
-// After setup is complete this is a no-op (idempotent).
+// Public first run — creates the first admin account and saves initial settings.
+// Blocked once setupComplete = "1".
 router.post("/setup/wizard", async (req, res) => {
   try {
     const alreadyDone = await db
       .select()
       .from(settingsTable)
       .where(eq(settingsTable.key, "setupComplete"));
-    // Allow re-running only if not already complete
     if (alreadyDone[0]?.value === "1") {
       return res.status(400).json({ error: "Setup already completed." });
     }
 
     const payload = req.body as Record<string, string>;
 
+    // ── Create first admin account via better-auth ───────────────────────
+    const { adminName, adminEmail, adminPassword } = payload;
+    if (!adminEmail || !adminPassword || !adminName) {
+      return res.status(400).json({ error: "Admin name, email and password are required." });
+    }
+
+    // Check if any user already exists (safety guard)
+    const existingUsers = await db.select().from(usersTable).limit(1);
+    if (existingUsers.length === 0) {
+      await auth.api.signUpEmail({
+        body: { name: adminName, email: adminEmail, password: adminPassword },
+      });
+    }
+
+    // ── Save settings ────────────────────────────────────────────────────
     const allowed = [
       "companyName", "companyAddress", "companyPhone", "companyEmail",
       "timezone", "currency",
@@ -57,15 +72,9 @@ router.post("/setup/wizard", async (req, res) => {
     entries.push({ key: "setupComplete", value: "1" });
 
     for (const { key, value } of entries) {
-      const existing = await db
-        .select()
-        .from(settingsTable)
-        .where(eq(settingsTable.key, key));
+      const existing = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
       if (existing.length > 0) {
-        await db
-          .update(settingsTable)
-          .set({ value, updatedAt: new Date() })
-          .where(eq(settingsTable.key, key));
+        await db.update(settingsTable).set({ value, updatedAt: new Date() }).where(eq(settingsTable.key, key));
       } else {
         await db.insert(settingsTable).values({ key, value });
       }
@@ -73,7 +82,8 @@ router.post("/setup/wizard", async (req, res) => {
 
     return res.json({ success: true });
   } catch (err) {
-    return res.status(500).json({ error: "Setup failed" });
+    const msg = err instanceof Error ? err.message : "Setup failed";
+    return res.status(500).json({ error: msg });
   }
 });
 

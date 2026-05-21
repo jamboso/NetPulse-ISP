@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { useClerk, useUser } from "@clerk/react";
+import { useSession, signOut } from "@/lib/authClient";
 import { 
   LayoutDashboard, 
   Users, 
@@ -23,8 +23,8 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
-  const { signOut } = useClerk();
-  const { user } = useUser();
+  const { data: session } = useSession();
+  const user = session?.user;
 
   const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -76,20 +76,18 @@ export default function Layout({ children }: LayoutProps) {
         
         <div className="p-4 border-t border-[#112240]">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-full bg-gray-600 overflow-hidden shrink-0">
-              {user?.imageUrl ? (
-                <img src={user.imageUrl} alt="Profile" className="w-full h-full object-cover" />
-              ) : null}
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0 text-white font-bold text-sm">
+              {user?.name?.[0]?.toUpperCase() ?? "A"}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-medium truncate">{user?.fullName || user?.primaryEmailAddress?.emailAddress}</span>
-              <span className="text-xs text-gray-400 truncate">Administrator</span>
+              <span className="text-sm font-medium truncate">{user?.name ?? "Admin"}</span>
+              <span className="text-xs text-gray-400 truncate">{user?.email}</span>
             </div>
           </div>
           <Button 
             variant="ghost" 
             className="w-full justify-start text-gray-300 hover:text-white hover:bg-[#112240] h-9 px-3"
-            onClick={() => signOut({ redirectUrl: window.location.origin + import.meta.env.BASE_URL })}
+            onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/sign-in"; } } })}
           >
             <LogOut className="w-4 h-4 mr-2" />
             Sign Out

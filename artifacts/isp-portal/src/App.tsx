@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, Component, type ReactNode } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk, RedirectToSignIn } from "@clerk/react";
-import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
+import { useEffect, useState, Component, type ReactNode } from "react";
+import { Switch, Route, useLocation, Router as WouterRouter } from "wouter";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 
 import { queryClient } from "./lib/queryClient";
+import { useSession, signOut } from "./lib/authClient";
 import Layout from "./components/layout";
 
 import Dashboard from "./pages/dashboard";
@@ -26,6 +26,9 @@ import SmsManager from "./pages/sms-manager";
 import Monitoring from "./pages/monitoring";
 import NetworkMap from "./pages/network-map";
 import SetupWizard from "./pages/setup-wizard";
+import SignInPage from "./pages/sign-in";
+
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 class ErrorBoundary extends Component<{ children: ReactNode; routeKey?: string }, { error: Error | null }> {
   state = { error: null };
@@ -54,62 +57,7 @@ class ErrorBoundary extends Component<{ children: ReactNode; routeKey?: string }
   }
 }
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
-const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL as string | undefined;
-const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
-
-function stripBase(path: string): string {
-  return basePath && path.startsWith(basePath)
-    ? path.slice(basePath.length) || "/"
-    : path;
-}
-
-const clerkAppearance = {
-  cssLayerName: "clerk",
-  variables: {
-    colorPrimary: "hsl(221, 83%, 53%)",
-    colorForeground: "hsl(222, 47%, 11%)",
-    fontFamily: "'Inter', sans-serif",
-    borderRadius: "0.25rem",
-  },
-};
-
-function SignInPage() {
-  return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-900 px-4">
-      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
-    </div>
-  );
-}
-
-function SignUpPage() {
-  return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-900 px-4">
-      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
-    </div>
-  );
-}
-
-function ClerkQueryClientCacheInvalidator() {
-  const { addListener } = useClerk();
-  const qc = useQueryClient();
-  const prevUserIdRef = useRef<string | null | undefined>(undefined);
-
-  useEffect(() => {
-    const unsubscribe = addListener(({ user }) => {
-      const userId = user?.id ?? null;
-      if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) {
-        qc.clear();
-      }
-      prevUserIdRef.current = userId;
-    });
-    return unsubscribe;
-  }, [addListener, qc]);
-
-  return null;
-}
-
-function SetupGuard({ children }: { children: React.ReactNode }) {
+function SetupGuard({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
   const [checked, setChecked] = useState(false);
 
@@ -129,38 +77,62 @@ function SetupGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AuthGuard({ children }: { children: ReactNode }) {
+  const { data: session, isPending } = useSession();
+  const [, setLocation] = useLocation();
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    if (!isPending && !session) {
+      qc.clear();
+      setLocation("/sign-in");
+    }
+  }, [session, isPending, setLocation, qc]);
+
+  if (isPending) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session) return null;
+  return <>{children}</>;
+}
+
 function ProtectedRoutes() {
   const [location] = useLocation();
   return (
     <ErrorBoundary routeKey={location}>
-    <SetupGuard>
-    <Layout>
-      <Switch>
-        <Route path="/setup" component={SetupWizard} />
-        <Route path="/" component={Dashboard} />
-        <Route path="/customers" component={Customers} />
-        <Route path="/customers/:id" component={CustomerDetail} />
-        <Route path="/plans" component={Plans} />
-        <Route path="/subscriptions" component={Subscriptions} />
-        <Route path="/invoices" component={Invoices} />
-        <Route path="/payments" component={Payments} />
-        <Route path="/tickets" component={Tickets} />
-        <Route path="/tickets/:id" component={TicketDetail} />
-        <Route path="/network" component={Network} />
-        <Route path="/network/routers/:id" component={RouterOSDashboard} />
-        <Route path="/network/routers/:id/pppoe" component={PPPoESetup} />
-        <Route path="/network/routers/:id/hotspot" component={HotspotManager} />
-        <Route path="/settings" component={Settings} />
-        <Route path="/compliance" component={Compliance} />
-        <Route path="/sms" component={SmsManager} />
-        <Route path="/monitoring" component={Monitoring} />
-        <Route path="/map" component={NetworkMap} />
-        <Route>
-          <div className="p-8 text-center text-gray-500">Page not found.</div>
-        </Route>
-      </Switch>
-    </Layout>
-    </SetupGuard>
+      <SetupGuard>
+        <Layout>
+          <Switch>
+            <Route path="/setup" component={SetupWizard} />
+            <Route path="/" component={Dashboard} />
+            <Route path="/customers" component={Customers} />
+            <Route path="/customers/:id" component={CustomerDetail} />
+            <Route path="/plans" component={Plans} />
+            <Route path="/subscriptions" component={Subscriptions} />
+            <Route path="/invoices" component={Invoices} />
+            <Route path="/payments" component={Payments} />
+            <Route path="/tickets" component={Tickets} />
+            <Route path="/tickets/:id" component={TicketDetail} />
+            <Route path="/network" component={Network} />
+            <Route path="/network/routers/:id" component={RouterOSDashboard} />
+            <Route path="/network/routers/:id/pppoe" component={PPPoESetup} />
+            <Route path="/network/routers/:id/hotspot" component={HotspotManager} />
+            <Route path="/settings" component={Settings} />
+            <Route path="/compliance" component={Compliance} />
+            <Route path="/sms" component={SmsManager} />
+            <Route path="/monitoring" component={Monitoring} />
+            <Route path="/map" component={NetworkMap} />
+            <Route>
+              <div className="p-8 text-center text-gray-500">Page not found.</div>
+            </Route>
+          </Switch>
+        </Layout>
+      </SetupGuard>
     </ErrorBoundary>
   );
 }
@@ -168,40 +140,24 @@ function ProtectedRoutes() {
 function AppRouter() {
   return (
     <Switch>
-      <Route path="/sign-in/*?" component={SignInPage} />
-      <Route path="/sign-up/*?" component={SignUpPage} />
+      <Route path="/sign-in" component={SignInPage} />
+      <Route path="/setup" component={SetupWizard} />
       <Route path="/hotspot/:routerId" component={CaptivePortal} />
       <Route>
-        <Show when="signed-in">
+        <AuthGuard>
           <ProtectedRoutes />
-        </Show>
-        <Show when="signed-out">
-          <RedirectToSignIn />
-        </Show>
+        </AuthGuard>
       </Route>
     </Switch>
   );
 }
 
 export default function App() {
-  const [, setLocation] = useLocation();
-
   return (
     <WouterRouter base={basePath}>
-      <ClerkProvider
-        publishableKey={clerkPubKey}
-        proxyUrl={clerkProxyUrl}
-        appearance={clerkAppearance}
-        signInUrl={`${basePath}/sign-in`}
-        signUpUrl={`${basePath}/sign-up`}
-        routerPush={(to) => setLocation(stripBase(to))}
-        routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
-      >
-        <QueryClientProvider client={queryClient}>
-          <ClerkQueryClientCacheInvalidator />
-          <AppRouter />
-        </QueryClientProvider>
-      </ClerkProvider>
+      <QueryClientProvider client={queryClient}>
+        <AppRouter />
+      </QueryClientProvider>
     </WouterRouter>
   );
 }

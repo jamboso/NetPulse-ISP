@@ -13,13 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDate } from "@/lib/formatDate";
-import { useUser } from "@clerk/react";
+import { useSession } from "@/lib/authClient";
 
 export default function TicketDetail() {
   const { id } = useParams();
   const ticketId = parseInt(id || "0", 10);
   const queryClient = useQueryClient();
-  const { user } = useUser();
+  const { data: session } = useSession();
+  const user = session?.user;
   const [replyMessage, setReplyMessage] = useState("");
 
   const { data: ticket, isLoading: loadingTicket } = useGetTicket(ticketId);
@@ -41,7 +42,7 @@ export default function TicketDetail() {
       id: ticketId,
       data: {
         message: replyMessage,
-        author: user?.fullName || user?.primaryEmailAddress?.emailAddress || "Staff Agent",
+        author: user?.name || user?.email || "Staff Agent",
         isStaff: true,
       }
     });

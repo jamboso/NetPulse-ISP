@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { invoicesTable, customersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { writeAuditLog } from "../lib/audit";
 
 const router = Router();
 
@@ -53,6 +54,16 @@ router.post("/invoices", requireRole("admin", "billing"), async (req, res) => {
     dueDate: body.dueDate,
     notes: body.notes ?? null,
   }).returning();
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "create",
+    entityType: "invoice",
+    entityId:   inv!.id,
+    diff:       { after: fmt(inv!) },
+  });
+
   res.status(201).json(fmt(inv!));
 });
 
@@ -70,6 +81,10 @@ router.get("/invoices/:id", async (req, res) => {
 router.patch("/invoices/:id", requireRole("admin", "billing"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   const body = req.body;
+
+  const [before] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, id));
+  if (!before) { res.status(404).json({ error: "Not found" }); return; }
+
   const update: Record<string, unknown> = {};
   if (body.amount !== undefined) update.amount = String(body.amount);
   if (body.tax !== undefined) update.tax = body.tax != null ? String(body.tax) : null;
@@ -80,14 +95,38 @@ router.patch("/invoices/:id", requireRole("admin", "billing"), async (req, res) 
   if (body.dueDate !== undefined) update.dueDate = body.dueDate;
   if (body.paidAt !== undefined) update.paidAt = body.paidAt;
   if (body.notes !== undefined) update.notes = body.notes;
+
   const [updated] = await db.update(invoicesTable).set(update).where(eq(invoicesTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "update",
+    entityType: "invoice",
+    entityId:   id,
+    diff:       { before: fmt(before), after: fmt(updated) },
+  });
+
   res.json(fmt(updated));
 });
 
 router.delete("/invoices/:id", requireRole("admin"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
+
+  const [before] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, id));
+
   await db.delete(invoicesTable).where(eq(invoicesTable.id, id));
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "delete",
+    entityType: "invoice",
+    entityId:   id,
+    diff:       { before: before ? fmt(before) : null },
+  });
+
   res.status(204).send();
 });
 

@@ -32,8 +32,61 @@ tags:
     description: Application settings
   - name: routers
     description: Managed router devices (RouterOS, Juniper, EdgeRouter)
+  - name: audit-logs
+    description: Audit trail of sensitive mutations
 
 paths:
+  # ── AUDIT LOGS ───────────────────────────────────────────────────────────────
+  /audit-logs:
+    get:
+      operationId: listAuditLogs
+      tags: [audit-logs]
+      summary: List audit log entries (admin only)
+      parameters:
+        - in: query
+          name: entityType
+          schema: { type: string }
+        - in: query
+          name: entityId
+          schema: { type: integer }
+        - in: query
+          name: userId
+          schema: { type: string }
+        - in: query
+          name: action
+          schema: { type: string, enum: [create, update, delete] }
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50, maximum: 200 }
+      responses:
+        "200":
+          description: Paginated list of audit log entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page, limit]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditLog"
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+        "403":
+          description: Forbidden — admin role required
+
   /healthz:
     get:
       operationId: healthCheck
@@ -2245,6 +2298,31 @@ components:
         bytesOut:
           type: number
         recordedAt:
+          type: string
+          format: date-time
+
+    AuditLog:
+      type: object
+      required: [id, userId, action, entityType, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        userEmail:
+          type: string
+          nullable: true
+        action:
+          type: string
+          enum: [create, update, delete]
+        entityType:
+          type: string
+        entityId:
+          type: integer
+          nullable: true
+        diff:
+          nullable: true
+        createdAt:
           type: string
           format: date-time
 

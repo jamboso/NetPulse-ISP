@@ -7,6 +7,8 @@
  */
 
 export * from './activityItem';
+export * from './auditLog';
+export * from './auditLogAction';
 export * from './breakdownItem';
 export * from './customer';
 export * from './customerInput';
@@ -40,6 +42,9 @@ export * from './invoiceUpdateStatus';
 export * from './ipPool';
 export * from './ipPoolInput';
 export * from './ipPoolUpdate';
+export * from './listAuditLogs200';
+export * from './listAuditLogsAction';
+export * from './listAuditLogsParams';
 export * from './listCustomersParams';
 export * from './listEquipmentParams';
 export * from './listInvoicesParams';

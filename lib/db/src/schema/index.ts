@@ -17,3 +17,4 @@ export * from "./smsLogs";
 export * from "./splitters";
 export * from "./infrastructure";
 export * from "./users";
+export * from "./auditLogs";

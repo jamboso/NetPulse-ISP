@@ -27,6 +27,7 @@ import monitoringRouter from "./monitoring";
 import networkMapRouter from "./network-map";
 import infrastructureRouter from "./infrastructure";
 import setupRouter from "./setup";
+import auditLogsRouter from "./audit-logs";
 
 const router: IRouter = Router();
 
@@ -69,5 +70,6 @@ router.use(smsTemplatesRouter);
 router.use(monitoringRouter);
 router.use(networkMapRouter);
 router.use(infrastructureRouter);
+router.use(auditLogsRouter);
 
 export default router;

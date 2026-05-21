@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { paymentsTable, customersTable, invoicesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { writeAuditLog } from "../lib/audit";
 
 const router = Router();
 
@@ -43,6 +44,15 @@ router.post("/payments", requireRole("admin", "billing"), async (req, res) => {
     await db.update(invoicesTable).set({ status: "paid", paidAt: new Date().toISOString() })
       .where(eq(invoicesTable.id, payment!.invoiceId));
   }
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "create",
+    entityType: "payment",
+    entityId:   payment!.id,
+    diff:       { after: fmt(payment!) },
+  });
 
   res.status(201).json(fmt(payment!));
 });

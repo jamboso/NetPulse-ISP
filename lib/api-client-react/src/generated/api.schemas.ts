@@ -994,6 +994,55 @@ export interface UsageSnapshot {
   recordedAt: string;
 }
 
+export type AuditLogAction = typeof AuditLogAction[keyof typeof AuditLogAction];
+
+
+export const AuditLogAction = {
+  create: 'create',
+  update: 'update',
+  delete: 'delete',
+} as const;
+
+export interface AuditLog {
+  id: number;
+  userId: string;
+  userEmail?: string | null;
+  action: AuditLogAction;
+  entityType: string;
+  entityId?: number | null;
+  diff?: unknown | null;
+  createdAt: string;
+}
+
+export type ListAuditLogsParams = {
+entityType?: string;
+entityId?: number;
+userId?: string;
+action?: ListAuditLogsAction;
+from?: string;
+to?: string;
+page?: number;
+/**
+ * @maximum 200
+ */
+limit?: number;
+};
+
+export type ListAuditLogsAction = typeof ListAuditLogsAction[keyof typeof ListAuditLogsAction];
+
+
+export const ListAuditLogsAction = {
+  create: 'create',
+  update: 'update',
+  delete: 'delete',
+} as const;
+
+export type ListAuditLogs200 = {
+  data: AuditLog[];
+  page: number;
+  limit: number;
+};
+
 export type ListCustomersParams = {
 search?: string;
 status?: string;

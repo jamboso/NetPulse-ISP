@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { customersTable, subscriptionsTable, invoicesTable, paymentsTable, ticketsTable, ticketRepliesTable } from "@workspace/db";
 import { eq, ilike, or, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { writeAuditLog } from "../lib/audit";
 
 const router = Router();
 
@@ -51,6 +52,16 @@ router.post("/customers", requireRole("admin", "billing", "support"), async (req
     latitude:  body.latitude  != null ? Number(body.latitude)  : null,
     longitude: body.longitude != null ? Number(body.longitude) : null,
   }).returning();
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "create",
+    entityType: "customer",
+    entityId:   customer!.id,
+    diff:       { after: customer },
+  });
+
   res.status(201).json(customer);
 });
 
@@ -64,6 +75,10 @@ router.get("/customers/:id", async (req, res) => {
 router.patch("/customers/:id", requireRole("admin", "billing", "support"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   const body = req.body;
+
+  const [before] = await db.select().from(customersTable).where(eq(customersTable.id, id));
+  if (!before) { res.status(404).json({ error: "Not found" }); return; }
+
   const update: Record<string, unknown> = {};
   if (body.name      !== undefined) update.name      = body.name;
   if (body.email     !== undefined) update.email     = body.email;
@@ -73,13 +88,26 @@ router.patch("/customers/:id", requireRole("admin", "billing", "support"), async
   if (body.notes     !== undefined) update.notes     = body.notes;
   if (body.latitude  !== undefined) update.latitude  = body.latitude  != null ? Number(body.latitude)  : null;
   if (body.longitude !== undefined) update.longitude = body.longitude != null ? Number(body.longitude) : null;
+
   const [updated] = await db.update(customersTable).set(update).where(eq(customersTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "update",
+    entityType: "customer",
+    entityId:   id,
+    diff:       { before, after: updated },
+  });
+
   res.json(updated);
 });
 
 router.delete("/customers/:id", requireRole("admin"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
+
+  const [before] = await db.select().from(customersTable).where(eq(customersTable.id, id));
 
   // Cascade: ticket_replies → tickets → payments → invoices → subscriptions → customer
   const tickets = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(eq(ticketsTable.customerId, id));
@@ -98,6 +126,16 @@ router.delete("/customers/:id", requireRole("admin"), async (req, res) => {
 
   await db.delete(subscriptionsTable).where(eq(subscriptionsTable.customerId, id));
   await db.delete(customersTable).where(eq(customersTable.id, id));
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "delete",
+    entityType: "customer",
+    entityId:   id,
+    diff:       { before },
+  });
+
   res.status(204).send();
 });
 

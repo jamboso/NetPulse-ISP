@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { subscriptionsTable, customersTable, plansTable, routersTable, invoicesTable, paymentsTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { writeAuditLog } from "../lib/audit";
 
 const router = Router();
 
@@ -232,6 +233,15 @@ router.post("/subscriptions", requireRole("admin", "billing"), async (req, res) 
     );
   }
 
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "create",
+    entityType: "subscription",
+    entityId:   sub!.id,
+    diff:       { after: sub },
+  });
+
   res.status(201).json(sub);
 });
 
@@ -309,6 +319,16 @@ router.patch("/subscriptions/:id", requireRole("admin", "billing"), async (req, 
   }
 
   const [updated] = await db.update(subscriptionsTable).set(update).where(eq(subscriptionsTable.id, id)).returning();
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "update",
+    entityType: "subscription",
+    entityId:   id,
+    diff:       { before: existing, after: updated },
+  });
+
   res.json(updated);
 });
 
@@ -331,6 +351,16 @@ router.delete("/subscriptions/:id", requireRole("admin"), async (req, res) => {
   }
 
   await db.delete(subscriptionsTable).where(eq(subscriptionsTable.id, id));
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "delete",
+    entityType: "subscription",
+    entityId:   id,
+    diff:       { before: existing },
+  });
+
   res.status(204).send();
 });
 

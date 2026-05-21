@@ -9,6 +9,42 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary List audit log entries (admin only)
+ */
+export const listAuditLogsQueryPageDefault = 1;
+export const listAuditLogsQueryLimitDefault = 50;
+export const listAuditLogsQueryLimitMax = 200;
+
+
+
+export const ListAuditLogsQueryParams = zod.object({
+  "entityType": zod.coerce.string().optional(),
+  "entityId": zod.coerce.number().optional(),
+  "userId": zod.coerce.string().optional(),
+  "action": zod.enum(['create', 'update', 'delete']).optional(),
+  "from": zod.date().optional(),
+  "to": zod.date().optional(),
+  "page": zod.coerce.number().default(listAuditLogsQueryPageDefault),
+  "limit": zod.coerce.number().max(listAuditLogsQueryLimitMax).default(listAuditLogsQueryLimitDefault)
+})
+
+export const ListAuditLogsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.string(),
+  "userEmail": zod.string().nullish(),
+  "action": zod.enum(['create', 'update', 'delete']),
+  "entityType": zod.string(),
+  "entityId": zod.number().nullish(),
+  "diff": zod.unknown().nullish(),
+  "createdAt": zod.coerce.date()
+})),
+  "page": zod.number(),
+  "limit": zod.number()
+})
+
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({

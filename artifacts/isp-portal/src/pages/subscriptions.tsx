@@ -122,10 +122,10 @@ function SubscriptionDialog({ open, onClose, initial, subId }: {
           </div>
           <div className="space-y-1">
             <Label className="flex items-center gap-1.5"><Wifi className="w-3.5 h-3.5 text-blue-500" /> RouterOS Device</Label>
-            <Select value={form.routerId} onValueChange={v => set("routerId", v)}>
+            <Select value={form.routerId || "none"} onValueChange={v => set("routerId", v === "none" ? "" : v)}>
               <SelectTrigger><SelectValue placeholder="None (no auto-provisioning)" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {routers?.map(r => (
                   <SelectItem key={r.id} value={String(r.id)}>{r.name} ({r.ipAddress})</SelectItem>
                 ))}

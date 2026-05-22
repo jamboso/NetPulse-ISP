@@ -468,7 +468,11 @@ export default function NetworkMap() {
 
   const { data, isLoading, isFetching, refetch } = useQuery<MapData>({
     queryKey: ["network-map"],
-    queryFn: async () => (await fetch(`${API}/api/network-map`)).json(),
+    queryFn: async () => {
+      const r = await fetch(`${API}/api/network-map`, { credentials: "include" });
+      if (!r.ok) throw new Error(`Failed to load map data (${r.status})`);
+      return r.json() as Promise<MapData>;
+    },
     refetchInterval: 30_000,
   });
 
@@ -487,7 +491,7 @@ export default function NetworkMap() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Network Map</h1>
           <p className="text-sm text-gray-500">
-            {data?.clients.length ?? 0} clients mapped · {data?.clients.filter(c => c.online).length ?? 0} online · {splitters.length} splitters
+            {data?.clients?.length ?? 0} clients mapped · {data?.clients?.filter(c => c.online).length ?? 0} online · {splitters.length} splitters
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="gap-2">
@@ -576,7 +580,7 @@ export default function NetworkMap() {
       </div>
 
       {/* Help text */}
-      {(data?.clients.length ?? 0) === 0 && !isLoading && (
+      {(data?.clients?.length ?? 0) === 0 && !isLoading && (
         <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 flex items-start gap-2">
           <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
           <span>No clients with coordinates yet. Go to <Link href="/customers"><strong className="underline cursor-pointer">Customers</strong></Link>, edit a customer, and use the <strong>📍 Get Location</strong> button or enter coordinates manually. They'll appear on this map automatically.</span>

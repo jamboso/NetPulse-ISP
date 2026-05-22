@@ -160,7 +160,7 @@ describe("POST /customers", () => {
 
     const res = await request(buildApp())
       .post("/customers")
-      .send({ name: "Bob Omondi", email: "bob@example.com", phone: "0700000000" });
+      .send({ name: "Bob Omondi", email: "bob@example.com", phone: "0700000000", address: "456 Test Ave" });
 
     expect(res.status).toBe(201);
     expect(res.body.name).toBe("Alice Ngugi");
@@ -169,7 +169,7 @@ describe("POST /customers", () => {
   it("returns 403 for technician role", async () => {
     const res = await request(buildApp({ id: "u2", email: "tech@test.com", name: "Tech", role: "technician", active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date() }))
       .post("/customers")
-      .send({ name: "Eve", email: "eve@example.com", phone: "0700000001" });
+      .send({ name: "Eve", email: "eve@example.com", phone: "0700000001", address: "789 Oak Rd" });
 
     expect(res.status).toBe(403);
   });
@@ -179,7 +179,7 @@ describe("POST /customers", () => {
 
     const res = await request(buildApp({ id: "u3", email: "support@test.com", name: "Support", role: "support", active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date() }))
       .post("/customers")
-      .send({ name: "Carol", email: "carol@example.com", phone: "0700000002" });
+      .send({ name: "Carol", email: "carol@example.com", phone: "0700000002", address: "321 Pine St" });
 
     expect(res.status).toBe(201);
   });

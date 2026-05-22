@@ -4,10 +4,14 @@ import { db } from "@workspace/db";
 import { paymentsTable, invoicesTable, customersTable, hotspotVouchersTable, hotspotPackagesTable, routersTable } from "@workspace/db";
 import { eq, ilike } from "drizzle-orm";
 import { getSettings } from "../lib/sms.js";
+import { requireSafaricomIp } from "../middlewares/requireSafaricomIp.js";
 
 // ── Public router ─────────────────────────────────────────────────────────────
 // These endpoints are called directly by Safaricom and must remain unauthenticated.
+// requireSafaricomIp guards every route on this router so forged callbacks
+// from non-Safaricom IPs are rejected with 403 before any DB writes occur.
 export const mpesaPublicRouter = Router();
+mpesaPublicRouter.use(requireSafaricomIp);
 
 // ── Protected router ──────────────────────────────────────────────────────────
 // These endpoints are called by staff and require a valid session.

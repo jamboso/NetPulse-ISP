@@ -53,3 +53,51 @@ jobs:
           NODE_ENV: production
           PORT: "8081"
           BASE_PATH: "/__mockup"
+
+      - name: Notify Slack on CI failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not configured — skipping Slack notification."
+            echo "Add SLACK_WEBHOOK_URL to GitHub repository secrets to enable Slack alerts."
+            exit 0
+          fi
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "text": ":red_circle: *CI failed* on `${{ github.repository }}`",
+              "attachments": [{
+                "color": "danger",
+                "fields": [
+                  { "title": "Branch", "value": "${{ github.ref_name }}", "short": true },
+                  { "title": "Triggered by", "value": "${{ github.actor }}", "short": true },
+                  { "title": "Commit", "value": "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>" , "short": false },
+                  { "title": "Run", "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>", "short": false }
+                ]
+              }]
+            }'
+          echo "Slack notification sent."
+
+      - name: Notify email on CI failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        continue-on-error: true
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: GitHub Actions <${{ secrets.SMTP_USERNAME }}>
+          subject: "[${{ github.repository }}] CI failed on ${{ github.ref_name }}"
+          body: |
+            The CI workflow failed for ${{ github.repository }}.
+
+            Branch:      ${{ github.ref_name }}
+            Triggered by: ${{ github.actor }}
+            Commit:      ${{ github.sha }}
+            Run URL:     ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Please check the run above for details.

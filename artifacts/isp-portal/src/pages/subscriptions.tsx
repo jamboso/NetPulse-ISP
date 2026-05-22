@@ -5,6 +5,7 @@ import {
   useListCustomers, useListPlans, useListRouters,
   type SubscriptionInput, type SubscriptionUpdate,
 } from "@workspace/api-client-react";
+import { useCurrency } from "@/hooks/useCurrency";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useBulkSelect } from "@/hooks/useBulkSelect";
@@ -57,6 +58,7 @@ function SubscriptionDialog({ open, onClose, initial, subId }: {
   open: boolean; onClose: () => void; initial?: SubForm; subId?: number;
 }) {
   const qc = useQueryClient();
+  const { fmtMoney } = useCurrency();
   const createMutation = useCreateSubscription();
   const updateMutation = useUpdateSubscription();
   const { data: customers } = useListCustomers({ limit: 200 });
@@ -119,7 +121,7 @@ function SubscriptionDialog({ open, onClose, initial, subId }: {
               <SelectTrigger><SelectValue placeholder="Select plan…" /></SelectTrigger>
               <SelectContent>
                 {plans?.filter(p => p.isActive).map(p => (
-                  <SelectItem key={p.id} value={String(p.id)}>{p.name} — ${p.price}/{p.billingCycle}</SelectItem>
+                  <SelectItem key={p.id} value={String(p.id)}>{p.name} — {fmtMoney(p.price)}/{p.billingCycle}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

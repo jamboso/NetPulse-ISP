@@ -5,6 +5,7 @@ import {
   useListCustomers, useListSubscriptions,
   type InvoiceInput, type InvoiceUpdate,
 } from "@workspace/api-client-react";
+import { useCurrency } from "@/hooks/useCurrency";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useBulkSelect } from "@/hooks/useBulkSelect";
@@ -151,6 +152,7 @@ function InvoiceDialog({ open, onClose, initial, invoiceId }: {
 }
 
 export default function Invoices() {
+  const { fmtMoney } = useCurrency();
   const { canManageBilling, canDeleteBillingRecords } = useCurrentUser();
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
@@ -278,7 +280,7 @@ export default function Invoices() {
                     <TableCell className="font-medium text-gray-900">
                       {invoice.customer ? <Link href={`/customers/${invoice.customerId}`} className="hover:text-blue-600 hover:underline">{invoice.customer.name}</Link> : `Customer #${invoice.customerId}`}
                     </TableCell>
-                    <TableCell className="font-bold text-gray-900">${(invoice.total ?? invoice.amount).toFixed(2)}</TableCell>
+                    <TableCell className="font-bold text-gray-900">{fmtMoney(invoice.total ?? invoice.amount)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`capitalize ${STATUS_COLORS[invoice.status] ?? ""}`}>{invoice.status}</Badge>
                     </TableCell>

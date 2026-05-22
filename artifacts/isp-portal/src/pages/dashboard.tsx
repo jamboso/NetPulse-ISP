@@ -1,4 +1,5 @@
 import { useGetDashboardSummary, useGetRevenueStats, useGetSubscriptionBreakdown, useGetRecentActivity, useGetRoutersStatus, type RouterStatus } from "@workspace/api-client-react";
+import { useCurrency } from "@/hooks/useCurrency";
 import { useEffect } from "react";
 import {
   Users,
@@ -213,11 +214,12 @@ export default function Dashboard() {
   const { data: revenueStats, isLoading: loadingRevenue } = useGetRevenueStats();
   const { data: subscriptionBreakdown, isLoading: loadingBreakdown } = useGetSubscriptionBreakdown();
   const { data: recentActivity, isLoading: loadingActivity } = useGetRecentActivity();
+  const { fmtMoney, fmtMoneyCompact } = useCurrency();
 
   const metrics = [
     { label: "Total Customers", value: summary?.totalCustomers, icon: Users, color: "text-blue-500", bg: "bg-blue-50" },
     { label: "Active Subscriptions", value: summary?.activeSubscriptions, icon: CreditCard, color: "text-green-500", bg: "bg-green-50" },
-    { label: "Monthly Revenue", value: summary?.monthlyRevenue ? `$${summary.monthlyRevenue.toLocaleString()}` : undefined, icon: DollarSign, color: "text-emerald-500", bg: "bg-emerald-50" },
+    { label: "Monthly Revenue", value: summary?.monthlyRevenue ? fmtMoney(summary.monthlyRevenue, 0) : undefined, icon: DollarSign, color: "text-emerald-500", bg: "bg-emerald-50" },
     { label: "Overdue Invoices", value: summary?.overdueInvoices, icon: AlertTriangle, color: "text-red-500", bg: "bg-red-50" },
     { label: "Open Tickets", value: summary?.openTickets, icon: LifeBuoy, color: "text-orange-500", bg: "bg-orange-50" },
     { label: "Total Equipment", value: summary?.totalEquipment, icon: ServerCrash, color: "text-purple-500", bg: "bg-purple-50" },
@@ -273,11 +275,11 @@ export default function Dashboard() {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: "#6b7280", fontSize: 12 }}
-                    tickFormatter={(value) => `$${value}`}
+                    tickFormatter={(value) => fmtMoneyCompact(value)}
                   />
                   <Tooltip
                     contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
-                    formatter={(value: number) => [`$${value}`, "Revenue"]}
+                    formatter={(value: number) => [fmtMoney(value), "Revenue"]}
                   />
                   <Line type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: "#3b82f6", strokeWidth: 0 }} activeDot={{ r: 6, strokeWidth: 0 }} />
                 </LineChart>

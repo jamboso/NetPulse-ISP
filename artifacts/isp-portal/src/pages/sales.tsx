@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useCurrency } from "@/hooks/useCurrency";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -13,10 +14,6 @@ import {
 } from "@/components/ui/table";
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316"];
-
-function fmt(n: number) {
-  return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
-}
 
 function pct(a: number, b: number) {
   if (!b) return "+0%";
@@ -60,6 +57,7 @@ function KpiCard({ icon: Icon, label, value, sub, positive }: {
 }
 
 export default function Sales() {
+  const { fmtMoney: fmt } = useCurrency();
   const [period, setPeriod] = useState<"30d" | "90d" | "12m">("30d");
   const [staffDays, setStaffDays] = useState<"30" | "60" | "90">("30");
   const [summary, setSummary] = useState<Summary | null>(null);

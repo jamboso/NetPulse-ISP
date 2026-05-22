@@ -5,6 +5,7 @@ import {
   useListCustomers, useListInvoices,
   type PaymentInput,
 } from "@workspace/api-client-react";
+import { useCurrency } from "@/hooks/useCurrency";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Plus, CreditCard, ArrowDownToLine, Receipt, Smartphone } from "lucide-react";
@@ -43,6 +44,7 @@ const EMPTY: PayForm = { customerId: "", invoiceId: "", amount: "", method: "mpe
 
 function PaymentDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient();
+  const { fmtMoney } = useCurrency();
   const createMutation = useCreatePayment();
   const { data: customers } = useListCustomers({ limit: 200 });
   const { data: invoicesData } = useListInvoices({ limit: 200 });
@@ -102,7 +104,7 @@ function PaymentDialog({ open, onClose }: { open: boolean; onClose: () => void }
                 {customerInvoices.length > 0
                   ? customerInvoices.map((inv: any) => (
                     <SelectItem key={inv.id} value={String(inv.id)}>
-                      INV-{String(inv.id).padStart(5, "0")} — ${(inv.total ?? inv.amount).toFixed(2)} ({inv.status})
+                      INV-{String(inv.id).padStart(5, "0")} — {fmtMoney(inv.total ?? inv.amount)} ({inv.status})
                     </SelectItem>
                   ))
                   : <SelectItem value="" disabled>No unpaid invoices</SelectItem>}
@@ -158,6 +160,7 @@ function PaymentDialog({ open, onClose }: { open: boolean; onClose: () => void }
 }
 
 export default function Payments() {
+  const { fmtMoney } = useCurrency();
   const { data: paymentsData, isLoading } = useListPayments({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const { canManageBilling } = useCurrentUser();
@@ -203,7 +206,7 @@ export default function Payments() {
                       {payment.customer ? <Link href={`/customers/${payment.customerId}`} className="hover:text-blue-600 hover:underline">{payment.customer.name}</Link> : `Customer #${payment.customerId}`}
                     </TableCell>
                     <TableCell className="font-mono text-sm text-blue-600">INV-{String(payment.invoiceId).padStart(5, "0")}</TableCell>
-                    <TableCell className="font-bold text-gray-900">${payment.amount.toFixed(2)}</TableCell>
+                    <TableCell className="font-bold text-gray-900">{fmtMoney(payment.amount)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 text-gray-700 text-sm">{methodIcon(payment.method)}{formatMethod(payment.method)}</div>
                     </TableCell>

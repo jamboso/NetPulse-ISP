@@ -3,6 +3,7 @@ import {
   useListPlans, useCreatePlan, useUpdatePlan, useDeletePlan,
   type PlanInput, type PlanUpdate,
 } from "@workspace/api-client-react";
+import { useCurrency } from "@/hooks/useCurrency";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useBulkSelect } from "@/hooks/useBulkSelect";
@@ -113,6 +114,7 @@ function PlanDialog({ open, onClose, initial, planId }: {
 }
 
 export default function Plans() {
+  const { fmtMoney } = useCurrency();
   const qc = useQueryClient();
   const { data: plans, isLoading } = useListPlans();
   const deleteMutation = useDeletePlan();
@@ -247,7 +249,7 @@ export default function Plans() {
                 </div>
                 <p className="text-sm text-gray-500 mb-4 min-h-[2.5rem] line-clamp-2 pl-6">{plan.description || "No description."}</p>
                 <div className="flex items-baseline gap-1 mb-4 pl-6">
-                  <span className="text-3xl font-bold text-gray-900">${plan.price.toFixed(2)}</span>
+                  <span className="text-3xl font-bold text-gray-900">{fmtMoney(plan.price)}</span>
                   <span className="text-sm text-gray-500">/{plan.billingCycle}</span>
                 </div>
                 <div className="space-y-2">

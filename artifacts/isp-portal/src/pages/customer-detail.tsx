@@ -1,6 +1,7 @@
 import { useParams, Link } from "wouter";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useMacVendor } from "@/hooks/useMacVendor";
+import { useCurrency } from "@/hooks/useCurrency";
 import {
   useGetCustomer,
   useListSubscriptions,
@@ -345,6 +346,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 function BillingActivityChart({ invoices }: { invoices: any[] }) {
+  const { fmtMoney } = useCurrency();
   if (!Array.isArray(invoices) || invoices.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-gray-400">
@@ -381,9 +383,9 @@ function BillingActivityChart({ invoices }: { invoices: any[] }) {
       {/* KPI strip */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Total Billed",  value: `KES ${totalBilled.toLocaleString()}`,   color: "text-gray-900" },
-          { label: "Total Paid",    value: `KES ${totalPaid.toLocaleString()}`,      color: "text-green-600" },
-          { label: "Outstanding",   value: `KES ${outstanding.toLocaleString()}`,    color: outstanding > 0 ? "text-red-500" : "text-gray-400" },
+          { label: "Total Billed",  value: fmtMoney(totalBilled, 0),   color: "text-gray-900" },
+          { label: "Total Paid",    value: fmtMoney(totalPaid, 0),      color: "text-green-600" },
+          { label: "Outstanding",   value: fmtMoney(outstanding, 0),    color: outstanding > 0 ? "text-red-500" : "text-gray-400" },
         ].map(kpi => (
           <div key={kpi.label} className="bg-gray-50 rounded-lg p-3 border border-gray-100 text-center">
             <p className="text-xs text-gray-500 mb-1">{kpi.label}</p>
@@ -402,7 +404,7 @@ function BillingActivityChart({ invoices }: { invoices: any[] }) {
           <Tooltip
             contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
             formatter={(v: number, _: string, entry: any) => [
-              `KES ${v.toLocaleString()}`,
+              fmtMoney(v, 0),
               entry.payload.status.charAt(0).toUpperCase() + entry.payload.status.slice(1),
             ]}
           />
@@ -430,6 +432,7 @@ function BillingActivityChart({ invoices }: { invoices: any[] }) {
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function CustomerDetail() {
+  const { fmtMoney } = useCurrency();
   const { id } = useParams();
   const customerId = parseInt(id || "0", 10);
 
@@ -985,7 +988,7 @@ export default function CustomerDetail() {
                       invoices.map((invoice: any) => (
                         <TableRow key={invoice.id}>
                           <TableCell className="font-mono text-sm text-gray-600">INV-{String(invoice.id).padStart(5, "0")}</TableCell>
-                          <TableCell className="font-medium text-gray-900">${(invoice.total ?? invoice.amount).toFixed(2)}</TableCell>
+                          <TableCell className="font-medium text-gray-900">{fmtMoney(invoice.total ?? invoice.amount)}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={`capitalize ${invoice.status === "paid" ? "bg-green-100 text-green-700" : invoice.status === "overdue" ? "bg-red-100 text-red-700" : "bg-gray-100"}`}>
                               {invoice.status}
@@ -1248,13 +1251,13 @@ export default function CustomerDetail() {
                 }
                 // Invoices
                 for (const inv of (Array.isArray(invoices) ? invoices : []) as any[]) {
-                  events.push({ date: inv.createdAt, icon: <Receipt className="w-3.5 h-3.5" />, color: "bg-gray-100 text-gray-600", title: `Invoice generated`, detail: `INV-${String(inv.id).padStart(5,"0")} · KES ${(inv.total ?? inv.amount)}` });
+                  events.push({ date: inv.createdAt, icon: <Receipt className="w-3.5 h-3.5" />, color: "bg-gray-100 text-gray-600", title: `Invoice generated`, detail: `INV-${String(inv.id).padStart(5,"0")} · ${fmtMoney(inv.total ?? inv.amount)}` });
                   if (inv.paidAt) events.push({ date: inv.paidAt, icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: "bg-emerald-100 text-emerald-600", title: "Invoice paid", detail: `INV-${String(inv.id).padStart(5,"0")}` });
                   if (inv.status === "overdue") events.push({ date: inv.dueDate, icon: <XCircle className="w-3.5 h-3.5" />, color: "bg-red-100 text-red-600", title: "Invoice overdue", detail: `INV-${String(inv.id).padStart(5,"0")}` });
                 }
                 // Payments
                 for (const p of payments as any[]) {
-                  events.push({ date: p.createdAt, icon: <DollarSign className="w-3.5 h-3.5" />, color: "bg-emerald-100 text-emerald-600", title: `Payment received`, detail: `KES ${p.amount} via ${p.method}${p.reference ? ` · ${p.reference}` : ""}` });
+                  events.push({ date: p.createdAt, icon: <DollarSign className="w-3.5 h-3.5" />, color: "bg-emerald-100 text-emerald-600", title: `Payment received`, detail: `${fmtMoney(p.amount)} via ${p.method}${p.reference ? ` · ${p.reference}` : ""}` });
                 }
                 // Tickets
                 for (const t of tickets as any[]) {

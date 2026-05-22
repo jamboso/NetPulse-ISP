@@ -262,7 +262,7 @@ export function InfrastructureTab({
   const downloadRosScript = (routerId: number) => {
     const a = document.createElement("a");
     a.href = `/api/routers/${routerId}/ros-script`;
-    a.download = `netpulse-vpn-router-${routerId}.txt`;
+    a.download = `netpulse-vpn-router-${routerId}.rsc`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -271,7 +271,7 @@ export function InfrastructureTab({
   const downloadServerConf = () => {
     const a = document.createElement("a");
     a.href = "/api/infrastructure/vpn/server-conf";
-    a.download = "netpulse-vpn-server.txt";
+    a.download = "netpulse-vpn-server.conf";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

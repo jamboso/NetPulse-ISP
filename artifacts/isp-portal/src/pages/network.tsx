@@ -608,11 +608,11 @@ export default function Network() {
                           )}
                           {r.routerType === "routeros" && (
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-green-600"
-                              title="Download VPN script (.txt)"
+                              title="Download VPN .rsc script"
                               onClick={() => {
                                 const a = document.createElement("a");
                                 a.href = `/api/routers/${r.id}/ros-script`;
-                                a.download = `netpulse-vpn-router-${r.id}.txt`;
+                                a.download = `netpulse-vpn-router-${r.id}.rsc`;
                                 document.body.appendChild(a);
                                 a.click();
                                 document.body.removeChild(a);

@@ -38,7 +38,7 @@ CYAN='\033[0;36m'; BLUE='\033[0;34m';   PURPLE='\033[0;35m'; NC='\033[0m'
 mkdir -p /var/log/netpulse
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-STEP=0; TOTAL=9
+STEP=0; TOTAL=9   # updated below after prompts if optional modules are chosen
 step() {
   STEP=$((STEP+1))
   local elapsed=$(( $(date +%s) - START_TIME ))
@@ -140,6 +140,27 @@ else
   ok "Fresh installation — no existing install detected"
 fi
 
+# ── Optional module prompts ────────────────────────────────────────────────────
+echo ""
+echo -e "${CYAN}${BOLD}  Optional modules (can be added later by re-running this script)${NC}"
+echo ""
+
+INSTALL_RADIUS=false
+read -rp "  Install FreeRADIUS? (PPPoE/802.1X auth for MikroTik routers) [y/N]: " _r
+[[ "${_r:-N}" =~ ^[Yy]$ ]] && INSTALL_RADIUS=true
+[[ "$INSTALL_RADIUS" == "true" ]] && ok "FreeRADIUS — will install" || info "FreeRADIUS — skipped"
+
+INSTALL_VPN=false
+read -rp "  Install OpenVPN? (VPN cert management for customers) [y/N]: " _v
+[[ "${_v:-N}" =~ ^[Yy]$ ]] && INSTALL_VPN=true
+[[ "$INSTALL_VPN" == "true" ]] && ok "OpenVPN — will install" || info "OpenVPN — skipped"
+
+# Recalculate total steps
+TOTAL=9
+[[ "$INSTALL_RADIUS" == "true" ]] && TOTAL=$((TOTAL+1))
+[[ "$INSTALL_VPN"    == "true" ]] && TOTAL=$((TOTAL+1))
+echo ""
+
 # ─────────────────────────────────────────────────────────────────────────────
 step "Installing system packages"
 # ─────────────────────────────────────────────────────────────────────────────
@@ -152,7 +173,19 @@ apt-get install -y -qq \
   git nginx postgresql postgresql-contrib \
   openssl curl wget ca-certificates gnupg \
   software-properties-common ufw
-ok "System packages installed"
+ok "Core system packages installed"
+
+if [[ "$INSTALL_RADIUS" == "true" ]]; then
+  info "Installing FreeRADIUS..."
+  apt-get install -y -qq freeradius freeradius-postgresql freeradius-utils
+  ok "FreeRADIUS installed"
+fi
+
+if [[ "$INSTALL_VPN" == "true" ]]; then
+  info "Installing OpenVPN + easy-rsa..."
+  apt-get install -y -qq openvpn easy-rsa
+  ok "OpenVPN + easy-rsa installed"
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Installing Node.js 24"
@@ -195,6 +228,38 @@ sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" |
   || { sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" > /dev/null; ok "Created database '$DB_NAME'"; }
 
 DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}"
+
+# Grant permissions (needed if RADIUS schema will be applied)
+sudo -u postgres psql -d "$DB_NAME" \
+  -c "GRANT ALL PRIVILEGES ON ALL TABLES   IN SCHEMA public TO ${DB_USER};" >/dev/null 2>&1 || true
+sudo -u postgres psql -d "$DB_NAME" \
+  -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER};" >/dev/null 2>&1 || true
+
+if [[ "$INSTALL_RADIUS" == "true" ]]; then
+  FR_SCHEMA="/etc/freeradius/3.0/mods-config/sql/main/postgresql/schema.sql"
+  if [[ -f "$FR_SCHEMA" ]]; then
+    if ! sudo -u postgres psql -d "$DB_NAME" -tAc \
+         "SELECT 1 FROM information_schema.tables WHERE table_name='radcheck'" 2>/dev/null | grep -q 1; then
+      info "Applying FreeRADIUS schema to database..."
+      sudo -u postgres psql -d "$DB_NAME" -f "$FR_SCHEMA" >/dev/null
+      ok "FreeRADIUS schema applied"
+    else
+      info "FreeRADIUS schema already present — skipping"
+    fi
+  fi
+  # radnas table — NAS device secrets managed by the app
+  sudo -u postgres psql -d "$DB_NAME" >/dev/null <<'RADNAS_SQL'
+CREATE TABLE IF NOT EXISTS radnas (
+  id         SERIAL PRIMARY KEY,
+  nasname    VARCHAR(128) NOT NULL UNIQUE,
+  shortname  VARCHAR(32),
+  secret     VARCHAR(64)  NOT NULL,
+  created_at TIMESTAMPTZ  DEFAULT NOW()
+);
+RADNAS_SQL
+  ok "radnas table ready"
+fi
+
 ok "PostgreSQL ready → $DB_NAME"
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -270,9 +335,18 @@ FRONTEND_DIST_PATH=${APP_DIR}/artifacts/isp-portal/dist/public
 
 # Your domain or server IP (for nginx / HTTPS)
 SERVER_DOMAIN=${SERVER_IP}
+
+# ── Optional modules ──────────────────────────────────────────────────────────
+OPENVPN_ENABLED=${INSTALL_VPN}
 EOF
 
   ok ".env written to $ENV_FILE"
+fi
+
+# Ensure optional flags are in .env on upgrade too
+if [[ "$INSTALL_VPN" == "true" ]] && ! grep -q "OPENVPN_ENABLED" "$ENV_FILE"; then
+  echo "OPENVPN_ENABLED=true" >> "$ENV_FILE"
+  ok "OPENVPN_ENABLED=true added to .env"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -387,16 +461,301 @@ rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 nginx -t && systemctl enable nginx --quiet && systemctl reload nginx
 ok "nginx configured and running"
 
+# ─────────────────────────────────────────────────────────────────────────────
+if [[ "$INSTALL_RADIUS" == "true" ]]; then
+step "Configuring FreeRADIUS (SQL backend → PostgreSQL)"
+# ─────────────────────────────────────────────────────────────────────────────
+FR_DIR="/etc/freeradius/3.0"
+
+cat > "${FR_DIR}/mods-available/sql" <<FR_SQL
+sql {
+    driver    = "rlm_sql_postgresql"
+    dialect   = "postgresql"
+
+    server    = "localhost"
+    port      = 5432
+    login     = "${DB_USER}"
+    password  = "${DB_PASSWORD}"
+    radius_db = "${DB_NAME}"
+
+    acct_table1       = "radacct"
+    acct_table2       = "radacct"
+    postauth_table    = "radpostauth"
+    authcheck_table   = "radcheck"
+    groupcheck_table  = "radgroupcheck"
+    authreply_table   = "radreply"
+    groupreply_table  = "radgroupreply"
+    usergroup_table   = "radusergroup"
+    delete_stale_sessions = yes
+    read_clients      = yes
+    client_table      = "radnas"
+
+    pool {
+        start        = 5
+        min          = 4
+        max          = 32
+        spare        = 3
+        uses         = 0
+        lifetime     = 0
+        idle_timeout = 60
+    }
+}
+FR_SQL
+
+[[ -L "${FR_DIR}/mods-enabled/sql" ]] || \
+  ln -sf "${FR_DIR}/mods-available/sql" "${FR_DIR}/mods-enabled/sql"
+
+# Enable sql in authorize, accounting, session sections (idempotent via Python)
+python3 - "${FR_DIR}/sites-available/default" \
+          "${FR_DIR}/sites-available/inner-tunnel" <<'PYEOF'
+import sys, re
+
+def enable_sql_in_sections(path, sections):
+    try:
+        with open(path) as f:
+            text = f.read()
+    except FileNotFoundError:
+        print(f"  skip {path} (not found)")
+        return
+    original = text
+    for section in sections:
+        pat = re.compile(
+            rf'(\b{re.escape(section)}\b\s*\{{)(.*?)(^\}})',
+            re.DOTALL | re.MULTILINE
+        )
+        def replacer(m):
+            header, body, close = m.group(1), m.group(2), m.group(3)
+            if re.search(r'(?m)^[ \t]+sql\b', body):
+                return m.group(0)
+            body = re.sub(r'\n[ \t]*#[ \t]*sql\b[^\n]*', '', body)
+            return header + body + '\tsql\n' + close
+        text = pat.sub(replacer, text)
+    if text != original:
+        with open(path, 'w') as f:
+            f.write(text)
+        print(f"  sql enabled in authorize/accounting/session: {path}")
+    else:
+        print(f"  sql already enabled: {path}")
+
+for path in sys.argv[1:]:
+    enable_sql_in_sections(path, ['authorize', 'accounting', 'session'])
+PYEOF
+
+freeradius -C -d "${FR_DIR}" 2>/dev/null && ok "FreeRADIUS config valid" || \
+  warn "FreeRADIUS config warning — run: freeradius -C -d ${FR_DIR}"
+
+systemctl enable freeradius --quiet
+systemctl restart freeradius
+ok "FreeRADIUS running (port 1812 UDP)"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+if [[ "$INSTALL_VPN" == "true" ]]; then
+step "Setting up OpenVPN PKI and management helpers"
+# ─────────────────────────────────────────────────────────────────────────────
+EASYRSA_DIR="/etc/openvpn/easy-rsa"
+OVPN_DIR="/etc/openvpn"
+mkdir -p /var/log/openvpn
+
+if [[ ! -d "${EASYRSA_DIR}/pki" ]]; then
+  info "Initialising PKI — CA, server cert, DH params (this takes ~2 min)..."
+  if command -v make-cadir &>/dev/null; then
+    make-cadir "$EASYRSA_DIR"
+  else
+    cp -r /usr/share/easy-rsa "$EASYRSA_DIR"
+  fi
+
+  SERVER_IP=$(hostname -I | awk '{print $1}')
+  cat > "${EASYRSA_DIR}/vars" <<EASYRSA_VARS
+set_var EASYRSA_BATCH        "yes"
+set_var EASYRSA_REQ_CN       "NetPulse-CA"
+set_var EASYRSA_REQ_COUNTRY  "KE"
+set_var EASYRSA_REQ_PROVINCE "Nairobi"
+set_var EASYRSA_REQ_CITY     "Nairobi"
+set_var EASYRSA_REQ_ORG      "NetPulse ISP"
+set_var EASYRSA_REQ_EMAIL    "admin@${SERVER_DOMAIN:-localhost}"
+set_var EASYRSA_REQ_OU       "ISP"
+set_var EASYRSA_KEY_SIZE     2048
+set_var EASYRSA_CA_EXPIRE    3650
+set_var EASYRSA_CERT_EXPIRE  825
+EASYRSA_VARS
+
+  cd "$EASYRSA_DIR"
+  ./easyrsa init-pki
+  ./easyrsa build-ca nopass
+  ./easyrsa gen-req server nopass
+  ./easyrsa sign-req server server
+  ./easyrsa gen-dh
+  openvpn --genkey secret "${EASYRSA_DIR}/pki/ta.key"
+  ok "PKI initialised"
+else
+  info "PKI already initialised — skipping"
+fi
+
+# Copy PKI files to /etc/openvpn
+cp -f "${EASYRSA_DIR}/pki/ca.crt"             "$OVPN_DIR/ca.crt"
+cp -f "${EASYRSA_DIR}/pki/issued/server.crt"  "$OVPN_DIR/server.crt"
+cp -f "${EASYRSA_DIR}/pki/private/server.key" "$OVPN_DIR/server.key"
+cp -f "${EASYRSA_DIR}/pki/dh.pem"             "$OVPN_DIR/dh.pem"
+cp -f "${EASYRSA_DIR}/pki/ta.key"             "$OVPN_DIR/ta.key"
+mkdir -p "${OVPN_DIR}/ccd"
+
+if [[ ! -f "${OVPN_DIR}/server.conf" ]]; then
+  cat > "${OVPN_DIR}/server.conf" <<OVPN_CONF
+port 1194
+proto udp
+dev tun
+
+ca   /etc/openvpn/ca.crt
+cert /etc/openvpn/server.crt
+key  /etc/openvpn/server.key
+dh   /etc/openvpn/dh.pem
+tls-auth /etc/openvpn/ta.key 0
+
+server 10.8.0.0 255.255.255.0
+ifconfig-pool-persist /var/log/openvpn/ipp.txt
+client-config-dir /etc/openvpn/ccd
+crl-verify /etc/openvpn/crl.pem
+
+push "redirect-gateway def1 bypass-dhcp"
+push "dhcp-option DNS 8.8.8.8"
+push "dhcp-option DNS 8.8.4.4"
+
+keepalive 10 120
+cipher AES-256-GCM
+auth SHA256
+compress lz4-v2
+push "compress lz4-v2"
+max-clients 500
+
+user  nobody
+group nogroup
+persist-key
+persist-tun
+
+status /var/log/openvpn/status.log 60
+log    /var/log/openvpn/openvpn.log
+verb 3
+OVPN_CONF
+fi
+
+# Initial CRL (required by crl-verify on startup)
+if [[ ! -f "${OVPN_DIR}/crl.pem" ]]; then
+  cd "$EASYRSA_DIR"
+  ./easyrsa gen-crl
+  cp -f "${EASYRSA_DIR}/pki/crl.pem" "${OVPN_DIR}/crl.pem"
+  chmod 644 "${OVPN_DIR}/crl.pem"
+fi
+
+# IP forwarding
+echo 1 > /proc/sys/net/ipv4/ip_forward
+sed -i 's|^#*net.ipv4.ip_forward.*|net.ipv4.ip_forward=1|' /etc/sysctl.conf
+sysctl -p --quiet
+
+systemctl enable openvpn@server --quiet
+systemctl restart openvpn@server
+ok "OpenVPN server running (UDP 1194)"
+
+# ── VPN management helpers (called by NetPulse API) ───────────────────────────
+cat > /usr/local/bin/netpulse-vpn-issue <<'VPN_ISSUE'
+#!/usr/bin/env bash
+# Usage: netpulse-vpn-issue <common-name>
+# Prints the full .ovpn config to stdout
+set -euo pipefail
+
+CN="${1:-}"
+[[ "$CN" =~ ^[a-zA-Z0-9_.-]{2,64}$ ]] || { echo "Invalid CN: $CN" >&2; exit 1; }
+
+EASYRSA_DIR="/etc/openvpn/easy-rsa"
+OVPN_DIR="/etc/openvpn"
+
+cd "$EASYRSA_DIR"
+./easyrsa gen-req   "$CN" nopass 2>/dev/null
+./easyrsa sign-req client "$CN"  2>/dev/null
+
+SERVER_IP=$(curl -sf --max-time 5 https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
+
+CA=$(cat "$OVPN_DIR/ca.crt")
+CERT=$(openssl x509 -in "${EASYRSA_DIR}/pki/issued/${CN}.crt")
+KEY=$(cat "${EASYRSA_DIR}/pki/private/${CN}.key")
+TA=$(cat "$OVPN_DIR/ta.key")
+
+cat <<OVPN
+client
+dev tun
+proto udp
+remote ${SERVER_IP} 1194
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+remote-cert-tls server
+cipher AES-256-GCM
+auth SHA256
+compress lz4-v2
+verb 3
+key-direction 1
+<ca>
+${CA}
+</ca>
+<cert>
+${CERT}
+</cert>
+<key>
+${KEY}
+</key>
+<tls-auth>
+${TA}
+</tls-auth>
+OVPN
+VPN_ISSUE
+chmod 755 /usr/local/bin/netpulse-vpn-issue
+ok "/usr/local/bin/netpulse-vpn-issue"
+
+cat > /usr/local/bin/netpulse-vpn-revoke <<'VPN_REVOKE'
+#!/usr/bin/env bash
+# Usage: netpulse-vpn-revoke <common-name>
+set -euo pipefail
+
+CN="${1:-}"
+[[ "$CN" =~ ^[a-zA-Z0-9_.-]{2,64}$ ]] || { echo "Invalid CN: $CN" >&2; exit 1; }
+
+EASYRSA_DIR="/etc/openvpn/easy-rsa"
+cd "$EASYRSA_DIR"
+./easyrsa revoke "$CN" 2>/dev/null
+./easyrsa gen-crl       2>/dev/null
+cp -f "${EASYRSA_DIR}/pki/crl.pem" /etc/openvpn/crl.pem
+chmod 644 /etc/openvpn/crl.pem
+systemctl reload openvpn@server
+echo "Revoked $CN and reloaded OpenVPN CRL"
+VPN_REVOKE
+chmod 755 /usr/local/bin/netpulse-vpn-revoke
+ok "/usr/local/bin/netpulse-vpn-revoke"
+
+# Allow the PM2 process user (root in this installer) to run helpers passwordlessly
+echo "root ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke" \
+  > /etc/sudoers.d/netpulse-vpn
+chmod 440 /etc/sudoers.d/netpulse-vpn
+ok "sudoers rule for VPN helpers"
+fi
+
 # ── Firewall ──────────────────────────────────────────────────────────────────
 if command -v ufw &>/dev/null; then
-  ufw allow 22/tcp   comment "SSH"       >/dev/null 2>&1 || true
-  ufw allow 80/tcp   comment "HTTP"      >/dev/null 2>&1 || true
-  ufw allow 443/tcp  comment "HTTPS"     >/dev/null 2>&1 || true
-  ufw allow 1194/tcp comment "OpenVPN"   >/dev/null 2>&1 || true
-  ufw allow 1812/udp comment "RADIUS"    >/dev/null 2>&1 || true
-  ufw allow 1813/udp comment "RADIUS-Acct" >/dev/null 2>&1 || true
+  ufw allow 22/tcp   comment "SSH"          >/dev/null 2>&1 || true
+  ufw allow 80/tcp   comment "HTTP"         >/dev/null 2>&1 || true
+  ufw allow 443/tcp  comment "HTTPS"        >/dev/null 2>&1 || true
+  if [[ "$INSTALL_VPN" == "true" ]]; then
+    ufw allow 1194/udp comment "OpenVPN"    >/dev/null 2>&1 || true
+  fi
+  if [[ "$INSTALL_RADIUS" == "true" ]]; then
+    ufw allow 1812/udp comment "RADIUS"     >/dev/null 2>&1 || true
+    ufw allow 1813/udp comment "RADIUS-Acct" >/dev/null 2>&1 || true
+  fi
   echo "y" | ufw enable >/dev/null 2>&1 || true
-  ok "Firewall configured (22, 80, 443, 1194, 1812, 1813)"
+  _fw_ports="22, 80, 443"
+  [[ "$INSTALL_VPN"    == "true" ]] && _fw_ports+=" + 1194/udp (OpenVPN)"
+  [[ "$INSTALL_RADIUS" == "true" ]] && _fw_ports+=" + 1812-1813/udp (RADIUS)"
+  ok "Firewall configured (${_fw_ports})"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -444,6 +803,18 @@ echo -e "${GREEN}${BOLD}║    1. Edit ${APP_DIR}/.env                          
 echo -e "${GREEN}${BOLD}║       Set BETTER_AUTH_URL=https://yourdomain.com         ║${NC}"
 echo -e "${GREEN}${BOLD}║    2. Run: bash ${APP_DIR}/deploy/update.sh              ║${NC}"
 echo -e "${GREEN}${BOLD}║                                                          ║${NC}"
+echo -e "${GREEN}${BOLD}╠══════════════════════════════════════════════════════════╣${NC}"
+echo -e "${GREEN}${BOLD}║  ${NC}${BOLD}Services:${NC}                                                ${GREEN}${BOLD}║${NC}"
+_np_status=$(pm2 jlist 2>/dev/null | python3 -c "import sys,json; procs=json.load(sys.stdin); p=next((x for x in procs if x.get('name')=='netpulse'),None); print(p['pm2_env']['status'] if p else 'unknown')" 2>/dev/null || echo "unknown")
+echo -e "${GREEN}${BOLD}║  ${DIM}  netpulse (PM2)    ${_np_status}${NC}                        ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║  ${DIM}  nginx             $(systemctl is-active nginx 2>/dev/null || echo unknown)${NC}                           ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║  ${DIM}  postgresql        $(systemctl is-active postgresql 2>/dev/null || echo unknown)${NC}                           ${GREEN}${BOLD}║${NC}"
+if [[ "$INSTALL_RADIUS" == "true" ]]; then
+  echo -e "${GREEN}${BOLD}║  ${DIM}  freeradius        $(systemctl is-active freeradius 2>/dev/null || echo unknown)${NC}                           ${GREEN}${BOLD}║${NC}"
+fi
+if [[ "$INSTALL_VPN" == "true" ]]; then
+  echo -e "${GREEN}${BOLD}║  ${DIM}  openvpn@server    $(systemctl is-active openvpn@server 2>/dev/null || echo unknown)${NC}                           ${GREEN}${BOLD}║${NC}"
+fi
 echo -e "${GREEN}${BOLD}╠══════════════════════════════════════════════════════════╣${NC}"
 echo -e "${GREEN}${BOLD}║  ${NC}${DIM}Useful commands:${NC}                                         ${GREEN}${BOLD}║${NC}"
 echo -e "${GREEN}${BOLD}║  ${DIM}  pm2 status              — app process status${NC}            ${GREEN}${BOLD}║${NC}"

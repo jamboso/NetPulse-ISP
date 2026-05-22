@@ -283,18 +283,14 @@ else
   ok "Repo cloned"
 fi
 
-# Determine protocol for BETTER_AUTH_URL
-PROTO="http"
-if [[ "$NP_DOMAIN" != "localhost" && ! "$NP_DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  PROTO="https"
-fi
-
+# BETTER_AUTH_URL always uses https — installer always configures TLS
+# (certbot for real domains, self-signed for IP/localhost)
 cat > "${NETPULSE_DIR}/.env" <<ENV
 NODE_ENV=production
 PORT=${API_PORT}
 DATABASE_URL=${DATABASE_URL}
 BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-BETTER_AUTH_URL=${PROTO}://${NP_DOMAIN}/api
+BETTER_AUTH_URL=https://${NP_DOMAIN}/api
 SESSION_SECRET=${SESSION_SECRET}
 OPENVPN_ENABLED=true
 OPENVPN_EASY_RSA_DIR=/etc/openvpn/easy-rsa
@@ -454,13 +450,19 @@ if ! $IS_REAL_DOMAIN; then
   SSL_DIR="/etc/ssl/netpulse"
   mkdir -p "$SSL_DIR"
   if [[ ! -f "${SSL_DIR}/server.crt" ]]; then
+    # SAN: IP: only for numeric IPv4; DNS: for hostnames and localhost
+    if [[ "$NP_DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      SAN_VALUE="IP:${NP_DOMAIN}"
+    else
+      SAN_VALUE="DNS:${NP_DOMAIN}"
+    fi
     openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
       -keyout "${SSL_DIR}/server.key" \
       -out    "${SSL_DIR}/server.crt" \
       -subj   "/C=KE/O=NetPulse ISP/CN=${NP_DOMAIN}" \
-      -addext "subjectAltName=IP:${NP_DOMAIN},DNS:${NP_DOMAIN}" \
+      -addext "subjectAltName=${SAN_VALUE}" \
       2>/dev/null
-    ok "Self-signed certificate generated (valid 10 years)"
+    ok "Self-signed certificate generated (valid 10 years, SAN=${SAN_VALUE})"
   else
     skip "Self-signed certificate"
   fi
@@ -615,9 +617,15 @@ FR_SITE
 [[ -L "${FR_DIR}/sites-enabled/netpulse" ]] || \
   ln -sf "${FR_DIR}/sites-available/netpulse" "${FR_DIR}/sites-enabled/netpulse"
 
+# Disable the default sites to prevent port 1812/1813 listener conflicts
+# with our netpulse virtual server which binds the same ports
+rm -f "${FR_DIR}/sites-enabled/default"      2>/dev/null || true
+rm -f "${FR_DIR}/sites-enabled/inner-tunnel" 2>/dev/null || true
+ok "Default FreeRADIUS sites disabled (netpulse site handles all auth)"
+
 # Validate config before restarting
 freeradius -C -d "${FR_DIR}" 2>/dev/null && ok "FreeRADIUS config valid" || \
-  info "FreeRADIUS config warning — check: freeradius -C"
+  info "FreeRADIUS config warning — check: freeradius -C -d ${FR_DIR}"
 
 systemctl enable freeradius --quiet
 systemctl restart freeradius

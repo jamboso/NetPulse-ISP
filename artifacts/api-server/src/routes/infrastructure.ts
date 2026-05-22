@@ -405,8 +405,8 @@ router.get("/api/routers/:id/ros-script", async (req, res) => {
     });
 
     const safeName = router_.name.replace(/[^a-zA-Z0-9_-]/g, "-").toLowerCase();
-    res.setHeader("Content-Type", "text/plain");
-    res.setHeader("Content-Disposition", `attachment; filename=netpulse-vpn-${safeName}.rsc`);
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename=netpulse-vpn-${safeName}.txt`);
     return res.send(script);
   } catch (err) {
     req.log.error(err, "ros-script error");

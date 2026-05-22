@@ -260,11 +260,21 @@ export function InfrastructureTab({
   };
 
   const downloadRosScript = (routerId: number) => {
-    window.open(`/api/routers/${routerId}/ros-script`, "_blank");
+    const a = document.createElement("a");
+    a.href = `/api/routers/${routerId}/ros-script`;
+    a.download = `netpulse-vpn-router-${routerId}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const downloadServerConf = () => {
-    window.open("/api/infrastructure/vpn/server-conf", "_blank");
+    const a = document.createElement("a");
+    a.href = "/api/infrastructure/vpn/server-conf";
+    a.download = "netpulse-vpn-server.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const revokeClientCert = async (routerId: number) => {

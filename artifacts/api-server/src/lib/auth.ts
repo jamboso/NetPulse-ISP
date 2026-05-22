@@ -67,7 +67,21 @@ export const auth = betterAuth({
       maxAge:  5 * 60,
     },
   },
-  trustedOrigins: ["*"],
+  // Build trusted origins from REPLIT_DOMAINS (proxy env), BETTER_AUTH_URL
+  // (production), and common local dev ports.  The wildcard string "*" is not
+  // honoured by better-auth — only explicit origins work.
+  trustedOrigins: [
+    ...(process.env["REPLIT_DOMAINS"]
+      ?.split(",")
+      .flatMap(d => [
+        `https://${d.trim()}`,
+        `http://${d.trim()}`,
+      ]) ?? []),
+    ...(process.env["BETTER_AUTH_URL"] ? [process.env["BETTER_AUTH_URL"]] : []),
+    "http://localhost:3000",
+    "http://localhost:5000",
+    "http://localhost:8080",
+  ],
 });
 
 export type Session = typeof auth.$Infer.Session;

@@ -235,9 +235,11 @@ router.post("/subscriptions", requireRole("admin", "billing"), validateBody(crea
   const status = body.status ?? "active";
   const shouldProvision = status === "active" && body.routerId != null && customer;
 
-  // Auto-generate credentials if we'll provision
-  const pppoeUsername = shouldProvision ? genUsername(customer!.name, body.customerId) : null;
-  const pppoePassword = shouldProvision ? genPassword() : null;
+  // Always generate credentials for active subscriptions (even without a router)
+  // so RADIUS can auth the user immediately.
+  const needsCreds = status === "active" && !!customer;
+  const pppoeUsername = needsCreds ? genUsername(customer!.name, body.customerId) : null;
+  const pppoePassword = needsCreds ? genPassword() : null;
 
   const [sub] = await db.insert(subscriptionsTable).values({
     customerId: body.customerId,
@@ -317,48 +319,64 @@ router.patch("/subscriptions/:id", requireRole("admin", "billing"), validateBody
   const newStatus = body.status;
   const effectiveRouterId = body.routerId ?? existing.routerId;
 
-  // Handle status transitions that affect RouterOS
-  if (newStatus && newStatus !== prevStatus && effectiveRouterId) {
+  // ── RADIUS lifecycle (runs regardless of router assignment) ─────────────────
+  if (newStatus && newStatus !== prevStatus) {
     const username = existing.pppoeUsername;
 
     if (newStatus === "active") {
       if (username) {
-        enablePPPoESecret(effectiveRouterId, username, req.log);
+        // Existing creds — reactivate (remove Auth-Type Reject)
         void syncSubscriptionReactivate(username);
       } else {
+        // No creds yet — generate them so RADIUS can auth immediately
         const [[customer], [plan]] = await Promise.all([
           db.select().from(customersTable).where(eq(customersTable.id, existing.customerId)),
           db.select().from(plansTable).where(eq(plansTable.id, existing.planId)),
         ]);
         if (customer) {
-          const pppoeUsername = genUsername(customer.name, existing.customerId);
-          const pppoePassword = genPassword();
-          update.pppoeUsername = pppoeUsername;
-          update.pppoePassword = pppoePassword;
+          const newUsername = genUsername(customer.name, existing.customerId);
+          const newPassword = genPassword();
+          update.pppoeUsername = newUsername;
+          update.pppoePassword = newPassword;
+          void syncSubscriptionCreate({ username: newUsername, password: newPassword, planId: existing.planId });
+          if (plan) void syncPlanRadiusGroup(plan);
+          // RouterOS provisioning handled separately below if router exists
+        }
+      }
+    } else if (newStatus === "suspended") {
+      if (username) void syncSubscriptionSuspend(username);
+    } else if (newStatus === "cancelled") {
+      if (username) void syncSubscriptionCancel(username);
+    }
+  }
+
+  // ── RouterOS provisioning (only when a router is assigned) ──────────────────
+  if (newStatus && newStatus !== prevStatus && effectiveRouterId) {
+    const username = (update.pppoeUsername as string | undefined) ?? existing.pppoeUsername;
+
+    if (newStatus === "active") {
+      if (existing.pppoeUsername) {
+        enablePPPoESecret(effectiveRouterId, existing.pppoeUsername, req.log);
+      } else if (update.pppoeUsername) {
+        const [[customer], [plan]] = await Promise.all([
+          db.select().from(customersTable).where(eq(customersTable.id, existing.customerId)),
+          db.select().from(plansTable).where(eq(plansTable.id, existing.planId)),
+        ]);
+        if (customer && username) {
           provisionPPPoE(
             effectiveRouterId,
-            pppoeUsername,
-            pppoePassword,
+            update.pppoeUsername as string,
+            update.pppoePassword as string,
             plan?.rosProfileName ?? "default",
             `Sub #${id} | ${customer.name} | ${plan?.name ?? ""}`,
             req.log
           );
-          void syncSubscriptionCreate({ username: pppoeUsername, password: pppoePassword, planId: existing.planId });
-          if (plan) void syncPlanRadiusGroup(plan);
         }
       }
     } else if (newStatus === "suspended") {
-      if (username) {
-        disablePPPoESecret(effectiveRouterId, username, req.log);
-        void syncSubscriptionSuspend(username);
-      }
+      if (username) disablePPPoESecret(effectiveRouterId, username, req.log);
     } else if (newStatus === "cancelled") {
-      if (username) {
-        deletePPPoESecret(effectiveRouterId, username, req.log);
-        void syncSubscriptionCancel(username);
-      }
-      update.pppoeUsername = null;
-      update.pppoePassword = null;
+      if (username) deletePPPoESecret(effectiveRouterId, username, req.log);
     }
   }
 

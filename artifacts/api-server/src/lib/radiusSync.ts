@@ -159,11 +159,13 @@ export async function upsertRadnas(router: {
     const [existing] = await db.select({ id: radnasTable.id })
       .from(radnasTable)
       .where(eq(radnasTable.nasname, router.ipAddress));
+    const nasPort = router.radiusPort ?? 1812;
     if (existing) {
       await db.update(radnasTable).set({
         shortname:   router.name,
         secret:      router.radiusSecret,
-        description: `Managed by NetPulse (port ${router.radiusPort ?? 1812})`,
+        ports:       nasPort,
+        description: "Managed by NetPulse",
       }).where(eq(radnasTable.id, existing.id));
     } else {
       await db.insert(radnasTable).values({
@@ -171,7 +173,8 @@ export async function upsertRadnas(router: {
         shortname:   router.name,
         type:        "other",
         secret:      router.radiusSecret,
-        description: `Managed by NetPulse (port ${router.radiusPort ?? 1812})`,
+        ports:       nasPort,
+        description: "Managed by NetPulse",
       });
     }
   } catch (err) {

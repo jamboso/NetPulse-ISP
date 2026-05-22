@@ -8,6 +8,7 @@
 #
 #  Or locally:
 #    sudo bash install.sh
+#    sudo bash install.sh --upgrade
 #    sudo bash install.sh --uninstall
 # =============================================================================
 set -euo pipefail
@@ -18,51 +19,119 @@ NETPULSE_USER="netpulse"
 DB_NAME="netpulse"
 DB_USER="netpulse"
 API_PORT="5000"
+WEB_PORT="3001"
 REPO_URL="https://github.com/jamboso/NetPulse-ISP.git"
+# Node.js 24 matches the project's runtime (replit.md: Node.js 24, TypeScript 5.9)
 NODE_VERSION="24"
 PNPM_VERSION="10"
+# Explicit PostgreSQL 16 for RADIUS extension compatibility
+PG_VERSION="16"
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
 
-banner()  { echo -e "\n${CYAN}${BOLD}══ $* ══${RESET}"; }
-ok()      { echo -e "  ${GREEN}✓${RESET} $*"; }
-info()    { echo -e "  ${YELLOW}→${RESET} $*"; }
-err()     { echo -e "  ${RED}✗ ERROR:${RESET} $*" >&2; exit 1; }
-skip()    { echo -e "  ${YELLOW}↷${RESET} $* (already done — skipping)"; }
+banner() { echo -e "\n${CYAN}${BOLD}══ $* ══${RESET}"; }
+ok()     { echo -e "  ${GREEN}✓${RESET} $*"; }
+info()   { echo -e "  ${YELLOW}→${RESET} $*"; }
+err()    { echo -e "  ${RED}✗ ERROR:${RESET} $*" >&2; exit 1; }
+skip()   { echo -e "  ${YELLOW}↷${RESET} $* (already done — skipping)"; }
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+# Safe random string — avoids SIGPIPE from tr | head under pipefail
+rand_hex()  { openssl rand -hex "${1:-16}"; }               # e.g. rand_hex 8 → 16 chars
+rand_b64()  { openssl rand -base64 "${1:-32}"; }            # for auth secrets
 
 # ── Uninstall ─────────────────────────────────────────────────────────────────
 uninstall() {
   banner "NetPulse Uninstaller"
-  read -rp "  This will remove NetPulse, FreeRADIUS config, and OpenVPN. Continue? [y/N] " CONFIRM
+  read -rp "  Remove ALL NetPulse components, packages, DB, and data? [y/N] " CONFIRM
   [[ "$CONFIRM" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
 
-  systemctl stop  netpulse-api netpulse-web freeradius openvpn@server 2>/dev/null || true
-  systemctl disable netpulse-api netpulse-web 2>/dev/null || true
+  # Stop and disable services
+  for svc in netpulse-api netpulse-web freeradius "openvpn@server"; do
+    systemctl stop "$svc" 2>/dev/null || true
+    systemctl disable "$svc" 2>/dev/null || true
+  done
 
+  # Remove systemd units
   rm -f /etc/systemd/system/netpulse-api.service
   rm -f /etc/systemd/system/netpulse-web.service
   systemctl daemon-reload
 
+  # Remove Nginx config
   rm -f /etc/nginx/sites-enabled/netpulse
   rm -f /etc/nginx/sites-available/netpulse
-  nginx -s reload 2>/dev/null || true
+  systemctl reload nginx 2>/dev/null || true
 
-  rm -rf "$NETPULSE_DIR"
+  # Remove VPN helpers and sudoers rule
   rm -f /usr/local/bin/netpulse-vpn-issue
   rm -f /usr/local/bin/netpulse-vpn-revoke
+  rm -f /etc/sudoers.d/netpulse-vpn
 
-  id -u "$NETPULSE_USER" &>/dev/null && userdel "$NETPULSE_USER" || true
+  # Drop DB and user
+  if systemctl is-active postgresql &>/dev/null; then
+    sudo -u postgres psql -c "DROP DATABASE IF EXISTS ${DB_NAME};" 2>/dev/null || true
+    sudo -u postgres psql -c "DROP USER IF EXISTS ${DB_USER};"      2>/dev/null || true
+    ok "Database and user removed"
+  fi
 
-  echo ""
-  ok "NetPulse uninstalled. PostgreSQL data, FreeRADIUS, and OpenVPN packages were left in place."
-  echo "  Run: sudo apt-get remove --purge freeradius* openvpn easy-rsa postgresql*"
-  echo "  And: sudo -u postgres dropdb $DB_NAME && sudo -u postgres dropuser $DB_USER"
+  # Remove OpenVPN PKI and config
+  rm -rf /etc/openvpn/easy-rsa /etc/openvpn/server.conf \
+         /etc/openvpn/ca.crt /etc/openvpn/server.crt /etc/openvpn/server.key \
+         /etc/openvpn/dh.pem /etc/openvpn/ta.key /etc/openvpn/ccd \
+         /etc/openvpn/crl.pem /var/log/openvpn
+
+  # Remove app directory and system user
+  rm -rf "$NETPULSE_DIR"
+  id -u "$NETPULSE_USER" &>/dev/null && userdel -r "$NETPULSE_USER" 2>/dev/null || true
+
+  # Remove packages
+  DEBIAN_FRONTEND=noninteractive apt-get remove --purge -y -qq \
+    freeradius freeradius-postgresql freeradius-utils \
+    openvpn easy-rsa \
+    "postgresql-${PG_VERSION}" postgresql-client \
+    nginx certbot python3-certbot-nginx 2>/dev/null || true
+  apt-get autoremove -y -qq 2>/dev/null || true
+
+  ok "NetPulse fully uninstalled."
   exit 0
 }
 
 [[ "${1:-}" == "--uninstall" ]] && uninstall
+
+# ── Upgrade (pull + rebuild + migrate + restart) ───────────────────────────────
+upgrade() {
+  banner "NetPulse Upgrade"
+  [[ -d "$NETPULSE_DIR/.git" ]] || err "NetPulse is not installed at $NETPULSE_DIR"
+
+  PREV_SHA=$(git -C "$NETPULSE_DIR" rev-parse --short HEAD)
+  info "Current: $PREV_SHA — pulling latest..."
+  git -C "$NETPULSE_DIR" fetch origin main --quiet
+  git -C "$NETPULSE_DIR" reset --hard origin/main --quiet
+  NEW_SHA=$(git -C "$NETPULSE_DIR" rev-parse --short HEAD)
+
+  cd "$NETPULSE_DIR"
+  . "$NETPULSE_DIR/.env"
+
+  sudo -u "$NETPULSE_USER" HOME="/home/$NETPULSE_USER" pnpm install --frozen-lockfile --silent
+  sudo -u "$NETPULSE_USER" HOME="/home/$NETPULSE_USER" \
+    env NODE_ENV=production pnpm --filter @workspace/api-server run build --silent
+  sudo -u "$NETPULSE_USER" HOME="/home/$NETPULSE_USER" \
+    env NODE_ENV=production PORT=3000 BASE_PATH=/ \
+    pnpm --filter @workspace/isp-portal run build --silent
+  sudo -u "$NETPULSE_USER" HOME="/home/$NETPULSE_USER" \
+    env DATABASE_URL="$DATABASE_URL" pnpm --filter @workspace/db run push --force
+
+  chown -R "$NETPULSE_USER:$NETPULSE_USER" "$NETPULSE_DIR"
+  systemctl restart netpulse-api netpulse-web
+
+  echo ""
+  ok "Upgrade complete: $PREV_SHA → $NEW_SHA"
+  exit 0
+}
+
+[[ "${1:-}" == "--upgrade" ]] && upgrade
 
 # ── Preflight ─────────────────────────────────────────────────────────────────
 banner "Preflight"
@@ -75,15 +144,15 @@ banner "Preflight"
   err "Requires Ubuntu 22.04 or 24.04 (detected: $VERSION_ID)"
 ok "Ubuntu $VERSION_ID detected"
 
-# Prompt for config values
-read -rp "  Domain / IP for this server (e.g. isp.example.com or 192.168.1.10): " NP_DOMAIN
+read -rp "  Domain or IP for this server (e.g. isp.example.com or 192.168.1.10): " NP_DOMAIN
 NP_DOMAIN="${NP_DOMAIN:-localhost}"
 
-BETTER_AUTH_SECRET=$(openssl rand -base64 32)
-SESSION_SECRET=$(openssl rand -base64 32)
-DB_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
+# Secrets — use openssl rand without pipes to avoid SIGPIPE under pipefail
+DB_PASS=$(rand_hex 12)           # 24 hex chars, safe characters
+BETTER_AUTH_SECRET=$(rand_b64 32)
+SESSION_SECRET=$(rand_b64 32)
 
-ok "Generated random secrets (stored in $NETPULSE_DIR/.env)"
+ok "Random secrets generated"
 
 # ── System packages ───────────────────────────────────────────────────────────
 banner "System packages"
@@ -92,7 +161,8 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 
 # Node.js via NodeSource
-if ! command -v node &>/dev/null || [[ "$(node --version | cut -d. -f1 | tr -d 'v')" -lt "$NODE_VERSION" ]]; then
+if ! command -v node &>/dev/null || \
+   [[ "$(node --version 2>/dev/null | cut -d. -f1 | tr -d 'v')" -lt "$NODE_VERSION" ]]; then
   info "Installing Node.js $NODE_VERSION..."
   curl -fsSL "https://deb.nodesource.com/setup_${NODE_VERSION}.x" | bash - >/dev/null
   apt-get install -y -qq nodejs
@@ -103,16 +173,25 @@ fi
 
 # pnpm
 if ! command -v pnpm &>/dev/null; then
-  info "Installing pnpm..."
   npm install -g "pnpm@$PNPM_VERSION" --quiet
   ok "pnpm $(pnpm --version)"
 else
   skip "pnpm $(pnpm --version)"
 fi
 
-# Core packages
-PKGS=(git nginx postgresql postgresql-client freeradius freeradius-postgresql
-      freeradius-utils openvpn easy-rsa certbot python3-certbot-nginx ufw curl)
+# PostgreSQL 16 (pinned for freeradius-postgresql compatibility)
+if ! dpkg -s "postgresql-${PG_VERSION}" &>/dev/null; then
+  info "Installing PostgreSQL ${PG_VERSION}..."
+  apt-get install -y -qq \
+    "postgresql-${PG_VERSION}" \
+    "postgresql-client-${PG_VERSION}"
+else
+  skip "PostgreSQL ${PG_VERSION}"
+fi
+
+# Other packages
+PKGS=(git nginx freeradius freeradius-postgresql freeradius-utils
+      openvpn easy-rsa certbot python3-certbot-nginx ufw curl openssl)
 MISSING=()
 for pkg in "${PKGS[@]}"; do
   dpkg -s "$pkg" &>/dev/null || MISSING+=("$pkg")
@@ -127,58 +206,60 @@ ok "All system packages present"
 banner "PostgreSQL"
 
 PG_VER=$(psql --version | grep -oP '\d+' | head -1)
-PG_HBA="/etc/postgresql/${PG_VER}/main/pg_hba.conf"
 
-systemctl is-active postgresql &>/dev/null || systemctl start postgresql
-systemctl enable postgresql --quiet
+systemctl is-active "postgresql@${PG_VER}-main" &>/dev/null || \
+  systemctl is-active postgresql &>/dev/null || \
+  systemctl start "postgresql@${PG_VER}-main" 2>/dev/null || \
+  systemctl start postgresql
+systemctl enable "postgresql@${PG_VER}-main" --quiet 2>/dev/null || \
+  systemctl enable postgresql --quiet
 
-# Create DB user
-if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
-  info "Creating DB user $DB_USER..."
-  sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
+# Create DB user (idempotent)
+if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" | grep -q 1; then
+  sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASS}';" >/dev/null
+  skip "DB user ${DB_USER} (password updated)"
+else
+  sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}';"
   ok "DB user created"
-else
-  # Update password in case it changed
-  sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASS';" >/dev/null
-  skip "DB user $DB_USER"
 fi
 
-# Create database
-if ! sudo -u postgres psql -lqt | cut -d\| -f1 | grep -qw "$DB_NAME"; then
-  info "Creating database $DB_NAME..."
-  sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
-  ok "Database $DB_NAME created"
+# Create database (idempotent)
+if sudo -u postgres psql -lqt | cut -d\| -f1 | grep -qw "${DB_NAME}"; then
+  skip "Database ${DB_NAME}"
 else
-  skip "Database $DB_NAME"
+  sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};"
+  ok "Database ${DB_NAME} created"
 fi
 
-# Apply FreeRADIUS schema (idempotent: skip if radcheck exists)
+# Apply FreeRADIUS schema (once only)
 FR_SCHEMA="/etc/freeradius/3.0/mods-config/sql/main/postgresql/schema.sql"
 if [[ -f "$FR_SCHEMA" ]]; then
-  if ! sudo -u postgres psql -d "$DB_NAME" -tAc "SELECT 1 FROM information_schema.tables WHERE table_name='radcheck'" | grep -q 1; then
+  if ! sudo -u postgres psql -d "${DB_NAME}" -tAc \
+       "SELECT 1 FROM information_schema.tables WHERE table_name='radcheck'" | grep -q 1; then
     info "Applying FreeRADIUS schema..."
-    sudo -u postgres psql -d "$DB_NAME" -f "$FR_SCHEMA" >/dev/null
-    # Extra table for NAS secrets
-    sudo -u postgres psql -d "$DB_NAME" <<'SQL'
-      CREATE TABLE IF NOT EXISTS radnas (
-        id        SERIAL PRIMARY KEY,
-        nasname   INET          NOT NULL UNIQUE,
-        shortname VARCHAR(32),
-        secret    VARCHAR(64)   NOT NULL,
-        created_at TIMESTAMPTZ  DEFAULT NOW()
-      );
-      GRANT ALL ON radnas TO netpulse;
-      GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO netpulse;
-SQL
+    sudo -u postgres psql -d "${DB_NAME}" -f "$FR_SCHEMA" >/dev/null
     ok "FreeRADIUS schema applied"
   else
     skip "FreeRADIUS schema"
   fi
 fi
 
-# Grant permissions on all tables
-sudo -u postgres psql -d "$DB_NAME" -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DB_USER;" >/dev/null
-sudo -u postgres psql -d "$DB_NAME" -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO $DB_USER;" >/dev/null
+# radnas table (NAS secrets managed by the app)
+sudo -u postgres psql -d "${DB_NAME}" <<'RADNAS_SQL' >/dev/null
+CREATE TABLE IF NOT EXISTS radnas (
+  id         SERIAL PRIMARY KEY,
+  nasname    VARCHAR(128)  NOT NULL UNIQUE,
+  shortname  VARCHAR(32),
+  secret     VARCHAR(64)   NOT NULL,
+  created_at TIMESTAMPTZ   DEFAULT NOW()
+);
+RADNAS_SQL
+
+# Permissions
+sudo -u postgres psql -d "${DB_NAME}" \
+  -c "GRANT ALL PRIVILEGES ON ALL TABLES    IN SCHEMA public TO ${DB_USER};" >/dev/null
+sudo -u postgres psql -d "${DB_NAME}" \
+  -c "GRANT USAGE, SELECT ON ALL SEQUENCES  IN SCHEMA public TO ${DB_USER};" >/dev/null
 ok "DB permissions granted"
 
 DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}"
@@ -186,12 +267,12 @@ DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}"
 # ── Application ───────────────────────────────────────────────────────────────
 banner "NetPulse Application"
 
-# System user
-id -u "$NETPULSE_USER" &>/dev/null || useradd -r -m -s /bin/bash "$NETPULSE_USER"
-ok "System user $NETPULSE_USER"
+id -u "$NETPULSE_USER" &>/dev/null || \
+  useradd -r -m -d "/home/${NETPULSE_USER}" -s /bin/bash "$NETPULSE_USER"
+ok "System user ${NETPULSE_USER}"
 
-# Clone / update repo
-if [[ -d "$NETPULSE_DIR/.git" ]]; then
+# Clone / update
+if [[ -d "${NETPULSE_DIR}/.git" ]]; then
   info "Updating existing repo..."
   git -C "$NETPULSE_DIR" fetch origin main --quiet
   git -C "$NETPULSE_DIR" reset --hard origin/main --quiet
@@ -199,58 +280,61 @@ if [[ -d "$NETPULSE_DIR/.git" ]]; then
 else
   info "Cloning repo..."
   git clone --depth=1 "$REPO_URL" "$NETPULSE_DIR" --quiet
-  ok "Repo cloned to $NETPULSE_DIR"
+  ok "Repo cloned"
 fi
 
-# Write .env
-BETTER_AUTH_URL="http${NP_DOMAIN:+s}://${NP_DOMAIN}/api"
-[[ "$NP_DOMAIN" == "localhost" || "$NP_DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && \
-  BETTER_AUTH_URL="http://${NP_DOMAIN}/api"
+# Determine protocol for BETTER_AUTH_URL
+PROTO="http"
+if [[ "$NP_DOMAIN" != "localhost" && ! "$NP_DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  PROTO="https"
+fi
 
-cat > "$NETPULSE_DIR/.env" <<ENV
+cat > "${NETPULSE_DIR}/.env" <<ENV
 NODE_ENV=production
 PORT=${API_PORT}
 DATABASE_URL=${DATABASE_URL}
 BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-BETTER_AUTH_URL=${BETTER_AUTH_URL}
+BETTER_AUTH_URL=${PROTO}://${NP_DOMAIN}/api
 SESSION_SECRET=${SESSION_SECRET}
 OPENVPN_ENABLED=true
 OPENVPN_EASY_RSA_DIR=/etc/openvpn/easy-rsa
 ENV
-chmod 600 "$NETPULSE_DIR/.env"
-chown "$NETPULSE_USER:$NETPULSE_USER" "$NETPULSE_DIR/.env"
-ok ".env written"
+chmod 600 "${NETPULSE_DIR}/.env"
 
-# Install dependencies + build
-info "Installing pnpm dependencies (this may take a few minutes)..."
+# Build
 cd "$NETPULSE_DIR"
-sudo -u "$NETPULSE_USER" HOME="/home/$NETPULSE_USER" pnpm install --frozen-lockfile --silent
+chown -R "${NETPULSE_USER}:${NETPULSE_USER}" "$NETPULSE_DIR"
+
+info "Installing pnpm dependencies..."
+sudo -u "$NETPULSE_USER" HOME="/home/${NETPULSE_USER}" \
+  pnpm install --frozen-lockfile --silent
 ok "Dependencies installed"
 
 info "Building API server..."
-sudo -u "$NETPULSE_USER" HOME="/home/$NETPULSE_USER" \
+sudo -u "$NETPULSE_USER" HOME="/home/${NETPULSE_USER}" \
   env NODE_ENV=production \
   pnpm --filter @workspace/api-server run build --silent
-ok "API server built"
+ok "API server built → artifacts/api-server/dist/index.mjs"
 
 info "Building frontend..."
-sudo -u "$NETPULSE_USER" HOME="/home/$NETPULSE_USER" \
-  env NODE_ENV=production PORT=3000 BASE_PATH=/ \
+sudo -u "$NETPULSE_USER" HOME="/home/${NETPULSE_USER}" \
+  env NODE_ENV=production PORT="$WEB_PORT" BASE_PATH=/ \
   pnpm --filter @workspace/isp-portal run build --silent
-ok "Frontend built"
+ok "Frontend built → artifacts/isp-portal/dist/public"
 
-info "Running database migrations..."
-sudo -u "$NETPULSE_USER" HOME="/home/$NETPULSE_USER" \
+info "Running DB migrations..."
+sudo -u "$NETPULSE_USER" HOME="/home/${NETPULSE_USER}" \
   env DATABASE_URL="$DATABASE_URL" \
   pnpm --filter @workspace/db run push --force
-ok "Database migrations applied"
+ok "DB migrations applied"
 
-chown -R "$NETPULSE_USER:$NETPULSE_USER" "$NETPULSE_DIR"
+chown -R "${NETPULSE_USER}:${NETPULSE_USER}" "$NETPULSE_DIR"
 
 # ── Systemd services ──────────────────────────────────────────────────────────
 banner "Systemd services"
 
-cat > /etc/systemd/system/netpulse-api.service <<UNIT
+# API service
+cat > /etc/systemd/system/netpulse-api.service <<UNIT_API
 [Unit]
 Description=NetPulse API Server
 After=network.target postgresql.service
@@ -269,35 +353,59 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-UNIT
+UNIT_API
+
+# Web / frontend service (vite preview serving the production build)
+cat > /etc/systemd/system/netpulse-web.service <<UNIT_WEB
+[Unit]
+Description=NetPulse Web Frontend (vite preview)
+After=network.target
+
+[Service]
+Type=simple
+User=${NETPULSE_USER}
+WorkingDirectory=${NETPULSE_DIR}
+Environment=PORT=${WEB_PORT}
+Environment=BASE_PATH=/
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/pnpm --filter @workspace/isp-portal run serve
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+UNIT_WEB
 
 systemctl daemon-reload
-systemctl enable netpulse-api --quiet
-systemctl restart netpulse-api
-ok "netpulse-api service started"
-
-# Wait for API to be up
-info "Waiting for API to respond..."
-for i in $(seq 1 20); do
-  curl -sf "http://localhost:${API_PORT}/api/healthz" >/dev/null 2>&1 && break
-  sleep 2
+for svc in netpulse-api netpulse-web; do
+  systemctl enable "$svc" --quiet
+  systemctl restart "$svc"
+  ok "$svc started"
 done
-curl -sf "http://localhost:${API_PORT}/api/healthz" >/dev/null 2>&1 && ok "API healthz OK" || \
-  info "API not yet responding — check: journalctl -u netpulse-api -n 50"
+
+# Wait for API healthz
+info "Waiting for API to respond..."
+for i in $(seq 1 30); do
+  curl -sf "http://localhost:${API_PORT}/api/healthz" >/dev/null 2>&1 && break || sleep 2
+done
+curl -sf "http://localhost:${API_PORT}/api/healthz" >/dev/null 2>&1 && \
+  ok "API healthz OK" || info "API not yet responding — check: journalctl -u netpulse-api -n 50"
 
 # ── Nginx ─────────────────────────────────────────────────────────────────────
 banner "Nginx"
 
-FRONTEND_DIR="${NETPULSE_DIR}/artifacts/isp-portal/dist/public"
+cat > /etc/nginx/sites-available/netpulse <<NGINX_CONF
+upstream netpulse_api { server 127.0.0.1:${API_PORT}; }
+upstream netpulse_web { server 127.0.0.1:${WEB_PORT}; }
 
-cat > /etc/nginx/sites-available/netpulse <<NGINX
 server {
     listen 80;
     server_name ${NP_DOMAIN};
 
-    # API — proxy to Express
     location /api/ {
-        proxy_pass         http://127.0.0.1:${API_PORT};
+        proxy_pass         http://netpulse_api;
         proxy_http_version 1.1;
         proxy_set_header   Host              \$host;
         proxy_set_header   X-Real-IP         \$remote_addr;
@@ -306,26 +414,91 @@ server {
         proxy_read_timeout 120s;
     }
 
-    # Frontend — static files
     location / {
-        root  ${FRONTEND_DIR};
-        index index.html;
-        try_files \$uri \$uri/ /index.html;
+        proxy_pass         http://netpulse_web;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
     }
 }
-NGINX
+NGINX_CONF
 
 rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 ln -sf /etc/nginx/sites-available/netpulse /etc/nginx/sites-enabled/netpulse
-nginx -t -q && systemctl reload nginx
-ok "Nginx configured and reloaded"
+nginx -t -q
+systemctl reload nginx
+ok "Nginx configured"
 
-# Optional: TLS via certbot (skip if localhost or bare IP)
+# ── TLS ───────────────────────────────────────────────────────────────────────
+banner "TLS / HTTPS"
+
+IS_REAL_DOMAIN=false
 if [[ "$NP_DOMAIN" != "localhost" && ! "$NP_DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  info "Obtaining TLS certificate for $NP_DOMAIN..."
+  IS_REAL_DOMAIN=true
+fi
+
+if $IS_REAL_DOMAIN; then
+  info "Requesting Let's Encrypt certificate for $NP_DOMAIN..."
   certbot --nginx -d "$NP_DOMAIN" --non-interactive --agree-tos \
-    --email "admin@${NP_DOMAIN}" --redirect --quiet && ok "TLS certificate obtained" || \
-    info "TLS setup skipped (DNS not resolving yet?) — run: certbot --nginx -d $NP_DOMAIN"
+    --email "admin@${NP_DOMAIN}" --redirect --quiet && \
+    ok "TLS certificate obtained (Let's Encrypt)" || {
+    info "certbot failed (DNS not resolving yet?) — falling back to self-signed cert"
+    IS_REAL_DOMAIN=false
+  }
+fi
+
+if ! $IS_REAL_DOMAIN; then
+  # Self-signed certificate for IP / localhost installations
+  SSL_DIR="/etc/ssl/netpulse"
+  mkdir -p "$SSL_DIR"
+  if [[ ! -f "${SSL_DIR}/server.crt" ]]; then
+    openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
+      -keyout "${SSL_DIR}/server.key" \
+      -out    "${SSL_DIR}/server.crt" \
+      -subj   "/C=KE/O=NetPulse ISP/CN=${NP_DOMAIN}" \
+      -addext "subjectAltName=IP:${NP_DOMAIN},DNS:${NP_DOMAIN}" \
+      2>/dev/null
+    ok "Self-signed certificate generated (valid 10 years)"
+  else
+    skip "Self-signed certificate"
+  fi
+
+  # Append SSL server block to Nginx config
+  cat >> /etc/nginx/sites-available/netpulse <<NGINX_SSL
+
+server {
+    listen 443 ssl;
+    server_name ${NP_DOMAIN};
+
+    ssl_certificate     ${SSL_DIR}/server.crt;
+    ssl_certificate_key ${SSL_DIR}/server.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    location /api/ {
+        proxy_pass         http://netpulse_api;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto https;
+        proxy_read_timeout 120s;
+    }
+
+    location / {
+        proxy_pass         http://netpulse_web;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto https;
+    }
+}
+NGINX_SSL
+  nginx -t -q && systemctl reload nginx
+  ok "HTTPS on port 443 (self-signed — browser will warn on first visit)"
 fi
 
 # ── FreeRADIUS ────────────────────────────────────────────────────────────────
@@ -333,118 +506,176 @@ banner "FreeRADIUS"
 
 FR_DIR="/etc/freeradius/3.0"
 
-# Enable SQL module
-if [[ ! -L "${FR_DIR}/mods-enabled/sql" ]]; then
-  ln -s "${FR_DIR}/mods-available/sql" "${FR_DIR}/mods-enabled/sql"
-fi
-
-# Configure SQL module for PostgreSQL
-cat > "${FR_DIR}/mods-available/sql" <<'FR_SQL'
+# SQL module — write a clean config (idempotent)
+cat > "${FR_DIR}/mods-available/sql" <<FR_SQL
 sql {
-    driver = "rlm_sql_postgresql"
-    dialect = "postgresql"
+    driver    = "rlm_sql_postgresql"
+    dialect   = "postgresql"
 
-    server = "localhost"
-    port = 5432
-    login = "PLACEHOLDER_USER"
-    password = "PLACEHOLDER_PASS"
-    radius_db = "PLACEHOLDER_DB"
+    server    = "localhost"
+    port      = 5432
+    login     = "${DB_USER}"
+    password  = "${DB_PASS}"
+    radius_db = "${DB_NAME}"
 
-    acct_table1     = "radacct"
-    acct_table2     = "radacct"
-    postauth_table  = "radpostauth"
-    authcheck_table = "radcheck"
-    groupcheck_table = "radgroupcheck"
-    authreply_table  = "radreply"
-    groupreply_table = "radgroupreply"
-    usergroup_table  = "radusergroup"
+    acct_table1       = "radacct"
+    acct_table2       = "radacct"
+    postauth_table    = "radpostauth"
+    authcheck_table   = "radcheck"
+    groupcheck_table  = "radgroupcheck"
+    authreply_table   = "radreply"
+    groupreply_table  = "radgroupreply"
+    usergroup_table   = "radusergroup"
     delete_stale_sessions = yes
+    read_clients      = yes
+    client_table      = "radnas"
 
     pool {
-        start = 5
-        min   = 4
-        max   = 32
-        spare = 3
-        uses  = 0
-        lifetime   = 0
+        start        = 5
+        min          = 4
+        max          = 32
+        spare        = 3
+        uses         = 0
+        lifetime     = 0
         idle_timeout = 60
     }
-
-    client_table = "radnas"
-    read_clients = yes
 }
 FR_SQL
 
-sed -i "s/PLACEHOLDER_USER/${DB_USER}/g" "${FR_DIR}/mods-available/sql"
-sed -i "s/PLACEHOLDER_PASS/${DB_PASS}/g" "${FR_DIR}/mods-available/sql"
-sed -i "s/PLACEHOLDER_DB/${DB_NAME}/g"   "${FR_DIR}/mods-available/sql"
+[[ -L "${FR_DIR}/mods-enabled/sql" ]] || \
+  ln -sf "${FR_DIR}/mods-available/sql" "${FR_DIR}/mods-enabled/sql"
 
-# Enable sql in authorize / accounting / session in default virtual server
-for SECTION in authorize accounting session; do
-  if ! grep -q "^[[:space:]]*sql$" "${FR_DIR}/sites-available/default" 2>/dev/null; then
-    sed -i "/^${SECTION}[[:space:]]*{/,/^}/ s/#[[:space:]]*sql/\tsql/" \
-      "${FR_DIR}/sites-available/default" 2>/dev/null || true
-  fi
-done
+# Write a clean netpulse virtual server (avoids brittle sed on default config)
+cat > "${FR_DIR}/sites-available/netpulse" <<'FR_SITE'
+server netpulse {
+    listen {
+        type = auth
+        ipaddr = *
+        port = 1812
+    }
+    listen {
+        type = acct
+        ipaddr = *
+        port = 1813
+    }
 
-# inner-tunnel — enable sql in authorize
-sed -i 's/#[[:space:]]*sql/\tsql/' "${FR_DIR}/sites-available/inner-tunnel" 2>/dev/null || true
+    authorize {
+        filter_username
+        preprocess
+        chap
+        mschap
+        tolower_username
+        suffix
+        eap { ok = return }
+        sql
+        pap
+    }
 
-# FreeRADIUS needs to read the DB socket — add to postgres group
-usermod -aG ssl-cert freerad 2>/dev/null || true
+    authenticate {
+        Auth-Type PAP  { pap  }
+        Auth-Type CHAP { chap }
+        Auth-Type MS-CHAP { mschap }
+        eap
+    }
+
+    preacct {
+        preprocess
+        acct_unique
+        suffix
+        files
+    }
+
+    accounting {
+        detail
+        unix
+        sql
+        exec
+        attr_filter.accounting_response
+    }
+
+    session {
+        sql
+    }
+
+    post-auth {
+        update session-state { }
+        sql
+        exec
+        remove_reply_message_if_eap
+        Post-Auth-Type REJECT {
+            sql
+            attr_filter.access_reject
+            eap
+            remove_reply_message_if_eap
+        }
+    }
+}
+FR_SITE
+
+[[ -L "${FR_DIR}/sites-enabled/netpulse" ]] || \
+  ln -sf "${FR_DIR}/sites-available/netpulse" "${FR_DIR}/sites-enabled/netpulse"
+
+# Validate config before restarting
+freeradius -C -d "${FR_DIR}" 2>/dev/null && ok "FreeRADIUS config valid" || \
+  info "FreeRADIUS config warning — check: freeradius -C"
 
 systemctl enable freeradius --quiet
 systemctl restart freeradius
-ok "FreeRADIUS configured and restarted"
+ok "FreeRADIUS running"
 
 # ── OpenVPN PKI ───────────────────────────────────────────────────────────────
 banner "OpenVPN"
 
 EASYRSA_DIR="/etc/openvpn/easy-rsa"
 OVPN_DIR="/etc/openvpn"
+mkdir -p /var/log/openvpn
 
-if [[ ! -d "$EASYRSA_DIR/pki" ]]; then
-  info "Initialising PKI (this takes ~2 minutes for DH params)..."
-  make-cadir "$EASYRSA_DIR" 2>/dev/null || cp -r /usr/share/easy-rsa "$EASYRSA_DIR"
-  cd "$EASYRSA_DIR"
+if [[ ! -d "${EASYRSA_DIR}/pki" ]]; then
+  info "Initialising PKI — CA, server cert, DH params (~2 min)..."
 
-  # easy-rsa vars
-  cat > "$EASYRSA_DIR/vars" <<EASYRSA_VARS
-set_var EASYRSA_BATCH         "yes"
-set_var EASYRSA_REQ_CN        "NetPulse-CA"
-set_var EASYRSA_REQ_COUNTRY   "KE"
-set_var EASYRSA_REQ_PROVINCE  "Nairobi"
-set_var EASYRSA_REQ_CITY      "Nairobi"
-set_var EASYRSA_REQ_ORG       "NetPulse ISP"
-set_var EASYRSA_REQ_EMAIL     "admin@${NP_DOMAIN}"
-set_var EASYRSA_REQ_OU        "ISP"
-set_var EASYRSA_KEY_SIZE      2048
-set_var EASYRSA_CA_EXPIRE     3650
-set_var EASYRSA_CERT_EXPIRE   825
+  # easy-rsa 3.x
+  if command -v make-cadir &>/dev/null; then
+    make-cadir "$EASYRSA_DIR"
+  else
+    cp -r /usr/share/easy-rsa "$EASYRSA_DIR"
+  fi
+
+  cat > "${EASYRSA_DIR}/vars" <<EASYRSA_VARS
+set_var EASYRSA_BATCH        "yes"
+set_var EASYRSA_REQ_CN       "NetPulse-CA"
+set_var EASYRSA_REQ_COUNTRY  "KE"
+set_var EASYRSA_REQ_PROVINCE "Nairobi"
+set_var EASYRSA_REQ_CITY     "Nairobi"
+set_var EASYRSA_REQ_ORG      "NetPulse ISP"
+set_var EASYRSA_REQ_EMAIL    "admin@${NP_DOMAIN}"
+set_var EASYRSA_REQ_OU       "ISP"
+set_var EASYRSA_KEY_SIZE     2048
+set_var EASYRSA_CA_EXPIRE    3650
+set_var EASYRSA_CERT_EXPIRE  825
 EASYRSA_VARS
 
+  cd "$EASYRSA_DIR"
   ./easyrsa init-pki
   ./easyrsa build-ca nopass
   ./easyrsa gen-req server nopass
   ./easyrsa sign-req server server
   ./easyrsa gen-dh
-  openvpn --genkey secret "$EASYRSA_DIR/pki/ta.key"
+  openvpn --genkey secret "${EASYRSA_DIR}/pki/ta.key"
   ok "PKI initialised"
 else
   skip "PKI already initialised"
 fi
 
-cd "$OVPN_DIR"
-cp -f "$EASYRSA_DIR/pki/ca.crt"                   "$OVPN_DIR/ca.crt"
-cp -f "$EASYRSA_DIR/pki/issued/server.crt"         "$OVPN_DIR/server.crt"
-cp -f "$EASYRSA_DIR/pki/private/server.key"        "$OVPN_DIR/server.key"
-cp -f "$EASYRSA_DIR/pki/dh.pem"                    "$OVPN_DIR/dh.pem"
-cp -f "$EASYRSA_DIR/pki/ta.key"                    "$OVPN_DIR/ta.key"
+# Copy PKI files into /etc/openvpn
+cp -f "${EASYRSA_DIR}/pki/ca.crt"              "$OVPN_DIR/ca.crt"
+cp -f "${EASYRSA_DIR}/pki/issued/server.crt"   "$OVPN_DIR/server.crt"
+cp -f "${EASYRSA_DIR}/pki/private/server.key"  "$OVPN_DIR/server.key"
+cp -f "${EASYRSA_DIR}/pki/dh.pem"              "$OVPN_DIR/dh.pem"
+cp -f "${EASYRSA_DIR}/pki/ta.key"              "$OVPN_DIR/ta.key"
+mkdir -p "${OVPN_DIR}/ccd"
 
-mkdir -p "$OVPN_DIR/ccd"
-
-if [[ ! -f "$OVPN_DIR/server.conf" ]]; then
-  cat > "$OVPN_DIR/server.conf" <<OVPN_CONF
+if [[ ! -f "${OVPN_DIR}/server.conf" ]]; then
+  cat > "${OVPN_DIR}/server.conf" <<OVPN_CONF
 port 1194
 proto udp
 dev tun
@@ -458,6 +689,7 @@ tls-auth /etc/openvpn/ta.key 0
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist /var/log/openvpn/ipp.txt
 client-config-dir /etc/openvpn/ccd
+crl-verify /etc/openvpn/crl.pem
 
 push "redirect-gateway def1 bypass-dhcp"
 push "dhcp-option DNS 8.8.8.8"
@@ -475,22 +707,28 @@ group nogroup
 persist-key
 persist-tun
 
-status /var/log/openvpn/status.log
+status /var/log/openvpn/status.log 60
 log    /var/log/openvpn/openvpn.log
 verb 3
 OVPN_CONF
 fi
 
-mkdir -p /var/log/openvpn
+# Initial CRL (required by crl-verify on startup)
+if [[ ! -f "${OVPN_DIR}/crl.pem" ]]; then
+  cd "$EASYRSA_DIR"
+  ./easyrsa gen-crl
+  cp -f "${EASYRSA_DIR}/pki/crl.pem" "${OVPN_DIR}/crl.pem"
+  chmod 644 "${OVPN_DIR}/crl.pem"
+fi
+
+# IP forwarding
+echo 1 > /proc/sys/net/ipv4/ip_forward
+sed -i 's|^#*net.ipv4.ip_forward.*|net.ipv4.ip_forward=1|' /etc/sysctl.conf
+sysctl -p --quiet
+
 systemctl enable openvpn@server --quiet
 systemctl restart openvpn@server
 ok "OpenVPN server running on UDP 1194"
-
-# Enable IP forwarding
-echo 1 > /proc/sys/net/ipv4/ip_forward
-sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' /etc/sysctl.conf
-sysctl -p --quiet
-ok "IP forwarding enabled"
 
 # ── VPN management helpers ────────────────────────────────────────────────────
 banner "VPN management helpers"
@@ -508,14 +746,15 @@ EASYRSA_DIR="/etc/openvpn/easy-rsa"
 OVPN_DIR="/etc/openvpn"
 
 cd "$EASYRSA_DIR"
-./easyrsa gen-req "$CN" nopass
-./easyrsa sign-req client "$CN"
+./easyrsa gen-req   "$CN" nopass 2>/dev/null
+./easyrsa sign-req client "$CN"  2>/dev/null
 
-SERVER_IP=$(curl -sf https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
+# Detect public IP (fallback to hostname)
+SERVER_IP=$(curl -sf --max-time 5 https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
 
 CA=$(cat "$OVPN_DIR/ca.crt")
-CERT=$(openssl x509 -in "$EASYRSA_DIR/pki/issued/${CN}.crt")
-KEY=$(cat "$EASYRSA_DIR/pki/private/${CN}.key")
+CERT=$(openssl x509 -in "${EASYRSA_DIR}/pki/issued/${CN}.crt")
+KEY=$(cat "${EASYRSA_DIR}/pki/private/${CN}.key")
 TA=$(cat "$OVPN_DIR/ta.key")
 
 cat <<OVPN
@@ -560,10 +799,9 @@ CN="${1:-}"
 
 EASYRSA_DIR="/etc/openvpn/easy-rsa"
 cd "$EASYRSA_DIR"
-
-./easyrsa revoke "$CN"
-./easyrsa gen-crl
-cp -f "$EASYRSA_DIR/pki/crl.pem" /etc/openvpn/crl.pem
+./easyrsa revoke "$CN" 2>/dev/null
+./easyrsa gen-crl       2>/dev/null
+cp -f "${EASYRSA_DIR}/pki/crl.pem" /etc/openvpn/crl.pem
 chmod 644 /etc/openvpn/crl.pem
 systemctl reload openvpn@server
 echo "Revoked $CN and reloaded OpenVPN CRL"
@@ -571,61 +809,57 @@ VPN_REVOKE
 chmod 755 /usr/local/bin/netpulse-vpn-revoke
 ok "/usr/local/bin/netpulse-vpn-revoke"
 
-# Allow API server (netpulse user) to run helpers as root via sudoers
-SUDOERS_LINE="${NETPULSE_USER} ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke"
-echo "$SUDOERS_LINE" > /etc/sudoers.d/netpulse-vpn
+# Sudoers: allow netpulse user to run VPN helpers without password
+echo "${NETPULSE_USER} ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke" \
+  > /etc/sudoers.d/netpulse-vpn
 chmod 440 /etc/sudoers.d/netpulse-vpn
 ok "sudoers rule for VPN helpers"
 
 # ── Firewall ──────────────────────────────────────────────────────────────────
 banner "Firewall (ufw)"
 
-ufw --force reset >/dev/null
+ufw --force reset   >/dev/null
 ufw default deny incoming  >/dev/null
 ufw default allow outgoing >/dev/null
-ufw allow 22/tcp   comment "SSH"       >/dev/null
-ufw allow 80/tcp   comment "HTTP"      >/dev/null
-ufw allow 443/tcp  comment "HTTPS"     >/dev/null
-ufw allow 1194/udp comment "OpenVPN"   >/dev/null
-ufw allow 1812/udp comment "RADIUS"    >/dev/null
-ufw allow 1813/udp comment "RADIUS acct" >/dev/null
-ufw --force enable >/dev/null
+ufw allow 22/tcp    comment "SSH"            >/dev/null
+ufw allow 80/tcp    comment "HTTP"           >/dev/null
+ufw allow 443/tcp   comment "HTTPS"          >/dev/null
+ufw allow 1194/udp  comment "OpenVPN"        >/dev/null
+ufw allow 1812/udp  comment "RADIUS auth"    >/dev/null
+ufw allow 1813/udp  comment "RADIUS acct"    >/dev/null
+ufw --force enable  >/dev/null
 ok "Firewall active (22, 80, 443, 1194/udp, 1812-1813/udp)"
 
 # ── Post-install summary ──────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}${BOLD}╔══════════════════════════════════════════════════════════╗"
-echo -e "║          NetPulse ISP Manager — Installation Complete     ║"
+echo -e "║        NetPulse ISP Manager — Installation Complete       ║"
 echo -e "╚══════════════════════════════════════════════════════════╝${RESET}"
 echo ""
 
-PROTO="http"
-[[ "$NP_DOMAIN" != "localhost" && ! "$NP_DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && PROTO="https"
+APP_URL="${PROTO}://${NP_DOMAIN}"
+[[ "$NP_DOMAIN" == "localhost" || "$NP_DOMAIN" =~ ^[0-9] ]] && APP_URL="https://${NP_DOMAIN}"
 
-echo -e "  ${BOLD}Admin URL:${RESET}        ${PROTO}://${NP_DOMAIN}/"
-echo -e "  ${BOLD}API endpoint:${RESET}     ${PROTO}://${NP_DOMAIN}/api"
-echo ""
-echo -e "  ${BOLD}First login:${RESET}"
-echo -e "    Go to ${PROTO}://${NP_DOMAIN}/ and use the setup page"
-echo -e "    to create your first admin account."
+echo -e "  ${BOLD}App URL:${RESET}           ${APP_URL}/"
+echo -e "  ${BOLD}API endpoint:${RESET}      ${APP_URL}/api"
 echo ""
 echo -e "  ${BOLD}Services:${RESET}"
-echo -e "    netpulse-api   $(systemctl is-active netpulse-api)"
-echo -e "    nginx          $(systemctl is-active nginx)"
-echo -e "    freeradius     $(systemctl is-active freeradius)"
-echo -e "    openvpn@server $(systemctl is-active openvpn@server)"
-echo -e "    postgresql     $(systemctl is-active postgresql)"
+printf  "    netpulse-api    %s\n"  "$(systemctl is-active netpulse-api)"
+printf  "    netpulse-web    %s\n"  "$(systemctl is-active netpulse-web)"
+printf  "    nginx           %s\n"  "$(systemctl is-active nginx)"
+printf  "    freeradius      %s\n"  "$(systemctl is-active freeradius)"
+printf  "    openvpn@server  %s\n"  "$(systemctl is-active openvpn@server)"
+printf  "    postgresql      %s\n"  "$(systemctl is-active postgresql || systemctl is-active "postgresql@${PG_VER}-main")"
 echo ""
-echo -e "  ${BOLD}Config file:${RESET}      ${NETPULSE_DIR}/.env"
-echo -e "  ${BOLD}App directory:${RESET}    ${NETPULSE_DIR}"
+echo -e "  ${BOLD}Config:${RESET}            ${NETPULSE_DIR}/.env"
+echo -e "  ${BOLD}Logs:${RESET}              journalctl -u netpulse-api -f"
 echo ""
 echo -e "  ${BOLD}Next steps:${RESET}"
-echo -e "    1. Create your admin account at the URL above"
+echo -e "    1. Open ${APP_URL}/ and create your first admin account"
 echo -e "    2. Add your first router in Settings → Network"
-echo -e "    3. Configure SMTP in Settings → Email for notifications"
-echo -e "    4. Point your NAS devices at this server for RADIUS (port 1812)"
-echo -e "       and add the NAS secret in Settings → RADIUS"
+echo -e "    3. Configure SMTP in Settings → Email"
+echo -e "    4. Point your NAS devices at this server (RADIUS port 1812)"
 echo ""
-echo -e "  ${BOLD}Uninstall:${RESET}        sudo bash ${NETPULSE_DIR}/install.sh --uninstall"
-echo -e "  ${BOLD}Logs:${RESET}             journalctl -u netpulse-api -f"
+echo -e "  ${BOLD}Upgrade:${RESET}           sudo bash ${NETPULSE_DIR}/install.sh --upgrade"
+echo -e "  ${BOLD}Uninstall:${RESET}         sudo bash ${NETPULSE_DIR}/install.sh --uninstall"
 echo ""

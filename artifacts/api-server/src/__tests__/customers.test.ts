@@ -185,6 +185,74 @@ describe("POST /customers", () => {
   });
 });
 
+describe("POST /customers — validation", () => {
+  it("returns 400 when name is missing", async () => {
+    const res = await request(buildApp())
+      .post("/customers")
+      .send({ email: "bob@example.com", phone: "0700000000", address: "456 Test Ave" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when email is missing", async () => {
+    const res = await request(buildApp())
+      .post("/customers")
+      .send({ name: "Bob", phone: "0700000000", address: "456 Test Ave" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when email format is invalid", async () => {
+    const res = await request(buildApp())
+      .post("/customers")
+      .send({ name: "Bob", email: "not-an-email", phone: "0700000000", address: "456 Test Ave" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when phone is missing", async () => {
+    const res = await request(buildApp())
+      .post("/customers")
+      .send({ name: "Bob", email: "bob@example.com", address: "456 Test Ave" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when address is missing", async () => {
+    const res = await request(buildApp())
+      .post("/customers")
+      .send({ name: "Bob", email: "bob@example.com", phone: "0700000000" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when status is an invalid enum value", async () => {
+    const res = await request(buildApp())
+      .post("/customers")
+      .send({ name: "Bob", email: "bob@example.com", phone: "0700000000", address: "456 Test Ave", status: "unknown" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+});
+
+describe("PATCH /customers/:id — validation", () => {
+  it("returns 400 when status is an invalid enum value", async () => {
+    const res = await request(buildApp())
+      .patch("/customers/1")
+      .send({ status: "vip" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when email format is invalid", async () => {
+    const res = await request(buildApp())
+      .patch("/customers/1")
+      .send({ email: "bad-email" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+});
+
 describe("PATCH /customers/:id", () => {
   it("updates a customer and returns the updated record (admin)", async () => {
     const updated = { ...sampleCustomer, name: "Alice Updated", status: "suspended" };

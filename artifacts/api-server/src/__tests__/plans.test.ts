@@ -130,6 +130,90 @@ describe("POST /plans", () => {
   });
 });
 
+describe("POST /plans — validation", () => {
+  it("returns 400 when name is missing", async () => {
+    const res = await request(buildApp())
+      .post("/plans")
+      .send({ downloadSpeed: 100, uploadSpeed: 50, price: 29.99 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when downloadSpeed is missing", async () => {
+    const res = await request(buildApp())
+      .post("/plans")
+      .send({ name: "Pro", uploadSpeed: 50, price: 29.99 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when uploadSpeed is missing", async () => {
+    const res = await request(buildApp())
+      .post("/plans")
+      .send({ name: "Pro", downloadSpeed: 100, price: 29.99 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when price is missing", async () => {
+    const res = await request(buildApp())
+      .post("/plans")
+      .send({ name: "Pro", downloadSpeed: 100, uploadSpeed: 50 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when downloadSpeed is not a number", async () => {
+    const res = await request(buildApp())
+      .post("/plans")
+      .send({ name: "Pro", downloadSpeed: "fast", uploadSpeed: 50, price: 29.99 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when downloadSpeed is not a positive integer", async () => {
+    const res = await request(buildApp())
+      .post("/plans")
+      .send({ name: "Pro", downloadSpeed: -5, uploadSpeed: 50, price: 29.99 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when price is negative", async () => {
+    const res = await request(buildApp())
+      .post("/plans")
+      .send({ name: "Pro", downloadSpeed: 100, uploadSpeed: 50, price: -1 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when billingCycle is an invalid enum value", async () => {
+    const res = await request(buildApp())
+      .post("/plans")
+      .send({ name: "Pro", downloadSpeed: 100, uploadSpeed: 50, price: 29.99, billingCycle: "weekly" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+});
+
+describe("PATCH /plans/:id — validation", () => {
+  it("returns 400 when billingCycle is an invalid enum value", async () => {
+    const res = await request(buildApp())
+      .patch("/plans/1")
+      .send({ billingCycle: "daily" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when price is negative", async () => {
+    const res = await request(buildApp())
+      .patch("/plans/1")
+      .send({ price: -10 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+});
+
 describe("PATCH /plans/:id", () => {
   it("updates a plan (admin)", async () => {
     const updated = { ...samplePlan, name: "Basic Plus", price: "12.99" };

@@ -267,6 +267,74 @@ describe("POST /subscriptions", () => {
   });
 });
 
+describe("POST /subscriptions — validation", () => {
+  it("returns 400 when customerId is missing", async () => {
+    const res = await request(buildApp())
+      .post("/subscriptions")
+      .send({ planId: 2, startDate: "2026-01-01" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when planId is missing", async () => {
+    const res = await request(buildApp())
+      .post("/subscriptions")
+      .send({ customerId: 10, startDate: "2026-01-01" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when startDate is missing", async () => {
+    const res = await request(buildApp())
+      .post("/subscriptions")
+      .send({ customerId: 10, planId: 2 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when customerId is not a number", async () => {
+    const res = await request(buildApp())
+      .post("/subscriptions")
+      .send({ customerId: "abc", planId: 2, startDate: "2026-01-01" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when customerId is not a positive integer", async () => {
+    const res = await request(buildApp())
+      .post("/subscriptions")
+      .send({ customerId: 0, planId: 2, startDate: "2026-01-01" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when status is an invalid enum value", async () => {
+    const res = await request(buildApp())
+      .post("/subscriptions")
+      .send({ customerId: 10, planId: 2, startDate: "2026-01-01", status: "expired" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+});
+
+describe("PATCH /subscriptions/:id — validation", () => {
+  it("returns 400 when status is an invalid enum value", async () => {
+    const res = await request(buildApp())
+      .patch("/subscriptions/1")
+      .send({ status: "expired" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when planId is not a positive integer", async () => {
+    const res = await request(buildApp())
+      .patch("/subscriptions/1")
+      .send({ planId: -1 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+});
+
 describe("PATCH /subscriptions/:id", () => {
   it("updates a subscription status (admin)", async () => {
     const updated = { ...sampleSubscription, status: "suspended" };

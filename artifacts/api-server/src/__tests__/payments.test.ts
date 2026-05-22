@@ -190,6 +190,48 @@ describe("GET /payments/:id", () => {
   });
 });
 
+describe("POST /payments — validation", () => {
+  it("returns 400 when amount is missing", async () => {
+    const res = await request(buildApp())
+      .post("/payments")
+      .send({ customerId: 10, method: "mpesa" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when amount is negative", async () => {
+    const res = await request(buildApp())
+      .post("/payments")
+      .send({ amount: -100, customerId: 10 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when amount is not a number", async () => {
+    const res = await request(buildApp())
+      .post("/payments")
+      .send({ amount: "lots", customerId: 10 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when method is an invalid enum value", async () => {
+    const res = await request(buildApp())
+      .post("/payments")
+      .send({ amount: 100, method: "bitcoin" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when status is an invalid enum value", async () => {
+    const res = await request(buildApp())
+      .post("/payments")
+      .send({ amount: 100, status: "reversed" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+});
+
 describe("POST /payments", () => {
   it("creates a payment and returns 201 (admin)", async () => {
     mockExec

@@ -286,6 +286,82 @@ describe("POST /invoices", () => {
   });
 });
 
+describe("POST /invoices — validation", () => {
+  it("returns 400 when customerId is missing", async () => {
+    const res = await request(buildApp())
+      .post("/invoices")
+      .send({ amount: 100, dueDate: "2026-06-01" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when amount is missing", async () => {
+    const res = await request(buildApp())
+      .post("/invoices")
+      .send({ customerId: 10, dueDate: "2026-06-01" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when dueDate is missing", async () => {
+    const res = await request(buildApp())
+      .post("/invoices")
+      .send({ customerId: 10, amount: 100 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when amount is negative", async () => {
+    const res = await request(buildApp())
+      .post("/invoices")
+      .send({ customerId: 10, amount: -50, dueDate: "2026-06-01" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when amount is not a number", async () => {
+    const res = await request(buildApp())
+      .post("/invoices")
+      .send({ customerId: 10, amount: "hundred", dueDate: "2026-06-01" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when tax is negative", async () => {
+    const res = await request(buildApp())
+      .post("/invoices")
+      .send({ customerId: 10, amount: 100, tax: -5, dueDate: "2026-06-01" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when status is an invalid enum value", async () => {
+    const res = await request(buildApp())
+      .post("/invoices")
+      .send({ customerId: 10, amount: 100, dueDate: "2026-06-01", status: "cancelled" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+});
+
+describe("PATCH /invoices/:id — validation", () => {
+  it("returns 400 when status is an invalid enum value", async () => {
+    const res = await request(buildApp())
+      .patch("/invoices/1")
+      .send({ status: "cancelled" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when amount is negative", async () => {
+    const res = await request(buildApp())
+      .patch("/invoices/1")
+      .send({ amount: -1 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+});
+
 describe("PATCH /invoices/:id", () => {
   it("updates an invoice and returns updated record (admin)", async () => {
     const updated = { ...sampleInvoice, status: "sent" };

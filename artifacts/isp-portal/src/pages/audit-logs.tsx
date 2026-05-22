@@ -202,10 +202,15 @@ export default function AuditLogs() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [userSearch, setUserSearch] = useState("");
+  const [entityIdInput, setEntityIdInput] = useState("");
   const [page, setPage] = useState(1);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [exporting, setExporting] = useState(false);
   const qc = useQueryClient();
+
+  const entityIdNum = entityIdInput.trim() !== "" && /^\d+$/.test(entityIdInput.trim())
+    ? parseInt(entityIdInput.trim(), 10)
+    : undefined;
 
   const params: ListAuditLogsParams = {
     page,
@@ -214,6 +219,7 @@ export default function AuditLogs() {
     ...(actionFilter !== "all" ? { action: actionFilter as "create" | "update" | "delete" } : {}),
     ...(dateFrom ? { from: dateFrom } : {}),
     ...(dateTo ? { to: dateTo + "T23:59:59Z" } : {}),
+    ...(entityIdNum !== undefined ? { entityId: entityIdNum } : {}),
   };
 
   const { data, isLoading, isError } = useListAuditLogs(params);
@@ -227,6 +233,7 @@ export default function AuditLogs() {
       if (dateFrom) qs.set("from", dateFrom);
       if (dateTo) qs.set("to", dateTo + "T23:59:59Z");
       if (userSearch.trim()) qs.set("userEmail", userSearch.trim());
+      if (entityIdNum !== undefined) qs.set("entityId", String(entityIdNum));
       const url = `/api/audit-logs/export.csv${qs.size > 0 ? "?" + qs.toString() : ""}`;
       const resp = await fetch(url, { credentials: "include" });
       if (!resp.ok) throw new Error(`Export failed: ${resp.status}`);
@@ -260,6 +267,7 @@ export default function AuditLogs() {
     setDateFrom("");
     setDateTo("");
     setUserSearch("");
+    setEntityIdInput("");
     setPage(1);
     qc.invalidateQueries({ queryKey: getListAuditLogsQueryKey() });
   }
@@ -269,7 +277,8 @@ export default function AuditLogs() {
     actionFilter !== "all" ||
     dateFrom ||
     dateTo ||
-    userSearch;
+    userSearch ||
+    entityIdInput.trim() !== "";
 
   return (
     <div className="space-y-6">
@@ -311,7 +320,7 @@ export default function AuditLogs() {
         <div className="flex items-center gap-2 mb-4 text-sm font-medium text-gray-700">
           <Filter className="w-4 h-4 text-gray-400" /> Filters
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
@@ -338,6 +347,15 @@ export default function AuditLogs() {
               ))}
             </SelectContent>
           </Select>
+
+          <Input
+            type="number"
+            min={1}
+            className="h-9 text-sm"
+            placeholder="Entity ID…"
+            value={entityIdInput}
+            onChange={(e) => { setEntityIdInput(e.target.value); setPage(1); }}
+          />
 
           <Select
             value={actionFilter}

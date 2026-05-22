@@ -30,6 +30,7 @@ import SignInPage from "./pages/sign-in";
 import MpesaTransactions from "./pages/mpesa-transactions";
 import Staff from "./pages/staff";
 import Sales from "./pages/sales";
+import AuditLogs from "./pages/audit-logs";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -146,6 +147,7 @@ function ProtectedRoutes() {
             <Route path="/network/routers/:id/hotspot" component={HotspotManager} />
             <Route path="/settings" component={Settings} />
             <Route path="/staff">{() => <AdminRoute component={Staff} />}</Route>
+            <Route path="/audit-logs">{() => <AdminRoute component={AuditLogs} />}</Route>
             <Route path="/sales" component={Sales} />
             <Route path="/compliance" component={Compliance} />
             <Route path="/sms" component={SmsManager} />

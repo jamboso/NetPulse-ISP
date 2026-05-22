@@ -18,6 +18,7 @@ import {
   LogOut,
   UserCog,
   TrendingUp,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +62,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: "SMS Manager",   href: "/sms",          icon: MessageSquare,   show: isAdmin },
     { name: "Settings",      href: "/settings",     icon: SettingsIcon,    show: isAdmin },
     { name: "Staff",         href: "/staff",        icon: UserCog,         show: isAdmin },
+    { name: "Audit Log",     href: "/audit-logs",   icon: ClipboardList,   show: isAdmin },
   ].filter(item => item.show);
 
   return (

@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Building2, CreditCard, Network, Bell, Smartphone, Save, CheckCircle2, AlertCircle, MessageSquare, Send, Loader2, Shield } from "lucide-react";
+import { Building2, CreditCard, Network, Bell, Smartphone, Save, CheckCircle2, AlertCircle, MessageSquare, Send, Loader2, Shield, RefreshCw } from "lucide-react";
 import { InfrastructureTab } from "./infrastructure-tab";
+import { UpdatesTab } from "./updates-tab";
 
 type SettingsData = Record<string, string | null>;
 
@@ -206,6 +207,9 @@ export default function Settings() {
           <TabsTrigger value="infrastructure" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Shield className="w-3.5 h-3.5" /> Infrastructure
           </TabsTrigger>
+          <TabsTrigger value="updates" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <RefreshCw className="w-3.5 h-3.5" /> Updates
+          </TabsTrigger>
         </TabsList>
 
         {/* ── GENERAL ─────────────────────────────────────────────────────── */}
@@ -369,6 +373,10 @@ export default function Settings() {
         {/* ── INFRASTRUCTURE ──────────────────────────────────────────────── */}
         <TabsContent value="infrastructure" className="mt-5">
           <InfrastructureTab f={f} set={set} />
+        </TabsContent>
+
+        <TabsContent value="updates" className="mt-5">
+          <UpdatesTab />
         </TabsContent>
       </Tabs>
     </div>

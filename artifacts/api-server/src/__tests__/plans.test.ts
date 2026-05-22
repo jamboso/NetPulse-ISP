@@ -37,9 +37,9 @@ vi.mock("@workspace/db", () => {
 
 const { default: plansRouter } = await import("../routes/plans.js");
 
-type MockUser = { id: string; email: string; role: string };
+type MockUser = { id: string; email: string; name: string; role: string; active: boolean; emailVerified: boolean; image?: string | null; createdAt: Date; updatedAt: Date };
 
-function buildApp(user: MockUser = { id: "u1", email: "admin@test.com", role: "admin" }) {
+function buildApp(user: MockUser = { id: "u1", email: "admin@test.com", name: "Admin", role: "admin", active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date() }) {
   const app = express();
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
@@ -122,7 +122,7 @@ describe("POST /plans", () => {
   });
 
   it("returns 403 when non-admin tries to create a plan", async () => {
-    const res = await request(buildApp({ id: "u2", email: "support@test.com", role: "support" }))
+    const res = await request(buildApp({ id: "u2", email: "support@test.com", name: "Support", role: "support", active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date() }))
       .post("/plans")
       .send({ name: "Pro", downloadSpeed: 100, uploadSpeed: 50, price: 29.99 });
 
@@ -150,7 +150,7 @@ describe("PATCH /plans/:id", () => {
   });
 
   it("returns 403 for billing role on PATCH", async () => {
-    const res = await request(buildApp({ id: "u3", email: "billing@test.com", role: "billing" }))
+    const res = await request(buildApp({ id: "u3", email: "billing@test.com", name: "Billing", role: "billing", active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date() }))
       .patch("/plans/1")
       .send({ price: 5 });
 
@@ -168,7 +168,7 @@ describe("DELETE /plans/:id", () => {
   });
 
   it("returns 403 when non-admin tries to delete", async () => {
-    const res = await request(buildApp({ id: "u4", email: "tech@test.com", role: "technician" })).delete(
+    const res = await request(buildApp({ id: "u4", email: "tech@test.com", name: "Tech", role: "technician", active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date() })).delete(
       "/plans/1",
     );
 

@@ -51,9 +51,9 @@ vi.mock("../lib/audit.js", () => ({
 
 const { default: customersRouter } = await import("../routes/customers.js");
 
-type MockUser = { id: string; email: string; role: string };
+type MockUser = { id: string; email: string; name: string; role: string; active: boolean; emailVerified: boolean; image?: string | null; createdAt: Date; updatedAt: Date };
 
-function buildApp(user: MockUser = { id: "u1", email: "admin@test.com", role: "admin" }) {
+function buildApp(user: MockUser = { id: "u1", email: "admin@test.com", name: "Admin", role: "admin", active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date() }) {
   const app = express();
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
@@ -167,7 +167,7 @@ describe("POST /customers", () => {
   });
 
   it("returns 403 for technician role", async () => {
-    const res = await request(buildApp({ id: "u2", email: "tech@test.com", role: "technician" }))
+    const res = await request(buildApp({ id: "u2", email: "tech@test.com", name: "Tech", role: "technician", active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date() }))
       .post("/customers")
       .send({ name: "Eve", email: "eve@example.com", phone: "0700000001" });
 
@@ -177,7 +177,7 @@ describe("POST /customers", () => {
   it("allows support role to create customers", async () => {
     mockExec.mockResolvedValueOnce([{ ...sampleCustomer, id: 3 }]);
 
-    const res = await request(buildApp({ id: "u3", email: "support@test.com", role: "support" }))
+    const res = await request(buildApp({ id: "u3", email: "support@test.com", name: "Support", role: "support", active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date() }))
       .post("/customers")
       .send({ name: "Carol", email: "carol@example.com", phone: "0700000002" });
 
@@ -222,7 +222,7 @@ describe("DELETE /customers/:id", () => {
   });
 
   it("returns 403 for billing role on DELETE", async () => {
-    const res = await request(buildApp({ id: "u4", email: "billing@test.com", role: "billing" })).delete(
+    const res = await request(buildApp({ id: "u4", email: "billing@test.com", name: "Billing", role: "billing", active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date() })).delete(
       "/customers/1",
     );
 

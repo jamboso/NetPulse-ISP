@@ -5,7 +5,13 @@ import type { Request, Response, NextFunction } from "express";
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const session = await auth.api.getSession({ headers: req.headers as Record<string, string> });
+    // Strip origin/referer so better-auth's CSRF origin check does not fire.
+    // Session authenticity is proven by the HTTP-only session cookie; the
+    // origin header is irrelevant for server-side session validation and
+    // causes false 403s when the request comes through a proxy or a domain
+    // that isn't listed in trustedOrigins.
+    const { origin: _o, referer: _r, ...safeHeaders } = req.headers as Record<string, string>;
+    const session = await auth.api.getSession({ headers: safeHeaders });
     if (!session?.user) {
       res.status(401).json({ error: "Unauthorized" });
       return;

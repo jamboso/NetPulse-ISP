@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Building2, CreditCard, Network, Bell, Smartphone, Save, CheckCircle2, AlertCircle, MessageSquare, Send, Loader2, Shield, RefreshCw } from "lucide-react";
+import { Building2, CreditCard, Network, Bell, Smartphone, Save, CheckCircle2, AlertCircle, MessageSquare, Send, Loader2, Shield, RefreshCw, Link2 } from "lucide-react";
 import { InfrastructureTab } from "./infrastructure-tab";
 import { UpdatesTab } from "./updates-tab";
 
@@ -346,23 +346,7 @@ export default function Settings() {
             <SettingField label="Callback URL" name="mpesaCallbackUrl" value={f("mpesaCallbackUrl")} onChange={set} placeholder="https://yourdomain.com/api/mpesa/callback" hint="Must be HTTPS and publicly reachable" />
           </SectionCard>
 
-          <SectionCard icon={Smartphone} title="C2B Plugin Callback URLs">
-            <div className="py-3 space-y-2 text-sm text-gray-600">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Register these in the NuxBill C2B plugin settings →</p>
-              <div className="grid grid-cols-12 gap-3 items-center py-2 border-b border-gray-100">
-                <span className="col-span-4 font-medium text-gray-700">Confirmation URL</span>
-                <code className="col-span-8 bg-gray-50 text-blue-700 px-3 py-1.5 rounded text-xs font-mono select-all border border-gray-200">
-                  {window.location.origin}/api/mpesa/c2b/confirmation
-                </code>
-              </div>
-              <div className="grid grid-cols-12 gap-3 items-center py-2">
-                <span className="col-span-4 font-medium text-gray-700">Validation URL</span>
-                <code className="col-span-8 bg-gray-50 text-blue-700 px-3 py-1.5 rounded text-xs font-mono select-all border border-gray-200">
-                  {window.location.origin}/api/mpesa/c2b/validation
-                </code>
-              </div>
-            </div>
-          </SectionCard>
+          <RegisterUrlsCard />
 
           <SectionCard icon={Smartphone} title="M-Pesa Status">
             <div className="py-3">
@@ -647,6 +631,93 @@ function SmsTab({ f, set }: { f: (k: string) => string; set: (k: string, v: stri
         </SectionCard>
       )}
     </div>
+  );
+}
+
+function RegisterUrlsCard() {
+  const origin = window.location.origin;
+  const confirmationUrl = `${origin}/api/mpesa/c2b/confirmation`;
+  const validationUrl = `${origin}/api/mpesa/c2b/validation`;
+
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  async function handleRegister() {
+    setLoading(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/mpesa/register-urls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmationUrl, validationUrl }),
+        credentials: "include",
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string; detail?: Record<string, unknown> };
+      if (res.ok && data.success) {
+        const desc = (data.detail?.["ResponseDescription"] as string | undefined) ?? "URLs registered successfully";
+        setResult({ ok: true, message: desc });
+      } else {
+        const detail = data.detail
+          ? ` — ${(data.detail["ResponseDescription"] as string | undefined) ?? JSON.stringify(data.detail)}`
+          : "";
+        setResult({ ok: false, message: (data.error ?? "Registration failed") + detail });
+      }
+    } catch {
+      setResult({ ok: false, message: "Network error — could not reach the server." });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <SectionCard icon={Link2} title="Register C2B URLs with Safaricom">
+      <div className="py-2 space-y-4 text-sm">
+        <p className="text-gray-500 text-xs">
+          After saving your credentials above, click <strong>Register URLs</strong> to tell Safaricom where to send
+          C2B payment notifications for your shortcode. This only needs to be done once (or after your domain changes).
+        </p>
+
+        <div className="space-y-2">
+          <div className="grid grid-cols-12 gap-3 items-center py-2 border-b border-gray-100">
+            <span className="col-span-4 font-medium text-gray-700">Confirmation URL</span>
+            <code className="col-span-8 bg-gray-50 text-blue-700 px-3 py-1.5 rounded text-xs font-mono select-all border border-gray-200 truncate">
+              {confirmationUrl}
+            </code>
+          </div>
+          <div className="grid grid-cols-12 gap-3 items-center py-2">
+            <span className="col-span-4 font-medium text-gray-700">Validation URL</span>
+            <code className="col-span-8 bg-gray-50 text-blue-700 px-3 py-1.5 rounded text-xs font-mono select-all border border-gray-200 truncate">
+              {validationUrl}
+            </code>
+          </div>
+        </div>
+
+        {result && (
+          <div className={`flex items-start gap-2 rounded-md px-4 py-2.5 text-sm border ${
+            result.ok
+              ? "bg-green-50 text-green-700 border-green-200"
+              : "bg-red-50 text-red-700 border-red-200"
+          }`}>
+            {result.ok
+              ? <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+              : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />}
+            <span>{result.message}</span>
+          </div>
+        )}
+
+        <div className="flex justify-end">
+          <Button
+            onClick={handleRegister}
+            disabled={loading}
+            size="sm"
+            className="gap-2"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+            {loading ? "Registering…" : "Register URLs with Safaricom"}
+          </Button>
+        </div>
+      </div>
+    </SectionCard>
   );
 }
 

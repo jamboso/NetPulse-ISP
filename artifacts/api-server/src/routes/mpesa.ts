@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { paymentsTable, invoicesTable, customersTable, hotspotVouchersTable, hotspotPackagesTable, routersTable } from "@workspace/db";
 import { eq, ilike } from "drizzle-orm";
+import { getSettings } from "../lib/sms.js";
 
 // ── Public router ─────────────────────────────────────────────────────────────
 // These endpoints are called directly by Safaricom and must remain unauthenticated.
@@ -102,6 +103,84 @@ mpesaProtectedRouter.post("/mpesa/stk-push", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "STK Push error");
     res.status(500).json({ error: "Failed to initiate M-Pesa payment" });
+  }
+});
+
+/*
+ * POST /api/mpesa/register-urls
+ * Registers C2B confirmation and validation URLs with Safaricom Daraja.
+ * Reads credentials from DB settings (saved via Settings page).
+ * Body: { confirmationUrl, validationUrl, responseType? }
+ * Requires auth — admin only.
+ */
+mpesaProtectedRouter.post("/mpesa/register-urls", async (req, res) => {
+  const { confirmationUrl, validationUrl, responseType = "Completed" } = req.body as {
+    confirmationUrl?: string;
+    validationUrl?: string;
+    responseType?: "Completed" | "Cancelled";
+  };
+
+  if (!confirmationUrl || !validationUrl) {
+    res.status(400).json({ error: "confirmationUrl and validationUrl are required" });
+    return;
+  }
+
+  const s = await getSettings();
+  const consumerKey = s["mpesaConsumerKey"] || process.env.MPESA_CONSUMER_KEY;
+  const consumerSecret = s["mpesaConsumerSecret"] || process.env.MPESA_CONSUMER_SECRET;
+  const shortcode = s["mpesaShortcode"] || process.env.MPESA_SHORTCODE;
+  const environment = s["mpesaEnv"] || process.env.MPESA_ENV || "sandbox";
+
+  if (!consumerKey || !consumerSecret || !shortcode) {
+    res.status(503).json({ error: "M-Pesa credentials are not configured. Save your settings first." });
+    return;
+  }
+
+  const baseUrl = environment === "live"
+    ? "https://api.safaricom.co.ke"
+    : "https://sandbox.safaricom.co.ke";
+
+  try {
+    const tokenRes = await fetch(`${baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64")}`,
+      },
+    });
+    if (!tokenRes.ok) {
+      const body = await tokenRes.text();
+      req.log.warn({ status: tokenRes.status, body }, "M-Pesa OAuth failed");
+      res.status(502).json({ error: "Failed to get M-Pesa access token. Check your Consumer Key and Secret." });
+      return;
+    }
+    const { access_token } = (await tokenRes.json()) as { access_token: string };
+
+    const registerRes = await fetch(`${baseUrl}/mpesa/c2b/v1/registerurl`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ShortCode: shortcode,
+        ResponseType: responseType,
+        ConfirmationURL: confirmationUrl,
+        ValidationURL: validationUrl,
+      }),
+    });
+
+    const registerData = (await registerRes.json()) as Record<string, unknown>;
+
+    if (!registerRes.ok) {
+      req.log.warn({ registerData }, "M-Pesa RegisterURL failed");
+      res.status(502).json({ error: "Safaricom rejected the registration", detail: registerData });
+      return;
+    }
+
+    req.log.info({ shortcode, confirmationUrl, validationUrl }, "M-Pesa URLs registered");
+    res.json({ success: true, detail: registerData });
+  } catch (err) {
+    req.log.error({ err }, "M-Pesa register-urls error");
+    res.status(500).json({ error: "Failed to register URLs with Safaricom" });
   }
 });
 

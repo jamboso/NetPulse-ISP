@@ -39,6 +39,7 @@ import {
   ResponsiveContainer, Legend,
 } from "recharts";
 import { formatDate } from "@/lib/formatDate";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -435,6 +436,7 @@ export default function CustomerDetail() {
   const { fmtMoney } = useCurrency();
   const { id } = useParams();
   const customerId = parseInt(id || "0", 10);
+  const { canManageCustomers, canManageBilling, canManageTickets, isAdmin } = useCurrentUser();
 
   const { data: customer, isLoading: loadingCustomer } = useGetCustomer(customerId);
   const { data: subscriptionsData, isLoading: loadingSubs } = useListSubscriptions({ customerId });
@@ -685,9 +687,11 @@ export default function CustomerDetail() {
         <Button variant="outline" size="sm" onClick={openReminder} className="gap-2 text-amber-700 border-amber-300 hover:bg-amber-50">
           <BellRing className="w-4 h-4" /> Remind Technician
         </Button>
-        <Button variant="outline" className="bg-white">
-          <Edit className="w-4 h-4 mr-2" /> Edit Profile
-        </Button>
+        {canManageCustomers && (
+          <Button variant="outline" className="bg-white">
+            <Edit className="w-4 h-4 mr-2" /> Edit Profile
+          </Button>
+        )}
       </div>
 
       {/* Technician reminder dialog */}
@@ -927,6 +931,15 @@ export default function CustomerDetail() {
             {/* ── Subscriptions tab ── */}
             <TabsContent value="subscriptions" className="m-0">
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                {canManageBilling && (
+                  <div className="px-5 py-3 border-b border-gray-100 flex justify-end">
+                    <Button size="sm" asChild className="gap-1.5">
+                      <Link href={`/subscriptions?customerId=${customerId}`}>
+                        <Plus className="w-3.5 h-3.5" /> Add Subscription
+                      </Link>
+                    </Button>
+                  </div>
+                )}
                 <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow>
@@ -972,6 +985,15 @@ export default function CustomerDetail() {
             {/* ── Invoices tab ── */}
             <TabsContent value="invoices" className="m-0">
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                {canManageBilling && (
+                  <div className="px-5 py-3 border-b border-gray-100 flex justify-end">
+                    <Button size="sm" asChild className="gap-1.5">
+                      <Link href={`/invoices?customerId=${customerId}`}>
+                        <Plus className="w-3.5 h-3.5" /> Add Invoice
+                      </Link>
+                    </Button>
+                  </div>
+                )}
                 <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow>
@@ -1010,6 +1032,15 @@ export default function CustomerDetail() {
             {/* ── Tickets tab ── */}
             <TabsContent value="tickets" className="m-0">
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                {canManageTickets && (
+                  <div className="px-5 py-3 border-b border-gray-100 flex justify-end">
+                    <Button size="sm" asChild className="gap-1.5">
+                      <Link href={`/tickets?customerId=${customerId}`}>
+                        <Plus className="w-3.5 h-3.5" /> New Ticket
+                      </Link>
+                    </Button>
+                  </div>
+                )}
                 <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow>
@@ -1128,6 +1159,7 @@ export default function CustomerDetail() {
             {/* ── Communication tab ── */}
             <TabsContent value="communication" className="m-0 space-y-4">
               {/* Add new communication */}
+              {canManageCustomers && (
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
                 <h3 className="font-semibold text-gray-900 text-sm mb-4 flex items-center gap-2">
                   <Plus className="w-4 h-4 text-blue-500" /> Add Note / Log Communication
@@ -1182,6 +1214,7 @@ export default function CustomerDetail() {
                   <Send className="w-3.5 h-3.5" /> {sendingComm ? "Saving…" : "Save"}
                 </Button>
               </div>
+              )}
 
               {/* Communication list */}
               <div className="space-y-3">
@@ -1221,9 +1254,11 @@ export default function CustomerDetail() {
                           <span className="text-[11px] text-gray-400">
                             {new Date(c.createdAt).toLocaleString("en-KE",{dateStyle:"short",timeStyle:"short"})}
                           </span>
-                          <button onClick={() => deleteComm(c.id)} className="text-gray-300 hover:text-red-400 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {isAdmin && (
+                            <button onClick={() => deleteComm(c.id)} className="text-gray-300 hover:text-red-400 transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
                       <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{c.content}</p>

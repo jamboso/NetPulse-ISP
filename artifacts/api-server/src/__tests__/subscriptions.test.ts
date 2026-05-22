@@ -308,6 +308,30 @@ describe("POST /subscriptions — validation", () => {
     expect(res.body).toHaveProperty("fields");
   });
 
+  it("returns 400 when planId is not a number", async () => {
+    const res = await request(buildApp())
+      .post("/subscriptions")
+      .send({ customerId: 10, planId: "basic", startDate: "2026-01-01" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when planId is not a positive integer", async () => {
+    const res = await request(buildApp())
+      .post("/subscriptions")
+      .send({ customerId: 10, planId: -1, startDate: "2026-01-01" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when startDate is an empty string", async () => {
+    const res = await request(buildApp())
+      .post("/subscriptions")
+      .send({ customerId: 10, planId: 2, startDate: "" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
   it("returns 400 when status is an invalid enum value", async () => {
     const res = await request(buildApp())
       .post("/subscriptions")
@@ -330,6 +354,22 @@ describe("PATCH /subscriptions/:id — validation", () => {
     const res = await request(buildApp())
       .patch("/subscriptions/1")
       .send({ planId: -1 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when planId is a string instead of a number", async () => {
+    const res = await request(buildApp())
+      .patch("/subscriptions/1")
+      .send({ planId: "basic" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when routerId is a string instead of a number", async () => {
+    const res = await request(buildApp())
+      .patch("/subscriptions/1")
+      .send({ routerId: "router-1" });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("fields");
   });

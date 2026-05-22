@@ -335,6 +335,30 @@ describe("POST /invoices — validation", () => {
     expect(res.body).toHaveProperty("fields");
   });
 
+  it("returns 400 when customerId is not a number", async () => {
+    const res = await request(buildApp())
+      .post("/invoices")
+      .send({ customerId: "abc", amount: 100, dueDate: "2026-06-01" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when customerId is not a positive integer", async () => {
+    const res = await request(buildApp())
+      .post("/invoices")
+      .send({ customerId: 0, amount: 100, dueDate: "2026-06-01" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when dueDate is an invalid format", async () => {
+    const res = await request(buildApp())
+      .post("/invoices")
+      .send({ customerId: 10, amount: 100, dueDate: "" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
   it("returns 400 when status is an invalid enum value", async () => {
     const res = await request(buildApp())
       .post("/invoices")
@@ -357,6 +381,22 @@ describe("PATCH /invoices/:id — validation", () => {
     const res = await request(buildApp())
       .patch("/invoices/1")
       .send({ amount: -1 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when amount is a string instead of a number", async () => {
+    const res = await request(buildApp())
+      .patch("/invoices/1")
+      .send({ amount: "fifty" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when tax is a string instead of a number", async () => {
+    const res = await request(buildApp())
+      .patch("/invoices/1")
+      .send({ tax: "ten" });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("fields");
   });

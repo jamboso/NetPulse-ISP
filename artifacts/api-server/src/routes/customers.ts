@@ -4,6 +4,7 @@ import { customersTable, subscriptionsTable, invoicesTable, paymentsTable, ticke
 import { eq, ilike, or, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { writeAuditLog } from "../lib/audit";
+import { getSettings, sendSms } from "../lib/sms.js";
 
 const router = Router();
 
@@ -102,6 +103,42 @@ router.patch("/customers/:id", requireRole("admin", "billing", "support"), async
   });
 
   res.json(updated);
+});
+
+/*
+ * POST /api/customers/:id/remind-technician
+ * Sends an SMS reminder to a technician about a customer with intermittent service.
+ * Body: { phone: string, message: string }
+ * Requires auth — admin or support.
+ */
+router.post("/customers/:id/remind-technician", requireRole("admin", "support"), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
+  const { phone, message } = req.body as { phone?: string; message?: string };
+
+  if (!phone || !message) {
+    res.status(400).json({ error: "phone and message are required" });
+    return;
+  }
+
+  const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, id));
+  if (!customer) {
+    res.status(404).json({ error: "Customer not found" });
+    return;
+  }
+
+  try {
+    const s = await getSettings();
+    const result = await sendSms(s, phone, message);
+    if (!result.success) {
+      res.status(502).json({ error: "SMS failed to send", detail: result.message });
+      return;
+    }
+    req.log.info({ customerId: id, techPhone: phone }, "Technician reminder sent");
+    res.json({ success: true, message: result.message });
+  } catch (err) {
+    req.log.error({ err }, "Failed to send technician reminder");
+    res.status(500).json({ error: "Failed to send reminder" });
+  }
 });
 
 router.delete("/customers/:id", requireRole("admin"), async (req, res) => {

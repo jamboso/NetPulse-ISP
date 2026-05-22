@@ -17,8 +17,14 @@ import {
   Eye, EyeOff, RefreshCw, Download, Upload, Clock, Cpu,
   MonitorSmartphone, AlertCircle, Router, History, MessageSquare,
   ClipboardList, HardDrive, Send, Trash2, Plus, ArrowDownToLine,
-  CheckCircle2, XCircle, ServerCrash, DollarSign,
+  CheckCircle2, XCircle, ServerCrash, DollarSign, BellRing,
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -557,6 +563,45 @@ export default function CustomerDetail() {
     setComms(c => c.filter(x => x.id !== commId));
   };
 
+  // Technician reminder
+  const [reminderOpen, setReminderOpen]     = useState(false);
+  const [reminderPhone, setReminderPhone]   = useState("");
+  const [reminderMsg, setReminderMsg]       = useState("");
+  const [reminderSending, setReminderSending] = useState(false);
+  const [reminderResult, setReminderResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  function openReminder() {
+    const sub = subs[0] as any;
+    const planName = sub?.plan?.name ?? "their service plan";
+    setReminderMsg(
+      `Hi, please check on customer ${customer?.name ?? ""} (${customer?.phone ?? ""}) who is experiencing intermittent service on ${planName}. Kindly investigate and resolve ASAP.`,
+    );
+    setReminderPhone("");
+    setReminderResult(null);
+    setReminderOpen(true);
+  }
+
+  async function sendReminder() {
+    if (!reminderPhone || !reminderMsg) return;
+    setReminderSending(true);
+    setReminderResult(null);
+    try {
+      const res = await fetch(`/api/customers/${customerId}/remind-technician`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: reminderPhone, message: reminderMsg }),
+        credentials: "include",
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      setReminderResult({ ok: !!data.success, text: data.success ? "Reminder sent successfully." : (data.error ?? "Failed to send.") });
+      if (data.success) setTimeout(() => setReminderOpen(false), 1500);
+    } catch {
+      setReminderResult({ ok: false, text: "Network error." });
+    } finally {
+      setReminderSending(false);
+    }
+  }
+
   // Equipment
   const [equipment, setEquipment]           = useState<any[]>([]);
   const [loadingEquip, setLoadingEquip]     = useState(false);
@@ -634,10 +679,73 @@ export default function CustomerDetail() {
           </div>
           <p className="text-gray-500 text-sm">Customer ID: #{customer.id}</p>
         </div>
+        <Button variant="outline" size="sm" onClick={openReminder} className="gap-2 text-amber-700 border-amber-300 hover:bg-amber-50">
+          <BellRing className="w-4 h-4" /> Remind Technician
+        </Button>
         <Button variant="outline" className="bg-white">
           <Edit className="w-4 h-4 mr-2" /> Edit Profile
         </Button>
       </div>
+
+      {/* Technician reminder dialog */}
+      <Dialog open={reminderOpen} onOpenChange={setReminderOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BellRing className="w-5 h-5 text-amber-500" />
+              Remind Technician — {customer?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-gray-500">
+              Send an SMS reminder to a technician to investigate this customer's intermittent service.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="tech-phone" className="text-sm font-medium">Technician Phone Number</Label>
+              <Input
+                id="tech-phone"
+                placeholder="e.g. 0712345678"
+                value={reminderPhone}
+                onChange={(e) => setReminderPhone(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tech-msg" className="text-sm font-medium">Message</Label>
+              <Textarea
+                id="tech-msg"
+                rows={4}
+                value={reminderMsg}
+                onChange={(e) => setReminderMsg(e.target.value)}
+                className="text-sm resize-none"
+              />
+            </div>
+            {reminderResult && (
+              <div className={`flex items-center gap-2 text-sm rounded-md px-3 py-2 border ${
+                reminderResult.ok
+                  ? "bg-green-50 text-green-700 border-green-200"
+                  : "bg-red-50 text-red-700 border-red-200"
+              }`}>
+                {reminderResult.ok ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
+                {reminderResult.text}
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setReminderOpen(false)} disabled={reminderSending}>Cancel</Button>
+            <Button
+              size="sm"
+              onClick={sendReminder}
+              disabled={reminderSending || !reminderPhone || !reminderMsg}
+              className="gap-2 bg-amber-600 hover:bg-amber-700"
+            >
+              {reminderSending
+                ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />Sending…</>
+                : <><Send className="w-3.5 h-3.5" />Send Reminder</>
+              }
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left sidebar */}

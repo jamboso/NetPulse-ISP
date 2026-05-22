@@ -27,6 +27,8 @@ const SETTINGS_KEYS = [
   "mpesaPaybillNumber",
   // Alert recipients
   "alertPhone",
+  // Role-based nav permissions (stored as JSON)
+  "rolePermissions",
 ] as const;
 
 type SettingsKey = (typeof SETTINGS_KEYS)[number];

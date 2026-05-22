@@ -15,7 +15,8 @@ import {
   Smartphone,
   Settings as SettingsIcon,
   LogOut,
-  UserCog
+  UserCog,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -28,25 +29,31 @@ export default function Layout({ children }: LayoutProps) {
   const { data: session } = useSession();
   const user = session?.user;
 
-  const isAdmin = (user as (typeof user & { role?: string }) | undefined)?.role === "admin";
+  const role = (user as (typeof user & { role?: string }) | undefined)?.role ?? "";
+  const isAdmin = role === "admin";
 
-  const navItems = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  const allNavItems: { name: string; href: string; icon: React.ElementType; roles?: string[] }[] = [
+    { name: "Dashboard", href: "/" , icon: LayoutDashboard },
     { name: "Customers", href: "/customers", icon: Users },
     { name: "Service Plans", href: "/plans", icon: Package },
     { name: "Subscriptions", href: "/subscriptions", icon: CreditCard },
     { name: "Invoices", href: "/invoices", icon: Receipt },
     { name: "Payments", href: "/payments", icon: CreditCard },
+    { name: "Sales", href: "/sales", icon: TrendingUp, roles: ["admin", "billing"] },
     { name: "M-Pesa Live", href: "/mpesa", icon: Smartphone },
     { name: "Tickets", href: "/tickets", icon: LifeBuoy },
-    { name: "Network", href: "/network", icon: ServerCrash },
-    { name: "Network Map", href: "/map", icon: MapPin },
-    { name: "Monitoring", href: "/monitoring", icon: MonitorDot },
-    { name: "Compliance", href: "/compliance", icon: Shield },
-    { name: "SMS Manager", href: "/sms", icon: MessageSquare },
-    { name: "Settings", href: "/settings", icon: SettingsIcon },
-    ...(isAdmin ? [{ name: "Staff", href: "/staff", icon: UserCog }] : []),
+    { name: "Network", href: "/network", icon: ServerCrash, roles: ["admin", "technician"] },
+    { name: "Network Map", href: "/map", icon: MapPin, roles: ["admin", "technician"] },
+    { name: "Monitoring", href: "/monitoring", icon: MonitorDot, roles: ["admin", "technician"] },
+    { name: "Compliance", href: "/compliance", icon: Shield, roles: ["admin"] },
+    { name: "SMS Manager", href: "/sms", icon: MessageSquare, roles: ["admin"] },
+    { name: "Settings", href: "/settings", icon: SettingsIcon, roles: ["admin"] },
+    { name: "Staff", href: "/staff", icon: UserCog, roles: ["admin"] },
   ];
+
+  const navItems = allNavItems.filter((item) =>
+    !item.roles || item.roles.includes(role) || role === "admin"
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans">

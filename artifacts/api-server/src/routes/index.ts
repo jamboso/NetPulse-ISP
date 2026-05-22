@@ -30,6 +30,7 @@ import setupRouter from "./setup";
 import auditLogsRouter from "./audit-logs";
 import systemUpdateRouter from "./system-update";
 import usersRouter from "./users";
+import salesRouter from "./sales";
 
 const router: IRouter = Router();
 
@@ -75,5 +76,6 @@ router.use(infrastructureRouter);
 router.use(auditLogsRouter);
 router.use(systemUpdateRouter);
 router.use(usersRouter);
+router.use(salesRouter);
 
 export default router;

@@ -50,6 +50,7 @@ vi.mock("../lib/audit.js", () => ({
 }));
 
 const { default: equipmentRouter } = await import("../routes/equipment.js");
+const { writeAuditLog } = await import("../lib/audit.js");
 
 type MockUser = {
   id: string;
@@ -322,5 +323,78 @@ describe("DELETE /equipment/:id", () => {
     ).delete("/equipment/1");
 
     expect(res.status).toBe(403);
+  });
+});
+
+describe("Audit log — equipment", () => {
+  it("writes an audit record with entityType 'equipment' and action 'create' on POST /equipment", async () => {
+    mockExec.mockResolvedValueOnce([sampleEquipment]);
+
+    await request(buildApp())
+      .post("/equipment")
+      .send({ name: "Core Router", model: "RB4011", ipAddress: "192.168.1.1" });
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "create",
+        entityType: "equipment",
+        entityId:   sampleEquipment.id,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("writes an audit record with entityType 'equipment' and action 'update' on PATCH /equipment/:id", async () => {
+    const updated = { ...sampleEquipment, status: "maintenance" };
+    mockExec.mockResolvedValueOnce([updated]);
+
+    await request(buildApp())
+      .patch("/equipment/1")
+      .send({ status: "maintenance" });
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "update",
+        entityType: "equipment",
+        entityId:   1,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("writes an audit record with entityType 'equipment' and action 'delete' on DELETE /equipment/:id", async () => {
+    mockExec.mockResolvedValueOnce([]);
+
+    await request(buildApp()).delete("/equipment/1");
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "delete",
+        entityType: "equipment",
+        entityId:   1,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("does NOT write an audit record when POST /equipment fails validation", async () => {
+    await request(buildApp())
+      .post("/equipment")
+      .send({ model: "RB4011" });
+
+    expect(vi.mocked(writeAuditLog)).not.toHaveBeenCalled();
+  });
+
+  it("does NOT write an audit record when PATCH /equipment/:id returns 404", async () => {
+    mockExec.mockResolvedValueOnce([]);
+
+    await request(buildApp())
+      .patch("/equipment/999")
+      .send({ status: "maintenance" });
+
+    expect(vi.mocked(writeAuditLog)).not.toHaveBeenCalled();
   });
 });

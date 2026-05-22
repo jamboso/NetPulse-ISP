@@ -50,6 +50,7 @@ vi.mock("../lib/audit.js", () => ({
 }));
 
 const { default: ipPoolsRouter } = await import("../routes/ipPools.js");
+const { writeAuditLog } = await import("../lib/audit.js");
 
 type MockUser = {
   id: string;
@@ -322,5 +323,78 @@ describe("DELETE /ip-pools/:id", () => {
     ).delete("/ip-pools/1");
 
     expect(res.status).toBe(403);
+  });
+});
+
+describe("Audit log — ip_pool", () => {
+  it("writes an audit record with entityType 'ip_pool' and action 'create' on POST /ip-pools", async () => {
+    mockExec.mockResolvedValueOnce([samplePool]);
+
+    await request(buildApp())
+      .post("/ip-pools")
+      .send({ name: "Main Pool", network: "192.168.1.0/24", gateway: "192.168.1.1", subnetMask: "255.255.255.0" });
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "create",
+        entityType: "ip_pool",
+        entityId:   samplePool.id,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("writes an audit record with entityType 'ip_pool' and action 'update' on PATCH /ip-pools/:id", async () => {
+    const updated = { ...samplePool, gateway: "192.168.1.254" };
+    mockExec.mockResolvedValueOnce([updated]);
+
+    await request(buildApp())
+      .patch("/ip-pools/1")
+      .send({ gateway: "192.168.1.254" });
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "update",
+        entityType: "ip_pool",
+        entityId:   1,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("writes an audit record with entityType 'ip_pool' and action 'delete' on DELETE /ip-pools/:id", async () => {
+    mockExec.mockResolvedValueOnce([]);
+
+    await request(buildApp()).delete("/ip-pools/1");
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "delete",
+        entityType: "ip_pool",
+        entityId:   1,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("does NOT write an audit record when POST /ip-pools fails validation", async () => {
+    await request(buildApp())
+      .post("/ip-pools")
+      .send({ network: "192.168.1.0/24" });
+
+    expect(vi.mocked(writeAuditLog)).not.toHaveBeenCalled();
+  });
+
+  it("does NOT write an audit record when PATCH /ip-pools/:id returns 404", async () => {
+    mockExec.mockResolvedValueOnce([]);
+
+    await request(buildApp())
+      .patch("/ip-pools/999")
+      .send({ gateway: "192.168.1.254" });
+
+    expect(vi.mocked(writeAuditLog)).not.toHaveBeenCalled();
   });
 });

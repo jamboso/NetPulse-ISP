@@ -4,6 +4,7 @@ import {
   type PlanInput, type PlanUpdate,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Plus, Wifi, Zap, Pencil, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,6 +114,7 @@ export default function Plans() {
   const { data: plans, isLoading } = useListPlans();
   const deleteMutation = useDeletePlan();
   const updateMutation = useUpdatePlan();
+  const { isAdmin } = useCurrentUser();
   const [dialog, setDialog] = useState<{ open: boolean; id?: number; initial?: PlanForm }>({ open: false });
 
   const handleDelete = async (id: number, name: string) => {
@@ -133,9 +135,11 @@ export default function Plans() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Service Plans</h1>
           <p className="text-gray-500 text-sm">Manage internet packages and pricing tiers.</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialog({ open: true })}>
-          <Plus className="w-4 h-4 mr-2" /> Create Plan
-        </Button>
+        {isAdmin && (
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialog({ open: true })}>
+            <Plus className="w-4 h-4 mr-2" /> Create Plan
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -174,26 +178,28 @@ export default function Plans() {
                   </div>
                 </div>
               </div>
-              <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
-                <Button variant="outline" size="sm" className="flex-1 bg-white"
-                  onClick={() => setDialog({ open: true, id: plan.id, initial: {
-                    name: plan.name, description: plan.description ?? "",
-                    downloadSpeed: String(plan.downloadSpeed), uploadSpeed: String(plan.uploadSpeed),
-                    price: String(plan.price), billingCycle: plan.billingCycle, isActive: plan.isActive,
-                    rosProfileName: (plan as any).rosProfileName ?? "",
-                  }})}>
-                  <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
-                </Button>
-                <Button variant="ghost" size="sm" className="text-gray-500 hover:text-orange-600 px-2"
-                  title={plan.isActive ? "Deactivate" : "Activate"}
-                  onClick={() => handleToggleActive(plan.id, plan.isActive)}>
-                  {plan.isActive ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-                </Button>
-                <Button variant="ghost" size="sm" className="text-gray-500 hover:text-red-600 px-2"
-                  onClick={() => handleDelete(plan.id, plan.name)}>
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
+              {isAdmin && (
+                <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="flex-1 bg-white"
+                    onClick={() => setDialog({ open: true, id: plan.id, initial: {
+                      name: plan.name, description: plan.description ?? "",
+                      downloadSpeed: String(plan.downloadSpeed), uploadSpeed: String(plan.uploadSpeed),
+                      price: String(plan.price), billingCycle: plan.billingCycle, isActive: plan.isActive,
+                      rosProfileName: (plan as any).rosProfileName ?? "",
+                    }})}>
+                    <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-gray-500 hover:text-orange-600 px-2"
+                    title={plan.isActive ? "Deactivate" : "Activate"}
+                    onClick={() => handleToggleActive(plan.id, plan.isActive)}>
+                    {plan.isActive ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-gray-500 hover:text-red-600 px-2"
+                    onClick={() => handleDelete(plan.id, plan.name)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           ))
         ) : (

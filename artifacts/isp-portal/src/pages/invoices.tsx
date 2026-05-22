@@ -6,6 +6,7 @@ import {
   type InvoiceInput, type InvoiceUpdate,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Plus, Filter, Download, Pencil, Trash2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -147,6 +148,7 @@ function InvoiceDialog({ open, onClose, initial, invoiceId }: {
 }
 
 export default function Invoices() {
+  const { canManageBilling, canDeleteBillingRecords } = useCurrentUser();
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const { data: invoicesData, isLoading } = useListInvoices(statusFilter ? { status: statusFilter, limit: 50 } : { limit: 50 });
@@ -174,9 +176,11 @@ export default function Invoices() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Invoices</h1>
           <p className="text-gray-500 text-sm">Manage billing and payments.</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialog({ open: true })}>
-          <Plus className="w-4 h-4 mr-2" /> Create Invoice
-        </Button>
+        {canManageBilling && (
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialog({ open: true })}>
+            <Plus className="w-4 h-4 mr-2" /> Create Invoice
+          </Button>
+        )}
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col">
@@ -223,28 +227,32 @@ export default function Invoices() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {invoice.status !== "paid" && invoice.status !== "cancelled" && (
+                        {canManageBilling && invoice.status !== "paid" && invoice.status !== "cancelled" && (
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
                             title="Mark as Paid" onClick={() => handleMarkPaid(invoice.id)}>
                             <CheckCircle2 className="w-4 h-4" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
-                          onClick={() => setDialog({ open: true, id: invoice.id, initial: {
-                            customerId: String(invoice.customerId), subscriptionId: String(invoice.subscriptionId ?? ""),
-                            amount: String(invoice.amount), tax: String(invoice.tax ?? 0),
-                            status: invoice.status, dueDate: invoice.dueDate?.slice(0, 10) ?? "",
-                            notes: invoice.notes ?? "",
-                          }})}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
+                        {canManageBilling && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
+                            onClick={() => setDialog({ open: true, id: invoice.id, initial: {
+                              customerId: String(invoice.customerId), subscriptionId: String(invoice.subscriptionId ?? ""),
+                              amount: String(invoice.amount), tax: String(invoice.tax ?? 0),
+                              status: invoice.status, dueDate: invoice.dueDate?.slice(0, 10) ?? "",
+                              notes: invoice.notes ?? "",
+                            }})}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-gray-600">
                           <Download className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600"
-                          onClick={() => handleDelete(invoice.id)}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        {canDeleteBillingRecords && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600"
+                            onClick={() => handleDelete(invoice.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

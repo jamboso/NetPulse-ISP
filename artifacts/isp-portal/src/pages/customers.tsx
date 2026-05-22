@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useListCustomers, useDeleteCustomer } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Plus, Search, MoreHorizontal, Mail, Phone, MapPin, Pencil, Trash2, UserX, UserCheck, LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -188,6 +189,7 @@ export default function Customers() {
   const [search, setSearch] = useState("");
   const { data: customersData, isLoading } = useListCustomers({ search, limit: 50 });
   const deleteMutation = useDeleteCustomer();
+  const { canManageCustomers, canDeleteCustomers } = useCurrentUser();
 
   const [dialog, setDialog] = useState<{ open: boolean; id?: number; initial?: CustomerForm }>({ open: false });
 
@@ -212,9 +214,11 @@ export default function Customers() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Customers</h1>
           <p className="text-gray-500 text-sm">Manage your customer base and their accounts.</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialog({ open: true })}>
-          <Plus className="w-4 h-4 mr-2" /> Add Customer
-        </Button>
+        {canManageCustomers && (
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialog({ open: true })}>
+            <Plus className="w-4 h-4 mr-2" /> Add Customer
+          </Button>
+        )}
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col">
@@ -281,34 +285,42 @@ export default function Customers() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild><Link href={`/customers/${customer.id}`}>View Details</Link></DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDialog({
-                            open: true, id: customer.id,
-                            initial: {
-                              name:      customer.name,
-                              email:     customer.email,
-                              phone:     customer.phone,
-                              address:   customer.address,
-                              status:    customer.status,
-                              notes:     customer.notes ?? "",
-                              latitude:  (customer as any).latitude  != null ? String((customer as any).latitude)  : "",
-                              longitude: (customer as any).longitude != null ? String((customer as any).longitude) : "",
-                            },
-                          })}>
-                            <Pencil className="w-4 h-4 mr-2" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {customer.status === "active" ? (
-                            <DropdownMenuItem className="text-orange-600" onClick={() => handleStatusChange(customer.id, "suspended")}>
-                              <UserX className="w-4 h-4 mr-2" /> Suspend
+                          {canManageCustomers && (
+                            <DropdownMenuItem onClick={() => setDialog({
+                              open: true, id: customer.id,
+                              initial: {
+                                name:      customer.name,
+                                email:     customer.email,
+                                phone:     customer.phone,
+                                address:   customer.address,
+                                status:    customer.status,
+                                notes:     customer.notes ?? "",
+                                latitude:  (customer as any).latitude  != null ? String((customer as any).latitude)  : "",
+                                longitude: (customer as any).longitude != null ? String((customer as any).longitude) : "",
+                              },
+                            })}>
+                              <Pencil className="w-4 h-4 mr-2" /> Edit
                             </DropdownMenuItem>
-                          ) : customer.status === "suspended" ? (
-                            <DropdownMenuItem className="text-green-600" onClick={() => handleStatusChange(customer.id, "active")}>
-                              <UserCheck className="w-4 h-4 mr-2" /> Reactivate
+                          )}
+                          {canManageCustomers && (
+                            <>
+                              <DropdownMenuSeparator />
+                              {customer.status === "active" ? (
+                                <DropdownMenuItem className="text-orange-600" onClick={() => handleStatusChange(customer.id, "suspended")}>
+                                  <UserX className="w-4 h-4 mr-2" /> Suspend
+                                </DropdownMenuItem>
+                              ) : customer.status === "suspended" ? (
+                                <DropdownMenuItem className="text-green-600" onClick={() => handleStatusChange(customer.id, "active")}>
+                                  <UserCheck className="w-4 h-4 mr-2" /> Reactivate
+                                </DropdownMenuItem>
+                              ) : null}
+                            </>
+                          )}
+                          {canDeleteCustomers && (
+                            <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(customer.id, customer.name)}>
+                              <Trash2 className="w-4 h-4 mr-2" /> Delete
                             </DropdownMenuItem>
-                          ) : null}
-                          <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(customer.id, customer.name)}>
-                            <Trash2 className="w-4 h-4 mr-2" /> Delete
-                          </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

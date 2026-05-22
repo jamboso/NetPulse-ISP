@@ -6,6 +6,7 @@ import {
   type PaymentInput,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Plus, CreditCard, ArrowDownToLine, Receipt, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -159,6 +160,7 @@ function PaymentDialog({ open, onClose }: { open: boolean; onClose: () => void }
 export default function Payments() {
   const { data: paymentsData, isLoading } = useListPayments({});
   const [dialogOpen, setDialogOpen] = useState(false);
+  const { canManageBilling } = useCurrentUser();
 
   const payments = (paymentsData as any)?.data ?? paymentsData ?? [];
 
@@ -169,9 +171,11 @@ export default function Payments() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Payments</h1>
           <p className="text-gray-500 text-sm">Track incoming revenue and transaction history.</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Record Payment
-        </Button>
+        {canManageBilling && (
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" /> Record Payment
+          </Button>
+        )}
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">

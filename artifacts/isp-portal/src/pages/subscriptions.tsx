@@ -6,6 +6,7 @@ import {
   type SubscriptionInput, type SubscriptionUpdate,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Plus, Filter, Pencil, Trash2, Wifi, Copy, Check, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -179,6 +180,7 @@ function SubscriptionDialog({ open, onClose, initial, subId }: {
 }
 
 export default function Subscriptions() {
+  const { canManageBilling, canDeleteBillingRecords } = useCurrentUser();
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const { data: subscriptionsData, isLoading } = useListSubscriptions(statusFilter ? { status: statusFilter } : undefined);
@@ -201,9 +203,11 @@ export default function Subscriptions() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Subscriptions</h1>
           <p className="text-gray-500 text-sm">Manage active services and connections. PPPoE secrets are auto-provisioned on RouterOS.</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialog({ open: true })}>
-          <Plus className="w-4 h-4 mr-2" /> New Subscription
-        </Button>
+        {canManageBilling && (
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialog({ open: true })}>
+            <Plus className="w-4 h-4 mr-2" /> New Subscription
+          </Button>
+        )}
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
@@ -276,18 +280,22 @@ export default function Subscriptions() {
                     <TableCell className="text-sm text-gray-600">{formatDate(sub.startDate)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
-                          onClick={() => setDialog({ open: true, id: sub.id, initial: {
-                            customerId: String(sub.customerId), planId: String(sub.planId),
-                            routerId: sub.routerId ? String(sub.routerId) : "",
-                            status: sub.status, startDate: sub.startDate?.slice(0, 10) ?? "",
-                            endDate: sub.endDate?.slice(0, 10) ?? "", ipAddress: sub.ipAddress ?? "", macAddress: sub.macAddress ?? "",
-                          }})}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600" onClick={() => handleDelete(sub.id)}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        {canManageBilling && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
+                            onClick={() => setDialog({ open: true, id: sub.id, initial: {
+                              customerId: String(sub.customerId), planId: String(sub.planId),
+                              routerId: sub.routerId ? String(sub.routerId) : "",
+                              status: sub.status, startDate: sub.startDate?.slice(0, 10) ?? "",
+                              endDate: sub.endDate?.slice(0, 10) ?? "", ipAddress: sub.ipAddress ?? "", macAddress: sub.macAddress ?? "",
+                            }})}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        {canDeleteBillingRecords && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600" onClick={() => handleDelete(sub.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

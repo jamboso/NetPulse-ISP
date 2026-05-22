@@ -8,6 +8,7 @@ import {
   EquipmentInput, EquipmentUpdate,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Link } from "wouter";
 import {
   Plus, Server, Route, Wifi, Pencil, Trash2, ChevronDown,
@@ -482,6 +483,7 @@ export default function Network() {
   const deletePool = useDeleteIpPool();
   const deleteRouter = useDeleteRouter();
   const qc = useQueryClient();
+  const { canManageNetwork, canDeleteNetworkRecords } = useCurrentUser();
 
   // Router dialog
   const [routerDialog, setRouterDialog] = useState<{ open: boolean; id?: number; initial?: RouterFormData }>({ open: false });
@@ -543,12 +545,14 @@ export default function Network() {
         {/* ── ROUTERS ───────────────────────────────────────────────────── */}
         <TabsContent value="routers" className="mt-6">
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-200 flex justify-end">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white" size="sm"
-                onClick={() => setRouterDialog({ open: true })}>
-                <Plus className="w-4 h-4 mr-2" /> Add Router
-              </Button>
-            </div>
+            {canManageNetwork && (
+              <div className="p-4 border-b border-gray-200 flex justify-end">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white" size="sm"
+                  onClick={() => setRouterDialog({ open: true })}>
+                  <Plus className="w-4 h-4 mr-2" /> Add Router
+                </Button>
+              </div>
+            )}
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow>
@@ -609,24 +613,28 @@ export default function Network() {
                               <FileCode2 className="w-3.5 h-3.5" />
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
-                            onClick={() => setRouterDialog({
-                              open: true, id: r.id,
-                              initial: {
-                                name: r.name, routerType: r.routerType, ipAddress: r.ipAddress,
-                                port: r.port?.toString() ?? "", username: r.username, password: r.password ?? "",
-                                description: r.description ?? "", location: r.location ?? "",
-                                apiSsl: r.apiSsl ?? false,
-                                sshPort: r.sshPort?.toString() ?? "", netconfPort: r.netconfPort?.toString() ?? "",
-                                enabled: r.enabled,
-                              },
-                            })}>
-                            <Pencil className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600"
-                            onClick={() => handleDeleteRouter(r.id)}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
+                          {canManageNetwork && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
+                              onClick={() => setRouterDialog({
+                                open: true, id: r.id,
+                                initial: {
+                                  name: r.name, routerType: r.routerType, ipAddress: r.ipAddress,
+                                  port: r.port?.toString() ?? "", username: r.username, password: r.password ?? "",
+                                  description: r.description ?? "", location: r.location ?? "",
+                                  apiSsl: r.apiSsl ?? false,
+                                  sshPort: r.sshPort?.toString() ?? "", netconfPort: r.netconfPort?.toString() ?? "",
+                                  enabled: r.enabled,
+                                },
+                              })}>
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                          {canDeleteNetworkRecords && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600"
+                              onClick={() => handleDeleteRouter(r.id)}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -651,12 +659,14 @@ export default function Network() {
         {/* ── EQUIPMENT ─────────────────────────────────────────────────── */}
         <TabsContent value="equipment" className="mt-6">
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-200 flex justify-end">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white" size="sm"
-                onClick={() => setEquipDialog({ open: true })}>
-                <Plus className="w-4 h-4 mr-2" /> Add Equipment
-              </Button>
-            </div>
+            {canManageNetwork && (
+              <div className="p-4 border-b border-gray-200 flex justify-end">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white" size="sm"
+                  onClick={() => setEquipDialog({ open: true })}>
+                  <Plus className="w-4 h-4 mr-2" /> Add Equipment
+                </Button>
+              </div>
+            )}
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow>
@@ -706,22 +716,26 @@ export default function Network() {
                       <TableCell className="text-gray-500 text-sm">{item.location || "—"}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
-                            onClick={() => setEquipDialog({
-                              open: true, id: item.id,
-                              initial: {
-                                name: item.name, type: item.type, model: item.model,
-                                brand: item.brand ?? "", ipAddress: item.ipAddress,
-                                macAddress: item.macAddress ?? "", location: item.location ?? "",
-                                status: item.status, notes: item.notes ?? "",
-                              },
-                            })}>
-                            <Pencil className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600"
-                            onClick={() => handleDeleteEquipment(item.id)}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
+                          {canManageNetwork && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
+                              onClick={() => setEquipDialog({
+                                open: true, id: item.id,
+                                initial: {
+                                  name: item.name, type: item.type, model: item.model,
+                                  brand: item.brand ?? "", ipAddress: item.ipAddress,
+                                  macAddress: item.macAddress ?? "", location: item.location ?? "",
+                                  status: item.status, notes: item.notes ?? "",
+                                },
+                              })}>
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                          {canDeleteNetworkRecords && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600"
+                              onClick={() => handleDeleteEquipment(item.id)}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -742,12 +756,14 @@ export default function Network() {
         {/* ── IP POOLS ──────────────────────────────────────────────────── */}
         <TabsContent value="ippools" className="mt-6">
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-200 flex justify-end">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white" size="sm"
-                onClick={() => setPoolDialog({ open: true })}>
-                <Plus className="w-4 h-4 mr-2" /> Add IP Pool
-              </Button>
-            </div>
+            {canManageNetwork && (
+              <div className="p-4 border-b border-gray-200 flex justify-end">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white" size="sm"
+                  onClick={() => setPoolDialog({ open: true })}>
+                  <Plus className="w-4 h-4 mr-2" /> Add IP Pool
+                </Button>
+              </div>
+            )}
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow>
@@ -794,21 +810,25 @@ export default function Network() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
-                              onClick={() => setPoolDialog({
-                                open: true, id: pool.id,
-                                initial: {
-                                  name: pool.name, network: pool.network, gateway: pool.gateway,
-                                  subnetMask: pool.subnetMask, dns1: pool.dns1 ?? "",
-                                  dns2: pool.dns2 ?? "", description: pool.description ?? "",
-                                },
-                              })}>
-                              <Pencil className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600"
-                              onClick={() => handleDeletePool(pool.id)}>
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
+                            {canManageNetwork && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
+                                onClick={() => setPoolDialog({
+                                  open: true, id: pool.id,
+                                  initial: {
+                                    name: pool.name, network: pool.network, gateway: pool.gateway,
+                                    subnetMask: pool.subnetMask, dns1: pool.dns1 ?? "",
+                                    dns2: pool.dns2 ?? "", description: pool.description ?? "",
+                                  },
+                                })}>
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                            {canDeleteNetworkRecords && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600"
+                                onClick={() => handleDeletePool(pool.id)}>
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

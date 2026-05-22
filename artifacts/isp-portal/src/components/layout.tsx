@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
-import { useSession, signOut } from "@/lib/authClient";
+import { signOut } from "@/lib/authClient";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { 
   LayoutDashboard, 
   Users, 
@@ -19,41 +20,48 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  admin:      "Admin",
+  billing:    "Billing",
+  support:    "Support",
+  technician: "Tech",
+};
+
+const ROLE_COLORS: Record<string, string> = {
+  admin:      "bg-blue-600 text-white",
+  billing:    "bg-emerald-600 text-white",
+  support:    "bg-orange-500 text-white",
+  technician: "bg-purple-600 text-white",
+};
+
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
-  const { data: session } = useSession();
-  const user = session?.user;
+  const { name, email, role, isAdmin, canManageBilling, canManageCustomers, canManageTickets, canManageNetwork } = useCurrentUser();
 
-  const role = (user as (typeof user & { role?: string }) | undefined)?.role ?? "";
-  const isAdmin = role === "admin";
-
-  const allNavItems: { name: string; href: string; icon: React.ElementType; roles?: string[] }[] = [
-    { name: "Dashboard", href: "/" , icon: LayoutDashboard },
-    { name: "Customers", href: "/customers", icon: Users },
-    { name: "Service Plans", href: "/plans", icon: Package },
-    { name: "Subscriptions", href: "/subscriptions", icon: CreditCard },
-    { name: "Invoices", href: "/invoices", icon: Receipt },
-    { name: "Payments", href: "/payments", icon: CreditCard },
-    { name: "Sales", href: "/sales", icon: TrendingUp, roles: ["admin", "billing"] },
-    { name: "M-Pesa Live", href: "/mpesa", icon: Smartphone },
-    { name: "Tickets", href: "/tickets", icon: LifeBuoy },
-    { name: "Network", href: "/network", icon: ServerCrash, roles: ["admin", "technician"] },
-    { name: "Network Map", href: "/map", icon: MapPin, roles: ["admin", "technician"] },
-    { name: "Monitoring", href: "/monitoring", icon: MonitorDot, roles: ["admin", "technician"] },
-    { name: "Compliance", href: "/compliance", icon: Shield, roles: ["admin"] },
-    { name: "SMS Manager", href: "/sms", icon: MessageSquare, roles: ["admin"] },
-    { name: "Settings", href: "/settings", icon: SettingsIcon, roles: ["admin"] },
-    { name: "Staff", href: "/staff", icon: UserCog, roles: ["admin"] },
-  ];
-
-  const navItems = allNavItems.filter((item) =>
-    !item.roles || item.roles.includes(role) || role === "admin"
-  );
+  const navItems = [
+    { name: "Dashboard",     href: "/",             icon: LayoutDashboard, show: true },
+    { name: "Customers",     href: "/customers",    icon: Users,           show: canManageCustomers },
+    { name: "Service Plans", href: "/plans",        icon: Package,         show: canManageBilling },
+    { name: "Subscriptions", href: "/subscriptions",icon: CreditCard,      show: canManageBilling },
+    { name: "Invoices",      href: "/invoices",     icon: Receipt,         show: canManageBilling },
+    { name: "Payments",      href: "/payments",     icon: CreditCard,      show: canManageBilling },
+    { name: "Sales",         href: "/sales",        icon: TrendingUp,      show: canManageBilling },
+    { name: "M-Pesa Live",   href: "/mpesa",        icon: Smartphone,      show: canManageBilling },
+    { name: "Tickets",       href: "/tickets",      icon: LifeBuoy,        show: canManageTickets },
+    { name: "Network",       href: "/network",      icon: ServerCrash,     show: canManageNetwork },
+    { name: "Network Map",   href: "/map",          icon: MapPin,          show: canManageNetwork },
+    { name: "Monitoring",    href: "/monitoring",   icon: MonitorDot,      show: canManageNetwork },
+    { name: "Compliance",    href: "/compliance",   icon: Shield,          show: isAdmin },
+    { name: "SMS Manager",   href: "/sms",          icon: MessageSquare,   show: isAdmin },
+    { name: "Settings",      href: "/settings",     icon: SettingsIcon,    show: isAdmin },
+    { name: "Staff",         href: "/staff",        icon: UserCog,         show: isAdmin },
+  ].filter(item => item.show);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans">
@@ -90,11 +98,16 @@ export default function Layout({ children }: LayoutProps) {
         <div className="p-4 border-t border-[#112240]">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0 text-white font-bold text-sm">
-              {user?.name?.[0]?.toUpperCase() ?? "A"}
+              {name?.[0]?.toUpperCase() ?? "A"}
             </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm font-medium truncate">{user?.name ?? "Admin"}</span>
-              <span className="text-xs text-gray-400 truncate">{user?.email}</span>
+            <div className="flex flex-col min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium truncate">{name ?? "Admin"}</span>
+                <Badge className={`text-[10px] px-1.5 py-0 h-4 shrink-0 ${ROLE_COLORS[role] ?? "bg-gray-600 text-white"}`}>
+                  {ROLE_LABELS[role] ?? role}
+                </Badge>
+              </div>
+              <span className="text-xs text-gray-400 truncate">{email}</span>
             </div>
           </div>
           <Button 

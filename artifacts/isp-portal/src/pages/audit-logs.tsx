@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useSearch } from "wouter";
 import {
   useListAuditLogs,
@@ -15,6 +15,16 @@ import {
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
   Download,
+  Users,
+  LayoutList,
+  Repeat,
+  FileText,
+  CreditCard,
+  LifeBuoy,
+  MessageSquare,
+  Server,
+  Network,
+  UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,17 +64,41 @@ const ACTION_COLORS: Record<string, string> = {
   delete: "bg-red-100 text-red-800 border-red-200",
 };
 
+const ENTITY_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  customer:     { label: "Customer",      icon: Users,        color: "text-violet-600" },
+  plan:         { label: "Plan",          icon: LayoutList,   color: "text-indigo-600" },
+  subscription: { label: "Subscription",  icon: Repeat,       color: "text-blue-600"   },
+  invoice:      { label: "Invoice",       icon: FileText,     color: "text-amber-600"  },
+  payment:      { label: "Payment",       icon: CreditCard,   color: "text-emerald-600"},
+  ticket:       { label: "Ticket",        icon: LifeBuoy,     color: "text-orange-600" },
+  ticket_reply: { label: "Ticket Reply",  icon: MessageSquare,color: "text-orange-500" },
+  equipment:    { label: "Equipment",     icon: Server,       color: "text-cyan-600"   },
+  ip_pool:      { label: "IP Pool",       icon: Network,      color: "text-teal-600"   },
+  user:         { label: "User",          icon: UserCog,      color: "text-gray-600"   },
+};
+
+function entityLabel(type: string): string {
+  return ENTITY_META[type]?.label ?? type
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function EntityTypeBadge({ type }: { type: string }) {
+  const meta = ENTITY_META[type];
+  const Icon = meta?.icon;
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${meta?.color ?? "text-gray-500"}`}>
+      {Icon && <Icon className="w-3.5 h-3.5 flex-shrink-0" />}
+      {entityLabel(type)}
+    </span>
+  );
+}
+
 function dt(iso: string): string {
   return new Date(iso).toLocaleString("en-KE", {
     dateStyle: "short",
     timeStyle: "medium",
   });
-}
-
-function entityLabel(type: string): string {
-  return type
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 interface DiffViewProps {
@@ -176,10 +210,10 @@ function DiffModal({ log, onClose }: DiffModalProps) {
             </div>
             <div>
               <p className="text-xs text-gray-500 font-medium mb-0.5">Entity</p>
-              <p className="text-gray-900">
-                {entityLabel(log.entityType)}
+              <p className="text-gray-900 flex items-center gap-1 flex-wrap">
+                <EntityTypeBadge type={log.entityType} />
                 {log.entityId != null && (
-                  <span className="text-gray-400 ml-1">#{log.entityId}</span>
+                  <span className="text-gray-400 font-mono text-xs">#{log.entityId}</span>
                 )}
               </p>
             </div>
@@ -348,11 +382,18 @@ export default function AuditLogs() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All entity types</SelectItem>
-              {ENTITY_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {entityLabel(t)}
-                </SelectItem>
-              ))}
+              {ENTITY_TYPES.map((t) => {
+                const meta = ENTITY_META[t];
+                const Icon = meta?.icon;
+                return (
+                  <SelectItem key={t} value={t}>
+                    <span className={`inline-flex items-center gap-1.5 ${meta?.color ?? "text-gray-500"}`}>
+                      {Icon && <Icon className="w-3.5 h-3.5 flex-shrink-0" />}
+                      {entityLabel(t)}
+                    </span>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
 
@@ -455,8 +496,8 @@ export default function AuditLogs() {
                           {log.action}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-gray-700">
-                        {entityLabel(log.entityType)}
+                      <td className="px-4 py-3">
+                        <EntityTypeBadge type={log.entityType} />
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-gray-500">
                         {log.entityId != null ? `#${log.entityId}` : "—"}

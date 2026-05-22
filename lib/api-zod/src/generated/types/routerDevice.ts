@@ -29,5 +29,9 @@ export interface RouterDevice {
   enabled: boolean;
   /** @nullable */
   lastSeen?: string | null;
+  /** @nullable */
+  radiusSecret?: string | null;
+  /** @nullable */
+  radiusPort?: number | null;
   createdAt: string;
 }

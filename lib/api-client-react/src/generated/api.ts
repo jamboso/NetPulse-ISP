@@ -57,6 +57,8 @@ import type {
   PlanInput,
   PlanUpdate,
   PurgeAuditLogs200,
+  RadiusSession,
+  RadiusSyncResult,
   RevenuePoint,
   RosLiveData,
   RouterDevice,
@@ -1228,6 +1230,153 @@ export const useDeleteCustomer = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteCustomerMutationOptions(options));
+    }
+
+export const getGetCustomerRadiusSessionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/customers/${id}/radius-sessions`
+}
+
+/**
+ * @summary RADIUS accounting sessions for a customer (from radacct)
+ */
+export const getCustomerRadiusSessions = async (id: number, options?: RequestInit): Promise<RadiusSession[]> => {
+
+  return customFetch<RadiusSession[]>(getGetCustomerRadiusSessionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCustomerRadiusSessionsQueryKey = (id: number,) => {
+    return [
+    `/api/customers/${id}/radius-sessions`
+    ] as const;
+    }
+
+
+export const getGetCustomerRadiusSessionsQueryOptions = <TData = Awaited<ReturnType<typeof getCustomerRadiusSessions>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustomerRadiusSessions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCustomerRadiusSessionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCustomerRadiusSessions>>> = ({ signal }) => getCustomerRadiusSessions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCustomerRadiusSessions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCustomerRadiusSessionsQueryResult = NonNullable<Awaited<ReturnType<typeof getCustomerRadiusSessions>>>
+export type GetCustomerRadiusSessionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary RADIUS accounting sessions for a customer (from radacct)
+ */
+
+export function useGetCustomerRadiusSessions<TData = Awaited<ReturnType<typeof getCustomerRadiusSessions>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustomerRadiusSessions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCustomerRadiusSessionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSyncRadiusUrl = () => {
+
+
+
+
+  return `/api/admin/radius/sync`
+}
+
+/**
+ * @summary Re-sync all subscriptions to RADIUS tables (admin only)
+ */
+export const syncRadius = async ( options?: RequestInit): Promise<RadiusSyncResult> => {
+
+  return customFetch<RadiusSyncResult>(getSyncRadiusUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSyncRadiusMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncRadius>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncRadius>>, TError,void, TContext> => {
+
+const mutationKey = ['syncRadius'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncRadius>>, void> = () => {
+
+
+          return  syncRadius(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncRadiusMutationResult = NonNullable<Awaited<ReturnType<typeof syncRadius>>>
+
+    export type SyncRadiusMutationError = ErrorType<void>
+
+    /**
+ * @summary Re-sync all subscriptions to RADIUS tables (admin only)
+ */
+export const useSyncRadius = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncRadius>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof syncRadius>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSyncRadiusMutationOptions(options));
     }
 
 export const getGetCustomerSessionsUrl = (id: number,) => {

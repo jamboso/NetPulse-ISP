@@ -32,6 +32,7 @@ type RouterFormData = {
   name: string; routerType: string; ipAddress: string; port: string;
   username: string; password: string; description: string; location: string;
   apiSsl: boolean; sshPort: string; netconfPort: string; enabled: boolean;
+  radiusSecret: string; radiusPort: string;
 };
 
 type EquipmentFormData = {
@@ -48,6 +49,7 @@ const ROUTER_DEFAULTS: RouterFormData = {
   name: "", routerType: "routeros", ipAddress: "", port: "",
   username: "admin", password: "", description: "", location: "",
   apiSsl: false, sshPort: "", netconfPort: "", enabled: true,
+  radiusSecret: "", radiusPort: "",
 };
 
 const EQUIPMENT_DEFAULTS: EquipmentFormData = {
@@ -115,6 +117,8 @@ function RouterDialog({
         sshPort: form.sshPort ? parseInt(form.sshPort) : undefined,
         netconfPort: form.netconfPort ? parseInt(form.netconfPort) : undefined,
         enabled: form.enabled,
+        radiusSecret: form.radiusSecret || undefined,
+        radiusPort: form.radiusPort ? parseInt(form.radiusPort) : undefined,
       };
       if (routerId) {
         await updateMutation.mutateAsync({
@@ -221,6 +225,33 @@ function RouterDialog({
           <div className="flex items-center gap-3">
             <Switch checked={form.enabled} onCheckedChange={(v) => set("enabled", v)} id="enabled" />
             <Label htmlFor="enabled" className="text-sm cursor-pointer">Enabled (monitored by system)</Label>
+          </div>
+
+          <div className="border-t border-gray-100 pt-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">RADIUS (optional)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>RADIUS Shared Secret</Label>
+                <Input
+                  type="password"
+                  value={form.radiusSecret}
+                  onChange={(e) => set("radiusSecret", e.target.value)}
+                  placeholder="e.g. testing123"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>RADIUS Auth Port</Label>
+                <Input
+                  type="number"
+                  value={form.radiusPort}
+                  onChange={(e) => set("radiusPort", e.target.value)}
+                  placeholder="1812"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-1">
+              Set a shared secret to register this router as a NAS device in FreeRADIUS.
+            </p>
           </div>
         </div>
         {saveError && <p className="text-sm text-red-600 text-center px-1">{saveError}</p>}
@@ -646,6 +677,8 @@ export default function Network() {
                                   apiSsl: r.apiSsl ?? false,
                                   sshPort: r.sshPort?.toString() ?? "", netconfPort: r.netconfPort?.toString() ?? "",
                                   enabled: r.enabled,
+                                  radiusSecret: (r as any).radiusSecret ?? "",
+                                  radiusPort: (r as any).radiusPort?.toString() ?? "",
                                 },
                               })}>
                               <Pencil className="w-3.5 h-3.5" />

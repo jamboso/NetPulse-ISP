@@ -26,4 +26,8 @@ export interface RouterDeviceUpdate {
   /** @nullable */
   netconfPort?: number | null;
   enabled?: boolean;
+  /** @nullable */
+  radiusSecret?: string | null;
+  /** @nullable */
+  radiusPort?: number | null;
 }

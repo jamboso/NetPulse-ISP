@@ -102,6 +102,52 @@ function SectionCard({ icon: Icon, title, children }: { icon: React.ElementType;
   );
 }
 
+function RadiusResyncButton() {
+  const [state, setState] = useState<"idle" | "loading" | "ok" | "error">("idle");
+  const [result, setResult] = useState<{ synced: number; skipped: number } | null>(null);
+
+  const handleSync = async () => {
+    setState("loading");
+    setResult(null);
+    try {
+      const res = await fetch("/api/admin/radius/sync", { method: "POST", credentials: "include" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setResult({ synced: data.synced, skipped: data.skipped });
+      setState("ok");
+    } catch {
+      setState("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={handleSync}
+        disabled={state === "loading"}
+        className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+      >
+        <RefreshCw className={`w-3.5 h-3.5 ${state === "loading" ? "animate-spin" : ""}`} />
+        {state === "loading" ? "Syncing…" : "Re-sync RADIUS"}
+      </Button>
+      {state === "ok" && result && (
+        <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          Synced {result.synced} · skipped {result.skipped}
+        </span>
+      )}
+      {state === "error" && (
+        <span className="flex items-center gap-1.5 text-xs text-red-600">
+          <AlertCircle className="w-3.5 h-3.5" /> Sync failed
+        </span>
+      )}
+      <span className="text-[11px] text-gray-400">Push all active subscriptions into radcheck/radusergroup</span>
+    </div>
+  );
+}
+
 export default function Settings() {
   const { data: serverSettings, isLoading } = useGetSettings();
   const updateMutation = useUpdateSettings();
@@ -301,6 +347,7 @@ export default function Settings() {
           <SectionCard icon={Network} title="RADIUS">
             <SettingField label="RADIUS Server" name="radiusServer" value={f("radiusServer")} onChange={set} placeholder="192.168.1.10" hint="IP or hostname of RADIUS server" />
             <SettingField label="RADIUS Secret" name="radiusSecret" value={f("radiusSecret")} onChange={set} secret placeholder="shared-secret" hint="RADIUS shared secret" />
+            <RadiusResyncButton />
           </SectionCard>
         </TabsContent>
 

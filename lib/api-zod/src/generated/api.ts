@@ -266,6 +266,43 @@ export const DeleteCustomerParams = zod.object({
 
 
 /**
+ * @summary RADIUS accounting sessions for a customer (from radacct)
+ */
+export const GetCustomerRadiusSessionsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetCustomerRadiusSessionsResponseItem = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "nasIp": zod.string(),
+  "sessionId": zod.string(),
+  "startTime": zod.string().nullish(),
+  "stopTime": zod.string().nullish(),
+  "updateTime": zod.string().nullish(),
+  "sessionTimeSecs": zod.number(),
+  "bytesIn": zod.number(),
+  "bytesOut": zod.number(),
+  "framedIp": zod.string().nullish(),
+  "callingStation": zod.string().nullish(),
+  "calledStation": zod.string().nullish(),
+  "terminateCause": zod.string().nullish(),
+  "active": zod.boolean()
+})
+export const GetCustomerRadiusSessionsResponse = zod.array(GetCustomerRadiusSessionsResponseItem)
+
+
+/**
+ * @summary Re-sync all subscriptions to RADIUS tables (admin only)
+ */
+export const SyncRadiusResponse = zod.object({
+  "ok": zod.boolean(),
+  "synced": zod.number(),
+  "skipped": zod.number()
+})
+
+
+/**
  * @summary Get live PPPoE/Hotspot session data for all customer subscriptions
  */
 export const GetCustomerSessionsParams = zod.object({
@@ -1307,6 +1344,8 @@ export const ListRoutersResponseItem = zod.object({
   "netconfPort": zod.number().nullish(),
   "enabled": zod.boolean(),
   "lastSeen": zod.string().nullish(),
+  "radiusSecret": zod.string().nullish(),
+  "radiusPort": zod.number().nullish(),
   "createdAt": zod.string()
 })
 export const ListRoutersResponse = zod.array(ListRoutersResponseItem)
@@ -1327,7 +1366,9 @@ export const CreateRouterBody = zod.object({
   "apiSsl": zod.boolean().optional(),
   "sshPort": zod.number().optional(),
   "netconfPort": zod.number().optional(),
-  "enabled": zod.boolean().optional()
+  "enabled": zod.boolean().optional(),
+  "radiusSecret": zod.string().optional(),
+  "radiusPort": zod.number().optional()
 })
 
 
@@ -1378,6 +1419,8 @@ export const GetRouterResponse = zod.object({
   "netconfPort": zod.number().nullish(),
   "enabled": zod.boolean(),
   "lastSeen": zod.string().nullish(),
+  "radiusSecret": zod.string().nullish(),
+  "radiusPort": zod.number().nullish(),
   "createdAt": zod.string()
 })
 
@@ -1401,7 +1444,9 @@ export const UpdateRouterBody = zod.object({
   "apiSsl": zod.boolean().nullish(),
   "sshPort": zod.number().nullish(),
   "netconfPort": zod.number().nullish(),
-  "enabled": zod.boolean().optional()
+  "enabled": zod.boolean().optional(),
+  "radiusSecret": zod.string().nullish(),
+  "radiusPort": zod.number().nullish()
 })
 
 export const UpdateRouterResponse = zod.object({
@@ -1419,6 +1464,8 @@ export const UpdateRouterResponse = zod.object({
   "netconfPort": zod.number().nullish(),
   "enabled": zod.boolean(),
   "lastSeen": zod.string().nullish(),
+  "radiusSecret": zod.string().nullish(),
+  "radiusPort": zod.number().nullish(),
   "createdAt": zod.string()
 })
 

@@ -21,6 +21,8 @@ export const routersTable = pgTable("routers", {
   enabled: boolean("enabled").notNull().default(true),
   lastSeen: timestamp("last_seen"),
   monitorState: text("monitor_state"), // persisted: "online" | "offline" | null
+  radiusSecret: text("radius_secret"),
+  radiusPort: integer("radius_port"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

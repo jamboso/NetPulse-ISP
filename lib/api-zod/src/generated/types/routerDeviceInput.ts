@@ -20,4 +20,6 @@ export interface RouterDeviceInput {
   sshPort?: number;
   netconfPort?: number;
   enabled?: boolean;
+  radiusSecret?: string;
+  radiusPort?: number;
 }

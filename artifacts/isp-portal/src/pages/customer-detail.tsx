@@ -10,6 +10,7 @@ import {
   useGetCustomerSessions,
   useGetCustomerUsageSnapshots,
   useSaveUsageSnapshot,
+  useGetCustomerRadiusSessions,
   type CustomerSession,
 } from "@workspace/api-client-react";
 import {
@@ -452,6 +453,8 @@ export default function CustomerDetail() {
 
   const { data: snapshotMap, refetch: refetchSnapshots } = useGetCustomerUsageSnapshots(customerId);
 
+  const { data: radiusSessions, isLoading: loadingRadius, refetch: refetchRadius } = useGetCustomerRadiusSessions(customerId);
+
   const saveSnapshot = useSaveUsageSnapshot();
   const lastSavedAt = useRef(0);
 
@@ -880,6 +883,9 @@ export default function CustomerDetail() {
               </TabsTrigger>
               <TabsTrigger value="equipment" className="data-[state=active]:bg-white rounded-md">
                 <HardDrive className="w-4 h-4 mr-2" /> Equipment
+              </TabsTrigger>
+              <TabsTrigger value="radius" className="data-[state=active]:bg-white rounded-md">
+                <Signal className="w-4 h-4 mr-2" /> RADIUS
               </TabsTrigger>
             </TabsList>
 
@@ -1382,6 +1388,82 @@ export default function CustomerDetail() {
                           <HardDrive className="w-8 h-8 text-gray-200 mx-auto mb-2" />
                           <p className="text-sm text-gray-400">No equipment assigned to this customer.</p>
                           <p className="text-xs text-gray-400 mt-1">Go to Network → Equipment and assign a device to this customer.</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+
+            {/* ── RADIUS Sessions tab ── */}
+            <TabsContent value="radius" className="m-0">
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+                    <Signal className="w-4 h-4 text-blue-500" /> RADIUS Accounting Sessions
+                  </h3>
+                  <button
+                    onClick={() => refetchRadius()}
+                    className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Refresh
+                  </button>
+                </div>
+                <Table>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow>
+                      <TableHead>Session ID</TableHead>
+                      <TableHead>NAS IP</TableHead>
+                      <TableHead>Started</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead>Downloaded</TableHead>
+                      <TableHead>Uploaded</TableHead>
+                      <TableHead>Terminate Cause</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loadingRadius ? (
+                      <TableRow><TableCell colSpan={7}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
+                    ) : radiusSessions && radiusSessions.length > 0 ? (
+                      radiusSessions.map((s: any, i: number) => {
+                        const durationSecs = s.acctsessiontime ?? 0;
+                        const hrs = Math.floor(durationSecs / 3600);
+                        const mins = Math.floor((durationSecs % 3600) / 60);
+                        const dlMB = ((s.acctinputoctets ?? 0) / 1_048_576).toFixed(1);
+                        const ulMB = ((s.acctoutputoctets ?? 0) / 1_048_576).toFixed(1);
+                        return (
+                          <TableRow key={s.radacctid ?? i}>
+                            <TableCell className="font-mono text-xs text-gray-600 max-w-[140px] truncate">{s.acctsessionid}</TableCell>
+                            <TableCell className="font-mono text-xs text-gray-600">{s.nasipaddress}</TableCell>
+                            <TableCell className="text-xs text-gray-600">
+                              {s.acctstarttime ? new Date(s.acctstarttime).toLocaleString() : "—"}
+                            </TableCell>
+                            <TableCell className="text-xs text-gray-600">
+                              {durationSecs > 0 ? `${hrs}h ${mins}m` : "—"}
+                            </TableCell>
+                            <TableCell className="text-xs text-gray-600">
+                              <span className="flex items-center gap-1"><Download className="w-3 h-3 text-blue-400" />{dlMB} MB</span>
+                            </TableCell>
+                            <TableCell className="text-xs text-gray-600">
+                              <span className="flex items-center gap-1"><Upload className="w-3 h-3 text-green-400" />{ulMB} MB</span>
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {s.acctterminatecause ? (
+                                <Badge variant="outline" className="text-[10px] text-gray-500">{s.acctterminatecause}</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">Active</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={7} className="py-12 text-center">
+                          <Signal className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                          <p className="text-sm text-gray-400">No RADIUS sessions found.</p>
+                          <p className="text-xs text-gray-400 mt-1">Sessions will appear here once the customer connects via FreeRADIUS.</p>
                         </TableCell>
                       </TableRow>
                     )}

@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
+import { syncPlanRadiusGroup } from "../lib/radiusSync";
 
 const BILLING_CYCLES = ["monthly", "quarterly", "annual"] as const;
 
@@ -40,6 +41,7 @@ router.post("/plans", requireRole("admin"), validateBody(createPlanSchema), asyn
     isActive: body.isActive ?? true,
     rosProfileName: body.rosProfileName ?? null,
   }).returning();
+  void syncPlanRadiusGroup(plan!);
   res.status(201).json({ ...plan, price: Number(plan!.price) });
 });
 
@@ -64,6 +66,7 @@ router.patch("/plans/:id", requireRole("admin"), validateBody(updatePlanSchema),
   if (body.rosProfileName !== undefined) update.rosProfileName = body.rosProfileName;
   const [updated] = await db.update(plansTable).set(update).where(eq(plansTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  void syncPlanRadiusGroup(updated);
   res.json({ ...updated, price: Number(updated.price) });
 });
 

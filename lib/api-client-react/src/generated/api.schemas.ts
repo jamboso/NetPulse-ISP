@@ -818,6 +818,10 @@ export interface RouterDevice {
   enabled: boolean;
   /** @nullable */
   lastSeen?: string | null;
+  /** @nullable */
+  radiusSecret?: string | null;
+  /** @nullable */
+  radiusPort?: number | null;
   createdAt: string;
 }
 
@@ -843,6 +847,8 @@ export interface RouterDeviceInput {
   sshPort?: number;
   netconfPort?: number;
   enabled?: boolean;
+  radiusSecret?: string;
+  radiusPort?: number;
 }
 
 export type RouterStatusRouterType = typeof RouterStatusRouterType[keyof typeof RouterStatusRouterType];
@@ -900,6 +906,10 @@ export interface RouterDeviceUpdate {
   /** @nullable */
   netconfPort?: number | null;
   enabled?: boolean;
+  /** @nullable */
+  radiusSecret?: string | null;
+  /** @nullable */
+  radiusPort?: number | null;
 }
 
 export type RosLiveDataIdentity = { [key: string]: unknown };
@@ -1060,6 +1070,30 @@ export const UpdateUserInputRole = {
 export interface UpdateUserInput {
   role?: UpdateUserInputRole;
   active?: boolean;
+}
+
+export interface RadiusSession {
+  id: number;
+  username: string;
+  nasIp: string;
+  sessionId: string;
+  startTime?: string | null;
+  stopTime?: string | null;
+  updateTime?: string | null;
+  sessionTimeSecs: number;
+  bytesIn: number;
+  bytesOut: number;
+  framedIp?: string | null;
+  callingStation?: string | null;
+  calledStation?: string | null;
+  terminateCause?: string | null;
+  active: boolean;
+}
+
+export interface RadiusSyncResult {
+  ok: boolean;
+  synced: number;
+  skipped: number;
 }
 
 export type AuditLogAction = typeof AuditLogAction[keyof typeof AuditLogAction];

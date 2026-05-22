@@ -6,6 +6,13 @@ import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
 import { writeAuditLog } from "../lib/audit";
+import {
+  syncSubscriptionCreate,
+  syncSubscriptionSuspend,
+  syncSubscriptionReactivate,
+  syncSubscriptionCancel,
+  syncPlanRadiusGroup,
+} from "../lib/radiusSync";
 
 const SUBSCRIPTION_STATUSES = ["active", "suspended", "cancelled"] as const;
 
@@ -257,6 +264,12 @@ router.post("/subscriptions", requireRole("admin", "billing"), validateBody(crea
     );
   }
 
+  // Sync RADIUS (best-effort)
+  if (status === "active" && pppoeUsername && pppoePassword) {
+    void syncSubscriptionCreate({ username: pppoeUsername, password: pppoePassword, planId: body.planId });
+    if (plan) void syncPlanRadiusGroup(plan);
+  }
+
   void writeAuditLog({
     userId:     req.user!.id,
     userEmail:  req.user!.email,
@@ -310,10 +323,9 @@ router.patch("/subscriptions/:id", requireRole("admin", "billing"), validateBody
 
     if (newStatus === "active") {
       if (username) {
-        // Re-enable existing secret
         enablePPPoESecret(effectiveRouterId, username, req.log);
+        void syncSubscriptionReactivate(username);
       } else {
-        // No credentials yet — generate and provision now
         const [[customer], [plan]] = await Promise.all([
           db.select().from(customersTable).where(eq(customersTable.id, existing.customerId)),
           db.select().from(plansTable).where(eq(plansTable.id, existing.planId)),
@@ -331,12 +343,20 @@ router.patch("/subscriptions/:id", requireRole("admin", "billing"), validateBody
             `Sub #${id} | ${customer.name} | ${plan?.name ?? ""}`,
             req.log
           );
+          void syncSubscriptionCreate({ username: pppoeUsername, password: pppoePassword, planId: existing.planId });
+          if (plan) void syncPlanRadiusGroup(plan);
         }
       }
-    } else if (newStatus === "suspended" && username) {
-      disablePPPoESecret(effectiveRouterId, username, req.log);
-    } else if (newStatus === "cancelled" && username) {
-      deletePPPoESecret(effectiveRouterId, username, req.log);
+    } else if (newStatus === "suspended") {
+      if (username) {
+        disablePPPoESecret(effectiveRouterId, username, req.log);
+        void syncSubscriptionSuspend(username);
+      }
+    } else if (newStatus === "cancelled") {
+      if (username) {
+        deletePPPoESecret(effectiveRouterId, username, req.log);
+        void syncSubscriptionCancel(username);
+      }
       update.pppoeUsername = null;
       update.pppoePassword = null;
     }
@@ -364,6 +384,9 @@ router.delete("/subscriptions/:id", requireRole("admin"), async (req, res) => {
 
   if (existing.pppoeUsername && existing.routerId) {
     deletePPPoESecret(existing.routerId, existing.pppoeUsername, req.log);
+  }
+  if (existing.pppoeUsername) {
+    void syncSubscriptionCancel(existing.pppoeUsername);
   }
 
   // Cascade: delete payments → invoices → subscription

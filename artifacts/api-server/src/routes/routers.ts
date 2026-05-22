@@ -3,6 +3,7 @@ import * as net from "net";
 import { db } from "@workspace/db";
 import { routersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { upsertRadnas, removeRadnas } from "../lib/radiusSync";
 
 const router = Router();
 
@@ -98,7 +99,7 @@ router.get("/routers", async (_req, res) => {
 });
 
 router.post("/routers", async (req, res) => {
-  statusCache = null; // invalidate status cache on changes
+  statusCache = null;
   const body = req.body;
   const [created] = await db.insert(routersTable).values({
     name: body.name,
@@ -113,7 +114,12 @@ router.post("/routers", async (req, res) => {
     sshPort: body.sshPort ?? null,
     netconfPort: body.netconfPort ?? null,
     enabled: body.enabled !== undefined ? body.enabled : true,
+    radiusSecret: body.radiusSecret ?? null,
+    radiusPort: body.radiusPort ?? null,
   }).returning();
+  if (created!.radiusSecret) {
+    void upsertRadnas({ ipAddress: created!.ipAddress, name: created!.name, radiusSecret: created!.radiusSecret, radiusPort: created!.radiusPort });
+  }
   res.status(201).json(created);
 });
 
@@ -132,19 +138,28 @@ router.patch("/routers/:id", async (req, res) => {
   const fields = [
     "name", "routerType", "ipAddress", "port", "username", "password",
     "description", "location", "apiSsl", "sshPort", "netconfPort", "enabled",
+    "radiusSecret", "radiusPort",
   ] as const;
   for (const f of fields) {
     if (body[f] !== undefined) update[f] = body[f];
   }
   const [updated] = await db.update(routersTable).set(update).where(eq(routersTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  if (updated.radiusSecret) {
+    void upsertRadnas({ ipAddress: updated.ipAddress, name: updated.name, radiusSecret: updated.radiusSecret, radiusPort: updated.radiusPort });
+  } else if (body.radiusSecret === null || body.radiusSecret === "") {
+    void removeRadnas(updated.ipAddress);
+  }
   res.json(updated);
 });
 
 router.delete("/routers/:id", async (req, res) => {
   statusCache = null;
   const id = parseInt(req.params.id!);
+  const [existing] = await db.select({ ipAddress: routersTable.ipAddress, radiusSecret: routersTable.radiusSecret })
+    .from(routersTable).where(eq(routersTable.id, id));
   await db.delete(routersTable).where(eq(routersTable.id, id));
+  if (existing?.radiusSecret) void removeRadnas(existing.ipAddress);
   res.status(204).send();
 });
 

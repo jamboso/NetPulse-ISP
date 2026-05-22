@@ -36,6 +36,8 @@ tags:
     description: Managed router devices (RouterOS, Juniper, EdgeRouter)
   - name: audit-logs
     description: Audit trail of sensitive mutations
+  - name: radius
+    description: FreeRADIUS integration — RADIUS session data and sync
 
 paths:
   # ── USERS (STAFF MANAGEMENT) ─────────────────────────────────────────────────
@@ -359,6 +361,41 @@ paths:
       responses:
         "204":
           description: Deleted
+
+  /customers/{id}/radius-sessions:
+    get:
+      operationId: getCustomerRadiusSessions
+      tags: [radius]
+      summary: RADIUS accounting sessions for a customer (from radacct)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: RADIUS accounting session rows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RadiusSession"
+
+  /admin/radius/sync:
+    post:
+      operationId: syncRadius
+      tags: [radius]
+      summary: Re-sync all subscriptions to RADIUS tables (admin only)
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadiusSyncResult"
+        "403":
+          description: Forbidden
 
   /customers/{id}/sessions:
     get:
@@ -2169,6 +2206,10 @@ components:
           type: boolean
         lastSeen:
           type: ["string", "null"]
+        radiusSecret:
+          type: ["string", "null"]
+        radiusPort:
+          type: ["integer", "null"]
         createdAt:
           type: string
 
@@ -2201,6 +2242,10 @@ components:
           type: integer
         enabled:
           type: boolean
+        radiusSecret:
+          type: string
+        radiusPort:
+          type: integer
 
     RouterStatus:
       type: object
@@ -2258,6 +2303,10 @@ components:
           type: ["integer", "null"]
         enabled:
           type: boolean
+        radiusSecret:
+          type: ["string", "null"]
+        radiusPort:
+          type: ["integer", "null"]
 
     RosLiveData:
       type: object
@@ -2454,6 +2503,59 @@ components:
           enum: [admin, billing, support, technician]
         active:
           type: boolean
+
+    RadiusSession:
+      type: object
+      required: [id, username, nasIp, sessionId, bytesIn, bytesOut, sessionTimeSecs, active]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        nasIp:
+          type: string
+        sessionId:
+          type: string
+        startTime:
+          type: string
+          nullable: true
+        stopTime:
+          type: string
+          nullable: true
+        updateTime:
+          type: string
+          nullable: true
+        sessionTimeSecs:
+          type: integer
+        bytesIn:
+          type: integer
+        bytesOut:
+          type: integer
+        framedIp:
+          type: string
+          nullable: true
+        callingStation:
+          type: string
+          nullable: true
+        calledStation:
+          type: string
+          nullable: true
+        terminateCause:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+
+    RadiusSyncResult:
+      type: object
+      required: [ok, synced, skipped]
+      properties:
+        ok:
+          type: boolean
+        synced:
+          type: integer
+        skipped:
+          type: integer
 
     AuditLog:
       type: object

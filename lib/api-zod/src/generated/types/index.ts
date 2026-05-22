@@ -69,6 +69,8 @@ export * from './planInputBillingCycle';
 export * from './planUpdate';
 export * from './planUpdateBillingCycle';
 export * from './purgeAuditLogs200';
+export * from './radiusSession';
+export * from './radiusSyncResult';
 export * from './revenuePoint';
 export * from './rosLiveData';
 export * from './rosLiveDataBgpPeersItem';

@@ -272,7 +272,7 @@ export function InfrastructureTab({
     await loadStatus();
   };
 
-  const vpnReady = status?.vpn.certsGenerated;
+  const vpnReady = status?.vpn?.certsGenerated;
   const serverVpnIp = vpnForm.vpnSubnet
     ? vpnForm.vpnSubnet.split(".").slice(0, 3).join(".") + ".1"
     : "10.8.0.1";
@@ -283,8 +283,8 @@ export function InfrastructureTab({
       <SectionCard
         icon={Shield}
         title="RADIUS Authentication"
-        badge={status?.radius.configured ? "Configured" : "Not Configured"}
-        badgeVariant={status?.radius.configured ? "default" : "secondary"}
+        badge={status?.radius?.configured ? "Configured" : "Not Configured"}
+        badgeVariant={status?.radius?.configured ? "default" : "secondary"}
       >
         <p className="text-xs text-gray-500 -mt-1">
           FreeRADIUS integration lets your MikroTik routers authenticate PPPoE subscribers
@@ -428,7 +428,7 @@ radtest testuser testpass localhost 0 ${f("radiusSecret") || "your-secret"}`} />
         badge={
           vpnReady
             ? "Certificates Ready"
-            : status?.vpn.configured
+            : status?.vpn?.configured
             ? "Configured — No Certs"
             : "Not Configured"
         }
@@ -439,10 +439,10 @@ radtest testuser testpass localhost 0 ${f("radiusSecret") || "your-secret"}`} />
           RADIUS authentication travels over these tunnels, keeping your network private.
         </p>
 
-        {status?.vpn.certsGeneratedAt && (
+        {status?.vpn?.certsGeneratedAt && (
           <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
             <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-            Certificates generated {new Date(status.vpn.certsGeneratedAt).toLocaleDateString()}
+            Certificates generated {new Date(status!.vpn!.certsGeneratedAt!).toLocaleDateString()}
           </div>
         )}
 
@@ -522,7 +522,7 @@ radtest testuser testpass localhost 0 ${f("radiusSecret") || "your-secret"}`} />
             size="sm"
             variant="outline"
             onClick={generateCerts}
-            disabled={generatingCerts || !status?.vpn.configured}
+            disabled={generatingCerts || !status?.vpn?.configured}
             className="gap-2"
           >
             {generatingCerts ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}

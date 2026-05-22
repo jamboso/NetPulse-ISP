@@ -994,6 +994,58 @@ export interface UsageSnapshot {
   recordedAt: string;
 }
 
+export type StaffUserRole = typeof StaffUserRole[keyof typeof StaffUserRole];
+
+
+export const StaffUserRole = {
+  admin: 'admin',
+  billing: 'billing',
+  support: 'support',
+  technician: 'technician',
+} as const;
+
+export interface StaffUser {
+  id: string;
+  email: string;
+  name: string;
+  role: StaffUserRole;
+  active: boolean;
+  createdAt: string;
+}
+
+export type CreateUserInputRole = typeof CreateUserInputRole[keyof typeof CreateUserInputRole];
+
+
+export const CreateUserInputRole = {
+  admin: 'admin',
+  billing: 'billing',
+  support: 'support',
+  technician: 'technician',
+} as const;
+
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  /** @minLength 8 */
+  password: string;
+  role: CreateUserInputRole;
+}
+
+export type UpdateUserInputRole = typeof UpdateUserInputRole[keyof typeof UpdateUserInputRole];
+
+
+export const UpdateUserInputRole = {
+  admin: 'admin',
+  billing: 'billing',
+  support: 'support',
+  technician: 'technician',
+} as const;
+
+export interface UpdateUserInput {
+  role?: UpdateUserInputRole;
+  active?: boolean;
+}
+
 export type AuditLogAction = typeof AuditLogAction[keyof typeof AuditLogAction];
 
 
@@ -1013,6 +1065,14 @@ export interface AuditLog {
   diff?: unknown | null;
   createdAt: string;
 }
+
+export type ListUsersParams = {
+search?: string;
+};
+
+export type ListUsers200 = {
+  data: StaffUser[];
+};
 
 export type ListAuditLogsParams = {
 entityType?: string;

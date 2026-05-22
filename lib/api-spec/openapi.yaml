@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: users
+    description: Staff user management (admin only)
   - name: customers
     description: Customer management
   - name: plans
@@ -36,6 +38,81 @@ tags:
     description: Audit trail of sensitive mutations
 
 paths:
+  # ── USERS (STAFF MANAGEMENT) ─────────────────────────────────────────────────
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all staff user accounts (admin only)
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        "200":
+          description: List of staff users
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/StaffUser"
+        "403":
+          description: Forbidden — admin role required
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new staff account (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserInput"
+      responses:
+        "201":
+          description: Created staff user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffUser"
+        "400":
+          description: Validation error or email already exists
+        "403":
+          description: Forbidden — admin role required
+
+  /users/{id}:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a staff user's role or active status (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserInput"
+      responses:
+        "200":
+          description: Updated staff user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffUser"
+        "403":
+          description: Forbidden — admin role required
+        "404":
+          description: User not found
+
   # ── AUDIT LOGS ───────────────────────────────────────────────────────────────
   /audit-logs:
     get:
@@ -2300,6 +2377,50 @@ components:
         recordedAt:
           type: string
           format: date-time
+
+    StaffUser:
+      type: object
+      required: [id, email, name, role, active, createdAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, billing, support, technician]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateUserInput:
+      type: object
+      required: [name, email, password, role]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        role:
+          type: string
+          enum: [admin, billing, support, technician]
+
+    UpdateUserInput:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [admin, billing, support, technician]
+        active:
+          type: boolean
 
     AuditLog:
       type: object

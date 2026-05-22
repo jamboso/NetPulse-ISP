@@ -29,6 +29,7 @@ import infrastructureRouter from "./infrastructure";
 import setupRouter from "./setup";
 import auditLogsRouter from "./audit-logs";
 import systemUpdateRouter from "./system-update";
+import usersRouter from "./users";
 
 const router: IRouter = Router();
 
@@ -73,5 +74,6 @@ router.use(networkMapRouter);
 router.use(infrastructureRouter);
 router.use(auditLogsRouter);
 router.use(systemUpdateRouter);
+router.use(usersRouter);
 
 export default router;

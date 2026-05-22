@@ -9,6 +9,62 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary List all staff user accounts (admin only)
+ */
+export const ListUsersQueryParams = zod.object({
+  "search": zod.coerce.string().optional()
+})
+
+export const ListUsersResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "name": zod.string(),
+  "role": zod.enum(['admin', 'billing', 'support', 'technician']),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create a new staff account (admin only)
+ */
+export const createUserBodyPasswordMin = 8;
+
+
+
+export const CreateUserBody = zod.object({
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "password": zod.string().min(createUserBodyPasswordMin),
+  "role": zod.enum(['admin', 'billing', 'support', 'technician'])
+})
+
+
+/**
+ * @summary Update a staff user's role or active status (admin only)
+ */
+export const UpdateUserParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateUserBody = zod.object({
+  "role": zod.enum(['admin', 'billing', 'support', 'technician']).optional(),
+  "active": zod.boolean().optional()
+})
+
+export const UpdateUserResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "name": zod.string(),
+  "role": zod.enum(['admin', 'billing', 'support', 'technician']),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary List audit log entries (admin only)
  */
 export const listAuditLogsQueryPageDefault = 1;

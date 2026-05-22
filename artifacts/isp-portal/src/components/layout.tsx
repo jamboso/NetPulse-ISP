@@ -14,7 +14,8 @@ import {
   MapPin,
   Smartphone,
   Settings as SettingsIcon,
-  LogOut
+  LogOut,
+  UserCog
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -26,6 +27,8 @@ export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const { data: session } = useSession();
   const user = session?.user;
+
+  const isAdmin = (user as (typeof user & { role?: string }) | undefined)?.role === "admin";
 
   const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -42,6 +45,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: "Compliance", href: "/compliance", icon: Shield },
     { name: "SMS Manager", href: "/sms", icon: MessageSquare },
     { name: "Settings", href: "/settings", icon: SettingsIcon },
+    ...(isAdmin ? [{ name: "Staff", href: "/staff", icon: UserCog }] : []),
   ];
 
   return (

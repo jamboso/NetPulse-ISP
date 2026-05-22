@@ -13,6 +13,7 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -203,6 +204,7 @@ export default function AuditLogs() {
   const [userSearch, setUserSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [exporting, setExporting] = useState(false);
   const qc = useQueryClient();
 
   const params: ListAuditLogsParams = {
@@ -215,6 +217,31 @@ export default function AuditLogs() {
   };
 
   const { data, isLoading, isError } = useListAuditLogs(params);
+
+  async function handleExportCsv() {
+    setExporting(true);
+    try {
+      const qs = new URLSearchParams();
+      if (entityTypeFilter !== "all") qs.set("entityType", entityTypeFilter);
+      if (actionFilter !== "all") qs.set("action", actionFilter);
+      if (dateFrom) qs.set("from", dateFrom);
+      if (dateTo) qs.set("to", dateTo + "T23:59:59Z");
+      if (userSearch.trim()) qs.set("userEmail", userSearch.trim());
+      const url = `/api/audit-logs/export.csv${qs.size > 0 ? "?" + qs.toString() : ""}`;
+      const resp = await fetch(url, { credentials: "include" });
+      if (!resp.ok) throw new Error(`Export failed: ${resp.status}`);
+      const blob = await resp.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(link.href);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const logs: AuditLog[] = data?.data ?? [];
   const totalPage = data ? Math.max(1, Math.ceil(logs.length / 50) + (logs.length === 50 ? 1 : 0)) : 1;
@@ -257,15 +284,27 @@ export default function AuditLogs() {
             Track every change made by staff — who did what, and when.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={resetFilters}
-          className="gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          {hasFilters ? "Clear filters" : "Refresh"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCsv}
+            disabled={exporting}
+            className="gap-2"
+          >
+            <Download className="w-4 h-4" />
+            {exporting ? "Exporting…" : "Export CSV"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={resetFilters}
+            className="gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            {hasFilters ? "Clear filters" : "Refresh"}
+          </Button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">

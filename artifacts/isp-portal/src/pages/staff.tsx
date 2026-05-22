@@ -27,11 +27,119 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { UserCog, Plus, MoreHorizontal, Search, MessageSquare, Mail, BellOff, UserX, UserCheck } from "lucide-react";
+import { UserCog, Plus, MoreHorizontal, Search, MessageSquare, Mail, BellOff, UserX, UserCheck, ShieldCheck, ChevronDown, ChevronUp, Check, X } from "lucide-react";
 
 const ROLES = ["admin", "billing", "support", "technician"] as const;
+
+type PermissionArea = {
+  label: string;
+  admin: boolean;
+  billing: boolean;
+  support: boolean;
+  technician: boolean;
+};
+
+const PERMISSION_AREAS: PermissionArea[] = [
+  { label: "Customers (view & edit)",  admin: true,  billing: true,  support: true,  technician: false },
+  { label: "Service Plans",            admin: true,  billing: false, support: false, technician: false },
+  { label: "Subscriptions",            admin: true,  billing: true,  support: false, technician: false },
+  { label: "Invoices & Payments",      admin: true,  billing: true,  support: false, technician: false },
+  { label: "Support Tickets",          admin: true,  billing: false, support: true,  technician: false },
+  { label: "Network Equipment",        admin: true,  billing: false, support: false, technician: true  },
+  { label: "IP Pools",                 admin: true,  billing: false, support: false, technician: true  },
+  { label: "Staff Management",         admin: true,  billing: false, support: false, technician: false },
+  { label: "Settings",                 admin: true,  billing: false, support: false, technician: false },
+];
+
+const roleDescription: Record<Role, string> = {
+  admin:      "Full access to all areas of the system including staff and settings.",
+  billing:    "Manages customers, subscriptions, invoices, and payments.",
+  support:    "Handles customer inquiries and support tickets.",
+  technician: "Manages network equipment and IP pool assignments.",
+};
+
+function PermissionCell({ allowed }: { allowed: boolean }) {
+  return allowed
+    ? <Check className="w-4 h-4 text-green-600 mx-auto" />
+    : <X className="w-4 h-4 text-gray-300 mx-auto" />;
+}
+
+function RolePermissionsMatrix() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card className="border-blue-100 bg-blue-50/40">
+      <CardHeader className="pb-2 pt-4 px-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold text-blue-900 flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-blue-600" />
+            Role Permissions Reference
+          </CardTitle>
+          <button
+            type="button"
+            onClick={() => setOpen(o => !o)}
+            className="text-xs text-blue-600 flex items-center gap-1 hover:underline focus:outline-none"
+          >
+            {open ? "Hide" : "Show"} matrix
+            {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+        {!open && (
+          <p className="text-xs text-blue-700 mt-1">
+            Admin: full access · Billing: invoices/payments/subscriptions · Support: customers/tickets · Technician: equipment/IP pools
+          </p>
+        )}
+      </CardHeader>
+      {open && (
+        <CardContent className="px-4 pb-4">
+          <div className="rounded-md border border-blue-100 overflow-hidden bg-white">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="text-left py-2 px-3 text-gray-500 font-medium w-1/2">Area</th>
+                  {ROLES.map(r => (
+                    <th key={r} className="text-center py-2 px-2 font-semibold">
+                      <RoleBadge role={r} />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {PERMISSION_AREAS.map((area, i) => (
+                  <tr key={area.label} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/60"}>
+                    <td className="py-2 px-3 text-gray-700">{area.label}</td>
+                    <td className="py-2 px-2 text-center"><PermissionCell allowed={area.admin} /></td>
+                    <td className="py-2 px-2 text-center"><PermissionCell allowed={area.billing} /></td>
+                    <td className="py-2 px-2 text-center"><PermissionCell allowed={area.support} /></td>
+                    <td className="py-2 px-2 text-center"><PermissionCell allowed={area.technician} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+function RoleInlineSummary({ role }: { role: Role }) {
+  const areas = PERMISSION_AREAS.filter(a => a[role]);
+  return (
+    <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2 mt-1">
+      <p className="text-xs text-gray-600 mb-1.5 font-medium">{roleDescription[role]}</p>
+      <div className="flex flex-wrap gap-1">
+        {areas.map(a => (
+          <span key={a.label} className="inline-flex items-center gap-0.5 text-xs bg-white border border-gray-200 text-gray-600 rounded px-1.5 py-0.5">
+            <Check className="w-3 h-3 text-green-500 shrink-0" />
+            {a.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function formatRelativeTime(dateStr: string | null | undefined): string {
   if (!dateStr) return "Never";
@@ -206,6 +314,8 @@ export default function StaffPage() {
         </Button>
       </div>
 
+      <RolePermissionsMatrix />
+
       <Card>
         <CardContent className="pt-4 pb-0">
           <div className="relative mb-4">
@@ -348,9 +458,7 @@ export default function StaffPage() {
                   {ROLES.map(r => <SelectItem key={r} value={r}>{roleLabel[r]}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500 mt-1">
-                Admin: full access · Billing: invoices/payments · Support: customers/tickets · Technician: network/equipment
-              </p>
+              <RoleInlineSummary role={newRole} />
             </div>
 
             {/* Notification method */}
@@ -418,9 +526,7 @@ export default function StaffPage() {
                     {ROLES.map(r => <SelectItem key={r} value={r}>{roleLabel[r]}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Admin: full access · Billing: invoices/payments · Support: customers/tickets · Technician: network/equipment
-                </p>
+                <RoleInlineSummary role={editRole} />
               </div>
               {formError && (
                 <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{formError}</p>

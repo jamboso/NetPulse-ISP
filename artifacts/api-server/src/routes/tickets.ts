@@ -2,6 +2,34 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { ticketsTable, ticketRepliesTable, customersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { z } from "zod/v4";
+import { validateBody } from "../middlewares/validateBody";
+
+const createTicketSchema = z.object({
+  customerId:  z.number().int().positive(),
+  subject:     z.string().min(1),
+  description: z.string().min(1),
+  status:      z.string().optional(),
+  priority:    z.string().optional(),
+  category:    z.string().optional().nullable(),
+  assignedTo:  z.string().optional().nullable(),
+});
+
+const updateTicketSchema = z.object({
+  subject:     z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  status:      z.string().optional(),
+  priority:    z.string().optional(),
+  category:    z.string().optional().nullable(),
+  assignedTo:  z.string().optional().nullable(),
+  resolvedAt:  z.string().optional().nullable(),
+});
+
+const createTicketReplySchema = z.object({
+  message: z.string().min(1),
+  author:  z.string().min(1),
+  isStaff: z.boolean().optional(),
+});
 
 const router = Router();
 
@@ -31,7 +59,7 @@ router.get("/tickets", async (req, res) => {
   res.json(filtered.map(r => ({ ...r.tickets, customer: r.customers ?? null })));
 });
 
-router.post("/tickets", async (req, res) => {
+router.post("/tickets", validateBody(createTicketSchema), async (req, res) => {
   const body = req.body;
   const [ticket] = await db.insert(ticketsTable).values({
     customerId: body.customerId,
@@ -56,8 +84,8 @@ router.get("/tickets/:id", async (req, res) => {
   res.json({ ...row.tickets, customer: row.customers ?? null });
 });
 
-router.patch("/tickets/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+router.patch("/tickets/:id", validateBody(updateTicketSchema), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
   const body = req.body;
   const update: Record<string, unknown> = {};
   if (body.subject !== undefined) update.subject = body.subject;
@@ -82,8 +110,8 @@ router.delete("/tickets/:id", async (req, res) => {
   res.status(204).send();
 });
 
-router.post("/tickets/:id/reply", async (req, res) => {
-  const id = parseInt(req.params.id!);
+router.post("/tickets/:id/reply", validateBody(createTicketReplySchema), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
   const body = req.body;
   const [reply] = await db.insert(ticketRepliesTable).values({
     ticketId: id,

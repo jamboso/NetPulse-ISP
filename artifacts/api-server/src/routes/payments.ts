@@ -2,8 +2,20 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { paymentsTable, customersTable, invoicesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
+import { validateBody } from "../middlewares/validateBody";
 import { writeAuditLog } from "../lib/audit";
+
+const createPaymentSchema = z.object({
+  customerId: z.number().int().positive().optional().nullable(),
+  invoiceId:  z.number().int().positive().optional().nullable(),
+  amount:     z.number().nonnegative(),
+  method:     z.string().optional(),
+  status:     z.string().optional(),
+  reference:  z.string().optional().nullable(),
+  notes:      z.string().optional().nullable(),
+});
 
 const router = Router();
 
@@ -28,7 +40,7 @@ router.get("/payments", async (req, res) => {
   res.json(filtered.map(r => fmt(r.payments, r.customers)));
 });
 
-router.post("/payments", requireRole("admin", "billing"), async (req, res) => {
+router.post("/payments", requireRole("admin", "billing"), validateBody(createPaymentSchema), async (req, res) => {
   const body = req.body;
   const [payment] = await db.insert(paymentsTable).values({
     customerId: body.customerId,

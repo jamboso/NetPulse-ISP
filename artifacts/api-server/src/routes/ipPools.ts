@@ -2,7 +2,28 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { ipPoolsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
+import { validateBody } from "../middlewares/validateBody";
+
+const createIpPoolSchema = z.object({
+  name:        z.string().min(1),
+  network:     z.string().min(1),
+  gateway:     z.string().min(1),
+  subnetMask:  z.string().min(1),
+  dns1:        z.string().optional().nullable(),
+  dns2:        z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+});
+
+const updateIpPoolSchema = z.object({
+  name:        z.string().min(1).optional(),
+  gateway:     z.string().min(1).optional(),
+  subnetMask:  z.string().min(1).optional(),
+  dns1:        z.string().optional().nullable(),
+  dns2:        z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+});
 
 const router = Router();
 
@@ -11,7 +32,7 @@ router.get("/ip-pools", async (_req, res) => {
   res.json(pools);
 });
 
-router.post("/ip-pools", requireRole("admin", "technician"), async (req, res) => {
+router.post("/ip-pools", requireRole("admin", "technician"), validateBody(createIpPoolSchema), async (req, res) => {
   const body = req.body;
   const cidrMatch = body.network?.match(/\/(\d+)$/);
   const prefix = cidrMatch ? parseInt(cidrMatch[1]) : 24;
@@ -38,7 +59,7 @@ router.get("/ip-pools/:id", async (req, res) => {
   res.json(pool);
 });
 
-router.patch("/ip-pools/:id", requireRole("admin", "technician"), async (req, res) => {
+router.patch("/ip-pools/:id", requireRole("admin", "technician"), validateBody(updateIpPoolSchema), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   const body = req.body;
   const update: Record<string, unknown> = {};

@@ -2,8 +2,30 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { subscriptionsTable, customersTable, plansTable, routersTable, invoicesTable, paymentsTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
+import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
+import { validateBody } from "../middlewares/validateBody";
 import { writeAuditLog } from "../lib/audit";
+
+const createSubscriptionSchema = z.object({
+  customerId:  z.number().int().positive(),
+  planId:      z.number().int().positive(),
+  routerId:    z.number().int().positive().optional().nullable(),
+  status:      z.string().optional(),
+  startDate:   z.string().min(1),
+  endDate:     z.string().optional().nullable(),
+  ipAddress:   z.string().optional().nullable(),
+  macAddress:  z.string().optional().nullable(),
+});
+
+const updateSubscriptionSchema = z.object({
+  planId:     z.number().int().positive().optional(),
+  routerId:   z.number().int().positive().optional().nullable(),
+  status:     z.string().optional(),
+  endDate:    z.string().optional().nullable(),
+  ipAddress:  z.string().optional().nullable(),
+  macAddress: z.string().optional().nullable(),
+});
 
 const router = Router();
 
@@ -188,7 +210,7 @@ router.get("/subscriptions", async (req, res) => {
   res.json(rows.map(r => formatSub(r.subscriptions, r.customers, r.plans)));
 });
 
-router.post("/subscriptions", requireRole("admin", "billing"), async (req, res) => {
+router.post("/subscriptions", requireRole("admin", "billing"), validateBody(createSubscriptionSchema), async (req, res) => {
   const body = req.body as {
     customerId: number; planId: number; routerId?: number;
     status?: string; startDate: string; endDate?: string;
@@ -257,7 +279,7 @@ router.get("/subscriptions/:id", async (req, res) => {
   res.json(formatSub(row.subscriptions, row.customers, row.plans));
 });
 
-router.patch("/subscriptions/:id", requireRole("admin", "billing"), async (req, res) => {
+router.patch("/subscriptions/:id", requireRole("admin", "billing"), validateBody(updateSubscriptionSchema), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   const body = req.body as {
     planId?: number; routerId?: number | null; status?: string;

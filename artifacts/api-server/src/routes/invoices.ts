@@ -2,8 +2,29 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { invoicesTable, customersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
+import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
+import { validateBody } from "../middlewares/validateBody";
 import { writeAuditLog } from "../lib/audit";
+
+const createInvoiceSchema = z.object({
+  customerId:     z.number().int().positive(),
+  subscriptionId: z.number().int().positive().optional().nullable(),
+  amount:         z.number().nonnegative(),
+  tax:            z.number().nonnegative().optional().nullable(),
+  status:         z.string().optional(),
+  dueDate:        z.string().min(1),
+  notes:          z.string().optional().nullable(),
+});
+
+const updateInvoiceSchema = z.object({
+  amount:  z.number().nonnegative().optional(),
+  tax:     z.number().nonnegative().optional().nullable(),
+  status:  z.string().optional(),
+  dueDate: z.string().optional(),
+  paidAt:  z.string().optional().nullable(),
+  notes:   z.string().optional().nullable(),
+});
 
 const router = Router();
 
@@ -40,7 +61,7 @@ router.get("/invoices", async (req, res) => {
   res.json({ data, total, page: pageNum, limit: limitNum });
 });
 
-router.post("/invoices", requireRole("admin", "billing"), async (req, res) => {
+router.post("/invoices", requireRole("admin", "billing"), validateBody(createInvoiceSchema), async (req, res) => {
   const body = req.body;
   const tax = body.tax ?? 0;
   const total = Number(body.amount) + Number(tax);
@@ -78,7 +99,7 @@ router.get("/invoices/:id", async (req, res) => {
   res.json(fmt(row.invoices, row.customers));
 });
 
-router.patch("/invoices/:id", requireRole("admin", "billing"), async (req, res) => {
+router.patch("/invoices/:id", requireRole("admin", "billing"), validateBody(updateInvoiceSchema), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   const body = req.body;
 

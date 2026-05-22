@@ -2,9 +2,24 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { customersTable, subscriptionsTable, invoicesTable, paymentsTable, ticketsTable, ticketRepliesTable } from "@workspace/db";
 import { eq, ilike, or, sql, inArray } from "drizzle-orm";
+import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
+import { validateBody } from "../middlewares/validateBody";
 import { writeAuditLog } from "../lib/audit";
 import { getSettings, sendSms } from "../lib/sms.js";
+
+const createCustomerSchema = z.object({
+  name:      z.string().min(1),
+  email:     z.string().email(),
+  phone:     z.string().min(1),
+  address:   z.string().min(1),
+  status:    z.string().optional(),
+  notes:     z.string().optional().nullable(),
+  latitude:  z.number().optional().nullable(),
+  longitude: z.number().optional().nullable(),
+});
+
+const updateCustomerSchema = createCustomerSchema.partial();
 
 const router = Router();
 
@@ -41,7 +56,7 @@ router.get("/customers", async (req, res) => {
   res.json({ data, total: Number(countResult[0]?.count ?? 0), page: pageNum, limit: limitNum });
 });
 
-router.post("/customers", requireRole("admin", "billing", "support"), async (req, res) => {
+router.post("/customers", requireRole("admin", "billing", "support"), validateBody(createCustomerSchema), async (req, res) => {
   const body = req.body;
   const [customer] = await db.insert(customersTable).values({
     name:      body.name,
@@ -73,7 +88,7 @@ router.get("/customers/:id", async (req, res) => {
   res.json(customer);
 });
 
-router.patch("/customers/:id", requireRole("admin", "billing", "support"), async (req, res) => {
+router.patch("/customers/:id", requireRole("admin", "billing", "support"), validateBody(updateCustomerSchema), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   const body = req.body;
 

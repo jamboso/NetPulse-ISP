@@ -2,7 +2,22 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { plansTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
+import { validateBody } from "../middlewares/validateBody";
+
+const createPlanSchema = z.object({
+  name:           z.string().min(1),
+  description:    z.string().optional().nullable(),
+  downloadSpeed:  z.number().int().positive(),
+  uploadSpeed:    z.number().int().positive(),
+  price:          z.number().nonnegative(),
+  billingCycle:   z.string().optional(),
+  isActive:       z.boolean().optional(),
+  rosProfileName: z.string().optional().nullable(),
+});
+
+const updatePlanSchema = createPlanSchema.partial();
 
 const router = Router();
 
@@ -11,7 +26,7 @@ router.get("/plans", async (_req, res) => {
   res.json(plans.map(p => ({ ...p, price: Number(p.price) })));
 });
 
-router.post("/plans", requireRole("admin"), async (req, res) => {
+router.post("/plans", requireRole("admin"), validateBody(createPlanSchema), async (req, res) => {
   const body = req.body;
   const [plan] = await db.insert(plansTable).values({
     name: body.name,
@@ -33,7 +48,7 @@ router.get("/plans/:id", async (req, res) => {
   res.json({ ...plan, price: Number(plan.price) });
 });
 
-router.patch("/plans/:id", requireRole("admin"), async (req, res) => {
+router.patch("/plans/:id", requireRole("admin"), validateBody(updatePlanSchema), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   const body = req.body;
   const update: Record<string, unknown> = {};

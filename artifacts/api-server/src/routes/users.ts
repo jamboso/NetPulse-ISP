@@ -1,9 +1,25 @@
 import { Router } from "express";
 import { db, usersTable } from "@workspace/db";
 import { eq, ilike, or } from "drizzle-orm";
+import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
+import { validateBody } from "../middlewares/validateBody";
 import { auth } from "../lib/auth";
 import { writeAuditLog } from "../lib/audit";
+
+const VALID_ROLES = ["admin", "billing", "support", "technician"] as const;
+
+const createUserSchema = z.object({
+  name:     z.string().min(1),
+  email:    z.string().email(),
+  password: z.string().min(8),
+  role:     z.enum(VALID_ROLES),
+});
+
+const updateUserSchema = z.object({
+  role:   z.enum(VALID_ROLES).optional(),
+  active: z.boolean().optional(),
+});
 
 const router = Router();
 
@@ -32,24 +48,8 @@ router.get("/users", requireRole("admin"), async (req, res) => {
   res.json({ data });
 });
 
-router.post("/users", requireRole("admin"), async (req, res) => {
-  const { name, email, password, role } = req.body as {
-    name: string;
-    email: string;
-    password: string;
-    role: string;
-  };
-
-  if (!name || !email || !password || !role) {
-    res.status(400).json({ error: "name, email, password, and role are required" });
-    return;
-  }
-
-  const validRoles = ["admin", "billing", "support", "technician"];
-  if (!validRoles.includes(role)) {
-    res.status(400).json({ error: "Invalid role" });
-    return;
-  }
+router.post("/users", requireRole("admin"), validateBody(createUserSchema), async (req, res) => {
+  const { name, email, password, role } = req.body as z.infer<typeof createUserSchema>;
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (existing.length > 0) {
@@ -91,9 +91,9 @@ router.post("/users", requireRole("admin"), async (req, res) => {
   res.status(201).json(updated);
 });
 
-router.patch("/users/:id", requireRole("admin"), async (req, res) => {
+router.patch("/users/:id", requireRole("admin"), validateBody(updateUserSchema), async (req, res) => {
   const { id } = req.params as { id: string };
-  const { role, active } = req.body as { role?: string; active?: boolean };
+  const { role, active } = req.body as z.infer<typeof updateUserSchema>;
 
   if (id === req.user!.id) {
     res.status(400).json({ error: "You cannot modify your own account through this endpoint" });
@@ -103,12 +103,6 @@ router.patch("/users/:id", requireRole("admin"), async (req, res) => {
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id));
   if (!existing) {
     res.status(404).json({ error: "User not found" });
-    return;
-  }
-
-  const validRoles = ["admin", "billing", "support", "technician"];
-  if (role !== undefined && !validRoles.includes(role)) {
-    res.status(400).json({ error: "Invalid role" });
     return;
   }
 

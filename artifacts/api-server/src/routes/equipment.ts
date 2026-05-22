@@ -2,7 +2,23 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { equipmentTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
+import { validateBody } from "../middlewares/validateBody";
+
+const createEquipmentSchema = z.object({
+  name:       z.string().min(1),
+  type:       z.string().optional(),
+  model:      z.string().min(1),
+  brand:      z.string().optional().nullable(),
+  ipAddress:  z.string().min(1),
+  macAddress: z.string().optional().nullable(),
+  location:   z.string().optional().nullable(),
+  status:     z.string().optional(),
+  notes:      z.string().optional().nullable(),
+});
+
+const updateEquipmentSchema = createEquipmentSchema.partial();
 
 const router = Router();
 
@@ -17,7 +33,7 @@ router.get("/equipment", async (req, res) => {
   res.json(filtered);
 });
 
-router.post("/equipment", requireRole("admin", "technician"), async (req, res) => {
+router.post("/equipment", requireRole("admin", "technician"), validateBody(createEquipmentSchema), async (req, res) => {
   const body = req.body;
   const [eq_] = await db.insert(equipmentTable).values({
     name: body.name,
@@ -40,7 +56,7 @@ router.get("/equipment/:id", async (req, res) => {
   res.json(item);
 });
 
-router.patch("/equipment/:id", requireRole("admin", "technician"), async (req, res) => {
+router.patch("/equipment/:id", requireRole("admin", "technician"), validateBody(updateEquipmentSchema), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   const body = req.body;
   const update: Record<string, unknown> = {};

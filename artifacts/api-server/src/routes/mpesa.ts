@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { db } from "@workspace/db";
 import { paymentsTable, invoicesTable, customersTable, hotspotVouchersTable, hotspotPackagesTable, routersTable } from "@workspace/db";
 import { eq, ilike } from "drizzle-orm";
@@ -12,13 +13,27 @@ export const mpesaPublicRouter = Router();
 // These endpoints are called by staff and require a valid session.
 export const mpesaProtectedRouter = Router();
 
+// ── STK Push rate limiter ─────────────────────────────────────────────────────
+// Caps each authenticated user to 10 STK Push requests per minute to prevent
+// Daraja API quota exhaustion and accidental phone-prompt flooding.
+const stkPushLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => (req.user as { id: string } | undefined)?.id ?? req.ip ?? "unknown",
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many STK Push requests. Please wait a moment before trying again." },
+  skipFailedRequests: false,
+});
+
 /*
  * POST /api/mpesa/stk-push
  * Initiates a Safaricom Daraja STK Push (Lipa Na M-Pesa Online).
  * Body: { phone, amount, invoiceId, accountRef, description }
  * Requires auth — staff only.
+ * Rate-limited: 10 requests / minute per authenticated user.
  */
-mpesaProtectedRouter.post("/mpesa/stk-push", async (req, res) => {
+mpesaProtectedRouter.post("/mpesa/stk-push", stkPushLimiter, async (req, res) => {
   const { phone, amount, invoiceId, accountRef, description } = req.body as {
     phone?: string;
     amount?: number;

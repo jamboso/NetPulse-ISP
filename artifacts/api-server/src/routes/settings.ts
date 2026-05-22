@@ -25,6 +25,7 @@ const SETTINGS_KEYS = [
   "mpesaPasskey", "mpesaEnv", "mpesaCallbackUrl",
   // M-Pesa payment details (shown in SMS)
   "mpesaPaybillNumber",
+  "mpesaAllowedIps",
   // Alert recipients
   "alertPhone",
   // Role-based nav permissions (stored as JSON)

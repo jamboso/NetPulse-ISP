@@ -70,5 +70,7 @@ export interface Settings {
   /** @nullable */
   mpesaCallbackUrl?: string | null;
   /** @nullable */
+  mpesaAllowedIps?: string | null;
+  /** @nullable */
   auditLogRetentionDays?: string | null;
 }

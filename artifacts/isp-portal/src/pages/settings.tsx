@@ -407,6 +407,40 @@ export default function Settings() {
 
           <RegisterUrlsCard />
 
+          <SectionCard icon={Shield} title="M-Pesa Security">
+            <div className="grid grid-cols-12 gap-3 items-start py-3 border-b border-gray-100">
+              <div className="col-span-4">
+                <Label className="text-sm font-medium text-gray-700">Allowed IP Ranges</Label>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  One CIDR or IP per line (or comma-separated). Leave blank to use Safaricom's
+                  published defaults. Set to <code className="bg-gray-100 px-1 rounded">*</code> to
+                  disable IP checking (sandbox only).
+                </p>
+              </div>
+              <div className="col-span-8">
+                <Textarea
+                  rows={6}
+                  placeholder={"196.201.214.0/24\n196.201.216.0/24\n196.201.213.0/24"}
+                  value={(f("mpesaAllowedIps") ?? "").replace(/,/g, "\n")}
+                  onChange={(e) =>
+                    set(
+                      "mpesaAllowedIps",
+                      e.target.value
+                        .split(/[\n,]+/)
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                        .join(",")
+                    )
+                  }
+                  className="text-sm font-mono resize-none"
+                />
+              </div>
+            </div>
+            <div className="py-2 text-xs text-gray-400">
+              Changes take effect on the next callback — no server restart required.
+            </div>
+          </SectionCard>
+
           <SectionCard icon={Smartphone} title="M-Pesa Status">
             <div className="py-3">
               <MpesaStatus />

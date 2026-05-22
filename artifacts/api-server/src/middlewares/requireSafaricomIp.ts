@@ -1,9 +1,11 @@
 import type { Request, Response, NextFunction } from "express";
+import { db, settingsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 /**
  * Safaricom's published outbound IP ranges for Daraja API callbacks.
  * Source: https://developer.safaricom.co.ke/docs#callback-urls
- * Used as the default when MPESA_ALLOWED_IPS is not set.
+ * Used as the default when neither the DB setting nor MPESA_ALLOWED_IPS is set.
  */
 const DEFAULT_SAFARICOM_CIDRS = [
   "196.201.214.0/24",
@@ -59,25 +61,53 @@ function normalizeIp(raw: string): string {
 }
 
 /**
- * Build the list of allowed CIDRs from the environment (or fall back to the
- * hard-coded Safaricom ranges).
- *
- * MPESA_ALLOWED_IPS accepts a comma-separated list of CIDRs or plain IPs.
- * A plain IP (no prefix) is treated as /32.
- *
- * Example:
- *   MPESA_ALLOWED_IPS=196.201.214.0/24,196.201.216.0/24
+ * Parse a comma-separated list of CIDRs/IPs into ParsedCidr entries.
+ * Plain IPs (no prefix) are treated as /32.
  */
-function buildAllowList(): ParsedCidr[] {
-  const raw = process.env["MPESA_ALLOWED_IPS"];
-  const entries = raw
-    ? raw.split(",").map((s) => s.trim()).filter(Boolean)
-    : DEFAULT_SAFARICOM_CIDRS;
+function parseCidrList(raw: string): ParsedCidr[] {
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const cidr = entry.includes("/") ? entry : `${entry}/32`;
+      return parseCidr(cidr);
+    });
+}
 
-  return entries.map((entry) => {
-    const cidr = entry.includes("/") ? entry : `${entry}/32`;
-    return parseCidr(cidr);
-  });
+/**
+ * Fetch the allowed CIDR list, checking in priority order:
+ *   1. DB setting `mpesaAllowedIps` (updated live via Settings UI)
+ *   2. MPESA_ALLOWED_IPS environment variable
+ *   3. Hard-coded Safaricom default ranges
+ *
+ * Returns the wildcard sentinel "*" if bypass is configured at any level.
+ */
+async function fetchAllowList(): Promise<ParsedCidr[] | "*"> {
+  // 1. DB lookup — changes take effect on next request without restart
+  try {
+    const rows = await db
+      .select()
+      .from(settingsTable)
+      .where(eq(settingsTable.key, "mpesaAllowedIps"));
+    const dbValue = rows[0]?.value?.trim();
+    if (dbValue && dbValue.length > 0) {
+      if (dbValue === "*") return "*";
+      return parseCidrList(dbValue);
+    }
+  } catch {
+    // DB unavailable — fall through to env var
+  }
+
+  // 2. Environment variable fallback
+  const envValue = process.env["MPESA_ALLOWED_IPS"];
+  if (envValue) {
+    if (envValue === "*") return "*";
+    return parseCidrList(envValue);
+  }
+
+  // 3. Default Safaricom published ranges
+  return DEFAULT_SAFARICOM_CIDRS.map((cidr) => parseCidr(cidr));
 }
 
 /**
@@ -86,18 +116,21 @@ function buildAllowList(): ParsedCidr[] {
  * Reads the caller IP from `req.ip` (which respects `app.set("trust proxy")`).
  * Responds with 403 and logs a warning if the IP is not in the allow-list.
  *
- * Configure allowed ranges via the MPESA_ALLOWED_IPS environment variable
- * (comma-separated CIDRs). Defaults to Safaricom's published outbound ranges.
+ * Priority for allowed ranges (highest wins):
+ *   1. `mpesaAllowedIps` setting in the DB (editable via Settings → M-Pesa Security)
+ *   2. MPESA_ALLOWED_IPS environment variable
+ *   3. Safaricom's published outbound CIDR ranges (default)
  *
- * Set MPESA_ALLOWED_IPS=* to disable IP checking entirely (e.g. in sandbox
- * environments where callbacks originate from unknown IPs).
+ * Set the value to "*" at any level to disable IP checking (e.g. sandbox environments).
  */
-export function requireSafaricomIp(
+export async function requireSafaricomIp(
   req: Request,
   res: Response,
   next: NextFunction
-): void {
-  if (process.env["MPESA_ALLOWED_IPS"] === "*") {
+): Promise<void> {
+  const allowList = await fetchAllowList();
+
+  if (allowList === "*") {
     next();
     return;
   }
@@ -105,7 +138,6 @@ export function requireSafaricomIp(
   const raw = req.ip ?? "";
   const callerIp = normalizeIp(raw);
 
-  const allowList = buildAllowList();
   const allowed = allowList.some((cidr) => ipInCidr(callerIp, cidr));
 
   if (!allowed) {

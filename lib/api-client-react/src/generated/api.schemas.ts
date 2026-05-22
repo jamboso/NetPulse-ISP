@@ -749,6 +749,8 @@ export interface Settings {
   /** @nullable */
   mpesaCallbackUrl?: string | null;
   /** @nullable */
+  mpesaAllowedIps?: string | null;
+  /** @nullable */
   auditLogRetentionDays?: string | null;
 }
 
@@ -784,6 +786,7 @@ export interface SettingsInput {
   mpesaPasskey?: string;
   mpesaEnv?: string;
   mpesaCallbackUrl?: string;
+  mpesaAllowedIps?: string;
   auditLogRetentionDays?: string;
 }
 

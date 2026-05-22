@@ -1294,6 +1294,7 @@ export const GetSettingsResponse = zod.object({
   "mpesaPasskey": zod.string().nullish(),
   "mpesaEnv": zod.string().nullish(),
   "mpesaCallbackUrl": zod.string().nullish(),
+  "mpesaAllowedIps": zod.string().nullish(),
   "auditLogRetentionDays": zod.string().nullish()
 })
 
@@ -1333,6 +1334,7 @@ export const UpdateSettingsBody = zod.object({
   "mpesaPasskey": zod.string().optional(),
   "mpesaEnv": zod.string().optional(),
   "mpesaCallbackUrl": zod.string().optional(),
+  "mpesaAllowedIps": zod.string().optional(),
   "auditLogRetentionDays": zod.string().optional()
 })
 
@@ -1368,6 +1370,7 @@ export const UpdateSettingsResponse = zod.object({
   "mpesaPasskey": zod.string().nullish(),
   "mpesaEnv": zod.string().nullish(),
   "mpesaCallbackUrl": zod.string().nullish(),
+  "mpesaAllowedIps": zod.string().nullish(),
   "auditLogRetentionDays": zod.string().nullish()
 })
 

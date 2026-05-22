@@ -2188,6 +2188,8 @@ components:
           type: ["string", "null"]
         mpesaCallbackUrl:
           type: ["string", "null"]
+        mpesaAllowedIps:
+          type: ["string", "null"]
         auditLogRetentionDays:
           type: ["string", "null"]
 
@@ -2255,6 +2257,8 @@ components:
         mpesaEnv:
           type: string
         mpesaCallbackUrl:
+          type: string
+        mpesaAllowedIps:
           type: string
         auditLogRetentionDays:
           type: string

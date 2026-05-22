@@ -50,6 +50,7 @@ function PaymentDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const { data: invoicesData } = useListInvoices({ limit: 200 });
   const [form, setForm] = useState<PayForm>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const set = (k: keyof PayForm, v: string) => setForm(p => ({ ...p, [k]: v }));
 
   const invoices = (invoicesData as any)?.data ?? invoicesData ?? [];
@@ -59,6 +60,7 @@ function PaymentDialog({ open, onClose }: { open: boolean; onClose: () => void }
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       await createMutation.mutateAsync({
         data: {
@@ -75,6 +77,8 @@ function PaymentDialog({ open, onClose }: { open: boolean; onClose: () => void }
       await qc.invalidateQueries({ queryKey: ["/api/invoices"] });
       onClose();
       setForm(EMPTY);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed. Please try again.");
     } finally { setSaving(false); }
   };
 
@@ -148,6 +152,7 @@ function PaymentDialog({ open, onClose }: { open: boolean; onClose: () => void }
             <Textarea rows={2} className="resize-none" value={form.notes} onChange={e => set("notes", e.target.value)} />
           </div>
         </div>
+        {saveError && <p className="text-sm text-red-600 text-center px-1">{saveError}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving || !valid} className="bg-blue-600 hover:bg-blue-700 text-white">

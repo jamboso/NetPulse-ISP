@@ -36,6 +36,7 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
   const qc = useQueryClient();
   const [form, setForm] = useState<CustomerForm>(initial ?? EMPTY);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const set = (k: keyof CustomerForm, v: string) => setForm(p => ({ ...p, [k]: v }));
 
@@ -55,6 +56,7 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       const body = {
         name:      form.name,
@@ -69,10 +71,15 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
       const url    = customerId ? `${API}/api/customers/${customerId}` : `${API}/api/customers`;
       const method = customerId ? "PATCH" : "POST";
       const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (!r.ok) throw new Error("Save failed");
+      if (!r.ok) {
+        const data = await r.json().catch(() => null);
+        throw new Error(data?.error ?? data?.message ?? "Save failed");
+      }
       await qc.invalidateQueries({ queryKey: ["/api/customers"] });
       await qc.invalidateQueries({ queryKey: ["network-map"] });
       onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed. Please try again.");
     } finally { setSaving(false); }
   };
 
@@ -152,6 +159,7 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
           </div>
         </div>
 
+        {saveError && <p className="text-sm text-red-600 text-center px-1">{saveError}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button

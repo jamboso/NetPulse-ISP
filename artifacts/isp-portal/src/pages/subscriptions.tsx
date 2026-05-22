@@ -66,10 +66,12 @@ function SubscriptionDialog({ open, onClose, initial, subId }: {
   const { data: routers } = useListRouters();
   const [form, setForm] = useState<SubForm>(initial ?? EMPTY);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const set = (k: keyof SubForm, v: string) => setForm(p => ({ ...p, [k]: v }));
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       if (subId) {
         const upd: SubscriptionUpdate = {
@@ -96,6 +98,8 @@ function SubscriptionDialog({ open, onClose, initial, subId }: {
       }
       await qc.invalidateQueries({ queryKey: ["/api/subscriptions"] });
       onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed. Please try again.");
     } finally { setSaving(false); }
   };
 
@@ -173,6 +177,7 @@ function SubscriptionDialog({ open, onClose, initial, subId }: {
             </div>
           </div>
         </div>
+        {saveError && <p className="text-sm text-red-600 text-center px-1">{saveError}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving || !valid} className="bg-blue-600 hover:bg-blue-700 text-white">

@@ -47,6 +47,7 @@ function InvoiceDialog({ open, onClose, initial, invoiceId }: {
   const { data: subscriptionsData } = useListSubscriptions({ limit: 200 } as any);
   const [form, setForm] = useState<InvForm>(initial ?? EMPTY);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const set = (k: keyof InvForm, v: string) => setForm(p => ({ ...p, [k]: v }));
 
   const subs = Array.isArray(subscriptionsData) ? subscriptionsData : (subscriptionsData as any)?.data ?? [];
@@ -54,6 +55,7 @@ function InvoiceDialog({ open, onClose, initial, invoiceId }: {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       if (invoiceId) {
         const upd: InvoiceUpdate = {
@@ -78,6 +80,8 @@ function InvoiceDialog({ open, onClose, initial, invoiceId }: {
       }
       await qc.invalidateQueries({ queryKey: ["/api/invoices"] });
       onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed. Please try again.");
     } finally { setSaving(false); }
   };
 
@@ -140,6 +144,7 @@ function InvoiceDialog({ open, onClose, initial, invoiceId }: {
             <Textarea rows={2} className="resize-none" value={form.notes} onChange={e => set("notes", e.target.value)} />
           </div>
         </div>
+        {saveError && <p className="text-sm text-red-600 text-center px-1">{saveError}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving || !valid} className="bg-blue-600 hover:bg-blue-700 text-white">

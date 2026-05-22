@@ -31,10 +31,12 @@ function PlanDialog({ open, onClose, initial, planId }: {
   const updateMutation = useUpdatePlan();
   const [form, setForm] = useState<PlanForm>(initial ?? EMPTY);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const set = (k: keyof PlanForm, v: string | boolean) => setForm(p => ({ ...p, [k]: v }));
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       const payload = {
         name: form.name,
@@ -53,6 +55,8 @@ function PlanDialog({ open, onClose, initial, planId }: {
       }
       await qc.invalidateQueries({ queryKey: ["/api/plans"] });
       onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed. Please try again.");
     } finally { setSaving(false); }
   };
 
@@ -102,6 +106,7 @@ function PlanDialog({ open, onClose, initial, planId }: {
             <Label htmlFor="isActive" className="cursor-pointer text-sm">Active (available for subscriptions)</Label>
           </div>
         </div>
+        {saveError && <p className="text-sm text-red-600 text-center px-1">{saveError}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving || !valid} className="bg-blue-600 hover:bg-blue-700 text-white">

@@ -94,12 +94,14 @@ function RouterDialog({
   const updateMutation = useUpdateRouter();
   const [form, setForm] = useState<RouterFormData>(initial ?? ROUTER_DEFAULTS);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const set = (k: keyof RouterFormData, v: string | boolean) =>
     setForm((p) => ({ ...p, [k]: v }));
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       const basePayload = {
         name: form.name,
@@ -126,6 +128,8 @@ function RouterDialog({
       }
       await qc.invalidateQueries({ queryKey: ["/api/routers"] });
       onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -219,6 +223,7 @@ function RouterDialog({
             <Label htmlFor="enabled" className="text-sm cursor-pointer">Enabled (monitored by system)</Label>
           </div>
         </div>
+        {saveError && <p className="text-sm text-red-600 text-center px-1">{saveError}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving || !form.name || !form.ipAddress || !form.username}
@@ -242,6 +247,7 @@ function EquipmentDialog({
   const updateMutation = useUpdateEquipment();
   const [form, setForm] = useState<EquipmentFormData>(initial ?? EQUIPMENT_DEFAULTS);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [brandAutoFilled, setBrandAutoFilled] = useState(false);
 
   const set = (k: keyof EquipmentFormData, v: string) => setForm((p) => ({ ...p, [k]: v }));
@@ -257,6 +263,7 @@ function EquipmentDialog({
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       if (equipmentId) {
         await updateMutation.mutateAsync({
@@ -279,6 +286,8 @@ function EquipmentDialog({
       }
       await qc.invalidateQueries({ queryKey: ["/api/equipment"] });
       onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -373,6 +382,7 @@ function EquipmentDialog({
             <Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} className="resize-none" />
           </div>
         </div>
+        {saveError && <p className="text-sm text-red-600 text-center px-1">{saveError}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving || !form.name || !form.ipAddress || !form.model}
@@ -396,11 +406,13 @@ function IpPoolDialog({
   const updateMutation = useUpdateIpPool();
   const [form, setForm] = useState<IpPoolFormData>(initial ?? POOL_DEFAULTS);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const set = (k: keyof IpPoolFormData, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       const payload = {
         name: form.name, network: form.network, gateway: form.gateway,
@@ -414,6 +426,8 @@ function IpPoolDialog({
       }
       await qc.invalidateQueries({ queryKey: ["/api/ip-pools"] });
       onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -461,6 +475,7 @@ function IpPoolDialog({
             <Textarea rows={2} value={form.description} onChange={(e) => set("description", e.target.value)} className="resize-none" />
           </div>
         </div>
+        {saveError && <p className="text-sm text-red-600 text-center px-1">{saveError}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving || !form.name || !form.network || !form.gateway}

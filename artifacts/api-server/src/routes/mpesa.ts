@@ -5,13 +5,17 @@ import { paymentsTable, invoicesTable, customersTable, hotspotVouchersTable, hot
 import { eq, ilike } from "drizzle-orm";
 import { getSettings } from "../lib/sms.js";
 import { requireSafaricomIp } from "../middlewares/requireSafaricomIp.js";
+import { requireMpesaWebhookSecret } from "../middlewares/requireMpesaWebhookSecret.js";
 
 // ── Public router ─────────────────────────────────────────────────────────────
 // These endpoints are called directly by Safaricom and must remain unauthenticated.
 // requireSafaricomIp guards every route on this router so forged callbacks
 // from non-Safaricom IPs are rejected with 403 before any DB writes occur.
+// requireMpesaWebhookSecret provides an additional shared-secret layer; it is
+// active only when MPESA_WEBHOOK_SECRET is set (backward-compatible).
 export const mpesaPublicRouter = Router();
 mpesaPublicRouter.use(requireSafaricomIp);
+mpesaPublicRouter.use(requireMpesaWebhookSecret);
 
 // ── Protected router ──────────────────────────────────────────────────────────
 // These endpoints are called by staff and require a valid session.

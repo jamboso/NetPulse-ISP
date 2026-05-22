@@ -4,6 +4,7 @@ import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 
 import { queryClient } from "./lib/queryClient";
 import { useSession, signOut } from "./lib/authClient";
+import { type UserRole } from "./hooks/useCurrentUser";
 import Layout from "./components/layout";
 
 import Dashboard from "./pages/dashboard";
@@ -108,19 +109,22 @@ function AuthGuard({ children }: { children: ReactNode }) {
 
 type SessionUser = { role?: string; [key: string]: unknown };
 
-function AdminRoute({ component: Component }: { component: React.ComponentType }) {
+function RoleRoute({ component: Component, roles }: { component: React.ComponentType; roles: UserRole[] }) {
   const { data: session, isPending } = useSession();
   const [, setLocation] = useLocation();
   const user = session?.user as SessionUser | undefined;
+  const role = (user?.role ?? "admin") as UserRole;
+  const allowed = roles.includes(role);
 
   useEffect(() => {
-    if (!isPending && user && user.role !== "admin") {
+    if (!isPending && user && !allowed) {
       setLocation("/");
     }
-  }, [user, isPending, setLocation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isPending, setLocation, allowed]);
 
   if (isPending) return null;
-  if (!user || user.role !== "admin") return null;
+  if (!user || !allowed) return null;
   return <Component />;
 }
 
@@ -133,27 +137,27 @@ function ProtectedRoutes() {
           <Switch>
             <Route path="/setup" component={SetupWizard} />
             <Route path="/" component={Dashboard} />
-            <Route path="/customers" component={Customers} />
-            <Route path="/customers/:id" component={CustomerDetail} />
-            <Route path="/plans" component={Plans} />
-            <Route path="/subscriptions" component={Subscriptions} />
-            <Route path="/invoices" component={Invoices} />
-            <Route path="/payments" component={Payments} />
-            <Route path="/mpesa" component={MpesaTransactions} />
-            <Route path="/tickets" component={Tickets} />
-            <Route path="/tickets/:id" component={TicketDetail} />
-            <Route path="/network" component={Network} />
-            <Route path="/network/routers/:id" component={RouterOSDashboard} />
-            <Route path="/network/routers/:id/pppoe" component={PPPoESetup} />
-            <Route path="/network/routers/:id/hotspot" component={HotspotManager} />
-            <Route path="/settings" component={Settings} />
-            <Route path="/staff">{() => <AdminRoute component={Staff} />}</Route>
-            <Route path="/audit-logs">{() => <AdminRoute component={AuditLogs} />}</Route>
-            <Route path="/sales" component={Sales} />
-            <Route path="/compliance" component={Compliance} />
-            <Route path="/sms" component={SmsManager} />
-            <Route path="/monitoring" component={Monitoring} />
-            <Route path="/map" component={NetworkMap} />
+            <Route path="/customers">{() => <RoleRoute component={Customers} roles={["admin", "billing", "support"]} />}</Route>
+            <Route path="/customers/:id">{() => <RoleRoute component={CustomerDetail} roles={["admin", "billing", "support"]} />}</Route>
+            <Route path="/plans">{() => <RoleRoute component={Plans} roles={["admin", "billing"]} />}</Route>
+            <Route path="/subscriptions">{() => <RoleRoute component={Subscriptions} roles={["admin", "billing"]} />}</Route>
+            <Route path="/invoices">{() => <RoleRoute component={Invoices} roles={["admin", "billing"]} />}</Route>
+            <Route path="/payments">{() => <RoleRoute component={Payments} roles={["admin", "billing"]} />}</Route>
+            <Route path="/mpesa">{() => <RoleRoute component={MpesaTransactions} roles={["admin", "billing"]} />}</Route>
+            <Route path="/tickets">{() => <RoleRoute component={Tickets} roles={["admin", "support"]} />}</Route>
+            <Route path="/tickets/:id">{() => <RoleRoute component={TicketDetail} roles={["admin", "support"]} />}</Route>
+            <Route path="/network">{() => <RoleRoute component={Network} roles={["admin", "technician"]} />}</Route>
+            <Route path="/network/routers/:id">{() => <RoleRoute component={RouterOSDashboard} roles={["admin", "technician"]} />}</Route>
+            <Route path="/network/routers/:id/pppoe">{() => <RoleRoute component={PPPoESetup} roles={["admin", "technician"]} />}</Route>
+            <Route path="/network/routers/:id/hotspot">{() => <RoleRoute component={HotspotManager} roles={["admin", "technician"]} />}</Route>
+            <Route path="/settings">{() => <RoleRoute component={Settings} roles={["admin"]} />}</Route>
+            <Route path="/staff">{() => <RoleRoute component={Staff} roles={["admin"]} />}</Route>
+            <Route path="/audit-logs">{() => <RoleRoute component={AuditLogs} roles={["admin"]} />}</Route>
+            <Route path="/sales">{() => <RoleRoute component={Sales} roles={["admin", "billing"]} />}</Route>
+            <Route path="/compliance">{() => <RoleRoute component={Compliance} roles={["admin"]} />}</Route>
+            <Route path="/sms">{() => <RoleRoute component={SmsManager} roles={["admin"]} />}</Route>
+            <Route path="/monitoring">{() => <RoleRoute component={Monitoring} roles={["admin", "technician"]} />}</Route>
+            <Route path="/map">{() => <RoleRoute component={NetworkMap} roles={["admin", "technician"]} />}</Route>
             <Route>
               <div className="p-8 text-center text-gray-500">Page not found.</div>
             </Route>

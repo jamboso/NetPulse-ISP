@@ -7,15 +7,18 @@ import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
 import { writeAuditLog } from "../lib/audit";
 
+const EQUIPMENT_TYPES = ["router", "switch", "olt", "onu", "other"] as const;
+const EQUIPMENT_STATUSES = ["online", "offline", "maintenance"] as const;
+
 const createEquipmentSchema = z.object({
   name:       z.string().min(1),
-  type:       z.string().optional(),
+  type:       z.enum(EQUIPMENT_TYPES).optional(),
   model:      z.string().min(1),
   brand:      z.string().optional().nullable(),
   ipAddress:  z.string().min(1),
   macAddress: z.string().optional().nullable(),
   location:   z.string().optional().nullable(),
-  status:     z.string().optional(),
+  status:     z.enum(EQUIPMENT_STATUSES).optional(),
   notes:      z.string().optional().nullable(),
 });
 

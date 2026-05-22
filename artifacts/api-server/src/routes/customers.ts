@@ -8,12 +8,14 @@ import { validateBody } from "../middlewares/validateBody";
 import { writeAuditLog } from "../lib/audit";
 import { getSettings, sendSms } from "../lib/sms.js";
 
+const CUSTOMER_STATUSES = ["active", "inactive", "suspended"] as const;
+
 const createCustomerSchema = z.object({
   name:      z.string().min(1),
   email:     z.string().email(),
   phone:     z.string().min(1),
   address:   z.string().min(1),
-  status:    z.string().optional(),
+  status:    z.enum(CUSTOMER_STATUSES).optional(),
   notes:     z.string().optional().nullable(),
   latitude:  z.number().optional().nullable(),
   longitude: z.number().optional().nullable(),

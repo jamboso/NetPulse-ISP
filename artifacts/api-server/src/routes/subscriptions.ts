@@ -7,11 +7,13 @@ import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
 import { writeAuditLog } from "../lib/audit";
 
+const SUBSCRIPTION_STATUSES = ["active", "suspended", "cancelled"] as const;
+
 const createSubscriptionSchema = z.object({
   customerId:  z.number().int().positive(),
   planId:      z.number().int().positive(),
   routerId:    z.number().int().positive().optional().nullable(),
-  status:      z.string().optional(),
+  status:      z.enum(SUBSCRIPTION_STATUSES).optional(),
   startDate:   z.string().min(1),
   endDate:     z.string().optional().nullable(),
   ipAddress:   z.string().optional().nullable(),
@@ -21,7 +23,7 @@ const createSubscriptionSchema = z.object({
 const updateSubscriptionSchema = z.object({
   planId:     z.number().int().positive().optional(),
   routerId:   z.number().int().positive().optional().nullable(),
-  status:     z.string().optional(),
+  status:     z.enum(SUBSCRIPTION_STATUSES).optional(),
   endDate:    z.string().optional().nullable(),
   ipAddress:  z.string().optional().nullable(),
   macAddress: z.string().optional().nullable(),

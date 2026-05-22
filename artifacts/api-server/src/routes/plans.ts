@@ -6,13 +6,15 @@ import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
 
+const BILLING_CYCLES = ["monthly", "quarterly", "annual"] as const;
+
 const createPlanSchema = z.object({
   name:           z.string().min(1),
   description:    z.string().optional().nullable(),
   downloadSpeed:  z.number().int().positive(),
   uploadSpeed:    z.number().int().positive(),
   price:          z.number().nonnegative(),
-  billingCycle:   z.string().optional(),
+  billingCycle:   z.enum(BILLING_CYCLES).optional(),
   isActive:       z.boolean().optional(),
   rosProfileName: z.string().optional().nullable(),
 });

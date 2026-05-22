@@ -7,12 +7,15 @@ import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
 import { writeAuditLog } from "../lib/audit";
 
+const PAYMENT_METHODS = ["cash", "mpesa", "bank", "card"] as const;
+const PAYMENT_STATUSES = ["completed", "pending", "failed"] as const;
+
 const createPaymentSchema = z.object({
   customerId: z.number().int().positive().optional().nullable(),
   invoiceId:  z.number().int().positive().optional().nullable(),
   amount:     z.number().nonnegative(),
-  method:     z.string().optional(),
-  status:     z.string().optional(),
+  method:     z.enum(PAYMENT_METHODS).optional(),
+  status:     z.enum(PAYMENT_STATUSES).optional(),
   reference:  z.string().optional().nullable(),
   notes:      z.string().optional().nullable(),
 });

@@ -5,12 +5,15 @@ import { eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import { validateBody } from "../middlewares/validateBody";
 
+const TICKET_STATUSES = ["open", "in_progress", "resolved", "closed"] as const;
+const TICKET_PRIORITIES = ["low", "medium", "high", "urgent"] as const;
+
 const createTicketSchema = z.object({
   customerId:  z.number().int().positive(),
   subject:     z.string().min(1),
   description: z.string().min(1),
-  status:      z.string().optional(),
-  priority:    z.string().optional(),
+  status:      z.enum(TICKET_STATUSES).optional(),
+  priority:    z.enum(TICKET_PRIORITIES).optional(),
   category:    z.string().optional().nullable(),
   assignedTo:  z.string().optional().nullable(),
 });
@@ -18,8 +21,8 @@ const createTicketSchema = z.object({
 const updateTicketSchema = z.object({
   subject:     z.string().min(1).optional(),
   description: z.string().min(1).optional(),
-  status:      z.string().optional(),
-  priority:    z.string().optional(),
+  status:      z.enum(TICKET_STATUSES).optional(),
+  priority:    z.enum(TICKET_PRIORITIES).optional(),
   category:    z.string().optional().nullable(),
   assignedTo:  z.string().optional().nullable(),
   resolvedAt:  z.string().optional().nullable(),

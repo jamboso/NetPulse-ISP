@@ -7,12 +7,14 @@ import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
 import { writeAuditLog } from "../lib/audit";
 
+const INVOICE_STATUSES = ["draft", "sent", "paid", "overdue"] as const;
+
 const createInvoiceSchema = z.object({
   customerId:     z.number().int().positive(),
   subscriptionId: z.number().int().positive().optional().nullable(),
   amount:         z.number().nonnegative(),
   tax:            z.number().nonnegative().optional().nullable(),
-  status:         z.string().optional(),
+  status:         z.enum(INVOICE_STATUSES).optional(),
   dueDate:        z.string().min(1),
   notes:          z.string().optional().nullable(),
 });
@@ -20,7 +22,7 @@ const createInvoiceSchema = z.object({
 const updateInvoiceSchema = z.object({
   amount:  z.number().nonnegative().optional(),
   tax:     z.number().nonnegative().optional().nullable(),
-  status:  z.string().optional(),
+  status:  z.enum(INVOICE_STATUSES).optional(),
   dueDate: z.string().optional(),
   paidAt:  z.string().optional().nullable(),
   notes:   z.string().optional().nullable(),

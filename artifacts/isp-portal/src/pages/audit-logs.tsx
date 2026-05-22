@@ -7,6 +7,7 @@ import {
   usePurgeAuditLogs,
   getGetAuditPurgeHistoryQueryKey,
 } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 import type { AuditLog, ListAuditLogsParams } from "@workspace/api-client-react";
 import {
   ClipboardList,
@@ -253,16 +254,27 @@ export default function AuditLogs() {
   const [page, setPage] = useState(1);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [purgeResult, setPurgeResult] = useState<number | null>(null);
   const qc = useQueryClient();
+  const { toast } = useToast();
 
   const { data: purgeHistoryData, isLoading: purgeHistoryLoading } = useGetAuditPurgeHistory();
   const purgeMutation = usePurgeAuditLogs({
     mutation: {
       onSuccess: (data) => {
-        setPurgeResult(data.deleted);
+        const count = data.deleted;
+        toast({
+          title: "Purge complete",
+          description: `${count} record${count !== 1 ? "s" : ""} deleted.`,
+        });
         void qc.invalidateQueries({ queryKey: getGetAuditPurgeHistoryQueryKey() });
         void qc.invalidateQueries({ queryKey: getListAuditLogsQueryKey() });
+      },
+      onError: () => {
+        toast({
+          title: "Purge failed",
+          description: "An error occurred while purging audit logs.",
+          variant: "destructive",
+        });
       },
     },
   });
@@ -404,11 +416,6 @@ export default function AuditLogs() {
               ) : (
                 <p className="text-xs text-gray-400 mt-0.5">No purge runs recorded yet.</p>
               )}
-              {purgeResult !== null && (
-                <p className="text-xs text-emerald-600 font-medium mt-1">
-                  ✓ Purge complete — {purgeResult} record{purgeResult !== 1 ? "s" : ""} deleted.
-                </p>
-              )}
               {purgeHistory.length > 1 && (
                 <details className="mt-2">
                   <summary className="text-xs text-blue-500 cursor-pointer hover:text-blue-700">
@@ -435,7 +442,7 @@ export default function AuditLogs() {
             size="sm"
             variant="outline"
             className="flex-shrink-0 gap-2 text-red-600 border-red-200 hover:bg-red-50"
-            onClick={() => { setPurgeResult(null); purgeMutation.mutate(); }}
+            onClick={() => { purgeMutation.mutate(); }}
             disabled={purgeMutation.isPending}
           >
             <Trash2 className="w-3.5 h-3.5" />

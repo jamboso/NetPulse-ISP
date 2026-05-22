@@ -30,6 +30,30 @@ const stkPushLimiter = rateLimit({
   skipFailedRequests: false,
 });
 
+// ── Register-URLs rate limiter ────────────────────────────────────────────────
+// This is a rare one-time config action; 5 requests/minute is generous.
+const registerUrlsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => (req.user as { id: string } | undefined)?.id ?? req.ip ?? "unknown",
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many register-URLs requests. Please wait a moment before trying again." },
+  skipFailedRequests: false,
+});
+
+// ── Transactions rate limiter ─────────────────────────────────────────────────
+// Polling-style read; 30 requests/minute per user is enough for normal use.
+const transactionsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => (req.user as { id: string } | undefined)?.id ?? req.ip ?? "unknown",
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many transaction requests. Please wait a moment before trying again." },
+  skipFailedRequests: false,
+});
+
 /*
  * POST /api/mpesa/stk-push
  * Initiates a Safaricom Daraja STK Push (Lipa Na M-Pesa Online).
@@ -131,8 +155,9 @@ mpesaProtectedRouter.post("/mpesa/stk-push", stkPushLimiter, async (req, res) =>
  * Reads credentials from DB settings (saved via Settings page).
  * Body: { confirmationUrl, validationUrl, responseType? }
  * Requires auth — admin only.
+ * Rate-limited: 5 requests / minute per authenticated user.
  */
-mpesaProtectedRouter.post("/mpesa/register-urls", async (req, res) => {
+mpesaProtectedRouter.post("/mpesa/register-urls", registerUrlsLimiter, async (req, res) => {
   const { confirmationUrl, validationUrl, responseType = "Completed" } = req.body as {
     confirmationUrl?: string;
     validationUrl?: string;
@@ -436,8 +461,9 @@ mpesaPublicRouter.post("/mpesa/c2b/confirmation", async (req, res) => {
  * GET /api/mpesa/transactions
  * Returns all M-Pesa payments ordered newest-first, with customer name joins.
  * Requires auth — staff only.
+ * Rate-limited: 30 requests / minute per authenticated user.
  */
-mpesaProtectedRouter.get("/mpesa/transactions", async (req, res) => {
+mpesaProtectedRouter.get("/mpesa/transactions", transactionsLimiter, async (req, res) => {
   try {
     const limit = Math.min(Number(req.query["limit"] ?? 200), 500);
     const rows = await db

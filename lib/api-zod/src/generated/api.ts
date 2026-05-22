@@ -266,6 +266,54 @@ export const DeleteCustomerParams = zod.object({
 
 
 /**
+ * @summary List VPN configs for a customer
+ */
+export const ListCustomerVpnConfigsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListCustomerVpnConfigsResponseItem = zod.object({
+  "id": zod.number(),
+  "customerId": zod.number(),
+  "commonName": zod.string(),
+  "issuedAt": zod.coerce.date(),
+  "revokedAt": zod.coerce.date().nullish(),
+  "revokedBy": zod.string().nullish(),
+  "connected": zod.boolean(),
+  "vpnAvailable": zod.boolean()
+})
+export const ListCustomerVpnConfigsResponse = zod.array(ListCustomerVpnConfigsResponseItem)
+
+
+/**
+ * @summary Issue a new VPN config for a customer (admin only)
+ */
+export const IssueCustomerVpnConfigParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Revoke a VPN config (admin only)
+ */
+export const RevokeCustomerVpnConfigParams = zod.object({
+  "id": zod.coerce.number(),
+  "configId": zod.coerce.number()
+})
+
+export const RevokeCustomerVpnConfigResponse = zod.object({
+  "id": zod.number(),
+  "customerId": zod.number(),
+  "commonName": zod.string(),
+  "issuedAt": zod.coerce.date(),
+  "revokedAt": zod.coerce.date().nullish(),
+  "revokedBy": zod.string().nullish(),
+  "connected": zod.boolean(),
+  "vpnAvailable": zod.boolean()
+})
+
+
+/**
  * @summary RADIUS accounting sessions for a customer (from radacct)
  */
 export const GetCustomerRadiusSessionsParams = zod.object({

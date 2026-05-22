@@ -1090,6 +1090,22 @@ export interface RadiusSession {
   active: boolean;
 }
 
+export interface VpnConfig {
+  id: number;
+  customerId: number;
+  commonName: string;
+  issuedAt: string;
+  revokedAt?: string | null;
+  revokedBy?: string | null;
+  connected: boolean;
+  vpnAvailable: boolean;
+}
+
+export type VpnConfigWithFile = VpnConfig & {
+  /** Full .ovpn file content */
+  ovpnConfig: string;
+};
+
 export interface RadiusSyncResult {
   ok: boolean;
   synced: number;

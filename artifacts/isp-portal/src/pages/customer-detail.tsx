@@ -11,6 +11,9 @@ import {
   useGetCustomerUsageSnapshots,
   useSaveUsageSnapshot,
   useGetCustomerRadiusSessions,
+  useListCustomerVpnConfigs,
+  useIssueCustomerVpnConfig,
+  useRevokeCustomerVpnConfig,
   type CustomerSession,
 } from "@workspace/api-client-react";
 import {
@@ -20,6 +23,7 @@ import {
   MonitorSmartphone, AlertCircle, Router, History, MessageSquare,
   ClipboardList, HardDrive, Send, Trash2, Plus, ArrowDownToLine,
   CheckCircle2, XCircle, ServerCrash, DollarSign, BellRing,
+  ShieldCheck, ShieldOff, FileLock2,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -455,6 +459,51 @@ export default function CustomerDetail() {
 
   const { data: radiusSessions, isLoading: loadingRadius, refetch: refetchRadius } = useGetCustomerRadiusSessions(customerId);
 
+  const { data: vpnConfigs, isLoading: loadingVpn, refetch: refetchVpn } = useListCustomerVpnConfigs(customerId);
+  const issueMutation   = useIssueCustomerVpnConfig();
+  const revokeMutation  = useRevokeCustomerVpnConfig();
+  const [vpnIssuing,   setVpnIssuing]   = useState(false);
+  const [vpnRevoking,  setVpnRevoking]  = useState<number | null>(null);
+  const [vpnError,     setVpnError]     = useState<string | null>(null);
+  const vpnAvailable = vpnConfigs?.[0]?.vpnAvailable ?? true;
+
+  const handleIssueVpn = async () => {
+    setVpnIssuing(true);
+    setVpnError(null);
+    try {
+      const result = await issueMutation.mutateAsync({ id: customerId });
+      if (result.ovpnConfig) {
+        const blob = new Blob([result.ovpnConfig], { type: "application/x-openvpn-profile" });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement("a");
+        a.href     = url;
+        a.download = `${result.commonName}.ovpn`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      refetchVpn();
+    } catch (e: any) {
+      setVpnError(e?.message ?? "Failed to issue VPN config");
+    } finally {
+      setVpnIssuing(false);
+    }
+  };
+
+  const handleRevokeVpn = async (configId: number) => {
+    setVpnRevoking(configId);
+    setVpnError(null);
+    try {
+      await revokeMutation.mutateAsync({ id: customerId, configId });
+      refetchVpn();
+    } catch (e: any) {
+      setVpnError(e?.message ?? "Failed to revoke VPN config");
+    } finally {
+      setVpnRevoking(null);
+    }
+  };
+
   const saveSnapshot = useSaveUsageSnapshot();
   const lastSavedAt = useRef(0);
 
@@ -886,6 +935,9 @@ export default function CustomerDetail() {
               </TabsTrigger>
               <TabsTrigger value="radius" className="data-[state=active]:bg-white rounded-md">
                 <Signal className="w-4 h-4 mr-2" /> RADIUS
+              </TabsTrigger>
+              <TabsTrigger value="vpn" className="data-[state=active]:bg-white rounded-md">
+                <ShieldCheck className="w-4 h-4 mr-2" /> VPN
               </TabsTrigger>
             </TabsList>
 
@@ -1464,6 +1516,132 @@ export default function CustomerDetail() {
                           <Signal className="w-8 h-8 text-gray-200 mx-auto mb-2" />
                           <p className="text-sm text-gray-400">No RADIUS sessions found.</p>
                           <p className="text-xs text-gray-400 mt-1">Sessions will appear here once the customer connects via FreeRADIUS.</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+
+            {/* ── VPN tab ── */}
+            <TabsContent value="vpn" className="m-0">
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-indigo-500" /> OpenVPN Client Configs
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    {vpnError && (
+                      <span className="text-xs text-red-500 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> {vpnError}
+                      </span>
+                    )}
+                    {!vpnAvailable && (
+                      <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+                        VPN not available on this server
+                      </span>
+                    )}
+                    {isAdmin && vpnAvailable && (
+                      <Button
+                        size="sm"
+                        onClick={handleIssueVpn}
+                        disabled={vpnIssuing}
+                        className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white h-7 text-xs"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        {vpnIssuing ? "Issuing…" : "Issue VPN Config"}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <Table>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow>
+                      <TableHead>Common Name</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Issued</TableHead>
+                      <TableHead>Revoked</TableHead>
+                      <TableHead>Revoked By</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loadingVpn ? (
+                      <TableRow><TableCell colSpan={6}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
+                    ) : vpnConfigs && vpnConfigs.length > 0 ? (
+                      vpnConfigs.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-mono text-xs text-gray-700">{c.commonName}</TableCell>
+                          <TableCell>
+                            {c.revokedAt ? (
+                              <Badge variant="outline" className="text-[10px] bg-red-50 text-red-600 border-red-200 gap-1">
+                                <ShieldOff className="w-3 h-3" /> Revoked
+                              </Badge>
+                            ) : c.connected ? (
+                              <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Connected
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200 gap-1">
+                                <ShieldCheck className="w-3 h-3" /> Active
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-gray-600">
+                            {new Date(c.issuedAt).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-xs text-gray-600">
+                            {c.revokedAt ? new Date(c.revokedAt).toLocaleDateString() : "—"}
+                          </TableCell>
+                          <TableCell className="text-xs text-gray-500">{c.revokedBy ?? "—"}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {!c.revokedAt && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-gray-500 hover:text-blue-600"
+                                  title="Download .ovpn"
+                                  onClick={() => {
+                                    const a = document.createElement("a");
+                                    a.href = `/api/customers/${customerId}/vpn/${c.id}/download`;
+                                    a.download = `${c.commonName}.ovpn`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    document.body.removeChild(a);
+                                  }}
+                                >
+                                  <ArrowDownToLine className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
+                              {isAdmin && !c.revokedAt && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-gray-500 hover:text-red-600"
+                                  title="Revoke certificate"
+                                  disabled={vpnRevoking === c.id}
+                                  onClick={() => handleRevokeVpn(c.id)}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-12 text-center">
+                          <FileLock2 className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                          <p className="text-sm text-gray-400">No VPN configs issued yet.</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {vpnAvailable
+                              ? 'Click "Issue VPN Config" to generate a signed certificate and .ovpn file.'
+                              : "Install OpenVPN on the server to enable VPN management."}
+                          </p>
                         </TableCell>
                       </TableRow>
                     )}

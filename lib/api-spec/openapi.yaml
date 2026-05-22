@@ -38,6 +38,8 @@ tags:
     description: Audit trail of sensitive mutations
   - name: radius
     description: FreeRADIUS integration — RADIUS session data and sync
+  - name: vpn
+    description: OpenVPN certificate management — issue and revoke per customer
 
 paths:
   # ── USERS (STAFF MANAGEMENT) ─────────────────────────────────────────────────
@@ -361,6 +363,72 @@ paths:
       responses:
         "204":
           description: Deleted
+
+  /customers/{id}/vpn:
+    get:
+      operationId: listCustomerVpnConfigs
+      tags: [vpn]
+      summary: List VPN configs for a customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: List of VPN configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VpnConfig"
+    post:
+      operationId: issueCustomerVpnConfig
+      tags: [vpn]
+      summary: Issue a new VPN config for a customer (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "201":
+          description: Issued VPN config with .ovpn content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VpnConfigWithFile"
+        "503":
+          description: VPN server not configured on this host
+
+  /customers/{id}/vpn/{configId}:
+    delete:
+      operationId: revokeCustomerVpnConfig
+      tags: [vpn]
+      summary: Revoke a VPN config (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: configId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Revoked VPN config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VpnConfig"
+        "404":
+          description: Config not found
+        "409":
+          description: Already revoked
+        "503":
+          description: VPN server not configured on this host
 
   /customers/{id}/radius-sessions:
     get:
@@ -2545,6 +2613,41 @@ components:
           nullable: true
         active:
           type: boolean
+
+    VpnConfig:
+      type: object
+      required: [id, customerId, commonName, issuedAt, connected, vpnAvailable]
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        commonName:
+          type: string
+        issuedAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        revokedBy:
+          type: string
+          nullable: true
+        connected:
+          type: boolean
+        vpnAvailable:
+          type: boolean
+
+    VpnConfigWithFile:
+      allOf:
+        - $ref: "#/components/schemas/VpnConfig"
+        - type: object
+          required: [ovpnConfig]
+          properties:
+            ovpnConfig:
+              type: string
+              description: Full .ovpn file content
 
     RadiusSyncResult:
       type: object

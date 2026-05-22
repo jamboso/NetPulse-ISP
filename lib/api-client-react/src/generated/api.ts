@@ -77,7 +77,9 @@ import type {
   TicketReplyInput,
   TicketUpdate,
   UpdateUserInput,
-  UsageSnapshotBatch
+  UsageSnapshotBatch,
+  VpnConfig,
+  VpnConfigWithFile
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1230,6 +1232,225 @@ export const useDeleteCustomer = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteCustomerMutationOptions(options));
+    }
+
+export const getListCustomerVpnConfigsUrl = (id: number,) => {
+
+
+
+
+  return `/api/customers/${id}/vpn`
+}
+
+/**
+ * @summary List VPN configs for a customer
+ */
+export const listCustomerVpnConfigs = async (id: number, options?: RequestInit): Promise<VpnConfig[]> => {
+
+  return customFetch<VpnConfig[]>(getListCustomerVpnConfigsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCustomerVpnConfigsQueryKey = (id: number,) => {
+    return [
+    `/api/customers/${id}/vpn`
+    ] as const;
+    }
+
+
+export const getListCustomerVpnConfigsQueryOptions = <TData = Awaited<ReturnType<typeof listCustomerVpnConfigs>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCustomerVpnConfigs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCustomerVpnConfigsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCustomerVpnConfigs>>> = ({ signal }) => listCustomerVpnConfigs(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCustomerVpnConfigs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCustomerVpnConfigsQueryResult = NonNullable<Awaited<ReturnType<typeof listCustomerVpnConfigs>>>
+export type ListCustomerVpnConfigsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List VPN configs for a customer
+ */
+
+export function useListCustomerVpnConfigs<TData = Awaited<ReturnType<typeof listCustomerVpnConfigs>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCustomerVpnConfigs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCustomerVpnConfigsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getIssueCustomerVpnConfigUrl = (id: number,) => {
+
+
+
+
+  return `/api/customers/${id}/vpn`
+}
+
+/**
+ * @summary Issue a new VPN config for a customer (admin only)
+ */
+export const issueCustomerVpnConfig = async (id: number, options?: RequestInit): Promise<VpnConfigWithFile> => {
+
+  return customFetch<VpnConfigWithFile>(getIssueCustomerVpnConfigUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getIssueCustomerVpnConfigMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueCustomerVpnConfig>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof issueCustomerVpnConfig>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['issueCustomerVpnConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof issueCustomerVpnConfig>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  issueCustomerVpnConfig(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type IssueCustomerVpnConfigMutationResult = NonNullable<Awaited<ReturnType<typeof issueCustomerVpnConfig>>>
+
+    export type IssueCustomerVpnConfigMutationError = ErrorType<void>
+
+    /**
+ * @summary Issue a new VPN config for a customer (admin only)
+ */
+export const useIssueCustomerVpnConfig = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueCustomerVpnConfig>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof issueCustomerVpnConfig>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getIssueCustomerVpnConfigMutationOptions(options));
+    }
+
+export const getRevokeCustomerVpnConfigUrl = (id: number,
+    configId: number,) => {
+
+
+
+
+  return `/api/customers/${id}/vpn/${configId}`
+}
+
+/**
+ * @summary Revoke a VPN config (admin only)
+ */
+export const revokeCustomerVpnConfig = async (id: number,
+    configId: number, options?: RequestInit): Promise<VpnConfig> => {
+
+  return customFetch<VpnConfig>(getRevokeCustomerVpnConfigUrl(id,configId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getRevokeCustomerVpnConfigMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeCustomerVpnConfig>>, TError,{id: number;configId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeCustomerVpnConfig>>, TError,{id: number;configId: number}, TContext> => {
+
+const mutationKey = ['revokeCustomerVpnConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeCustomerVpnConfig>>, {id: number;configId: number}> = (props) => {
+          const {id,configId} = props ?? {};
+
+          return  revokeCustomerVpnConfig(id,configId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeCustomerVpnConfigMutationResult = NonNullable<Awaited<ReturnType<typeof revokeCustomerVpnConfig>>>
+
+    export type RevokeCustomerVpnConfigMutationError = ErrorType<void>
+
+    /**
+ * @summary Revoke a VPN config (admin only)
+ */
+export const useRevokeCustomerVpnConfig = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeCustomerVpnConfig>>, TError,{id: number;configId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeCustomerVpnConfig>>,
+        TError,
+        {id: number;configId: number},
+        TContext
+      > => {
+      return useMutation(getRevokeCustomerVpnConfigMutationOptions(options));
     }
 
 export const getGetCustomerRadiusSessionsUrl = (id: number,) => {

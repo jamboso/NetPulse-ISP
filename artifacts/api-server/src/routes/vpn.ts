@@ -1,0 +1,176 @@
+import { Router } from "express";
+import { exec } from "child_process";
+import { promisify } from "util";
+import { readFile } from "fs/promises";
+import { db } from "@workspace/db";
+import { vpnConfigsTable } from "@workspace/db";
+import { eq, and, isNull } from "drizzle-orm";
+import { requireRole } from "../middlewares/requireRole";
+
+const execAsync = promisify(exec);
+const router = Router();
+
+const VPN_ENABLED = process.env["OPENVPN_ENABLED"] !== "false";
+
+const CN_RE = /^[a-z0-9][a-z0-9.\-]{0,61}[a-z0-9]$/;
+
+function vpnUnavailable(res: any): void {
+  res.status(503).json({ error: "VPN server not configured on this host. Set OPENVPN_ENABLED=true after running the installer." });
+}
+
+function genCN(customerId: number): string {
+  return `np-${customerId}-${Date.now()}`;
+}
+
+async function parseStatusLog(): Promise<Set<string>> {
+  const connected = new Set<string>();
+  try {
+    const text = await readFile("/var/log/openvpn/status.log", "utf8");
+    let inClientList = false;
+    for (const line of text.split("\n")) {
+      if (line.startsWith("Common Name,")) { inClientList = true; continue; }
+      if (line.startsWith("ROUTING TABLE")) { inClientList = false; continue; }
+      if (inClientList && line.trim() && !line.startsWith("OpenVPN")) {
+        const cn = line.split(",")[0]?.trim();
+        if (cn) connected.add(cn);
+      }
+    }
+  } catch {
+    // status.log doesn't exist in dev — return empty set
+  }
+  return connected;
+}
+
+router.get("/customers/:id/vpn", async (req, res) => {
+  const customerId = parseInt(req.params["id"] as string);
+  if (isNaN(customerId)) { res.status(400).json({ error: "Invalid customer ID" }); return; }
+
+  const rows = await db
+    .select()
+    .from(vpnConfigsTable)
+    .where(eq(vpnConfigsTable.customerId, customerId))
+    .orderBy(vpnConfigsTable.issuedAt);
+
+  const connected = VPN_ENABLED ? await parseStatusLog() : new Set<string>();
+
+  res.json(rows.map(r => ({
+    id:          r.id,
+    customerId:  r.customerId,
+    commonName:  r.commonName,
+    issuedAt:    r.issuedAt.toISOString(),
+    revokedAt:   r.revokedAt?.toISOString() ?? null,
+    revokedBy:   r.revokedBy ?? null,
+    connected:   r.revokedAt === null && connected.has(r.commonName),
+    vpnAvailable: VPN_ENABLED,
+  })));
+});
+
+router.post("/customers/:id/vpn", requireRole("admin"), async (req, res) => {
+  if (!VPN_ENABLED) { vpnUnavailable(res); return; }
+
+  const customerId = parseInt(req.params["id"] as string);
+  if (isNaN(customerId)) { res.status(400).json({ error: "Invalid customer ID" }); return; }
+
+  const cn = genCN(customerId);
+  if (!CN_RE.test(cn)) { res.status(400).json({ error: "Generated CN failed allowlist check" }); return; }
+
+  let ovpnContent: string;
+  try {
+    const { stdout } = await execAsync(`/usr/local/bin/netpulse-vpn-issue ${cn}`, { timeout: 30_000 });
+    ovpnContent = stdout.trim();
+    if (!ovpnContent || !ovpnContent.includes("client")) {
+      throw new Error("Issue script returned unexpected output");
+    }
+  } catch (err: any) {
+    req.log.error({ err: err.message, cn }, "VPN issue failed");
+    res.status(500).json({ error: `VPN issue failed: ${err.message}` });
+    return;
+  }
+
+  const [row] = await db.insert(vpnConfigsTable).values({
+    customerId,
+    commonName:  cn,
+    ovpnConfig:  ovpnContent,
+  }).returning();
+
+  req.log.info({ customerId, cn }, "VPN config issued");
+  res.status(201).json({
+    id:         row!.id,
+    customerId: row!.customerId,
+    commonName: row!.commonName,
+    issuedAt:   row!.issuedAt.toISOString(),
+    revokedAt:  null,
+    connected:  false,
+    vpnAvailable: true,
+    ovpnConfig: row!.ovpnConfig,
+  });
+});
+
+router.get("/customers/:id/vpn/:configId/download", async (req, res) => {
+  const customerId = parseInt(req.params["id"] as string);
+  const configId   = parseInt(req.params["configId"] as string);
+
+  const [row] = await db
+    .select()
+    .from(vpnConfigsTable)
+    .where(and(
+      eq(vpnConfigsTable.id, configId),
+      eq(vpnConfigsTable.customerId, customerId),
+      isNull(vpnConfigsTable.revokedAt),
+    ));
+
+  if (!row) { res.status(404).json({ error: "VPN config not found or revoked" }); return; }
+
+  res.setHeader("Content-Type", "application/x-openvpn-profile");
+  res.setHeader("Content-Disposition", `attachment; filename="${row.commonName}.ovpn"`);
+  res.send(row.ovpnConfig);
+});
+
+router.delete("/customers/:id/vpn/:configId", requireRole("admin"), async (req, res) => {
+  if (!VPN_ENABLED) { vpnUnavailable(res); return; }
+
+  const customerId = parseInt(req.params["id"] as string);
+  const configId   = parseInt(req.params["configId"] as string);
+
+  const [row] = await db
+    .select()
+    .from(vpnConfigsTable)
+    .where(and(
+      eq(vpnConfigsTable.id, configId),
+      eq(vpnConfigsTable.customerId, customerId),
+    ));
+
+  if (!row) { res.status(404).json({ error: "VPN config not found" }); return; }
+  if (row.revokedAt !== null) { res.status(409).json({ error: "Already revoked" }); return; }
+
+  const cn = row.commonName;
+  if (!CN_RE.test(cn)) { res.status(400).json({ error: "CN failed allowlist check" }); return; }
+
+  try {
+    await execAsync(`/usr/local/bin/netpulse-vpn-revoke ${cn}`, { timeout: 30_000 });
+  } catch (err: any) {
+    req.log.error({ err: err.message, cn }, "VPN revoke failed");
+    res.status(500).json({ error: `VPN revoke failed: ${err.message}` });
+    return;
+  }
+
+  const [updated] = await db
+    .update(vpnConfigsTable)
+    .set({ revokedAt: new Date(), revokedBy: req.user!.email })
+    .where(eq(vpnConfigsTable.id, configId))
+    .returning();
+
+  req.log.info({ customerId, cn }, "VPN config revoked");
+  res.json({
+    id:         updated!.id,
+    customerId: updated!.customerId,
+    commonName: updated!.commonName,
+    issuedAt:   updated!.issuedAt.toISOString(),
+    revokedAt:  updated!.revokedAt?.toISOString() ?? null,
+    revokedBy:  updated!.revokedBy ?? null,
+    connected:  false,
+    vpnAvailable: true,
+  });
+});
+
+export default router;

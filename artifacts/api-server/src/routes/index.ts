@@ -32,6 +32,7 @@ import systemUpdateRouter from "./system-update";
 import usersRouter from "./users";
 import salesRouter from "./sales";
 import radiusRouter from "./radius";
+import vpnRouter from "./vpn";
 
 const router: IRouter = Router();
 
@@ -79,5 +80,6 @@ router.use(systemUpdateRouter);
 router.use(usersRouter);
 router.use(salesRouter);
 router.use(radiusRouter);
+router.use(vpnRouter);
 
 export default router;

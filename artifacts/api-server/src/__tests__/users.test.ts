@@ -106,12 +106,8 @@ function buildApp(
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
     (req as Request & { user: MockUser }).user = user;
-    (req as Request & { log: Record<string, unknown> }).log = {
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-      debug: vi.fn(),
-    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (req as any).log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
     next();
   });
   app.use(usersRouter);

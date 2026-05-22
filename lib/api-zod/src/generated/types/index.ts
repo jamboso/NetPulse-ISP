@@ -118,3 +118,5 @@ export * from './updateUserInputRole';
 export * from './usageSnapshot';
 export * from './usageSnapshotBatch';
 export * from './usageSnapshotBatchSnapshotsItem';
+export * from './vpnConfig';
+export * from './vpnConfigWithFile';

@@ -168,6 +168,27 @@ paths:
         "403":
           description: Forbidden — admin role required
 
+  /audit-logs/purge-history:
+    get:
+      operationId: getAuditPurgeHistory
+      tags: [audit-logs]
+      summary: List recent purge runs (admin only)
+      responses:
+        "200":
+          description: Recent purge history entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditPurgeLog"
+        "403":
+          description: Forbidden — admin role required
+
   /audit-logs/purge:
     post:
       operationId: purgeAuditLogs
@@ -2698,4 +2719,16 @@ components:
           type: string
           format: date-time
 
-
+    AuditPurgeLog:
+      type: object
+      required: [id, purgedAt, deletedCount, triggeredBy]
+      properties:
+        id:
+          type: integer
+        purgedAt:
+          type: string
+          format: date-time
+        deletedCount:
+          type: integer
+        triggeredBy:
+          type: string

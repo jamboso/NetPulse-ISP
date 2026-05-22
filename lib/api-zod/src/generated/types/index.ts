@@ -9,6 +9,7 @@
 export * from './activityItem';
 export * from './auditLog';
 export * from './auditLogAction';
+export * from './auditPurgeLog';
 export * from './breakdownItem';
 export * from './createUserInput';
 export * from './createUserInputNotifyMethod';
@@ -33,6 +34,7 @@ export * from './equipmentType';
 export * from './equipmentUpdate';
 export * from './equipmentUpdateStatus';
 export * from './equipmentUpdateType';
+export * from './getAuditPurgeHistory200';
 export * from './getCustomerUsageSnapshots200';
 export * from './healthStatus';
 export * from './invoice';

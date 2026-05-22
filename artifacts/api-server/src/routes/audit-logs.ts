@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, auditLogsTable } from "@workspace/db";
+import { db, auditLogsTable, auditPurgeLogTable } from "@workspace/db";
 import { eq, and, gte, lte, desc, ilike } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { purgeAuditLogs } from "../lib/auditLogPurge";
@@ -96,8 +96,17 @@ router.get("/audit-logs/export.csv", requireRole("admin"), async (req, res) => {
   res.end();
 });
 
+router.get("/audit-logs/purge-history", requireRole("admin"), async (req, res) => {
+  const rows = await db
+    .select()
+    .from(auditPurgeLogTable)
+    .orderBy(desc(auditPurgeLogTable.purgedAt))
+    .limit(20);
+  res.json({ data: rows });
+});
+
 router.post("/audit-logs/purge", requireRole("admin"), async (req, res) => {
-  const deleted = await purgeAuditLogs();
+  const deleted = await purgeAuditLogs("manual");
   res.json({ deleted });
 });
 

@@ -32,6 +32,7 @@ import type {
   Equipment,
   EquipmentInput,
   EquipmentUpdate,
+  GetAuditPurgeHistory200,
   GetCustomerUsageSnapshots200,
   HealthStatus,
   Invoice,
@@ -394,6 +395,83 @@ export function useListAuditLogs<TData = Awaited<ReturnType<typeof listAuditLogs
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListAuditLogsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetAuditPurgeHistoryUrl = () => {
+
+
+
+
+  return `/api/audit-logs/purge-history`
+}
+
+/**
+ * @summary List recent purge runs (admin only)
+ */
+export const getAuditPurgeHistory = async ( options?: RequestInit): Promise<GetAuditPurgeHistory200> => {
+
+  return customFetch<GetAuditPurgeHistory200>(getGetAuditPurgeHistoryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditPurgeHistoryQueryKey = () => {
+    return [
+    `/api/audit-logs/purge-history`
+    ] as const;
+    }
+
+
+export const getGetAuditPurgeHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getAuditPurgeHistory>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPurgeHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditPurgeHistoryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditPurgeHistory>>> = ({ signal }) => getAuditPurgeHistory({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditPurgeHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditPurgeHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditPurgeHistory>>>
+export type GetAuditPurgeHistoryQueryError = ErrorType<void>
+
+
+/**
+ * @summary List recent purge runs (admin only)
+ */
+
+export function useGetAuditPurgeHistory<TData = Awaited<ReturnType<typeof getAuditPurgeHistory>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPurgeHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditPurgeHistoryQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

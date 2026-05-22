@@ -18,5 +18,6 @@ export * from "./splitters";
 export * from "./infrastructure";
 export * from "./users";
 export * from "./auditLogs";
+export * from "./auditPurgeLog";
 export * from "./radius";
 export * from "./vpnConfigs";

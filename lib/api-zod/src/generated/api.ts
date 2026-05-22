@@ -105,6 +105,19 @@ export const ListAuditLogsResponse = zod.object({
 
 
 /**
+ * @summary List recent purge runs (admin only)
+ */
+export const GetAuditPurgeHistoryResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.number(),
+  "purgedAt": zod.coerce.date(),
+  "deletedCount": zod.number(),
+  "triggeredBy": zod.string()
+}))
+})
+
+
+/**
  * @summary Delete audit log entries older than the configured retention period (admin only)
  */
 export const PurgeAuditLogsResponse = zod.object({

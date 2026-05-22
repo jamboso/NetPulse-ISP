@@ -1139,6 +1139,13 @@ export interface AuditLog {
   createdAt: string;
 }
 
+export interface AuditPurgeLog {
+  id: number;
+  purgedAt: string;
+  deletedCount: number;
+  triggeredBy: string;
+}
+
 export type ListUsersParams = {
 search?: string;
 };
@@ -1174,6 +1181,10 @@ export type ListAuditLogs200 = {
   data: AuditLog[];
   page: number;
   limit: number;
+};
+
+export type GetAuditPurgeHistory200 = {
+  data: AuditPurgeLog[];
 };
 
 export type PurgeAuditLogs200 = {

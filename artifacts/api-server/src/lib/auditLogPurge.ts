@@ -5,10 +5,13 @@
  * audit_logs rows whose created_at is older than that threshold.
  * Defaults to 365 days. Setting to 0 disables purging.
  *
+ * Each purge run writes a row to audit_purge_log (timestamp, deleted_count,
+ * triggered_by) so admins can see when purges last ran.
+ *
  * Runs once on startup and then every 24 hours.
  */
 
-import { db, auditLogsTable, settingsTable } from "@workspace/db";
+import { db, auditLogsTable, settingsTable, auditPurgeLogTable } from "@workspace/db";
 import { lt, eq } from "drizzle-orm";
 import { logger } from "./logger";
 
@@ -30,11 +33,12 @@ async function getRetentionDays(): Promise<number> {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_RETENTION_DAYS;
 }
 
-export async function purgeAuditLogs(): Promise<number> {
+export async function purgeAuditLogs(triggeredBy = "scheduler"): Promise<number> {
   const retentionDays = await getRetentionDays();
 
   if (retentionDays === 0) {
-    logger.info("Audit log purge: retention disabled (0), skipping");
+    logger.info({ triggeredBy }, "Audit log purge: retention disabled (0), skipping");
+    await db.insert(auditPurgeLogTable).values({ deletedCount: 0, triggeredBy });
     return 0;
   }
 
@@ -48,22 +52,24 @@ export async function purgeAuditLogs(): Promise<number> {
 
   const count = deleted.length;
 
+  await db.insert(auditPurgeLogTable).values({ deletedCount: count, triggeredBy });
+
   if (count > 0) {
-    logger.info({ count, retentionDays, cutoff }, "Audit log purge: deleted old records");
+    logger.info({ count, retentionDays, cutoff, triggeredBy }, "Audit log purge: deleted old records");
   } else {
-    logger.debug({ retentionDays, cutoff }, "Audit log purge: no records to delete");
+    logger.debug({ retentionDays, cutoff, triggeredBy }, "Audit log purge: no records to delete");
   }
 
   return count;
 }
 
 export function startAuditLogPurgeScheduler(): void {
-  purgeAuditLogs().catch((err) =>
+  purgeAuditLogs("scheduler").catch((err) =>
     logger.warn({ err }, "Audit log purge: initial run failed"),
   );
 
   setInterval(() => {
-    purgeAuditLogs().catch((err) =>
+    purgeAuditLogs("scheduler").catch((err) =>
       logger.warn({ err }, "Audit log purge: scheduled run failed"),
     );
   }, INTERVAL_MS);

@@ -3,6 +3,9 @@ import { useSearch } from "wouter";
 import {
   useListAuditLogs,
   getListAuditLogsQueryKey,
+  useGetAuditPurgeHistory,
+  usePurgeAuditLogs,
+  getGetAuditPurgeHistoryQueryKey,
 } from "@workspace/api-client-react";
 import type { AuditLog, ListAuditLogsParams } from "@workspace/api-client-react";
 import {
@@ -25,6 +28,8 @@ import {
   Server,
   Network,
   UserCog,
+  Trash2,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -248,7 +253,22 @@ export default function AuditLogs() {
   const [page, setPage] = useState(1);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [purgeResult, setPurgeResult] = useState<number | null>(null);
   const qc = useQueryClient();
+
+  const { data: purgeHistoryData, isLoading: purgeHistoryLoading } = useGetAuditPurgeHistory();
+  const purgeMutation = usePurgeAuditLogs({
+    mutation: {
+      onSuccess: (data) => {
+        setPurgeResult(data.deleted);
+        void qc.invalidateQueries({ queryKey: getGetAuditPurgeHistoryQueryKey() });
+        void qc.invalidateQueries({ queryKey: getListAuditLogsQueryKey() });
+      },
+    },
+  });
+
+  const purgeHistory = purgeHistoryData?.data ?? [];
+  const lastPurge = purgeHistory[0] ?? null;
 
   const entityIdNum = entityIdInput.trim() !== "" && /^\d+$/.test(entityIdInput.trim())
     ? parseInt(entityIdInput.trim(), 10)
@@ -354,6 +374,72 @@ export default function AuditLogs() {
           >
             <RefreshCw className="w-4 h-4" />
             {hasFilters ? "Clear filters" : "Refresh"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center">
+              <History className="w-4.5 h-4.5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">Retention &amp; Purge</p>
+              {purgeHistoryLoading ? (
+                <Skeleton className="h-4 w-48 mt-1" />
+              ) : lastPurge ? (
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Last purge:{" "}
+                  <span className="font-medium text-gray-700">
+                    {new Date(lastPurge.purgedAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" })}
+                  </span>
+                  {" · "}
+                  <span className={lastPurge.deletedCount > 0 ? "text-red-600 font-medium" : "text-gray-500"}>
+                    {lastPurge.deletedCount} record{lastPurge.deletedCount !== 1 ? "s" : ""} removed
+                  </span>
+                  {" · "}
+                  <span className="capitalize text-gray-400">{lastPurge.triggeredBy}</span>
+                </p>
+              ) : (
+                <p className="text-xs text-gray-400 mt-0.5">No purge runs recorded yet.</p>
+              )}
+              {purgeResult !== null && (
+                <p className="text-xs text-emerald-600 font-medium mt-1">
+                  ✓ Purge complete — {purgeResult} record{purgeResult !== 1 ? "s" : ""} deleted.
+                </p>
+              )}
+              {purgeHistory.length > 1 && (
+                <details className="mt-2">
+                  <summary className="text-xs text-blue-500 cursor-pointer hover:text-blue-700">
+                    View last {purgeHistory.length} runs
+                  </summary>
+                  <div className="mt-2 space-y-1">
+                    {purgeHistory.map((run) => (
+                      <div key={run.id} className="flex items-center gap-3 text-xs text-gray-500">
+                        <span className="font-mono text-gray-600 min-w-[140px]">
+                          {new Date(run.purgedAt).toLocaleString("en-KE", { dateStyle: "short", timeStyle: "short" })}
+                        </span>
+                        <span className={run.deletedCount > 0 ? "text-red-500 font-medium" : ""}>
+                          {run.deletedCount} deleted
+                        </span>
+                        <span className="capitalize text-gray-400">{run.triggeredBy}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-shrink-0 gap-2 text-red-600 border-red-200 hover:bg-red-50"
+            onClick={() => { setPurgeResult(null); purgeMutation.mutate(); }}
+            disabled={purgeMutation.isPending}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {purgeMutation.isPending ? "Purging…" : "Purge Now"}
           </Button>
         </div>
       </div>

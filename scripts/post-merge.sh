@@ -4,21 +4,15 @@ pnpm install --frozen-lockfile
 pnpm --filter db push
 
 echo "Syncing to GitHub (Replit is source of truth)..."
-PUSH_OUTPUT=$(git push --force github main 2>&1)
-PUSH_EXIT=$?
-
-if [ $PUSH_EXIT -eq 0 ]; then
+if git push --force github main 2>&1; then
   echo "GitHub sync: OK"
 else
-  echo "$PUSH_OUTPUT"
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "GitHub sync FAILED. One-time fix needed:"
-  echo ""
-  echo "  1. Go to: https://github.com/settings/tokens"
-  echo "  2. Edit your token — add the 'workflow' scope"
-  echo "  3. In the Replit Shell, run:"
-  echo "     git remote set-url github https://jamboso:<NEW_TOKEN>@github.com/jamboso/NetPulse-ISP.git"
-  echo "  4. Then: git push --force github main"
+  echo "GitHub sync FAILED (non-fatal — code is safe locally)."
+  echo "One-time fix: add 'workflow' scope to your GitHub PAT:"
+  echo "  1. https://github.com/settings/tokens → edit token → add 'workflow'"
+  echo "  2. git remote set-url github https://jamboso:<TOKEN>@github.com/jamboso/NetPulse-ISP.git"
+  echo "  3. git push --force github main"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 fi

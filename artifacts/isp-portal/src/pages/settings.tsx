@@ -267,6 +267,9 @@ export default function Settings() {
             <SettingField label="Auto-Suspend After (days)" name="autoSuspendDays" value={f("autoSuspendDays")} onChange={set} type="number" placeholder="3" hint="Days after due date before account is suspended" />
             <SettingField label="Grace Period (days)" name="gracePeriodDays" value={f("gracePeriodDays")} onChange={set} type="number" placeholder="1" hint="Grace period before suspension kicks in" />
           </SectionCard>
+          <SectionCard icon={CreditCard} title="Audit Log Retention">
+            <SettingField label="Retention Period (days)" name="auditLogRetentionDays" value={f("auditLogRetentionDays")} onChange={set} type="number" placeholder="365" hint="Audit records older than this are automatically deleted. Set to 0 to disable purging." />
+          </SectionCard>
         </TabsContent>
 
         {/* ── NETWORK ─────────────────────────────────────────────────────── */}

@@ -38,4 +38,5 @@ export interface SettingsInput {
   mpesaPasskey?: string;
   mpesaEnv?: string;
   mpesaCallbackUrl?: string;
+  auditLogRetentionDays?: string;
 }

@@ -103,6 +103,14 @@ export const ListAuditLogsResponse = zod.object({
 
 
 /**
+ * @summary Delete audit log entries older than the configured retention period (admin only)
+ */
+export const PurgeAuditLogsResponse = zod.object({
+  "deleted": zod.number()
+})
+
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -1181,7 +1189,8 @@ export const GetSettingsResponse = zod.object({
   "mpesaShortcode": zod.string().nullish(),
   "mpesaPasskey": zod.string().nullish(),
   "mpesaEnv": zod.string().nullish(),
-  "mpesaCallbackUrl": zod.string().nullish()
+  "mpesaCallbackUrl": zod.string().nullish(),
+  "auditLogRetentionDays": zod.string().nullish()
 })
 
 
@@ -1219,7 +1228,8 @@ export const UpdateSettingsBody = zod.object({
   "mpesaShortcode": zod.string().optional(),
   "mpesaPasskey": zod.string().optional(),
   "mpesaEnv": zod.string().optional(),
-  "mpesaCallbackUrl": zod.string().optional()
+  "mpesaCallbackUrl": zod.string().optional(),
+  "auditLogRetentionDays": zod.string().optional()
 })
 
 export const UpdateSettingsResponse = zod.object({
@@ -1253,7 +1263,8 @@ export const UpdateSettingsResponse = zod.object({
   "mpesaShortcode": zod.string().nullish(),
   "mpesaPasskey": zod.string().nullish(),
   "mpesaEnv": zod.string().nullish(),
-  "mpesaCallbackUrl": zod.string().nullish()
+  "mpesaCallbackUrl": zod.string().nullish(),
+  "auditLogRetentionDays": zod.string().nullish()
 })
 
 

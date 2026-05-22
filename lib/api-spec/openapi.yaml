@@ -164,6 +164,25 @@ paths:
         "403":
           description: Forbidden — admin role required
 
+  /audit-logs/purge:
+    post:
+      operationId: purgeAuditLogs
+      tags: [audit-logs]
+      summary: Delete audit log entries older than the configured retention period (admin only)
+      responses:
+        "200":
+          description: Number of deleted rows
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted:
+                    type: integer
+        "403":
+          description: Forbidden — admin role required
+
   /healthz:
     get:
       operationId: healthCheck
@@ -2045,6 +2064,8 @@ components:
           type: ["string", "null"]
         mpesaCallbackUrl:
           type: ["string", "null"]
+        auditLogRetentionDays:
+          type: ["string", "null"]
 
     SettingsInput:
       type: object
@@ -2110,6 +2131,8 @@ components:
         mpesaEnv:
           type: string
         mpesaCallbackUrl:
+          type: string
+        auditLogRetentionDays:
           type: string
 
     # ── ROUTERS ────────────────────────────────────────────────────────────────

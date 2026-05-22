@@ -29,6 +29,8 @@ const SETTINGS_KEYS = [
   "alertPhone",
   // Role-based nav permissions (stored as JSON)
   "rolePermissions",
+  // Audit log retention
+  "auditLogRetentionDays",
 ] as const;
 
 type SettingsKey = (typeof SETTINGS_KEYS)[number];

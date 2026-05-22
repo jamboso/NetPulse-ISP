@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, auditLogsTable } from "@workspace/db";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { purgeAuditLogs } from "../lib/auditLogPurge";
 
 const router = Router();
 
@@ -36,6 +37,11 @@ router.get("/audit-logs", requireRole("admin"), async (req, res) => {
 
   const rows = await query.limit(limitNum).offset(offset);
   res.json({ data: rows, page: pageNum, limit: limitNum });
+});
+
+router.post("/audit-logs/purge", requireRole("admin"), async (req, res) => {
+  const deleted = await purgeAuditLogs();
+  res.json({ deleted });
 });
 
 export default router;

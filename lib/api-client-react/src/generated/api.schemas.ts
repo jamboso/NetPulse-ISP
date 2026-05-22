@@ -748,6 +748,8 @@ export interface Settings {
   mpesaEnv?: string | null;
   /** @nullable */
   mpesaCallbackUrl?: string | null;
+  /** @nullable */
+  auditLogRetentionDays?: string | null;
 }
 
 export interface SettingsInput {
@@ -782,6 +784,7 @@ export interface SettingsInput {
   mpesaPasskey?: string;
   mpesaEnv?: string;
   mpesaCallbackUrl?: string;
+  auditLogRetentionDays?: string;
 }
 
 export type RouterDeviceRouterType = typeof RouterDeviceRouterType[keyof typeof RouterDeviceRouterType];
@@ -1113,6 +1116,10 @@ export type ListAuditLogs200 = {
   data: AuditLog[];
   page: number;
   limit: number;
+};
+
+export type PurgeAuditLogs200 = {
+  deleted: number;
 };
 
 export type ListCustomersParams = {

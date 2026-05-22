@@ -56,6 +56,7 @@ import type {
   Plan,
   PlanInput,
   PlanUpdate,
+  PurgeAuditLogs200,
   RevenuePoint,
   RosLiveData,
   RouterDevice,
@@ -399,6 +400,76 @@ export function useListAuditLogs<TData = Awaited<ReturnType<typeof listAuditLogs
 
 
 
+
+export const getPurgeAuditLogsUrl = () => {
+
+
+
+
+  return `/api/audit-logs/purge`
+}
+
+/**
+ * @summary Delete audit log entries older than the configured retention period (admin only)
+ */
+export const purgeAuditLogs = async ( options?: RequestInit): Promise<PurgeAuditLogs200> => {
+
+  return customFetch<PurgeAuditLogs200>(getPurgeAuditLogsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPurgeAuditLogsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purgeAuditLogs>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof purgeAuditLogs>>, TError,void, TContext> => {
+
+const mutationKey = ['purgeAuditLogs'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof purgeAuditLogs>>, void> = () => {
+
+
+          return  purgeAuditLogs(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PurgeAuditLogsMutationResult = NonNullable<Awaited<ReturnType<typeof purgeAuditLogs>>>
+
+    export type PurgeAuditLogsMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete audit log entries older than the configured retention period (admin only)
+ */
+export const usePurgeAuditLogs = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purgeAuditLogs>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof purgeAuditLogs>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPurgeAuditLogsMutationOptions(options));
+    }
 
 export const getHealthCheckUrl = () => {
 

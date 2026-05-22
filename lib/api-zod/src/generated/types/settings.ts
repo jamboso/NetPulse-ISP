@@ -69,4 +69,6 @@ export interface Settings {
   mpesaEnv?: string | null;
   /** @nullable */
   mpesaCallbackUrl?: string | null;
+  /** @nullable */
+  auditLogRetentionDays?: string | null;
 }

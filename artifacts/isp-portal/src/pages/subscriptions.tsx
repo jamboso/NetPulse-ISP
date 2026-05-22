@@ -10,7 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useBulkSelect } from "@/hooks/useBulkSelect";
 import { BulkActionBar } from "@/components/BulkActionBar";
-import { Plus, Filter, Pencil, Trash2, Wifi, Copy, Check, KeyRound, UserX, XCircle } from "lucide-react";
+import { Plus, Filter, Pencil, Trash2, Wifi, Copy, Check, KeyRound, UserX, XCircle, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -354,6 +354,11 @@ export default function Subscriptions() {
                     <TableCell className="text-sm text-gray-600">{formatDate(sub.startDate)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" asChild title="View audit history">
+                          <Link href={`/audit-logs?entityType=subscription&entityId=${sub.id}`}>
+                            <ClipboardList className="w-3.5 h-3.5" />
+                          </Link>
+                        </Button>
                         {canManageBilling && (
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
                             onClick={() => setDialog({ open: true, id: sub.id, initial: {

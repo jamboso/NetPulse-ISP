@@ -10,7 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useBulkSelect } from "@/hooks/useBulkSelect";
 import { BulkActionBar } from "@/components/BulkActionBar";
-import { Plus, Filter, Download, Pencil, Trash2, CheckCircle2 } from "lucide-react";
+import { Plus, Filter, Download, Pencil, Trash2, CheckCircle2, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -314,6 +314,11 @@ export default function Invoices() {
                         )}
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-gray-600">
                           <Download className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" asChild title="View audit history">
+                          <Link href={`/audit-logs?entityType=invoice&entityId=${invoice.id}`}>
+                            <ClipboardList className="w-3.5 h-3.5" />
+                          </Link>
                         </Button>
                         {canDeleteBillingRecords && (
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600"

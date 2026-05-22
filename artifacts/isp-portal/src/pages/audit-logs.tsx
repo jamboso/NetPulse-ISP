@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearch } from "wouter";
 import {
   useListAuditLogs,
   getListAuditLogsQueryKey,
@@ -197,12 +198,19 @@ function DiffModal({ log, onClose }: DiffModalProps) {
 }
 
 export default function AuditLogs() {
-  const [entityTypeFilter, setEntityTypeFilter] = useState<string>("all");
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
+  const initialEntityType = searchParams.get("entityType") ?? "all";
+  const initialEntityId = searchParams.get("entityId") ?? "";
+
+  const [entityTypeFilter, setEntityTypeFilter] = useState<string>(
+    ENTITY_TYPES.includes(initialEntityType) ? initialEntityType : "all"
+  );
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [userSearch, setUserSearch] = useState("");
-  const [entityIdInput, setEntityIdInput] = useState("");
+  const [entityIdInput, setEntityIdInput] = useState(initialEntityId);
   const [page, setPage] = useState(1);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [exporting, setExporting] = useState(false);

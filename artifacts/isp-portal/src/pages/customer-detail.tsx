@@ -1332,6 +1332,7 @@ export default function CustomerDetail() {
               {(() => {
                 // Build audit timeline from all loaded data
                 const events: Array<{ date: string; icon: React.ReactNode; color: string; title: string; detail?: string }> = [];
+                const auditHref = `/audit-logs?entityType=customer&entityId=${customerId}`;
 
                 // Account created
                 if ((customer as any)?.createdAt) {
@@ -1362,6 +1363,17 @@ export default function CustomerDetail() {
 
                 return (
                   <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                        <ClipboardList className="w-4 h-4 text-blue-500" /> Activity Timeline
+                      </h3>
+                      <Link
+                        href={auditHref}
+                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium"
+                      >
+                        View full audit history →
+                      </Link>
+                    </div>
                     {events.length === 0 ? (
                       <div className="p-10 text-center">
                         <ClipboardList className="w-8 h-8 text-gray-200 mx-auto mb-2" />

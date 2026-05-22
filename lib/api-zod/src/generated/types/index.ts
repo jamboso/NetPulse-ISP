@@ -11,6 +11,7 @@ export * from './auditLog';
 export * from './auditLogAction';
 export * from './breakdownItem';
 export * from './createUserInput';
+export * from './createUserInputNotifyMethod';
 export * from './createUserInputRole';
 export * from './customer';
 export * from './customerInput';

@@ -5,6 +5,7 @@
  * ISP Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateUserInputNotifyMethod } from './createUserInputNotifyMethod';
 import type { CreateUserInputRole } from './createUserInputRole';
 
 export interface CreateUserInput {
@@ -13,4 +14,6 @@ export interface CreateUserInput {
   /** @minLength 8 */
   password: string;
   role: CreateUserInputRole;
+  notifyMethod?: CreateUserInputNotifyMethod;
+  notifyPhone?: string;
 }

@@ -1023,12 +1023,24 @@ export const CreateUserInputRole = {
   technician: 'technician',
 } as const;
 
+export type CreateUserInputNotifyMethod = typeof CreateUserInputNotifyMethod[keyof typeof CreateUserInputNotifyMethod];
+
+
+export const CreateUserInputNotifyMethod = {
+  none: 'none',
+  sms: 'sms',
+  email: 'email',
+  both: 'both',
+} as const;
+
 export interface CreateUserInput {
   name: string;
   email: string;
   /** @minLength 8 */
   password: string;
   role: CreateUserInputRole;
+  notifyMethod?: CreateUserInputNotifyMethod;
+  notifyPhone?: string;
 }
 
 export type UpdateUserInputRole = typeof UpdateUserInputRole[keyof typeof UpdateUserInputRole];

@@ -2412,6 +2412,12 @@ components:
         role:
           type: string
           enum: [admin, billing, support, technician]
+        notifyMethod:
+          type: string
+          enum: [none, sms, email, both]
+          default: none
+        notifyPhone:
+          type: string
 
     UpdateUserInput:
       type: object

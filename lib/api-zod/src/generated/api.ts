@@ -32,13 +32,15 @@ export const ListUsersResponse = zod.object({
  */
 export const createUserBodyPasswordMin = 8;
 
-
+export const createUserBodyNotifyMethodDefault = `none`;
 
 export const CreateUserBody = zod.object({
   "name": zod.string(),
   "email": zod.string().email(),
   "password": zod.string().min(createUserBodyPasswordMin),
-  "role": zod.enum(['admin', 'billing', 'support', 'technician'])
+  "role": zod.enum(['admin', 'billing', 'support', 'technician']),
+  "notifyMethod": zod.enum(['none', 'sms', 'email', 'both']).default(createUserBodyNotifyMethodDefault),
+  "notifyPhone": zod.string().optional()
 })
 
 

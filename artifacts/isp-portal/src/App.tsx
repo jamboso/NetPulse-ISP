@@ -27,6 +27,7 @@ import Monitoring from "./pages/monitoring";
 import NetworkMap from "./pages/network-map";
 import SetupWizard from "./pages/setup-wizard";
 import SignInPage from "./pages/sign-in";
+import ResetPasswordPage from "./pages/reset-password";
 import MpesaTransactions from "./pages/mpesa-transactions";
 import Staff from "./pages/staff";
 import Sales from "./pages/sales";
@@ -167,6 +168,7 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/sign-in" component={SignInPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/setup" component={SetupWizard} />
       <Route path="/hotspot/:routerId" component={CaptivePortal} />
       <Route>

@@ -28,6 +28,10 @@ const stkPushLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many STK Push requests. Please wait a moment before trying again." },
   skipFailedRequests: false,
+  // The IP fallback is only reached for unauthenticated requests, which are
+  // blocked upstream by requireAuth before this limiter runs. The IPv6
+  // normalisation warning is a false positive here.
+  validate: { keyGeneratorIpFallback: false },
 });
 
 // ── Register-URLs rate limiter ────────────────────────────────────────────────
@@ -40,6 +44,7 @@ const registerUrlsLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many register-URLs requests. Please wait a moment before trying again." },
   skipFailedRequests: false,
+  validate: { keyGeneratorIpFallback: false },
 });
 
 // ── Transactions rate limiter ─────────────────────────────────────────────────
@@ -52,6 +57,7 @@ const transactionsLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many transaction requests. Please wait a moment before trying again." },
   skipFailedRequests: false,
+  validate: { keyGeneratorIpFallback: false },
 });
 
 /*

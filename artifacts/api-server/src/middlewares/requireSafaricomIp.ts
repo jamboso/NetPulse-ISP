@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { db, settingsTable } from "@workspace/db";
+import { db, settingsTable, securityEventsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 /**
@@ -111,10 +111,33 @@ async function fetchAllowList(): Promise<ParsedCidr[] | "*"> {
 }
 
 /**
+ * Persist a blocked callback attempt to the security_events table.
+ * Failures are swallowed so a DB hiccup never affects the 403 response.
+ */
+async function recordBlockedAttempt(
+  req: Request,
+  callerIp: string,
+  reason: string
+): Promise<void> {
+  try {
+    await db.insert(securityEventsTable).values({
+      eventType: "blocked_callback",
+      callerIp,
+      endpoint: req.path,
+      method: req.method,
+      reason,
+    });
+  } catch {
+    // Non-fatal — best-effort logging
+  }
+}
+
+/**
  * Express middleware that restricts access to Safaricom's known IP ranges.
  *
  * Reads the caller IP from `req.ip` (which respects `app.set("trust proxy")`).
  * Responds with 403 and logs a warning if the IP is not in the allow-list.
+ * Also writes a record to the `security_events` table for admin visibility.
  *
  * Priority for allowed ranges (highest wins):
  *   1. `mpesaAllowedIps` setting in the DB (editable via Settings → M-Pesa Security)
@@ -142,6 +165,7 @@ export async function requireSafaricomIp(
 
   if (!allowed) {
     req.log.warn({ callerIp }, "M-Pesa callback rejected: IP not in Safaricom allowlist");
+    await recordBlockedAttempt(req, callerIp, "IP not in Safaricom allowlist");
     res.status(403).json({ error: "Forbidden: request origin not permitted" });
     return;
   }

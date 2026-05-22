@@ -33,6 +33,7 @@ import usersRouter from "./users";
 import salesRouter from "./sales";
 import radiusRouter from "./radius";
 import vpnRouter from "./vpn";
+import securityEventsRouter from "./security-events";
 
 const router: IRouter = Router();
 
@@ -81,5 +82,6 @@ router.use(usersRouter);
 router.use(salesRouter);
 router.use(radiusRouter);
 router.use(vpnRouter);
+router.use(securityEventsRouter);
 
 export default router;

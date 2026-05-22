@@ -48,6 +48,8 @@ import type {
   ListEquipmentParams,
   ListInvoicesParams,
   ListPaymentsParams,
+  ListSecurityEvents200,
+  ListSecurityEventsParams,
   ListSubscriptionsParams,
   ListTicketsParams,
   ListUsers200,
@@ -66,6 +68,7 @@ import type {
   RouterDeviceInput,
   RouterDeviceUpdate,
   RouterStatus,
+  SecurityEventsSummary,
   Settings,
   SettingsInput,
   StaffUser,
@@ -5184,4 +5187,165 @@ export const useDeleteRouter = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getDeleteRouterMutationOptions(options));
     }
+
+export const getListSecurityEventsUrl = (params?: ListSecurityEventsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/security-events?${stringifiedParams}` : `/api/security-events`
+}
+
+/**
+ * @summary List blocked M-Pesa callback attempts (admin only)
+ */
+export const listSecurityEvents = async (params?: ListSecurityEventsParams, options?: RequestInit): Promise<ListSecurityEvents200> => {
+
+  return customFetch<ListSecurityEvents200>(getListSecurityEventsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSecurityEventsQueryKey = (params?: ListSecurityEventsParams,) => {
+    return [
+    `/api/security-events`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSecurityEventsQueryOptions = <TData = Awaited<ReturnType<typeof listSecurityEvents>>, TError = ErrorType<void>>(params?: ListSecurityEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSecurityEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSecurityEventsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSecurityEvents>>> = ({ signal }) => listSecurityEvents(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSecurityEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSecurityEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listSecurityEvents>>>
+export type ListSecurityEventsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List blocked M-Pesa callback attempts (admin only)
+ */
+
+export function useListSecurityEvents<TData = Awaited<ReturnType<typeof listSecurityEvents>>, TError = ErrorType<void>>(
+ params?: ListSecurityEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSecurityEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSecurityEventsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetSecurityEventsSummaryUrl = () => {
+
+
+
+
+  return `/api/security-events/summary`
+}
+
+/**
+ * @summary Count of blocked attempts in the last 24 hours (admin only)
+ */
+export const getSecurityEventsSummary = async ( options?: RequestInit): Promise<SecurityEventsSummary> => {
+
+  return customFetch<SecurityEventsSummary>(getGetSecurityEventsSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSecurityEventsSummaryQueryKey = () => {
+    return [
+    `/api/security-events/summary`
+    ] as const;
+    }
+
+
+export const getGetSecurityEventsSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getSecurityEventsSummary>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSecurityEventsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSecurityEventsSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSecurityEventsSummary>>> = ({ signal }) => getSecurityEventsSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSecurityEventsSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSecurityEventsSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getSecurityEventsSummary>>>
+export type GetSecurityEventsSummaryQueryError = ErrorType<void>
+
+
+/**
+ * @summary Count of blocked attempts in the last 24 hours (admin only)
+ */
+
+export function useGetSecurityEventsSummary<TData = Awaited<ReturnType<typeof getSecurityEventsSummary>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSecurityEventsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSecurityEventsSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 

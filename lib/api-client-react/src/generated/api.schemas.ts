@@ -1149,6 +1149,23 @@ export interface AuditPurgeLog {
   triggeredBy: string;
 }
 
+export interface SecurityEvent {
+  id: number;
+  eventType: string;
+  callerIp: string;
+  endpoint: string;
+  method: string;
+  reason: string;
+  createdAt: string;
+}
+
+export interface SecurityEventsSummary {
+  /** Number of blocked callback attempts in the last 24 hours */
+  blockedLast24h: number;
+  /** Alert threshold — show warning badge when blockedLast24h exceeds this */
+  threshold: number;
+}
+
 export type ListUsersParams = {
 search?: string;
 };
@@ -1229,5 +1246,16 @@ priority?: string;
 export type ListEquipmentParams = {
 status?: string;
 type?: string;
+};
+
+export type ListSecurityEventsParams = {
+page?: number;
+limit?: number;
+};
+
+export type ListSecurityEvents200 = {
+  data: SecurityEvent[];
+  page: number;
+  limit: number;
 };
 

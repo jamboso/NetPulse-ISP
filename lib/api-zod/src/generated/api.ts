@@ -1546,3 +1546,38 @@ export const DeleteRouterParams = zod.object({
 })
 
 
+/**
+ * @summary List blocked M-Pesa callback attempts (admin only)
+ */
+export const listSecurityEventsQueryPageDefault = 1;
+export const listSecurityEventsQueryLimitDefault = 50;
+
+export const ListSecurityEventsQueryParams = zod.object({
+  "page": zod.coerce.number().default(listSecurityEventsQueryPageDefault),
+  "limit": zod.coerce.number().default(listSecurityEventsQueryLimitDefault)
+})
+
+export const ListSecurityEventsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.number(),
+  "eventType": zod.string(),
+  "callerIp": zod.string(),
+  "endpoint": zod.string(),
+  "method": zod.string(),
+  "reason": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
+  "page": zod.number(),
+  "limit": zod.number()
+})
+
+
+/**
+ * @summary Count of blocked attempts in the last 24 hours (admin only)
+ */
+export const GetSecurityEventsSummaryResponse = zod.object({
+  "blockedLast24h": zod.number().describe('Number of blocked callback attempts in the last 24 hours'),
+  "threshold": zod.number().describe('Alert threshold — show warning badge when blockedLast24h exceeds this')
+})
+
+

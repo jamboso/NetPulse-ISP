@@ -1,4 +1,4 @@
-import { useGetDashboardSummary, useGetRevenueStats, useGetSubscriptionBreakdown, useGetRecentActivity, useGetRoutersStatus, type RouterStatus } from "@workspace/api-client-react";
+import { useGetDashboardSummary, useGetRevenueStats, useGetSubscriptionBreakdown, useGetRecentActivity, useGetRoutersStatus, useGetSecurityEventsSummary, useListSecurityEvents, type RouterStatus } from "@workspace/api-client-react";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useEffect } from "react";
 import {
@@ -13,6 +13,8 @@ import {
   WifiOff,
   RefreshCw,
   Clock,
+  ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +46,77 @@ const ROUTER_TYPE_COLORS: Record<string, string> = {
   juniper: "bg-orange-50 text-orange-700 border-orange-200",
   edgerouter: "bg-purple-50 text-purple-700 border-purple-200",
 };
+
+function BlockedCallbackPanel() {
+  const { data: summary, isLoading: loadingSummary } = useGetSecurityEventsSummary();
+  const { data: events, isLoading: loadingEvents } = useListSecurityEvents({ limit: 10 });
+
+  const count = summary?.blockedLast24h ?? 0;
+  const threshold = summary?.threshold ?? 5;
+  const isAlert = count >= threshold;
+
+  return (
+    <div className={`bg-white rounded-lg border shadow-sm overflow-hidden ${isAlert ? "border-red-300" : "border-gray-200"}`}>
+      {/* Header */}
+      <div className={`flex items-center justify-between px-5 py-4 border-b ${isAlert ? "border-red-200 bg-red-50" : "border-gray-200"}`}>
+        <div className="flex items-center gap-2.5">
+          {isAlert ? (
+            <ShieldAlert className="w-5 h-5 text-red-600" />
+          ) : (
+            <ShieldCheck className="w-5 h-5 text-green-600" />
+          )}
+          <h3 className="text-base font-semibold text-gray-900">Blocked Webhook Attempts</h3>
+          {!loadingSummary && (
+            <Badge
+              variant="outline"
+              className={`text-xs px-1.5 py-0 ${isAlert ? "bg-red-100 text-red-700 border-red-300" : "bg-green-50 text-green-700 border-green-200"}`}
+            >
+              {count} in last 24h
+            </Badge>
+          )}
+          {!loadingSummary && isAlert && (
+            <Badge variant="outline" className="text-xs px-1.5 py-0 bg-orange-50 text-orange-700 border-orange-300">
+              ⚠ Above threshold
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Body */}
+      {loadingEvents ? (
+        <div className="p-4 space-y-2">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full rounded" />)}
+        </div>
+      ) : !events?.data || events.data.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+          <ShieldCheck className="w-10 h-10 mb-2.5 opacity-20" />
+          <p className="text-sm font-medium">No blocked attempts recorded</p>
+          <p className="text-xs mt-0.5">Forged M-Pesa callback attempts will appear here</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {events.data.map((evt) => (
+            <div key={evt.id} className="px-5 py-3 flex items-center gap-4 hover:bg-gray-50 transition-colors">
+              <div className="shrink-0 p-1.5 rounded-md bg-red-50">
+                <ShieldAlert className="w-3.5 h-3.5 text-red-500" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-gray-900 font-medium truncate">
+                  <code className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">{evt.callerIp}</code>
+                  <span className="ml-2 text-gray-500 font-normal">→ {evt.endpoint}</span>
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">{evt.reason}</p>
+              </div>
+              <span className="text-xs text-gray-400 shrink-0">
+                {formatDate(evt.createdAt, "MMM d, h:mm a")}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function RouterStatusPanel() {
   const {
@@ -255,6 +328,9 @@ export default function Dashboard() {
           );
         })}
       </div>
+
+      {/* Blocked Webhook Attempts */}
+      <BlockedCallbackPanel />
 
       {/* Router Live Status */}
       <RouterStatusPanel />

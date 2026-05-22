@@ -40,6 +40,8 @@ tags:
     description: FreeRADIUS integration — RADIUS session data and sync
   - name: vpn
     description: OpenVPN certificate management — issue and revoke per customer
+  - name: security-events
+    description: Blocked M-Pesa callback attempts and security event log
 
 paths:
   # ── USERS (STAFF MANAGEMENT) ─────────────────────────────────────────────────
@@ -1389,6 +1391,54 @@ paths:
         "204":
           description: Deleted
 
+  # ── SECURITY EVENTS ──────────────────────────────────────────────────────────
+  /security-events:
+    get:
+      operationId: listSecurityEvents
+      tags: [security-events]
+      summary: List blocked M-Pesa callback attempts (admin only)
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+      responses:
+        "200":
+          description: Paginated list of security events
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page, limit]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SecurityEvent"
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+        "403":
+          description: Forbidden — admin role required
+
+  /security-events/summary:
+    get:
+      operationId: getSecurityEventsSummary
+      tags: [security-events]
+      summary: Count of blocked attempts in the last 24 hours (admin only)
+      responses:
+        "200":
+          description: Summary of recent blocked attempts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityEventsSummary"
+        "403":
+          description: Forbidden — admin role required
+
 components:
   schemas:
     HealthStatus:
@@ -2736,3 +2786,34 @@ components:
           type: integer
         triggeredBy:
           type: string
+
+    SecurityEvent:
+      type: object
+      required: [id, eventType, callerIp, endpoint, method, reason, createdAt]
+      properties:
+        id:
+          type: integer
+        eventType:
+          type: string
+        callerIp:
+          type: string
+        endpoint:
+          type: string
+        method:
+          type: string
+        reason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    SecurityEventsSummary:
+      type: object
+      required: [blockedLast24h, threshold]
+      properties:
+        blockedLast24h:
+          type: integer
+          description: Number of blocked callback attempts in the last 24 hours
+        threshold:
+          type: integer
+          description: Alert threshold — show warning badge when blockedLast24h exceeds this

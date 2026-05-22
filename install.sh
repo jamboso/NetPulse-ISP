@@ -21,8 +21,7 @@ DB_USER="netpulse"
 API_PORT="5000"
 WEB_PORT="3001"
 REPO_URL="https://github.com/jamboso/NetPulse-ISP.git"
-# Node.js 24 matches the project's runtime (replit.md: Node.js 24, TypeScript 5.9)
-NODE_VERSION="24"
+NODE_VERSION="20"
 PNPM_VERSION="10"
 # Explicit PostgreSQL 16 for RADIUS extension compatibility
 PG_VERSION="16"
@@ -180,6 +179,16 @@ else
 fi
 
 # PostgreSQL 16 (pinned for freeradius-postgresql compatibility)
+# Ubuntu 22.04 ships PG14 by default; add the official PGDG repo for PG16
+if ! apt-cache show "postgresql-${PG_VERSION}" &>/dev/null; then
+  info "Adding PostgreSQL APT repository (PGDG)..."
+  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+  echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] \
+https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+    > /etc/apt/sources.list.d/pgdg.list
+  apt-get update -qq
+fi
 if ! dpkg -s "postgresql-${PG_VERSION}" &>/dev/null; then
   info "Installing PostgreSQL ${PG_VERSION}..."
   apt-get install -y -qq \
@@ -547,81 +556,49 @@ FR_SQL
 [[ -L "${FR_DIR}/mods-enabled/sql" ]] || \
   ln -sf "${FR_DIR}/mods-available/sql" "${FR_DIR}/mods-enabled/sql"
 
-# Write a clean netpulse virtual server (avoids brittle sed on default config)
-cat > "${FR_DIR}/sites-available/netpulse" <<'FR_SITE'
-server netpulse {
-    listen {
-        type = auth
-        ipaddr = *
-        port = 1812
-    }
-    listen {
-        type = acct
-        ipaddr = *
-        port = 1813
-    }
+# Enable sql in authorize, accounting, and session sections of default and
+# inner-tunnel using Python (deterministic; handles commented-out sql lines).
+python3 - "${FR_DIR}/sites-available/default" \
+          "${FR_DIR}/sites-available/inner-tunnel" <<'PYEOF'
+import sys, re
 
-    authorize {
-        filter_username
-        preprocess
-        chap
-        mschap
-        tolower_username
-        suffix
-        eap { ok = return }
-        sql
-        pap
-    }
+def enable_sql_in_sections(path, sections):
+    try:
+        with open(path) as f:
+            text = f.read()
+    except FileNotFoundError:
+        print(f"  skip {path} (not found)")
+        return
 
-    authenticate {
-        Auth-Type PAP  { pap  }
-        Auth-Type CHAP { chap }
-        Auth-Type MS-CHAP { mschap }
-        eap
-    }
+    original = text
+    for section in sections:
+        # Match: section_name { ... } (non-greedy, handles nested braces by
+        # stopping at the first top-level closing brace at column 0)
+        pat = re.compile(
+            rf'(\b{re.escape(section)}\b\s*\{{)(.*?)(^\}})',
+            re.DOTALL | re.MULTILINE
+        )
+        def replacer(m, _sec=section):
+            header, body, close = m.group(1), m.group(2), m.group(3)
+            # Already has an uncommented sql line?
+            if re.search(r'(?m)^[ \t]+sql\b', body):
+                return m.group(0)
+            # Remove any #-commented sql lines then append sql before closing
+            body = re.sub(r'\n[ \t]*#[ \t]*sql\b[^\n]*', '', body)
+            return header + body + '\tsql\n' + close
+        text = pat.sub(replacer, text)
 
-    preacct {
-        preprocess
-        acct_unique
-        suffix
-        files
-    }
+    if text != original:
+        with open(path, 'w') as f:
+            f.write(text)
+        print(f"  enabled sql in authorize/accounting/session: {path}")
+    else:
+        print(f"  sql already enabled (or sections not found): {path}")
 
-    accounting {
-        detail
-        unix
-        sql
-        exec
-        attr_filter.accounting_response
-    }
-
-    session {
-        sql
-    }
-
-    post-auth {
-        update session-state { }
-        sql
-        exec
-        remove_reply_message_if_eap
-        Post-Auth-Type REJECT {
-            sql
-            attr_filter.access_reject
-            eap
-            remove_reply_message_if_eap
-        }
-    }
-}
-FR_SITE
-
-[[ -L "${FR_DIR}/sites-enabled/netpulse" ]] || \
-  ln -sf "${FR_DIR}/sites-available/netpulse" "${FR_DIR}/sites-enabled/netpulse"
-
-# Disable the default sites to prevent port 1812/1813 listener conflicts
-# with our netpulse virtual server which binds the same ports
-rm -f "${FR_DIR}/sites-enabled/default"      2>/dev/null || true
-rm -f "${FR_DIR}/sites-enabled/inner-tunnel" 2>/dev/null || true
-ok "Default FreeRADIUS sites disabled (netpulse site handles all auth)"
+for path in sys.argv[1:]:
+    enable_sql_in_sections(path, ['authorize', 'accounting', 'session'])
+PYEOF
+ok "FreeRADIUS default and inner-tunnel updated with sql"
 
 # Validate config before restarting
 freeradius -C -d "${FR_DIR}" 2>/dev/null && ok "FreeRADIUS config valid" || \
@@ -845,8 +822,7 @@ echo -e "║        NetPulse ISP Manager — Installation Complete       ║"
 echo -e "╚══════════════════════════════════════════════════════════╝${RESET}"
 echo ""
 
-APP_URL="${PROTO}://${NP_DOMAIN}"
-[[ "$NP_DOMAIN" == "localhost" || "$NP_DOMAIN" =~ ^[0-9] ]] && APP_URL="https://${NP_DOMAIN}"
+APP_URL="https://${NP_DOMAIN}"
 
 echo -e "  ${BOLD}App URL:${RESET}           ${APP_URL}/"
 echo -e "  ${BOLD}API endpoint:${RESET}      ${APP_URL}/api"

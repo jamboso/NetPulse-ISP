@@ -7,7 +7,7 @@ import { validateBody } from "../middlewares/validateBody";
 import { auth } from "../lib/auth";
 import { writeAuditLog } from "../lib/audit";
 import { getSettings, sendSms, normalisePhone } from "../lib/sms.js";
-import nodemailer from "nodemailer";
+import { sendStaffWelcomeEmail } from "../lib/mailer.js";
 
 const VALID_ROLES = ["admin", "billing", "support", "technician"] as const;
 
@@ -106,11 +106,21 @@ router.post("/users", requireRole("admin"), validateBody(createUserSchema), asyn
     diff: { after: { id: updated?.id, email, name, role } },
   });
 
-  // ── Send welcome notification ──────────────────────────────────────────────
+  // ── Always send a welcome email (skips silently when SMTP is not configured) ─
+  const appUrl = process.env["REPLIT_DOMAINS"]
+    ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]}`
+    : (process.env["BETTER_AUTH_URL"] ?? "");
+
+  void sendStaffWelcomeEmail({ name, email, password, role, appUrl }).then((result) => {
+    if (result.success) req.log.info({ email }, "Staff welcome email sent");
+    else req.log.warn({ email }, `Staff welcome email skipped: ${result.message}`);
+  });
+
+  // ── Optional SMS / additional notification ────────────────────────────────
   const roleLabels: Record<string, string> = {
-    admin: "Admin (full access)",
-    billing: "Billing (invoices/payments)",
-    support: "Support (customers/tickets)",
+    admin:      "Admin (full access)",
+    billing:    "Billing (invoices/payments)",
+    support:    "Support (customers/tickets)",
     technician: "Technician (network/equipment)",
   };
   const welcomeMsg = `Welcome to NetPulse ISP!\nYour staff account has been created.\nEmail: ${email}\nPassword: ${password}\nRole: ${roleLabels[role] ?? role}\nPlease log in and change your password.`;
@@ -118,50 +128,16 @@ router.post("/users", requireRole("admin"), validateBody(createUserSchema), asyn
   if (notifyMethod === "sms" || notifyMethod === "both") {
     const phone = notifyPhone?.trim();
     if (phone) {
-      try {
-        const s = await getSettings();
-        const result = await sendSms(s, normalisePhone(phone), welcomeMsg);
-        if (!result.success) req.log.warn({ phone }, `Staff invite SMS failed: ${result.message}`);
-        else req.log.info({ phone }, "Staff invite SMS sent");
-      } catch (err) {
-        req.log.error({ err }, "Staff invite SMS error");
-      }
-    }
-  }
-
-  if (notifyMethod === "email" || notifyMethod === "both") {
-    try {
-      const s = await getSettings();
-      if (s["smtpHost"] && s["smtpUser"] && s["smtpPass"]) {
-        const transporter = nodemailer.createTransport({
-          host: s["smtpHost"],
-          port: Number(s["smtpPort"] ?? 587),
-          secure: Number(s["smtpPort"] ?? 587) === 465,
-          auth: { user: s["smtpUser"], pass: s["smtpPass"] },
-        });
-        const companyName = s["companyName"] ?? "NetPulse ISP";
-        await transporter.sendMail({
-          from: s["smtpFrom"] ?? s["smtpUser"],
-          to: email,
-          subject: `Welcome to ${companyName} — Your Staff Account`,
-          text: welcomeMsg,
-          html: `<div style="font-family:sans-serif;max-width:480px">
-            <h2 style="color:#1e40af">Welcome to ${companyName}!</h2>
-            <p>Your staff account has been created. Here are your login details:</p>
-            <table style="border-collapse:collapse;width:100%">
-              <tr><td style="padding:6px 0;color:#6b7280">Email</td><td style="padding:6px 0;font-weight:600">${email}</td></tr>
-              <tr><td style="padding:6px 0;color:#6b7280">Password</td><td style="padding:6px 0;font-family:monospace;background:#f1f5f9;padding:4px 8px;border-radius:4px">${password}</td></tr>
-              <tr><td style="padding:6px 0;color:#6b7280">Role</td><td style="padding:6px 0;font-weight:600">${roleLabels[role] ?? role}</td></tr>
-            </table>
-            <p style="color:#dc2626;margin-top:16px">Please log in and change your password immediately.</p>
-          </div>`,
-        });
-        req.log.info({ email }, "Staff invite email sent");
-      } else {
-        req.log.warn("Staff invite email skipped — SMTP not configured in settings");
-      }
-    } catch (err) {
-      req.log.error({ err }, "Staff invite email error");
+      void (async () => {
+        try {
+          const s = await getSettings();
+          const result = await sendSms(s, normalisePhone(phone), welcomeMsg);
+          if (!result.success) req.log.warn({ phone }, `Staff invite SMS failed: ${result.message}`);
+          else req.log.info({ phone }, "Staff invite SMS sent");
+        } catch (err) {
+          req.log.error({ err }, "Staff invite SMS error");
+        }
+      })();
     }
   }
 

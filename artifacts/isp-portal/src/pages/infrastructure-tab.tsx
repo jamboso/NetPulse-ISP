@@ -592,7 +592,7 @@ sudo netfilter-persistent save`} />
       <SectionCard
         icon={Cpu}
         title="MikroTik Router VPN Certificates"
-        badge={`${status?.routerCerts.filter((c) => !c.revoked).length ?? 0} / ${status?.routerCount ?? 0} routers`}
+        badge={`${status?.routerCerts?.filter((c) => !c.revoked).length ?? 0} / ${status?.routerCount ?? 0} routers`}
         badgeVariant="outline"
       >
         <p className="text-xs text-gray-500 -mt-1">

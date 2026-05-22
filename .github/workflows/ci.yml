@@ -35,6 +35,17 @@ jobs:
       - name: Test
         run: pnpm run test
 
+      - name: Test coverage
+        run: pnpm --filter @workspace/api-server run test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: artifacts/api-server/coverage/
+          retention-days: 30
+
       - name: Build API server
         run: pnpm --filter @workspace/api-server run build
         env:

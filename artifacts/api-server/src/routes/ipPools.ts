@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
+import { writeAuditLog } from "../lib/audit";
 
 const createIpPoolSchema = z.object({
   name:        z.string().min(1),
@@ -49,6 +50,16 @@ router.post("/ip-pools", requireRole("admin", "technician"), validateBody(create
     usedIps: 0,
     description: body.description ?? null,
   }).returning();
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "create",
+    entityType: "ip_pool",
+    entityId:   pool.id,
+    diff:       pool,
+  });
+
   res.status(201).json(pool);
 });
 
@@ -71,12 +82,31 @@ router.patch("/ip-pools/:id", requireRole("admin", "technician"), validateBody(u
   if (body.description !== undefined) update.description = body.description;
   const [updated] = await db.update(ipPoolsTable).set(update).where(eq(ipPoolsTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "update",
+    entityType: "ip_pool",
+    entityId:   id,
+    diff:       update,
+  });
+
   res.json(updated);
 });
 
 router.delete("/ip-pools/:id", requireRole("admin"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   await db.delete(ipPoolsTable).where(eq(ipPoolsTable.id, id));
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "delete",
+    entityType: "ip_pool",
+    entityId:   id,
+  });
+
   res.status(204).send();
 });
 

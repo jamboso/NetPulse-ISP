@@ -10,7 +10,9 @@ export type AuditEntityType =
   | "invoice"
   | "payment"
   | "subscription"
-  | "user";
+  | "user"
+  | "equipment"
+  | "ip_pool";
 
 interface AuditParams {
   userId: string;

@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
+import { writeAuditLog } from "../lib/audit";
 
 const createEquipmentSchema = z.object({
   name:       z.string().min(1),
@@ -46,6 +47,16 @@ router.post("/equipment", requireRole("admin", "technician"), validateBody(creat
     status: body.status ?? "online",
     notes: body.notes ?? null,
   }).returning();
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "create",
+    entityType: "equipment",
+    entityId:   eq_.id,
+    diff:       eq_,
+  });
+
   res.status(201).json(eq_);
 });
 
@@ -71,12 +82,31 @@ router.patch("/equipment/:id", requireRole("admin", "technician"), validateBody(
   if (body.notes !== undefined) update.notes = body.notes;
   const [updated] = await db.update(equipmentTable).set(update).where(eq(equipmentTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "update",
+    entityType: "equipment",
+    entityId:   id,
+    diff:       update,
+  });
+
   res.json(updated);
 });
 
 router.delete("/equipment/:id", requireRole("admin"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   await db.delete(equipmentTable).where(eq(equipmentTable.id, id));
+
+  void writeAuditLog({
+    userId:     req.user!.id,
+    userEmail:  req.user!.email,
+    action:     "delete",
+    entityType: "equipment",
+    entityId:   id,
+  });
+
   res.status(204).send();
 });
 

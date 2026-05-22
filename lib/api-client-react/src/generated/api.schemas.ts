@@ -1098,7 +1098,14 @@ export interface VpnConfig {
   revokedAt?: string | null;
   revokedBy?: string | null;
   connected: boolean;
+  /** Current client IP from OpenVPN status log (null if not connected) */
+  remoteIp?: string | null;
   vpnAvailable: boolean;
+}
+
+export interface VpnConfigList {
+  vpnAvailable: boolean;
+  configs: VpnConfig[];
 }
 
 export type VpnConfigWithFile = VpnConfig & {

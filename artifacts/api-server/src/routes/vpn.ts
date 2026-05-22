@@ -15,15 +15,18 @@ const VPN_ENABLED = process.env["OPENVPN_ENABLED"] !== "false";
 const CN_RE = /^[a-z0-9][a-z0-9.\-]{0,61}[a-z0-9]$/;
 
 function vpnUnavailable(res: any): void {
-  res.status(503).json({ error: "VPN server not configured on this host. Set OPENVPN_ENABLED=true after running the installer." });
+  res.status(503).json({
+    error: "VPN server not configured on this host. Set OPENVPN_ENABLED=true after running the installer.",
+  });
 }
 
 function genCN(customerId: number): string {
   return `np-${customerId}-${Date.now()}`;
 }
 
-async function parseStatusLog(): Promise<Set<string>> {
-  const connected = new Set<string>();
+/** Parse /var/log/openvpn/status.log and return a map of CN → remoteIp */
+async function parseStatusLog(): Promise<Map<string, string>> {
+  const connected = new Map<string, string>();
   try {
     const text = await readFile("/var/log/openvpn/status.log", "utf8");
     let inClientList = false;
@@ -31,14 +34,36 @@ async function parseStatusLog(): Promise<Set<string>> {
       if (line.startsWith("Common Name,")) { inClientList = true; continue; }
       if (line.startsWith("ROUTING TABLE")) { inClientList = false; continue; }
       if (inClientList && line.trim() && !line.startsWith("OpenVPN")) {
-        const cn = line.split(",")[0]?.trim();
-        if (cn) connected.add(cn);
+        const parts = line.split(",");
+        const cn        = parts[0]?.trim();
+        const rawAddr   = parts[1]?.trim();            // "1.2.3.4:12345"
+        const remoteIp  = rawAddr?.split(":")[0] ?? ""; // strip port
+        if (cn) connected.set(cn, remoteIp);
       }
     }
   } catch {
-    // status.log doesn't exist in dev — return empty set
+    // status.log doesn't exist in dev — return empty map
   }
   return connected;
+}
+
+function formatRow(
+  r: typeof vpnConfigsTable.$inferSelect,
+  sessions: Map<string, string>,
+  vpnAvailable: boolean,
+) {
+  const remoteIp = r.revokedAt === null ? (sessions.get(r.commonName) ?? null) : null;
+  return {
+    id:           r.id,
+    customerId:   r.customerId,
+    commonName:   r.commonName,
+    issuedAt:     r.issuedAt.toISOString(),
+    revokedAt:    r.revokedAt?.toISOString() ?? null,
+    revokedBy:    r.revokedBy ?? null,
+    connected:    r.revokedAt === null && sessions.has(r.commonName),
+    remoteIp,
+    vpnAvailable,
+  };
 }
 
 router.get("/customers/:id/vpn", async (req, res) => {
@@ -51,18 +76,13 @@ router.get("/customers/:id/vpn", async (req, res) => {
     .where(eq(vpnConfigsTable.customerId, customerId))
     .orderBy(vpnConfigsTable.issuedAt);
 
-  const connected = VPN_ENABLED ? await parseStatusLog() : new Set<string>();
+  const sessions = VPN_ENABLED ? await parseStatusLog() : new Map<string, string>();
 
-  res.json(rows.map(r => ({
-    id:          r.id,
-    customerId:  r.customerId,
-    commonName:  r.commonName,
-    issuedAt:    r.issuedAt.toISOString(),
-    revokedAt:   r.revokedAt?.toISOString() ?? null,
-    revokedBy:   r.revokedBy ?? null,
-    connected:   r.revokedAt === null && connected.has(r.commonName),
+  // Return an envelope so vpnAvailable is always present even when configs is []
+  res.json({
     vpnAvailable: VPN_ENABLED,
-  })));
+    configs: rows.map(r => formatRow(r, sessions, VPN_ENABLED)),
+  });
 });
 
 router.post("/customers/:id/vpn", requireRole("admin"), async (req, res) => {
@@ -89,24 +109,26 @@ router.post("/customers/:id/vpn", requireRole("admin"), async (req, res) => {
 
   const [row] = await db.insert(vpnConfigsTable).values({
     customerId,
-    commonName:  cn,
-    ovpnConfig:  ovpnContent,
+    commonName:   cn,
+    ovpnConfig:   ovpnContent,
   }).returning();
 
   req.log.info({ customerId, cn }, "VPN config issued");
   res.status(201).json({
-    id:         row!.id,
-    customerId: row!.customerId,
-    commonName: row!.commonName,
-    issuedAt:   row!.issuedAt.toISOString(),
-    revokedAt:  null,
-    connected:  false,
+    id:           row!.id,
+    customerId:   row!.customerId,
+    commonName:   row!.commonName,
+    issuedAt:     row!.issuedAt.toISOString(),
+    revokedAt:    null,
+    revokedBy:    null,
+    connected:    false,
+    remoteIp:     null,
     vpnAvailable: true,
-    ovpnConfig: row!.ovpnConfig,
+    ovpnConfig:   row!.ovpnConfig,
   });
 });
 
-router.get("/customers/:id/vpn/:configId/download", async (req, res) => {
+router.get("/customers/:id/vpn/:configId/download", requireRole("admin"), async (req, res) => {
   const customerId = parseInt(req.params["id"] as string);
   const configId   = parseInt(req.params["configId"] as string);
 
@@ -162,13 +184,14 @@ router.delete("/customers/:id/vpn/:configId", requireRole("admin"), async (req, 
 
   req.log.info({ customerId, cn }, "VPN config revoked");
   res.json({
-    id:         updated!.id,
-    customerId: updated!.customerId,
-    commonName: updated!.commonName,
-    issuedAt:   updated!.issuedAt.toISOString(),
-    revokedAt:  updated!.revokedAt?.toISOString() ?? null,
-    revokedBy:  updated!.revokedBy ?? null,
-    connected:  false,
+    id:           updated!.id,
+    customerId:   updated!.customerId,
+    commonName:   updated!.commonName,
+    issuedAt:     updated!.issuedAt.toISOString(),
+    revokedAt:    updated!.revokedAt?.toISOString() ?? null,
+    revokedBy:    updated!.revokedBy ?? null,
+    connected:    false,
+    remoteIp:     null,
     vpnAvailable: true,
   });
 });

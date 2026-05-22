@@ -119,4 +119,5 @@ export * from './usageSnapshot';
 export * from './usageSnapshotBatch';
 export * from './usageSnapshotBatchSnapshotsItem';
 export * from './vpnConfig';
+export * from './vpnConfigList';
 export * from './vpnConfigWithFile';

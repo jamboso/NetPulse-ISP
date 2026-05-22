@@ -266,13 +266,15 @@ export const DeleteCustomerParams = zod.object({
 
 
 /**
- * @summary List VPN configs for a customer
+ * @summary List VPN configs for a customer (always includes vpnAvailable even when empty)
  */
 export const ListCustomerVpnConfigsParams = zod.object({
   "id": zod.coerce.number()
 })
 
-export const ListCustomerVpnConfigsResponseItem = zod.object({
+export const ListCustomerVpnConfigsResponse = zod.object({
+  "vpnAvailable": zod.boolean(),
+  "configs": zod.array(zod.object({
   "id": zod.number(),
   "customerId": zod.number(),
   "commonName": zod.string(),
@@ -280,9 +282,10 @@ export const ListCustomerVpnConfigsResponseItem = zod.object({
   "revokedAt": zod.coerce.date().nullish(),
   "revokedBy": zod.string().nullish(),
   "connected": zod.boolean(),
+  "remoteIp": zod.string().nullish().describe('Current client IP from OpenVPN status log (null if not connected)'),
   "vpnAvailable": zod.boolean()
+}))
 })
-export const ListCustomerVpnConfigsResponse = zod.array(ListCustomerVpnConfigsResponseItem)
 
 
 /**
@@ -309,6 +312,7 @@ export const RevokeCustomerVpnConfigResponse = zod.object({
   "revokedAt": zod.coerce.date().nullish(),
   "revokedBy": zod.string().nullish(),
   "connected": zod.boolean(),
+  "remoteIp": zod.string().nullish().describe('Current client IP from OpenVPN status log (null if not connected)'),
   "vpnAvailable": zod.boolean()
 })
 

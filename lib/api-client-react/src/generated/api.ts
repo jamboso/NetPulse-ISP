@@ -79,6 +79,7 @@ import type {
   UpdateUserInput,
   UsageSnapshotBatch,
   VpnConfig,
+  VpnConfigList,
   VpnConfigWithFile
 } from './api.schemas';
 
@@ -1243,11 +1244,11 @@ export const getListCustomerVpnConfigsUrl = (id: number,) => {
 }
 
 /**
- * @summary List VPN configs for a customer
+ * @summary List VPN configs for a customer (always includes vpnAvailable even when empty)
  */
-export const listCustomerVpnConfigs = async (id: number, options?: RequestInit): Promise<VpnConfig[]> => {
+export const listCustomerVpnConfigs = async (id: number, options?: RequestInit): Promise<VpnConfigList> => {
 
-  return customFetch<VpnConfig[]>(getListCustomerVpnConfigsUrl(id),
+  return customFetch<VpnConfigList>(getListCustomerVpnConfigsUrl(id),
   {
     ...options,
     method: 'GET'
@@ -1290,7 +1291,7 @@ export type ListCustomerVpnConfigsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List VPN configs for a customer
+ * @summary List VPN configs for a customer (always includes vpnAvailable even when empty)
  */
 
 export function useListCustomerVpnConfigs<TData = Awaited<ReturnType<typeof listCustomerVpnConfigs>>, TError = ErrorType<unknown>>(

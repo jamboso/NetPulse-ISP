@@ -14,5 +14,7 @@ export interface VpnConfig {
   revokedAt?: Date | null;
   revokedBy?: string | null;
   connected: boolean;
+  /** Current client IP from OpenVPN status log (null if not connected) */
+  remoteIp?: string | null;
   vpnAvailable: boolean;
 }

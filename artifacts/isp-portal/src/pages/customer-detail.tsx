@@ -465,7 +465,7 @@ export default function CustomerDetail() {
   const [vpnIssuing,   setVpnIssuing]   = useState(false);
   const [vpnRevoking,  setVpnRevoking]  = useState<number | null>(null);
   const [vpnError,     setVpnError]     = useState<string | null>(null);
-  const vpnAvailable = vpnConfigs?.[0]?.vpnAvailable ?? true;
+  const vpnAvailable = vpnConfigs?.vpnAvailable ?? true;
 
   const handleIssueVpn = async () => {
     setVpnIssuing(true);
@@ -1561,6 +1561,7 @@ export default function CustomerDetail() {
                     <TableRow>
                       <TableHead>Common Name</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Remote IP</TableHead>
                       <TableHead>Issued</TableHead>
                       <TableHead>Revoked</TableHead>
                       <TableHead>Revoked By</TableHead>
@@ -1569,9 +1570,9 @@ export default function CustomerDetail() {
                   </TableHeader>
                   <TableBody>
                     {loadingVpn ? (
-                      <TableRow><TableCell colSpan={6}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
-                    ) : vpnConfigs && vpnConfigs.length > 0 ? (
-                      vpnConfigs.map((c) => (
+                      <TableRow><TableCell colSpan={7}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
+                    ) : vpnConfigs && vpnConfigs.configs.length > 0 ? (
+                      vpnConfigs.configs.map((c) => (
                         <TableRow key={c.id}>
                           <TableCell className="font-mono text-xs text-gray-700">{c.commonName}</TableCell>
                           <TableCell>
@@ -1589,6 +1590,9 @@ export default function CustomerDetail() {
                               </Badge>
                             )}
                           </TableCell>
+                          <TableCell className="text-xs font-mono text-gray-500">
+                            {c.remoteIp ?? "—"}
+                          </TableCell>
                           <TableCell className="text-xs text-gray-600">
                             {new Date(c.issuedAt).toLocaleDateString()}
                           </TableCell>
@@ -1598,7 +1602,7 @@ export default function CustomerDetail() {
                           <TableCell className="text-xs text-gray-500">{c.revokedBy ?? "—"}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
-                              {!c.revokedAt && (
+                              {isAdmin && !c.revokedAt && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -1634,7 +1638,7 @@ export default function CustomerDetail() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={6} className="py-12 text-center">
+                        <TableCell colSpan={7} className="py-12 text-center">
                           <FileLock2 className="w-8 h-8 text-gray-200 mx-auto mb-2" />
                           <p className="text-sm text-gray-400">No VPN configs issued yet.</p>
                           <p className="text-xs text-gray-400 mt-1">

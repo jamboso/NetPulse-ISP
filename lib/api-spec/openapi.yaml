@@ -368,7 +368,7 @@ paths:
     get:
       operationId: listCustomerVpnConfigs
       tags: [vpn]
-      summary: List VPN configs for a customer
+      summary: List VPN configs for a customer (always includes vpnAvailable even when empty)
       parameters:
         - name: id
           in: path
@@ -376,13 +376,11 @@ paths:
           schema: { type: integer }
       responses:
         "200":
-          description: List of VPN configs
+          description: VPN config list with server availability flag
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/VpnConfig"
+                $ref: "#/components/schemas/VpnConfigList"
     post:
       operationId: issueCustomerVpnConfig
       tags: [vpn]
@@ -2636,8 +2634,23 @@ components:
           nullable: true
         connected:
           type: boolean
+        remoteIp:
+          type: string
+          nullable: true
+          description: Current client IP from OpenVPN status log (null if not connected)
         vpnAvailable:
           type: boolean
+
+    VpnConfigList:
+      type: object
+      required: [vpnAvailable, configs]
+      properties:
+        vpnAvailable:
+          type: boolean
+        configs:
+          type: array
+          items:
+            $ref: "#/components/schemas/VpnConfig"
 
     VpnConfigWithFile:
       allOf:

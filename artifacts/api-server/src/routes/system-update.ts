@@ -13,7 +13,7 @@ function gitExec(cmd: string, cwd: string): string {
 }
 
 // ── GET /api/system/version ──────────────────────────────────────────────────
-router.get("/api/system/version", async (req, res) => {
+router.get("/system/version", async (req, res) => {
   const APP_DIR = process.env["NETPULSE_DIR"] ?? "/opt/netpulse";
   const isProduction = process.env["NODE_ENV"] === "production";
 
@@ -40,7 +40,7 @@ router.get("/api/system/version", async (req, res) => {
 });
 
 // ── POST /api/system/update — admin only, streams live output via SSE ────────
-router.post("/api/system/update", requireRole("admin"), (req, res) => {
+router.post("/system/update", requireRole("admin"), (req, res) => {
   const APP_DIR = process.env["NETPULSE_DIR"] ?? "/opt/netpulse";
   const UPDATE_SCRIPT = `${APP_DIR}/deploy/update.sh`;
 

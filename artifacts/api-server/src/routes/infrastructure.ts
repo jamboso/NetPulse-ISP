@@ -9,7 +9,7 @@ import { generateVpnServerCerts, generateClientCert, generateOpenVpnServerConf, 
 const router = Router();
 
 // ── GET /api/infrastructure/status ──────────────────────────────────────────
-router.get("/api/infrastructure/status", async (req, res) => {
+router.get("/infrastructure/status", async (req, res) => {
   try {
     const vpn = await db.select().from(vpnConfigTable).limit(1);
     const vpnCfg = vpn[0] ?? null;
@@ -62,7 +62,7 @@ router.get("/api/infrastructure/status", async (req, res) => {
 });
 
 // ── POST /api/infrastructure/radius/test ────────────────────────────────────
-router.post("/api/infrastructure/radius/test", async (req, res) => {
+router.post("/infrastructure/radius/test", async (req, res) => {
   try {
     const rows = await db.select().from(settingsTable).where(eq(settingsTable.key, "radiusServer"));
     const radiusServer = rows[0]?.value ?? null;
@@ -90,7 +90,7 @@ router.post("/api/infrastructure/radius/test", async (req, res) => {
 });
 
 // ── POST /api/infrastructure/radius/export-users ────────────────────────────
-router.post("/api/infrastructure/radius/export-users", async (req, res) => {
+router.post("/infrastructure/radius/export-users", async (req, res) => {
   try {
     const { subscriptionsTable, customersTable, plansTable } = await import("@workspace/db");
 
@@ -156,7 +156,7 @@ router.post("/api/infrastructure/radius/export-users", async (req, res) => {
 });
 
 // ── GET /api/infrastructure/vpn/config ──────────────────────────────────────
-router.get("/api/infrastructure/vpn/config", async (req, res) => {
+router.get("/infrastructure/vpn/config", async (req, res) => {
   try {
     const rows = await db.select().from(vpnConfigTable).limit(1);
     const cfg = rows[0];
@@ -180,7 +180,7 @@ router.get("/api/infrastructure/vpn/config", async (req, res) => {
 });
 
 // ── POST /api/infrastructure/vpn/config ─────────────────────────────────────
-router.post("/api/infrastructure/vpn/config", async (req, res) => {
+router.post("/infrastructure/vpn/config", async (req, res) => {
   try {
     const { serverPublicIp, vpnPort, vpnProtocol, vpnSubnet, vpnSubnetMask, vpnDns } = req.body as Record<string, string | number>;
 
@@ -211,7 +211,7 @@ router.post("/api/infrastructure/vpn/config", async (req, res) => {
 
 // ── POST /api/infrastructure/vpn/generate-certs ─────────────────────────────
 // Generates CA + server certificates (takes ~10-20 seconds)
-router.post("/api/infrastructure/vpn/generate-certs", async (req, res) => {
+router.post("/infrastructure/vpn/generate-certs", async (req, res) => {
   try {
     const existing = await db.select().from(vpnConfigTable).limit(1);
     if (existing.length === 0) {
@@ -243,7 +243,7 @@ router.post("/api/infrastructure/vpn/generate-certs", async (req, res) => {
 
 // ── GET /api/infrastructure/vpn/server-conf ─────────────────────────────────
 // Download the OpenVPN server.conf file
-router.get("/api/infrastructure/vpn/server-conf", async (req, res) => {
+router.get("/infrastructure/vpn/server-conf", async (req, res) => {
   try {
     const rows = await db.select().from(vpnConfigTable).limit(1);
     const cfg = rows[0];
@@ -272,7 +272,7 @@ router.get("/api/infrastructure/vpn/server-conf", async (req, res) => {
 });
 
 // ── GET /api/infrastructure/vpn/clients ─────────────────────────────────────
-router.get("/api/infrastructure/vpn/clients", async (req, res) => {
+router.get("/infrastructure/vpn/clients", async (req, res) => {
   try {
     const certs = await db.select().from(routerVpnCertsTable);
     return res.json(
@@ -292,7 +292,7 @@ router.get("/api/infrastructure/vpn/clients", async (req, res) => {
 });
 
 // ── POST /api/infrastructure/vpn/client/:routerId/generate ──────────────────
-router.post("/api/infrastructure/vpn/client/:routerId/generate", async (req, res) => {
+router.post("/infrastructure/vpn/client/:routerId/generate", async (req, res) => {
   const routerId = parseInt(req.params.routerId, 10);
   try {
     const vpnRows = await db.select().from(vpnConfigTable).limit(1);
@@ -352,7 +352,7 @@ router.post("/api/infrastructure/vpn/client/:routerId/generate", async (req, res
 });
 
 // ── DELETE /api/infrastructure/vpn/client/:routerId ─────────────────────────
-router.delete("/api/infrastructure/vpn/client/:routerId", async (req, res) => {
+router.delete("/infrastructure/vpn/client/:routerId", async (req, res) => {
   const routerId = parseInt(req.params.routerId, 10);
   try {
     await db
@@ -367,7 +367,7 @@ router.delete("/api/infrastructure/vpn/client/:routerId", async (req, res) => {
 });
 
 // ── GET /api/routers/:id/ros-script ─────────────────────────────────────────
-router.get("/api/routers/:id/ros-script", async (req, res) => {
+router.get("/routers/:id/ros-script", async (req, res) => {
   const routerId = parseInt(req.params.id, 10);
   try {
     const routerRows = await db.select().from(routersTable).where(eq(routersTable.id, routerId));

@@ -22,7 +22,8 @@ export const ListUsersResponse = zod.object({
   "name": zod.string(),
   "role": zod.enum(['admin', 'billing', 'support', 'technician']),
   "active": zod.boolean(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "lastActiveAt": zod.coerce.date().nullish()
 }))
 })
 
@@ -62,7 +63,8 @@ export const UpdateUserResponse = zod.object({
   "name": zod.string(),
   "role": zod.enum(['admin', 'billing', 'support', 'technician']),
   "active": zod.boolean(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "lastActiveAt": zod.coerce.date().nullish()
 })
 
 

@@ -1014,6 +1014,7 @@ export interface StaffUser {
   role: StaffUserRole;
   active: boolean;
   createdAt: string;
+  lastActiveAt?: string | null;
 }
 
 export type CreateUserInputRole = typeof CreateUserInputRole[keyof typeof CreateUserInputRole];

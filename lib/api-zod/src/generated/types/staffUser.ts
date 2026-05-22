@@ -14,4 +14,5 @@ export interface StaffUser {
   role: StaffUserRole;
   active: boolean;
   createdAt: Date;
+  lastActiveAt?: Date | null;
 }

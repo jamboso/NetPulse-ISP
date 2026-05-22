@@ -2419,6 +2419,10 @@ components:
         createdAt:
           type: string
           format: date-time
+        lastActiveAt:
+          type: string
+          format: date-time
+          nullable: true
 
     CreateUserInput:
       type: object

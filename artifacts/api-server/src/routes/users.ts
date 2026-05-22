@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, usersTable } from "@workspace/db";
-import { eq, ilike, or } from "drizzle-orm";
+import { db, usersTable, sessionsTable } from "@workspace/db";
+import { eq, ilike, or, max } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
@@ -30,14 +30,28 @@ const router = Router();
 router.get("/users", requireRole("admin"), async (req, res) => {
   const { search } = req.query as Record<string, string>;
 
-  let query = db.select({
-    id: usersTable.id,
-    email: usersTable.email,
-    name: usersTable.name,
-    role: usersTable.role,
-    active: usersTable.active,
-    createdAt: usersTable.createdAt,
-  }).from(usersTable).$dynamic();
+  const lastActiveSub = db
+    .select({
+      userId: sessionsTable.userId,
+      lastActiveAt: max(sessionsTable.createdAt).as("last_active_at"),
+    })
+    .from(sessionsTable)
+    .groupBy(sessionsTable.userId)
+    .as("last_active");
+
+  let query = db
+    .select({
+      id: usersTable.id,
+      email: usersTable.email,
+      name: usersTable.name,
+      role: usersTable.role,
+      active: usersTable.active,
+      createdAt: usersTable.createdAt,
+      lastActiveAt: lastActiveSub.lastActiveAt,
+    })
+    .from(usersTable)
+    .leftJoin(lastActiveSub, eq(lastActiveSub.userId, usersTable.id))
+    .$dynamic();
 
   if (search) {
     query = query.where(

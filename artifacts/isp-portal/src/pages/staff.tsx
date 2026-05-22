@@ -32,6 +32,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { UserCog, Plus, MoreHorizontal, Search, MessageSquare, Mail, BellOff, UserX, UserCheck } from "lucide-react";
 
 const ROLES = ["admin", "billing", "support", "technician"] as const;
+
+function formatRelativeTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return "Never";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 2) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+}
+
+function isInactive(dateStr: string | null | undefined): boolean {
+  if (!dateStr) return true;
+  const days = (Date.now() - new Date(dateStr).getTime()) / 86_400_000;
+  return days > 30;
+}
+
 type Role = (typeof ROLES)[number];
 
 const roleBadgeColor: Record<Role, string> = {
@@ -224,6 +246,7 @@ export default function StaffPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Last Active</TableHead>
                 <TableHead>Joined</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
@@ -231,14 +254,14 @@ export default function StaffPage() {
             <TableBody>
               {isLoading && Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 7 }).map((_, j) => (
+                  {Array.from({ length: 8 }).map((_, j) => (
                     <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))}
               {!isLoading && users.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10 text-gray-400">No staff accounts found.</TableCell>
+                  <TableCell colSpan={8} className="text-center py-10 text-gray-400">No staff accounts found.</TableCell>
                 </TableRow>
               )}
               {!isLoading && users.map((user) => (
@@ -262,6 +285,14 @@ export default function StaffPage() {
                     >
                       {user.active ? "Active" : "Deactivated"}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    <span
+                      className={isInactive(user.lastActiveAt) ? "text-gray-400" : "text-gray-700"}
+                      title={user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleString() : "No sessions recorded"}
+                    >
+                      {formatRelativeTime(user.lastActiveAt)}
+                    </span>
                   </TableCell>
                   <TableCell className="text-gray-500 text-sm">
                     {new Date(user.createdAt).toLocaleDateString()}

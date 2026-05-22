@@ -1426,18 +1426,18 @@ export default function CustomerDetail() {
                     {loadingRadius ? (
                       <TableRow><TableCell colSpan={7}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
                     ) : radiusSessions && radiusSessions.length > 0 ? (
-                      radiusSessions.map((s: any, i: number) => {
-                        const durationSecs = s.acctsessiontime ?? 0;
+                      radiusSessions.map((s, i) => {
+                        const durationSecs = s.sessionTimeSecs ?? 0;
                         const hrs = Math.floor(durationSecs / 3600);
                         const mins = Math.floor((durationSecs % 3600) / 60);
-                        const dlMB = ((s.acctinputoctets ?? 0) / 1_048_576).toFixed(1);
-                        const ulMB = ((s.acctoutputoctets ?? 0) / 1_048_576).toFixed(1);
+                        const dlMB = ((s.bytesIn ?? 0) / 1_048_576).toFixed(1);
+                        const ulMB = ((s.bytesOut ?? 0) / 1_048_576).toFixed(1);
                         return (
-                          <TableRow key={s.radacctid ?? i}>
-                            <TableCell className="font-mono text-xs text-gray-600 max-w-[140px] truncate">{s.acctsessionid}</TableCell>
-                            <TableCell className="font-mono text-xs text-gray-600">{s.nasipaddress}</TableCell>
+                          <TableRow key={s.id ?? i}>
+                            <TableCell className="font-mono text-xs text-gray-600 max-w-[140px] truncate">{s.sessionId}</TableCell>
+                            <TableCell className="font-mono text-xs text-gray-600">{s.nasIp}</TableCell>
                             <TableCell className="text-xs text-gray-600">
-                              {s.acctstarttime ? new Date(s.acctstarttime).toLocaleString() : "—"}
+                              {s.startTime ? new Date(s.startTime).toLocaleString() : "—"}
                             </TableCell>
                             <TableCell className="text-xs text-gray-600">
                               {durationSecs > 0 ? `${hrs}h ${mins}m` : "—"}
@@ -1449,8 +1449,8 @@ export default function CustomerDetail() {
                               <span className="flex items-center gap-1"><Upload className="w-3 h-3 text-green-400" />{ulMB} MB</span>
                             </TableCell>
                             <TableCell className="text-xs">
-                              {s.acctterminatecause ? (
-                                <Badge variant="outline" className="text-[10px] text-gray-500">{s.acctterminatecause}</Badge>
+                              {s.terminateCause ? (
+                                <Badge variant="outline" className="text-[10px] text-gray-500">{s.terminateCause}</Badge>
                               ) : (
                                 <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">Active</Badge>
                               )}

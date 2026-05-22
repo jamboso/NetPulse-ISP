@@ -131,9 +131,19 @@ export async function syncSubscriptionReactivate(username: string): Promise<void
 
 export async function syncSubscriptionCancel(username: string): Promise<void> {
   try {
-    await db.delete(radcheckTable).where(eq(radcheckTable.username, username));
-    await db.delete(radreplyTable).where(eq(radreplyTable.username, username));
-    await db.delete(radusergroupTable).where(eq(radusergroupTable.username, username));
+    // Preserve history — only ensure Auth-Type := Reject is set (same as suspend).
+    // We do NOT delete radcheck/radusergroup so accounting history is retained.
+    const [existing] = await db.select({ id: radcheckTable.id })
+      .from(radcheckTable)
+      .where(and(
+        eq(radcheckTable.username, username),
+        eq(radcheckTable.attribute, "Auth-Type"),
+      ));
+    if (!existing) {
+      await db.insert(radcheckTable).values({
+        username, attribute: "Auth-Type", op: ":=", value: "Reject",
+      });
+    }
   } catch (err) {
     logger.error({ err, username }, "radiusSync: failed to cancel user");
   }

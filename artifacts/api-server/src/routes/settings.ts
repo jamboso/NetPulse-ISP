@@ -28,6 +28,8 @@ const SETTINGS_KEYS = [
   "mpesaAllowedIps",
   // Alert recipients
   "alertPhone",
+  "alertSlackWebhook",
+  "alertEmail",
   // Role-based nav permissions (stored as JSON)
   "rolePermissions",
   // Audit log retention

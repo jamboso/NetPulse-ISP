@@ -16,17 +16,19 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
-    // Bypass the session cookie cache: verify active status directly from DB
-    // so that deactivated accounts are rejected immediately without waiting for cache expiry.
+    // Bypass the session cookie cache: verify active status and fetch the
+    // canonical role directly from the DB so that deactivated accounts are
+    // rejected immediately and role changes take effect without waiting for
+    // cookie cache expiry.
     const [dbUser] = await db
-      .select({ active: usersTable.active })
+      .select({ active: usersTable.active, role: usersTable.role })
       .from(usersTable)
       .where(eq(usersTable.id, session.user.id));
     if (!dbUser || dbUser.active === false) {
       res.status(401).json({ error: "Account is deactivated" });
       return;
     }
-    req.user = session.user;
+    req.user = { ...session.user, role: dbUser.role ?? session.user.role };
     next();
   } catch {
     res.status(401).json({ error: "Unauthorized" });

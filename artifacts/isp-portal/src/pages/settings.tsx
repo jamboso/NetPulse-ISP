@@ -360,6 +360,26 @@ export default function Settings() {
             </div>
           </SectionCard>
 
+          <SectionCard icon={Bell} title="Alert Destinations">
+            <SettingField
+              label="Slack Webhook URL"
+              name="alertSlackWebhook"
+              value={f("alertSlackWebhook")}
+              onChange={set}
+              placeholder="https://hooks.slack.com/services/..."
+              hint="Post system alerts (router up/down, etc.) to a Slack channel. Paste the Incoming Webhook URL here."
+            />
+            <SettingField
+              label="Alert Email Address"
+              name="alertEmail"
+              value={f("alertEmail")}
+              onChange={set}
+              type="email"
+              placeholder="ops@myisp.co.ke"
+              hint="Send system alert emails to this address. Uses the SMTP settings configured below."
+            />
+          </SectionCard>
+
           <SectionCard icon={Bell} title="Telegram Alerts">
             <SettingField label="Bot Token" name="telegramBotToken" value={f("telegramBotToken")} onChange={set} secret placeholder="123456:ABC-DEF..." hint="From @BotFather on Telegram" />
             <SettingField label="Chat ID" name="telegramChatId" value={f("telegramChatId")} onChange={set} placeholder="-1001234567890" hint="Group/channel chat ID for alerts" />

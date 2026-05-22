@@ -9,13 +9,11 @@ import { requireMpesaWebhookSecret } from "../middlewares/requireMpesaWebhookSec
 
 // ── Public router ─────────────────────────────────────────────────────────────
 // These endpoints are called directly by Safaricom and must remain unauthenticated.
-// requireSafaricomIp guards every route on this router so forged callbacks
-// from non-Safaricom IPs are rejected with 403 before any DB writes occur.
-// requireMpesaWebhookSecret provides an additional shared-secret layer; it is
-// active only when MPESA_WEBHOOK_SECRET is set (backward-compatible).
+// IMPORTANT: do NOT use router.use() middleware here. This router is mounted
+// without a path prefix, so any router.use() would run on *every* request in
+// the app, not just M-Pesa callbacks. Apply requireSafaricomIp and
+// requireMpesaWebhookSecret directly to each route handler instead.
 export const mpesaPublicRouter = Router();
-mpesaPublicRouter.use(requireSafaricomIp);
-mpesaPublicRouter.use(requireMpesaWebhookSecret);
 
 // ── Protected router ──────────────────────────────────────────────────────────
 // These endpoints are called by staff and require a valid session.
@@ -262,7 +260,7 @@ mpesaProtectedRouter.get("/mpesa/status", (_req, res) => {
  * Receives Safaricom STK Push result callback.
  * Public — Safaricom calls this directly, no session available.
  */
-mpesaPublicRouter.post("/mpesa/callback", async (req, res) => {
+mpesaPublicRouter.post("/mpesa/callback", requireSafaricomIp, requireMpesaWebhookSecret, async (req, res) => {
   const body = req.body as {
     Body?: {
       stkCallback?: {
@@ -419,7 +417,7 @@ mpesaPublicRouter.post("/mpesa/callback", async (req, res) => {
  * C2B validation URL — Safaricom calls this to validate before processing.
  * Public — Safaricom calls this directly.
  */
-mpesaPublicRouter.post("/mpesa/c2b/validation", (_req, res) => {
+mpesaPublicRouter.post("/mpesa/c2b/validation", requireSafaricomIp, requireMpesaWebhookSecret, (_req, res) => {
   res.json({ ResultCode: "0", ResultDesc: "Accepted" });
 });
 
@@ -428,7 +426,7 @@ mpesaPublicRouter.post("/mpesa/c2b/validation", (_req, res) => {
  * C2B confirmation URL — Safaricom confirms a successful payment.
  * Public — Safaricom calls this directly.
  */
-mpesaPublicRouter.post("/mpesa/c2b/confirmation", async (req, res) => {
+mpesaPublicRouter.post("/mpesa/c2b/confirmation", requireSafaricomIp, requireMpesaWebhookSecret, async (req, res) => {
   const body = req.body as {
     TransID?: string;
     TransAmount?: string;

@@ -35,11 +35,11 @@ type FakeUser = { id: string; email: string; role: string };
 /** Pino-compatible logger stub attached to req.log */
 function attachLogger(app: ReturnType<typeof express>) {
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    (req as Request & { log: Record<string, unknown> }).log = {
-      warn: vi.fn(),
-      info: vi.fn(),
-      error: vi.fn(),
-      debug: vi.fn(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (req as any).log = {
+      warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn(),
+      fatal: vi.fn(), trace: vi.fn(), silent: vi.fn(),
+      level: "info", msgPrefix: "",
     };
     next();
   });
@@ -53,7 +53,8 @@ function buildApp(user: FakeUser, router: Router) {
   const app = express();
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    (req as Request & { user: FakeUser }).user = user;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (req as any).user = user;
     next();
   });
   attachLogger(app);

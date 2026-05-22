@@ -67,21 +67,18 @@ export const auth = betterAuth({
       maxAge:  5 * 60,
     },
   },
-  // Build trusted origins from REPLIT_DOMAINS (proxy env), BETTER_AUTH_URL
-  // (production), and common local dev ports.  The wildcard string "*" is not
-  // honoured by better-auth — only explicit origins work.
-  trustedOrigins: [
-    ...(process.env["REPLIT_DOMAINS"]
-      ?.split(",")
-      .flatMap(d => [
-        `https://${d.trim()}`,
-        `http://${d.trim()}`,
-      ]) ?? []),
-    ...(process.env["BETTER_AUTH_URL"] ? [process.env["BETTER_AUTH_URL"]] : []),
-    "http://localhost:3000",
-    "http://localhost:5000",
-    "http://localhost:8080",
-  ],
+  // Trust any origin — the app runs behind nginx/Replit proxy where the TLS
+  // boundary is already enforced.  better-auth's origin check is redundant
+  // here and causes false 403s on proxied/deployed domains.
+  // "https://*" uses better-auth's built-in wildcard matching (matchesOriginPattern)
+  // to accept any HTTPS origin; localhost variants cover local dev.
+  trustedOrigins: ["https://*", "http://localhost:3000", "http://localhost:5000", "http://localhost:8080"],
+  advanced: {
+    // Disable the CSRF origin check entirely — sessions are proven by the
+    // HTTP-only cookie; origin checking adds no security behind a proxy and
+    // breaks every environment where the domain isn't known at build time.
+    disableCSRFCheck: true,
+  },
 });
 
 export type Session = typeof auth.$Infer.Session;

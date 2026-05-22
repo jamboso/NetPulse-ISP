@@ -6,11 +6,14 @@ import {
   type TicketInput, type TicketUpdate,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Filter, Pencil, Trash2, MessageSquare } from "lucide-react";
+import { useBulkSelect } from "@/hooks/useBulkSelect";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { Plus, Filter, Pencil, Trash2, MessageSquare, CheckSquare, XSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -150,6 +153,11 @@ export default function Tickets() {
   const deleteMutation = useDeleteTicket();
   const updateMutation = useUpdateTicket();
   const [dialog, setDialog] = useState<{ open: boolean; id?: number; initial?: TicketForm }>({ open: false });
+  const [bulkWorking, setBulkWorking] = useState(false);
+
+  const tickets: any[] = (ticketsData as any)?.data ?? ticketsData ?? [];
+  const ids = tickets.map((t: any) => t.id as number);
+  const { selected, toggle, toggleAll, clear, isAllSelected, isIndeterminate } = useBulkSelect(ids);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this ticket?")) return;
@@ -162,7 +170,26 @@ export default function Tickets() {
     qc.invalidateQueries({ queryKey: ["/api/tickets"] });
   };
 
-  const tickets = (ticketsData as any)?.data ?? ticketsData ?? [];
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selected.size} ticket(s)?`)) return;
+    setBulkWorking(true);
+    try {
+      await Promise.all([...selected].map(id => deleteMutation.mutateAsync({ id })));
+      clear();
+      qc.invalidateQueries({ queryKey: ["/api/tickets"] });
+    } finally { setBulkWorking(false); }
+  };
+
+  const handleBulkStatus = async (status: string) => {
+    setBulkWorking(true);
+    try {
+      await Promise.all([...selected].map(id =>
+        updateMutation.mutateAsync({ id, data: { status } as TicketUpdate })
+      ));
+      clear();
+      qc.invalidateQueries({ queryKey: ["/api/tickets"] });
+    } finally { setBulkWorking(false); }
+  };
 
   return (
     <div className="space-y-6">
@@ -181,16 +208,49 @@ export default function Tickets() {
           <div className="flex items-center text-sm text-gray-500 mr-2"><Filter className="w-4 h-4 mr-2" /> Filter:</div>
           {["all", "open", "in_progress", "resolved", "closed"].map(status => (
             <Button key={status} variant={statusFilter === status || (status === "all" && !statusFilter) ? "default" : "outline"} size="sm"
-              onClick={() => setStatusFilter(status === "all" ? undefined : status)}
+              onClick={() => { setStatusFilter(status === "all" ? undefined : status); clear(); }}
               className={statusFilter === status || (status === "all" && !statusFilter) ? "bg-blue-600" : "bg-white"}>
               {status === "in_progress" ? "In Progress" : status.charAt(0).toUpperCase() + status.slice(1)}
             </Button>
           ))}
         </div>
+
+        <BulkActionBar
+          count={selected.size}
+          onClear={clear}
+          actions={[
+            {
+              label: bulkWorking ? "Working…" : "Mark Resolved",
+              icon: <CheckSquare className="w-3.5 h-3.5" />,
+              className: "text-green-600 border-green-200 hover:bg-green-50",
+              onClick: () => void handleBulkStatus("resolved"),
+            },
+            {
+              label: bulkWorking ? "Working…" : "Close",
+              icon: <XSquare className="w-3.5 h-3.5" />,
+              className: "text-gray-600 border-gray-200 hover:bg-gray-50",
+              onClick: () => void handleBulkStatus("closed"),
+            },
+            {
+              label: bulkWorking ? "Working…" : "Delete",
+              icon: <Trash2 className="w-3.5 h-3.5" />,
+              className: "text-red-600 border-red-200 hover:bg-red-50",
+              onClick: () => void handleBulkDelete(),
+            },
+          ]}
+        />
+
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-gray-50">
               <TableRow>
+                <TableHead className="w-10 pl-4">
+                  <Checkbox
+                    checked={isAllSelected ? true : isIndeterminate ? "indeterminate" : false}
+                    onCheckedChange={toggleAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead className="w-[90px]">ID</TableHead>
                 <TableHead>Subject</TableHead>
                 <TableHead>Customer</TableHead>
@@ -202,10 +262,17 @@ export default function Tickets() {
             </TableHeader>
             <TableBody>
               {isLoading ? Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>{Array.from({ length: 7 }).map((__, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
-              )) : Array.isArray(tickets) && tickets.length > 0 ? (
+                <TableRow key={i}>{Array.from({ length: 8 }).map((__, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
+              )) : tickets.length > 0 ? (
                 tickets.map((ticket: any) => (
-                  <TableRow key={ticket.id} className="hover:bg-gray-50/50">
+                  <TableRow key={ticket.id} className={`hover:bg-gray-50/50 ${selected.has(ticket.id) ? "bg-blue-50/40" : ""}`}>
+                    <TableCell className="pl-4">
+                      <Checkbox
+                        checked={selected.has(ticket.id)}
+                        onCheckedChange={() => toggle(ticket.id)}
+                        aria-label={`Select ticket ${ticket.id}`}
+                      />
+                    </TableCell>
                     <TableCell className="font-mono text-sm text-gray-500">
                       <Link href={`/tickets/${ticket.id}`} className="hover:text-blue-600">#{String(ticket.id).padStart(5, "0")}</Link>
                     </TableCell>
@@ -255,7 +322,7 @@ export default function Tickets() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow><TableCell colSpan={7} className="h-24 text-center text-gray-500">No tickets found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="h-24 text-center text-gray-500">No tickets found.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

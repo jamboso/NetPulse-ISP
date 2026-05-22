@@ -3,11 +3,14 @@ import { Link } from "wouter";
 import { useListCustomers, useDeleteCustomer } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useBulkSelect } from "@/hooks/useBulkSelect";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import { Plus, Search, MoreHorizontal, Mail, Phone, MapPin, Pencil, Trash2, UserX, UserCheck, LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -114,7 +117,6 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
             <Textarea rows={2} className="resize-none" value={form.notes} onChange={e => set("notes", e.target.value)} />
           </div>
 
-          {/* ── Map coordinates ── */}
           <div className="space-y-1.5 pt-1 border-t">
             <div className="flex items-center justify-between">
               <Label className="flex items-center gap-1.5">
@@ -133,33 +135,20 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs text-gray-500">Latitude</Label>
-                <Input
-                  className="font-mono text-sm h-8"
-                  value={form.latitude}
-                  onChange={e => set("latitude", e.target.value)}
-                  placeholder="-1.286389"
-                />
+                <Input className="font-mono text-sm h-8" value={form.latitude} onChange={e => set("latitude", e.target.value)} placeholder="-1.286389" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-gray-500">Longitude</Label>
-                <Input
-                  className="font-mono text-sm h-8"
-                  value={form.longitude}
-                  onChange={e => set("longitude", e.target.value)}
-                  placeholder="36.817223"
-                />
+                <Input className="font-mono text-sm h-8" value={form.longitude} onChange={e => set("longitude", e.target.value)} placeholder="36.817223" />
               </div>
             </div>
             {hasCoords && (
-              <button
-                type="button"
-                className="text-[10px] text-gray-400 hover:text-red-500 underline underline-offset-2"
-                onClick={() => { set("latitude", ""); set("longitude", ""); }}
-              >
+              <button type="button" className="text-[10px] text-gray-400 hover:text-red-500 underline underline-offset-2"
+                onClick={() => { set("latitude", ""); set("longitude", ""); }}>
                 Clear coordinates
               </button>
             )}
-            <p className="text-[10px] text-gray-400">Coordinates place this customer on the Network Map. You can also pick from the map page.</p>
+            <p className="text-[10px] text-gray-400">Coordinates place this customer on the Network Map.</p>
           </div>
         </div>
 
@@ -192,6 +181,11 @@ export default function Customers() {
   const { canManageCustomers, canDeleteCustomers } = useCurrentUser();
 
   const [dialog, setDialog] = useState<{ open: boolean; id?: number; initial?: CustomerForm }>({ open: false });
+  const [bulkWorking, setBulkWorking] = useState(false);
+
+  const customers = customersData?.data ?? [];
+  const ids = customers.map(c => c.id);
+  const { selected, toggle, toggleAll, clear, isAllSelected, isIndeterminate } = useBulkSelect(ids);
 
   const handleDelete = async (id: number, name: string) => {
     if (!confirm(`Delete customer "${name}"? This cannot be undone.`)) return;
@@ -205,6 +199,30 @@ export default function Customers() {
       body: JSON.stringify({ status }),
     });
     qc.invalidateQueries({ queryKey: ["/api/customers"] });
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selected.size} customer(s)? This cannot be undone.`)) return;
+    setBulkWorking(true);
+    try {
+      await Promise.all([...selected].map(id => deleteMutation.mutateAsync({ id })));
+      clear();
+      qc.invalidateQueries({ queryKey: ["/api/customers"] });
+    } finally { setBulkWorking(false); }
+  };
+
+  const handleBulkStatus = async (status: string) => {
+    setBulkWorking(true);
+    try {
+      await Promise.all([...selected].map(id =>
+        fetch(`${API}/api/customers/${id}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        })
+      ));
+      clear();
+      qc.invalidateQueries({ queryKey: ["/api/customers"] });
+    } finally { setBulkWorking(false); }
   };
 
   return (
@@ -229,11 +247,43 @@ export default function Customers() {
               className="pl-9 bg-gray-50 border-gray-200 focus-visible:ring-blue-500" />
           </div>
         </div>
+
+        <BulkActionBar
+          count={selected.size}
+          onClear={clear}
+          actions={[
+            ...(canManageCustomers ? [{
+              label: bulkWorking ? "Working…" : "Suspend",
+              icon: <UserX className="w-3.5 h-3.5" />,
+              className: "text-orange-600 border-orange-200 hover:bg-orange-50",
+              onClick: () => void handleBulkStatus("suspended"),
+            }, {
+              label: bulkWorking ? "Working…" : "Reactivate",
+              icon: <UserCheck className="w-3.5 h-3.5" />,
+              className: "text-green-600 border-green-200 hover:bg-green-50",
+              onClick: () => void handleBulkStatus("active"),
+            }] : []),
+            ...(canDeleteCustomers ? [{
+              label: bulkWorking ? "Working…" : "Delete",
+              icon: <Trash2 className="w-3.5 h-3.5" />,
+              className: "text-red-600 border-red-200 hover:bg-red-50",
+              onClick: () => void handleBulkDelete(),
+            }] : []),
+          ]}
+        />
+
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-gray-50">
               <TableRow>
-                <TableHead className="w-[300px]">Customer</TableHead>
+                <TableHead className="w-10 pl-4">
+                  <Checkbox
+                    checked={isAllSelected ? true : isIndeterminate ? "indeterminate" : false}
+                    onCheckedChange={toggleAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
+                <TableHead className="w-[280px]">Customer</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Joined</TableHead>
@@ -243,13 +293,20 @@ export default function Customers() {
             <TableBody>
               {isLoading ? Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {[300, 180, 80, 100, 40].map((w, j) => (
-                    <TableCell key={j}><Skeleton className={`h-8 w-${w === 40 ? "8 ml-auto" : "full"}`} /></TableCell>
+                  {[40, 300, 180, 80, 100, 40].map((w, j) => (
+                    <TableCell key={j}><Skeleton className={`h-8 ${j === 0 ? "w-4" : j === 5 ? "w-8 ml-auto" : "w-full"}`} /></TableCell>
                   ))}
                 </TableRow>
-              )) : customersData?.data && customersData.data.length > 0 ? (
-                customersData.data.map(customer => (
-                  <TableRow key={customer.id} className="hover:bg-gray-50/50">
+              )) : customers.length > 0 ? (
+                customers.map(customer => (
+                  <TableRow key={customer.id} className={`hover:bg-gray-50/50 ${selected.has(customer.id) ? "bg-blue-50/40" : ""}`}>
+                    <TableCell className="pl-4">
+                      <Checkbox
+                        checked={selected.has(customer.id)}
+                        onCheckedChange={() => toggle(customer.id)}
+                        aria-label={`Select ${customer.name}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0">
@@ -289,12 +346,8 @@ export default function Customers() {
                             <DropdownMenuItem onClick={() => setDialog({
                               open: true, id: customer.id,
                               initial: {
-                                name:      customer.name,
-                                email:     customer.email,
-                                phone:     customer.phone,
-                                address:   customer.address,
-                                status:    customer.status,
-                                notes:     customer.notes ?? "",
+                                name: customer.name, email: customer.email, phone: customer.phone,
+                                address: customer.address, status: customer.status, notes: customer.notes ?? "",
                                 latitude:  (customer as any).latitude  != null ? String((customer as any).latitude)  : "",
                                 longitude: (customer as any).longitude != null ? String((customer as any).longitude) : "",
                               },
@@ -327,7 +380,7 @@ export default function Customers() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow><TableCell colSpan={5} className="h-24 text-center text-gray-500">No customers found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="h-24 text-center text-gray-500">No customers found.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

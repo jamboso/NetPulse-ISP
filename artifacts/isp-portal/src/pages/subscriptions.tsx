@@ -7,10 +7,13 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { Plus, Filter, Pencil, Trash2, Wifi, Copy, Check, KeyRound } from "lucide-react";
+import { useBulkSelect } from "@/hooks/useBulkSelect";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { Plus, Filter, Pencil, Trash2, Wifi, Copy, Check, KeyRound, UserX, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -185,7 +188,13 @@ export default function Subscriptions() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const { data: subscriptionsData, isLoading } = useListSubscriptions(statusFilter ? { status: statusFilter } : undefined);
   const deleteMutation = useDeleteSubscription();
+  const updateMutation = useUpdateSubscription();
   const [dialog, setDialog] = useState<{ open: boolean; id?: number; initial?: SubForm }>({ open: false });
+  const [bulkWorking, setBulkWorking] = useState(false);
+
+  const subs: any[] = Array.isArray(subscriptionsData) ? subscriptionsData : [];
+  const ids = subs.map((s: any) => s.id as number);
+  const { selected, toggle, toggleAll, clear, isAllSelected, isIndeterminate } = useBulkSelect(ids);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this subscription? This will also remove the PPPoE secret from the router.")) return;
@@ -193,7 +202,26 @@ export default function Subscriptions() {
     qc.invalidateQueries({ queryKey: ["/api/subscriptions"] });
   };
 
-  const subs: any[] = Array.isArray(subscriptionsData) ? subscriptionsData : [];
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selected.size} subscription(s)? PPPoE secrets will also be removed.`)) return;
+    setBulkWorking(true);
+    try {
+      await Promise.all([...selected].map(id => deleteMutation.mutateAsync({ id })));
+      clear();
+      qc.invalidateQueries({ queryKey: ["/api/subscriptions"] });
+    } finally { setBulkWorking(false); }
+  };
+
+  const handleBulkStatus = async (status: string) => {
+    setBulkWorking(true);
+    try {
+      await Promise.all([...selected].map(id =>
+        updateMutation.mutateAsync({ id, data: { status } as SubscriptionUpdate })
+      ));
+      clear();
+      qc.invalidateQueries({ queryKey: ["/api/subscriptions"] });
+    } finally { setBulkWorking(false); }
+  };
 
   return (
     <TooltipProvider>
@@ -215,16 +243,48 @@ export default function Subscriptions() {
           <div className="flex items-center text-sm text-gray-500 mr-2"><Filter className="w-4 h-4 mr-2" /> Filter:</div>
           {["all", "active", "suspended", "cancelled", "expired"].map(status => (
             <Button key={status} variant={statusFilter === status || (status === "all" && !statusFilter) ? "default" : "outline"} size="sm"
-              onClick={() => setStatusFilter(status === "all" ? undefined : status)}
+              onClick={() => { setStatusFilter(status === "all" ? undefined : status); clear(); }}
               className={statusFilter === status || (status === "all" && !statusFilter) ? "bg-blue-600" : "bg-white"}>
               {status.charAt(0).toUpperCase() + status.slice(1)}
             </Button>
           ))}
         </div>
+
+        <BulkActionBar
+          count={selected.size}
+          onClear={clear}
+          actions={[
+            ...(canManageBilling ? [{
+              label: bulkWorking ? "Working…" : "Suspend",
+              icon: <UserX className="w-3.5 h-3.5" />,
+              className: "text-orange-600 border-orange-200 hover:bg-orange-50",
+              onClick: () => void handleBulkStatus("suspended"),
+            }, {
+              label: bulkWorking ? "Working…" : "Cancel",
+              icon: <XCircle className="w-3.5 h-3.5" />,
+              className: "text-gray-600 border-gray-200 hover:bg-gray-50",
+              onClick: () => void handleBulkStatus("cancelled"),
+            }] : []),
+            ...(canDeleteBillingRecords ? [{
+              label: bulkWorking ? "Working…" : "Delete",
+              icon: <Trash2 className="w-3.5 h-3.5" />,
+              className: "text-red-600 border-red-200 hover:bg-red-50",
+              onClick: () => void handleBulkDelete(),
+            }] : []),
+          ]}
+        />
+
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-gray-50">
               <TableRow>
+                <TableHead className="w-10 pl-4">
+                  <Checkbox
+                    checked={isAllSelected ? true : isIndeterminate ? "indeterminate" : false}
+                    onCheckedChange={toggleAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>PPPoE Credentials</TableHead>
@@ -236,10 +296,17 @@ export default function Subscriptions() {
             </TableHeader>
             <TableBody>
               {isLoading ? Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>{Array.from({ length: 7 }).map((__, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
-              )) : Array.isArray(subs) && subs.length > 0 ? (
-                (subs as any[]).map((sub: any) => (
-                  <TableRow key={sub.id} className="hover:bg-gray-50/50">
+                <TableRow key={i}>{Array.from({ length: 8 }).map((__, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
+              )) : subs.length > 0 ? (
+                subs.map((sub: any) => (
+                  <TableRow key={sub.id} className={`hover:bg-gray-50/50 ${selected.has(sub.id) ? "bg-blue-50/40" : ""}`}>
+                    <TableCell className="pl-4">
+                      <Checkbox
+                        checked={selected.has(sub.id)}
+                        onCheckedChange={() => toggle(sub.id)}
+                        aria-label={`Select subscription ${sub.id}`}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium text-gray-900">
                       {sub.customer
                         ? <Link href={`/customers/${sub.customerId}`} className="hover:text-blue-600 hover:underline">{sub.customer.name}</Link>
@@ -301,7 +368,7 @@ export default function Subscriptions() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow><TableCell colSpan={7} className="h-24 text-center text-gray-500">No subscriptions found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="h-24 text-center text-gray-500">No subscriptions found.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

@@ -5,11 +5,14 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useBulkSelect } from "@/hooks/useBulkSelect";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import { Plus, Wifi, Zap, Pencil, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -116,6 +119,11 @@ export default function Plans() {
   const updateMutation = useUpdatePlan();
   const { isAdmin } = useCurrentUser();
   const [dialog, setDialog] = useState<{ open: boolean; id?: number; initial?: PlanForm }>({ open: false });
+  const [bulkWorking, setBulkWorking] = useState(false);
+
+  const planList = plans ?? [];
+  const ids = planList.map(p => p.id);
+  const { selected, toggle, toggleAll, clear, isAllSelected, isIndeterminate } = useBulkSelect(ids);
 
   const handleDelete = async (id: number, name: string) => {
     if (!confirm(`Delete plan "${name}"?`)) return;
@@ -128,6 +136,27 @@ export default function Plans() {
     qc.invalidateQueries({ queryKey: ["/api/plans"] });
   };
 
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selected.size} plan(s)?`)) return;
+    setBulkWorking(true);
+    try {
+      await Promise.all([...selected].map(id => deleteMutation.mutateAsync({ id })));
+      clear();
+      qc.invalidateQueries({ queryKey: ["/api/plans"] });
+    } finally { setBulkWorking(false); }
+  };
+
+  const handleBulkSetActive = async (isActive: boolean) => {
+    setBulkWorking(true);
+    try {
+      await Promise.all([...selected].map(id =>
+        updateMutation.mutateAsync({ id, data: { isActive } as PlanUpdate })
+      ));
+      clear();
+      qc.invalidateQueries({ queryKey: ["/api/plans"] });
+    } finally { setBulkWorking(false); }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -135,12 +164,53 @@ export default function Plans() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Service Plans</h1>
           <p className="text-gray-500 text-sm">Manage internet packages and pricing tiers.</p>
         </div>
-        {isAdmin && (
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialog({ open: true })}>
-            <Plus className="w-4 h-4 mr-2" /> Create Plan
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          {isAdmin && selected.size > 0 && (
+            <BulkActionBar
+              count={selected.size}
+              onClear={clear}
+              actions={[
+                {
+                  label: bulkWorking ? "Working…" : "Activate",
+                  icon: <ToggleRight className="w-3.5 h-3.5" />,
+                  className: "text-green-600 border-green-200 hover:bg-green-50",
+                  onClick: () => void handleBulkSetActive(true),
+                },
+                {
+                  label: bulkWorking ? "Working…" : "Deactivate",
+                  icon: <ToggleLeft className="w-3.5 h-3.5" />,
+                  className: "text-orange-600 border-orange-200 hover:bg-orange-50",
+                  onClick: () => void handleBulkSetActive(false),
+                },
+                {
+                  label: bulkWorking ? "Working…" : "Delete",
+                  icon: <Trash2 className="w-3.5 h-3.5" />,
+                  className: "text-red-600 border-red-200 hover:bg-red-50",
+                  onClick: () => void handleBulkDelete(),
+                },
+              ]}
+            />
+          )}
+          {isAdmin && (
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setDialog({ open: true })}>
+              <Plus className="w-4 h-4 mr-2" /> Create Plan
+            </Button>
+          )}
+        </div>
       </div>
+
+      {isAdmin && planList.length > 0 && (
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Checkbox
+            checked={isAllSelected ? true : isIndeterminate ? "indeterminate" : false}
+            onCheckedChange={toggleAll}
+            id="select-all-plans"
+          />
+          <label htmlFor="select-all-plans" className="cursor-pointer select-none">
+            {isAllSelected ? "Deselect all" : "Select all plans"}
+          </label>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {isLoading ? Array.from({ length: 3 }).map((_, i) => (
@@ -150,18 +220,33 @@ export default function Plans() {
             <Skeleton className="h-4 w-3/4 mb-6" />
             <div className="space-y-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
           </div>
-        )) : plans && plans.length > 0 ? (
-          plans.map(plan => (
-            <div key={plan.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
+        )) : planList.length > 0 ? (
+          planList.map(plan => (
+            <div
+              key={plan.id}
+              className={`bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col ${
+                selected.has(plan.id) ? "border-blue-400 ring-2 ring-blue-100" : "border-gray-200"
+              }`}
+            >
               <div className="p-5 flex-1">
                 <div className="flex items-start justify-between mb-1">
-                  <h3 className="text-lg font-bold text-gray-900">{plan.name}</h3>
+                  <div className="flex items-center gap-2">
+                    {isAdmin && (
+                      <Checkbox
+                        checked={selected.has(plan.id)}
+                        onCheckedChange={() => toggle(plan.id)}
+                        aria-label={`Select ${plan.name}`}
+                        className="mt-0.5"
+                      />
+                    )}
+                    <h3 className="text-lg font-bold text-gray-900">{plan.name}</h3>
+                  </div>
                   <Badge variant="outline" className={plan.isActive ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-100 text-gray-500 border-gray-200"}>
                     {plan.isActive ? "Active" : "Inactive"}
                   </Badge>
                 </div>
-                <p className="text-sm text-gray-500 mb-4 min-h-[2.5rem] line-clamp-2">{plan.description || "No description."}</p>
-                <div className="flex items-baseline gap-1 mb-4">
+                <p className="text-sm text-gray-500 mb-4 min-h-[2.5rem] line-clamp-2 pl-6">{plan.description || "No description."}</p>
+                <div className="flex items-baseline gap-1 mb-4 pl-6">
                   <span className="text-3xl font-bold text-gray-900">${plan.price.toFixed(2)}</span>
                   <span className="text-sm text-gray-500">/{plan.billingCycle}</span>
                 </div>

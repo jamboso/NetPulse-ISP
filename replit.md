@@ -1,5 +1,7 @@
 # NetPulse ISP Manager
 
+[![CI](https://github.com/jamboso/NetPulse-ISP/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jamboso/NetPulse-ISP/actions/workflows/ci.yml)
+
 A full-featured ISP Management SaaS for managing customers, service plans, subscriptions, billing, payments, support tickets, network equipment, and IP pools.
 
 ## Run & Operate

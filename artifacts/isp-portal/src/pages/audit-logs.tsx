@@ -53,8 +53,10 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -283,6 +285,7 @@ export default function AuditLogs() {
   const [copied, setCopied] = useState(false);
   const [retentionEditing, setRetentionEditing] = useState(false);
   const [retentionInput, setRetentionInput] = useState("");
+  const [purgeConfirmOpen, setPurgeConfirmOpen] = useState(false);
   const qc = useQueryClient();
   const { toast } = useToast();
 
@@ -646,12 +649,56 @@ export default function AuditLogs() {
             size="sm"
             variant="outline"
             className="flex-shrink-0 gap-2 text-red-600 border-red-200 hover:bg-red-50"
-            onClick={() => { purgeMutation.mutate(); }}
+            onClick={() => setPurgeConfirmOpen(true)}
             disabled={purgeMutation.isPending}
           >
             <Trash2 className="w-3.5 h-3.5" />
             {purgeMutation.isPending ? "Purging…" : "Purge Now"}
           </Button>
+
+          <Dialog open={purgeConfirmOpen} onOpenChange={setPurgeConfirmOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-red-600">
+                  <Trash2 className="w-4 h-4" />
+                  Confirm Purge
+                </DialogTitle>
+                <DialogDescription className="pt-1 space-y-2">
+                  <span className="block">
+                    This will permanently delete all audit log records older than{" "}
+                    {currentRetentionDays
+                      ? <strong>{currentRetentionDays} days</strong>
+                      : <strong>the configured retention period</strong>
+                    }.
+                  </span>
+                  <span className="block font-semibold text-red-600">
+                    This action cannot be undone.
+                  </span>
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="ghost"
+                  onClick={() => setPurgeConfirmOpen(false)}
+                  disabled={purgeMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="gap-2"
+                  disabled={purgeMutation.isPending}
+                  onClick={() => {
+                    setPurgeConfirmOpen(false);
+                    purgeMutation.mutate();
+                  }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  {purgeMutation.isPending ? "Purging…" : "Yes, purge now"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 

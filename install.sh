@@ -44,7 +44,7 @@ rand_b64()  { openssl rand -base64 "${1:-32}"; }            # for auth secrets
 # ── Uninstall ─────────────────────────────────────────────────────────────────
 uninstall() {
   banner "NetPulse Uninstaller"
-  read -rp "  Remove ALL NetPulse components, packages, DB, and data? [y/N] " CONFIRM
+  read -rp "  Remove ALL NetPulse components, packages, DB, and data? [y/N] " CONFIRM </dev/tty
   [[ "$CONFIRM" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
 
   # Stop and disable services
@@ -143,7 +143,7 @@ banner "Preflight"
   err "Requires Ubuntu 22.04 or 24.04 (detected: $VERSION_ID)"
 ok "Ubuntu $VERSION_ID detected"
 
-read -rp "  Domain or IP for this server (e.g. isp.example.com or 192.168.1.10): " NP_DOMAIN
+read -rp "  Domain or IP for this server (e.g. isp.example.com or 192.168.1.10): " NP_DOMAIN </dev/tty
 NP_DOMAIN="${NP_DOMAIN:-localhost}"
 
 # Secrets — use openssl rand without pipes to avoid SIGPIPE under pipefail

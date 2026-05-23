@@ -132,7 +132,7 @@ if [[ -d "$APP_DIR/.git" ]]; then
   warn "Existing NetPulse installation detected at $APP_DIR"
   info "Running upgrade mode instead of fresh install..."
   echo ""
-  read -rp "  Upgrade existing installation? [Y/n]: " _confirm
+  read -rp "  Upgrade existing installation? [Y/n]: " _confirm </dev/tty
   _confirm="${_confirm:-Y}"
   [[ "$_confirm" =~ ^[Yy]$ ]] || die "Upgrade cancelled."
 else
@@ -146,12 +146,12 @@ echo -e "${CYAN}${BOLD}  Optional modules (can be added later by re-running this
 echo ""
 
 INSTALL_RADIUS=false
-read -rp "  Install FreeRADIUS? (PPPoE/802.1X auth for MikroTik routers) [y/N]: " _r
+read -rp "  Install FreeRADIUS? (PPPoE/802.1X auth for MikroTik routers) [y/N]: " _r </dev/tty
 [[ "${_r:-N}" =~ ^[Yy]$ ]] && INSTALL_RADIUS=true
 [[ "$INSTALL_RADIUS" == "true" ]] && ok "FreeRADIUS — will install" || info "FreeRADIUS — skipped"
 
 INSTALL_VPN=false
-read -rp "  Install OpenVPN? (VPN cert management for customers) [y/N]: " _v
+read -rp "  Install OpenVPN? (VPN cert management for customers) [y/N]: " _v </dev/tty
 [[ "${_v:-N}" =~ ^[Yy]$ ]] && INSTALL_VPN=true
 [[ "$INSTALL_VPN" == "true" ]] && ok "OpenVPN — will install" || info "OpenVPN — skipped"
 
@@ -276,7 +276,7 @@ if [[ -z "$REPO_URL" ]]; then
   else
     echo ""
     echo -e "  ${YELLOW}No GitHub repository URL was provided.${NC}"
-    read -rp "  GitHub repo URL (e.g. https://github.com/you/netpulse.git): " REPO_URL
+    read -rp "  GitHub repo URL (e.g. https://github.com/you/netpulse.git): " REPO_URL </dev/tty
     [[ -z "$REPO_URL" ]] && die "Repo URL is required."
   fi
 fi

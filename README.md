@@ -1,6 +1,7 @@
 # NetPulse ISP Manager
 
 [![CI](https://github.com/jamboso/NetPulse-ISP/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jamboso/NetPulse-ISP/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/jamboso/NetPulse-ISP/graph/badge.svg)](https://codecov.io/gh/jamboso/NetPulse-ISP)
 
 A full-featured, self-hosted ISP Management System built for small and medium internet service providers. Manage customers, service plans, subscriptions, billing, M-Pesa payments, support tickets, network equipment, IP pools, hotspot portals, and more — all from a single web app.
 

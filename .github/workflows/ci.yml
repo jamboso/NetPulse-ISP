@@ -46,6 +46,15 @@ jobs:
           path: artifacts/api-server/coverage/
           retention-days: 30
 
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: artifacts/api-server/coverage/lcov.info
+          flags: api-server
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Build API server
         run: pnpm --filter @workspace/api-server run build
         env:

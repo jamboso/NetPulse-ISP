@@ -1,0 +1,19 @@
+
+HINT:  Perhaps you meant to reference the column "accounts.user_id".
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$ sudo ss -tlnp
+State                Recv-Q               Send-Q                             Local Address:Port                              Peer Address:Port               Process
+LISTEN               0                    4096                                   127.0.0.1:631                                    0.0.0.0:*                   users:(("cupsd",pid=1850,fd=7))
+LISTEN               0                    4096                               127.0.0.53%lo:53                                     0.0.0.0:*                   users:(("systemd-resolve",pid=820,fd=15))
+LISTEN               0                    200                                    127.0.0.1:5432                                   0.0.0.0:*                   users:(("postgres",pid=7749,fd=6))
+LISTEN               0                    4096                                   127.0.0.1:27017                                  0.0.0.0:*                   users:(("mongod",pid=1339,fd=14))
+LISTEN               0                    511                                      0.0.0.0:80                                     0.0.0.0:*                   users:(("nginx",pid=35550,fd=5),("nginx",pid=35549,fd=5),("nginx",pid=35547,fd=5),("nginx",pid=35546,fd=5),("nginx",pid=5487,fd=5))
+LISTEN               0                    4096                                     0.0.0.0:22                                     0.0.0.0:*                   users:(("sshd",pid=1266,fd=3),("systemd",pid=1,fd=159))
+LISTEN               0                    4096                                  127.0.0.54:53                                     0.0.0.0:*                   users:(("systemd-resolve",pid=820,fd=17))
+LISTEN               0                    511                                            *:7557                                         *:*                   users:(("node",pid=1244,fd=22))
+LISTEN               0                    511                                            *:7567                                         *:*                   users:(("node",pid=1243,fd=22))
+LISTEN               0                    511                                            *:7547                                         *:*                   users:(("node",pid=1242,fd=22))
+LISTEN               0                    511                                            *:8080                                         *:*                   users:(("node /opt/netpu",pid=33960,fd=23))
+LISTEN               0                    511                                            *:3000                                         *:*                   users:(("node",pid=1245,fd=22))
+LISTEN               0                    511                                         [::]:80                                        [::]:*                   users:(("nginx",pid=35550,fd=18),("nginx",pid=35549,fd=18),("nginx",pid=35547,fd=18),("nginx",pid=35546,fd=18),("nginx",pid=5487,fd=18))
+LISTEN               0                    4096                                        [::]:22                                        [::]:*                   users:(("sshd",pid=1266,fd=4),("systemd",pid=1,fd=160))
+LISTEN               0                    4096                                       [::1]:631                                       [::]:*                   users:(("cupsd",pid=1850,fd=6))

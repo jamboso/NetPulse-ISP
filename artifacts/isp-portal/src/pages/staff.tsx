@@ -29,7 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { UserCog, Plus, MoreHorizontal, Search, MessageSquare, Mail, BellOff, UserX, UserCheck, ShieldCheck, ChevronDown, ChevronUp, Check, X } from "lucide-react";
+import { UserCog, Plus, MoreHorizontal, Search, MessageSquare, Mail, BellOff, UserX, UserCheck, ShieldCheck, ChevronDown, ChevronUp, Check, X, AlertTriangle, Clock } from "lucide-react";
 
 const ROLES = ["admin", "billing", "support", "technician"] as const;
 
@@ -160,6 +160,57 @@ function isInactive(dateStr: string | null | undefined): boolean {
   if (!dateStr) return true;
   const days = (Date.now() - new Date(dateStr).getTime()) / 86_400_000;
   return days > 30;
+}
+
+function getInactiveDays(dateStr: string | null | undefined): number | null {
+  if (!dateStr) return null;
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
+}
+
+function InactivityBadge({
+  lastActiveAt,
+  isActive,
+  onDeactivate,
+}: {
+  lastActiveAt: string | null | undefined;
+  isActive: boolean;
+  onDeactivate: () => void;
+}) {
+  const days = getInactiveDays(lastActiveAt);
+  const neverLoggedIn = !lastActiveAt;
+  const stale = neverLoggedIn || (days !== null && days > 30);
+
+  if (!stale) return null;
+
+  if (neverLoggedIn) {
+    return (
+      <button
+        type="button"
+        onClick={isActive ? onDeactivate : undefined}
+        title={isActive ? "Click to deactivate this account" : "Account already deactivated"}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium border
+          bg-red-100 text-red-700 border-red-200
+          ${isActive ? "cursor-pointer hover:bg-red-200 transition-colors" : "cursor-default opacity-70"}`}
+      >
+        <Clock className="w-3 h-3 shrink-0" />
+        Never logged in
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={isActive ? onDeactivate : undefined}
+      title={isActive ? "Click to deactivate this account" : "Account already deactivated"}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium border
+        bg-amber-100 text-amber-700 border-amber-200
+        ${isActive ? "cursor-pointer hover:bg-amber-200 transition-colors" : "cursor-default opacity-70"}`}
+    >
+      <AlertTriangle className="w-3 h-3 shrink-0" />
+      Inactive {days}d
+    </button>
+  );
 }
 
 type Role = (typeof ROLES)[number];
@@ -397,12 +448,19 @@ export default function StaffPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm">
-                    <span
-                      className={isInactive(user.lastActiveAt) ? "text-gray-400" : "text-gray-700"}
-                      title={user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleString() : "No sessions recorded"}
-                    >
-                      {formatRelativeTime(user.lastActiveAt)}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span
+                        className={isInactive(user.lastActiveAt) ? "text-gray-400" : "text-gray-700"}
+                        title={user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleString() : "No sessions recorded"}
+                      >
+                        {formatRelativeTime(user.lastActiveAt)}
+                      </span>
+                      <InactivityBadge
+                        lastActiveAt={user.lastActiveAt}
+                        isActive={user.active}
+                        onDeactivate={() => handleToggleActive(user)}
+                      />
+                    </div>
                   </TableCell>
                   <TableCell className="text-gray-500 text-sm">
                     {new Date(user.createdAt).toLocaleDateString()}

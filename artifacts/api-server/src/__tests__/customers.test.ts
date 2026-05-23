@@ -50,6 +50,7 @@ vi.mock("../lib/audit.js", () => ({
 }));
 
 const { default: customersRouter } = await import("../routes/customers.js");
+const { writeAuditLog } = await import("../lib/audit.js");
 
 type MockUser = { id: string; email: string; name: string; role: string; active: boolean; emailVerified: boolean; image?: string | null; createdAt: Date; updatedAt: Date };
 
@@ -276,13 +277,11 @@ describe("PATCH /customers/:id", () => {
 
 describe("DELETE /customers/:id", () => {
   it("deletes a customer and returns 204 (admin)", async () => {
-    mockExec.mockResolvedValueOnce([sampleCustomer]);
-    mockExec.mockResolvedValueOnce([]);
-    mockExec.mockResolvedValueOnce([]);
-    mockExec.mockResolvedValueOnce([]);
-    mockExec.mockResolvedValueOnce([]);
-    mockExec.mockResolvedValueOnce([]);
-    mockExec.mockResolvedValueOnce([]);
+    mockExec.mockResolvedValueOnce([sampleCustomer]); // select before
+    mockExec.mockResolvedValueOnce([]);               // tickets select
+    mockExec.mockResolvedValueOnce([]);               // invoices select
+    mockExec.mockResolvedValueOnce([]);               // delete subscriptions
+    mockExec.mockResolvedValueOnce([]);               // delete customers
 
     const res = await request(buildApp()).delete("/customers/1");
 
@@ -295,5 +294,85 @@ describe("DELETE /customers/:id", () => {
     );
 
     expect(res.status).toBe(403);
+  });
+});
+
+describe("Audit log — customers", () => {
+  it("writes an audit record with entityType 'customer' and action 'create' on POST /customers", async () => {
+    const created = { ...sampleCustomer, id: 2 };
+    mockExec.mockResolvedValueOnce([created]);
+
+    await request(buildApp())
+      .post("/customers")
+      .send({ name: "Bob Omondi", email: "bob@example.com", phone: "0700000000", address: "456 Test Ave" });
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "create",
+        entityType: "customer",
+        entityId:   2,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("writes an audit record with entityType 'customer' and action 'update' on PATCH /customers/:id", async () => {
+    const updated = { ...sampleCustomer, name: "Alice Updated" };
+    mockExec
+      .mockResolvedValueOnce([sampleCustomer])
+      .mockResolvedValueOnce([updated]);
+
+    await request(buildApp())
+      .patch("/customers/1")
+      .send({ name: "Alice Updated" });
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "update",
+        entityType: "customer",
+        entityId:   1,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("writes an audit record with entityType 'customer' and action 'delete' on DELETE /customers/:id", async () => {
+    mockExec.mockResolvedValueOnce([sampleCustomer]); // select before
+    mockExec.mockResolvedValueOnce([]);               // tickets select
+    mockExec.mockResolvedValueOnce([]);               // invoices select
+    mockExec.mockResolvedValueOnce([]);               // delete subscriptions
+    mockExec.mockResolvedValueOnce([]);               // delete customers
+
+    await request(buildApp()).delete("/customers/1");
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "delete",
+        entityType: "customer",
+        entityId:   1,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("does NOT write an audit record when POST /customers fails validation", async () => {
+    await request(buildApp())
+      .post("/customers")
+      .send({ email: "bob@example.com", phone: "0700000000", address: "456 Test Ave" });
+
+    expect(vi.mocked(writeAuditLog)).not.toHaveBeenCalled();
+  });
+
+  it("does NOT write an audit record when PATCH /customers/:id returns 404", async () => {
+    mockExec.mockResolvedValueOnce([]);
+
+    await request(buildApp())
+      .patch("/customers/999")
+      .send({ name: "Ghost" });
+
+    expect(vi.mocked(writeAuditLog)).not.toHaveBeenCalled();
   });
 });

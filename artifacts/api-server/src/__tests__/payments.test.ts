@@ -53,6 +53,7 @@ vi.mock("../lib/audit.js", () => ({
 }));
 
 const { default: paymentsRouter } = await import("../routes/payments.js");
+const { writeAuditLog } = await import("../lib/audit.js");
 
 type MockUser = {
   id: string;
@@ -332,5 +333,35 @@ describe("POST /payments", () => {
 
     expect(res.status).toBe(201);
     expect(mockExec).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Audit log — payments", () => {
+  it("writes an audit record with entityType 'payment' and action 'create' on POST /payments", async () => {
+    mockExec
+      .mockResolvedValueOnce([samplePayment])
+      .mockResolvedValueOnce([]);
+
+    await request(buildApp())
+      .post("/payments")
+      .send({ customerId: 10, invoiceId: 5, amount: 150, method: "mpesa" });
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "create",
+        entityType: "payment",
+        entityId:   samplePayment.id,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("does NOT write an audit record when POST /payments fails validation", async () => {
+    await request(buildApp())
+      .post("/payments")
+      .send({ method: "mpesa" });
+
+    expect(vi.mocked(writeAuditLog)).not.toHaveBeenCalled();
   });
 });

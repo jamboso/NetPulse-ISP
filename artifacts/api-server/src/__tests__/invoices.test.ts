@@ -55,6 +55,7 @@ vi.mock("../lib/audit.js", () => ({
 }));
 
 const { default: invoicesRouter } = await import("../routes/invoices.js");
+const { writeAuditLog } = await import("../lib/audit.js");
 
 type MockUser = {
   id: string;
@@ -524,5 +525,78 @@ describe("DELETE /invoices/:id", () => {
     ).delete("/invoices/1");
 
     expect(res.status).toBe(403);
+  });
+});
+
+describe("Audit log — invoices", () => {
+  it("writes an audit record with entityType 'invoice' and action 'create' on POST /invoices", async () => {
+    mockExec.mockResolvedValueOnce([sampleInvoice]);
+
+    await request(buildApp())
+      .post("/invoices")
+      .send({ customerId: 10, amount: 100, tax: 10, dueDate: "2026-06-01" });
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "create",
+        entityType: "invoice",
+        entityId:   sampleInvoice.id,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("writes an audit record with entityType 'invoice' and action 'update' on PATCH /invoices/:id", async () => {
+    const updated = { ...sampleInvoice, status: "sent" };
+    mockExec
+      .mockResolvedValueOnce([sampleInvoice])
+      .mockResolvedValueOnce([updated]);
+
+    await request(buildApp()).patch("/invoices/1").send({ status: "sent" });
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "update",
+        entityType: "invoice",
+        entityId:   1,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("writes an audit record with entityType 'invoice' and action 'delete' on DELETE /invoices/:id", async () => {
+    mockExec
+      .mockResolvedValueOnce([sampleInvoice])
+      .mockResolvedValueOnce([]);
+
+    await request(buildApp()).delete("/invoices/1");
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "delete",
+        entityType: "invoice",
+        entityId:   1,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("does NOT write an audit record when POST /invoices fails validation", async () => {
+    await request(buildApp())
+      .post("/invoices")
+      .send({ amount: 100, dueDate: "2026-06-01" });
+
+    expect(vi.mocked(writeAuditLog)).not.toHaveBeenCalled();
+  });
+
+  it("does NOT write an audit record when PATCH /invoices/:id returns 404", async () => {
+    mockExec.mockResolvedValueOnce([]);
+
+    await request(buildApp()).patch("/invoices/999").send({ status: "sent" });
+
+    expect(vi.mocked(writeAuditLog)).not.toHaveBeenCalled();
   });
 });

@@ -73,6 +73,7 @@ vi.mock("../lib/radiusSync.js", () => ({
 }));
 
 const { default: subscriptionsRouter } = await import("../routes/subscriptions.js");
+const { writeAuditLog } = await import("../lib/audit.js");
 
 type MockUser = {
   id: string;
@@ -789,5 +790,86 @@ describe("DELETE /subscriptions/:id", () => {
     ).delete("/subscriptions/1");
 
     expect(res.status).toBe(403);
+  });
+});
+
+describe("Audit log — subscriptions", () => {
+  it("writes an audit record with entityType 'subscription' and action 'create' on POST /subscriptions", async () => {
+    mockExec
+      .mockResolvedValueOnce([sampleCustomer])
+      .mockResolvedValueOnce([samplePlan])
+      .mockResolvedValueOnce([sampleSubscription]);
+
+    await request(buildApp())
+      .post("/subscriptions")
+      .send({ customerId: 10, planId: 2, startDate: "2026-01-01" });
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "create",
+        entityType: "subscription",
+        entityId:   sampleSubscription.id,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("writes an audit record with entityType 'subscription' and action 'update' on PATCH /subscriptions/:id", async () => {
+    const updated = { ...sampleSubscription, status: "suspended" };
+    mockExec
+      .mockResolvedValueOnce([sampleSubscription])
+      .mockResolvedValueOnce([updated]);
+
+    await request(buildApp())
+      .patch("/subscriptions/1")
+      .send({ status: "suspended" });
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "update",
+        entityType: "subscription",
+        entityId:   1,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("writes an audit record with entityType 'subscription' and action 'delete' on DELETE /subscriptions/:id", async () => {
+    mockExec
+      .mockResolvedValueOnce([sampleSubscription])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    await request(buildApp()).delete("/subscriptions/1");
+
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
+    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action:     "delete",
+        entityType: "subscription",
+        entityId:   1,
+        userId:     "u1",
+      }),
+    );
+  });
+
+  it("does NOT write an audit record when POST /subscriptions fails validation", async () => {
+    await request(buildApp())
+      .post("/subscriptions")
+      .send({ planId: 2, startDate: "2026-01-01" });
+
+    expect(vi.mocked(writeAuditLog)).not.toHaveBeenCalled();
+  });
+
+  it("does NOT write an audit record when PATCH /subscriptions/:id returns 404", async () => {
+    mockExec.mockResolvedValueOnce([]);
+
+    await request(buildApp())
+      .patch("/subscriptions/999")
+      .send({ status: "suspended" });
+
+    expect(vi.mocked(writeAuditLog)).not.toHaveBeenCalled();
   });
 });

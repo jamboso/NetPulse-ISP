@@ -62,6 +62,8 @@ export * from './listSubscriptionsParams';
 export * from './listTicketsParams';
 export * from './listUsers200';
 export * from './listUsersParams';
+export * from './mpesaIpAllowlist';
+export * from './mpesaIpAllowlistSource';
 export * from './payment';
 export * from './paymentInput';
 export * from './paymentInputMethod';

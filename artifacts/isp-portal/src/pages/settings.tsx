@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useGetSettings, useUpdateSettings, useSendTestEmail } from "@workspace/api-client-react";
+import { useGetSettings, useUpdateSettings, useSendTestEmail, useGetMpesaIpAllowlist } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -540,6 +540,7 @@ export default function Settings() {
                   }
                   className="text-sm font-mono resize-none"
                 />
+                <EffectiveAllowlist />
               </div>
             </div>
             <div className="py-2 text-xs text-gray-400">
@@ -917,6 +918,62 @@ function RegisterUrlsCard() {
         </div>
       </div>
     </SectionCard>
+  );
+}
+
+function EffectiveAllowlist() {
+  const { data, isLoading, isError } = useGetMpesaIpAllowlist();
+
+  const SOURCE_LABELS: Record<string, string> = {
+    db:      "DB setting",
+    env:     "env var (MPESA_ALLOWED_IPS)",
+    default: "Safaricom defaults",
+  };
+
+  const SOURCE_COLORS: Record<string, string> = {
+    db:      "bg-blue-50 border-blue-200 text-blue-800",
+    env:     "bg-purple-50 border-purple-200 text-purple-800",
+    default: "bg-gray-50 border-gray-200 text-gray-600",
+  };
+
+  if (isLoading) {
+    return <Skeleton className="h-16 w-full mt-2" />;
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="mt-2 flex items-center gap-1.5 text-xs text-red-500">
+        <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Could not load effective ranges
+      </div>
+    );
+  }
+
+  const sourceLabel = SOURCE_LABELS[data.source] ?? data.source;
+  const colorClass  = SOURCE_COLORS[data.source] ?? SOURCE_COLORS["default"]!;
+  const isBypass    = data.cidrs.length === 1 && data.cidrs[0] === "*";
+
+  return (
+    <div className={`mt-3 rounded-md border px-3 py-2.5 ${colorClass}`}>
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
+          Effective ranges
+        </p>
+        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${colorClass} border`}>
+          source: {sourceLabel}
+        </Badge>
+      </div>
+      {isBypass ? (
+        <p className="text-sm font-mono font-medium">
+          * — IP checking disabled (all IPs allowed)
+        </p>
+      ) : (
+        <ul className="space-y-0.5">
+          {data.cidrs.map((cidr) => (
+            <li key={cidr} className="text-xs font-mono">{cidr}</li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

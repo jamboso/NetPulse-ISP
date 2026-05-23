@@ -1300,6 +1300,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/EmailResult"
 
+  /settings/mpesa-ip-allowlist:
+    get:
+      operationId: getMpesaIpAllowlist
+      tags: [settings]
+      summary: Return the effective M-Pesa IP allowlist with its source
+      responses:
+        "200":
+          description: Effective allowlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MpesaIpAllowlist"
+
   /settings:
     get:
       operationId: getSettings
@@ -1516,6 +1529,20 @@ components:
           type: boolean
         message:
           type: string
+
+    MpesaIpAllowlist:
+      type: object
+      required: [source, cidrs]
+      properties:
+        source:
+          type: string
+          enum: [db, env, default]
+          description: Where the effective list came from
+        cidrs:
+          type: array
+          items:
+            type: string
+          description: CIDR blocks (or '*' for bypass) that will be applied on the next callback
 
     HealthStatus:
       type: object

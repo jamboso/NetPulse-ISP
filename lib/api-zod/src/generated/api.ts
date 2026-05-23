@@ -1319,6 +1319,15 @@ export const SendTestEmailResponse = zod.object({
 
 
 /**
+ * @summary Return the effective M-Pesa IP allowlist with its source
+ */
+export const GetMpesaIpAllowlistResponse = zod.object({
+  "source": zod.enum(['db', 'env', 'default']).describe('Where the effective list came from'),
+  "cidrs": zod.array(zod.string()).describe('CIDR blocks (or \'\*\' for bypass) that will be applied on the next callback')
+})
+
+
+/**
  * @summary Get all app settings
  */
 export const GetSettingsResponse = zod.object({

@@ -5,6 +5,43 @@ import { eq } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { sendTestEmail } from "../lib/mailer";
 
+const DEFAULT_SAFARICOM_CIDRS = [
+  "196.201.214.0/24",
+  "196.201.216.0/24",
+  "196.201.213.0/24",
+  "196.201.212.0/24",
+  "196.201.211.0/24",
+  "196.201.210.0/24",
+  "196.201.209.0/24",
+  "196.201.208.0/24",
+];
+
+type AllowlistSource = "db" | "env" | "default";
+
+async function resolveEffectiveAllowlist(): Promise<{ source: AllowlistSource; cidrs: string[] }> {
+  try {
+    const rows = await db
+      .select()
+      .from(settingsTable)
+      .where(eq(settingsTable.key, "mpesaAllowedIps"));
+    const dbValue = rows[0]?.value?.trim();
+    if (dbValue && dbValue.length > 0) {
+      const cidrs = dbValue === "*" ? ["*"] : dbValue.split(",").map((s) => s.trim()).filter(Boolean);
+      return { source: "db", cidrs };
+    }
+  } catch {
+    // fall through
+  }
+
+  const envValue = process.env["MPESA_ALLOWED_IPS"];
+  if (envValue) {
+    const cidrs = envValue === "*" ? ["*"] : envValue.split(",").map((s) => s.trim()).filter(Boolean);
+    return { source: "env", cidrs };
+  }
+
+  return { source: "default", cidrs: DEFAULT_SAFARICOM_CIDRS };
+}
+
 const router = Router();
 
 const SETTINGS_KEYS = [
@@ -56,6 +93,11 @@ async function loadSettings(): Promise<Record<string, string | null>> {
   }
   return result;
 }
+
+router.get("/settings/mpesa-ip-allowlist", requireRole("admin"), async (_req, res) => {
+  const result = await resolveEffectiveAllowlist();
+  res.json(result);
+});
 
 router.post("/settings/test-email", requireRole("admin"), async (req, res) => {
   const toEmail = req.user!.email ?? "";

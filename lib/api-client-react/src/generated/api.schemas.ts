@@ -10,6 +10,25 @@ export interface EmailResult {
   message: string;
 }
 
+/**
+ * Where the effective list came from
+ */
+export type MpesaIpAllowlistSource = typeof MpesaIpAllowlistSource[keyof typeof MpesaIpAllowlistSource];
+
+
+export const MpesaIpAllowlistSource = {
+  db: 'db',
+  env: 'env',
+  default: 'default',
+} as const;
+
+export interface MpesaIpAllowlist {
+  /** Where the effective list came from */
+  source: MpesaIpAllowlistSource;
+  /** CIDR blocks (or '*' for bypass) that will be applied on the next callback */
+  cidrs: string[];
+}
+
 export interface HealthStatus {
   status: string;
 }

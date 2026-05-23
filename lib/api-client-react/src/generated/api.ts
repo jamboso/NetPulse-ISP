@@ -56,6 +56,7 @@ import type {
   ListTicketsParams,
   ListUsers200,
   ListUsersParams,
+  MpesaIpAllowlist,
   Payment,
   PaymentInput,
   Plan,
@@ -4738,6 +4739,83 @@ export const useSendTestEmail = <TError = ErrorType<EmailResult>,
       > => {
       return useMutation(getSendTestEmailMutationOptions(options));
     }
+
+export const getGetMpesaIpAllowlistUrl = () => {
+
+
+
+
+  return `/api/settings/mpesa-ip-allowlist`
+}
+
+/**
+ * @summary Return the effective M-Pesa IP allowlist with its source
+ */
+export const getMpesaIpAllowlist = async ( options?: RequestInit): Promise<MpesaIpAllowlist> => {
+
+  return customFetch<MpesaIpAllowlist>(getGetMpesaIpAllowlistUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMpesaIpAllowlistQueryKey = () => {
+    return [
+    `/api/settings/mpesa-ip-allowlist`
+    ] as const;
+    }
+
+
+export const getGetMpesaIpAllowlistQueryOptions = <TData = Awaited<ReturnType<typeof getMpesaIpAllowlist>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMpesaIpAllowlist>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMpesaIpAllowlistQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMpesaIpAllowlist>>> = ({ signal }) => getMpesaIpAllowlist({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMpesaIpAllowlist>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMpesaIpAllowlistQueryResult = NonNullable<Awaited<ReturnType<typeof getMpesaIpAllowlist>>>
+export type GetMpesaIpAllowlistQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Return the effective M-Pesa IP allowlist with its source
+ */
+
+export function useGetMpesaIpAllowlist<TData = Awaited<ReturnType<typeof getMpesaIpAllowlist>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMpesaIpAllowlist>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMpesaIpAllowlistQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetSettingsUrl = () => {
 

@@ -66,34 +66,68 @@ export function UpdatesTab() {
     }
   }, [logs]);
 
-  const runUpdate = () => {
+  const runUpdate = async () => {
     setLogs([]);
     setStatus("running");
     setUpdating(true);
 
-    const es = new EventSource("/api/system/update", { withCredentials: true });
+    try {
+      const response = await fetch("/api/system/update", {
+        method: "POST",
+        credentials: "include",
+      });
 
-    es.addEventListener("log", (e) => {
-      setLogs((prev) => [...prev, JSON.parse(e.data) as string]);
-    });
+      if (!response.ok || !response.body) {
+        const txt = await response.text().catch(() => response.statusText);
+        throw new Error(`Server returned ${response.status}: ${txt}`);
+      }
 
-    es.addEventListener("done", (e) => {
-      setLogs((prev) => [...prev, JSON.parse(e.data) as string]);
-      setStatus("done");
-      setUpdating(false);
-      es.close();
-      setTimeout(() => void fetchVersion(), 5000);
-    });
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
 
-    es.addEventListener("error", (e) => {
-      const msg = e instanceof MessageEvent
-        ? (JSON.parse(e.data) as string)
-        : "Connection lost — check server logs.";
-      setLogs((prev) => [...prev, `ERROR: ${msg}`]);
+      const processChunk = (chunk: string) => {
+        buf += chunk;
+        const blocks = buf.split("\n\n");
+        buf = blocks.pop() ?? "";
+        for (const block of blocks) {
+          let eventType = "log";
+          let dataLine = "";
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event: ")) eventType = line.slice(7).trim();
+            else if (line.startsWith("data: ")) dataLine = line.slice(6);
+          }
+          if (!dataLine) continue;
+          const msg = JSON.parse(dataLine) as string;
+          if (eventType === "done") {
+            setLogs((prev) => [...prev, msg]);
+            setStatus("done");
+            setUpdating(false);
+            setTimeout(() => void fetchVersion(), 5000);
+            return true; // signal stream end
+          } else if (eventType === "error") {
+            setLogs((prev) => [...prev, `ERROR: ${msg}`]);
+            setStatus("error");
+            setUpdating(false);
+            return true;
+          } else {
+            setLogs((prev) => [...prev, msg]);
+          }
+        }
+        return false;
+      };
+
+      outer: while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const finished = processChunk(decoder.decode(value, { stream: true }));
+        if (finished) break outer;
+      }
+    } catch (err) {
+      setLogs((prev) => [...prev, `ERROR: ${err instanceof Error ? err.message : String(err)}`]);
       setStatus("error");
       setUpdating(false);
-      es.close();
-    });
+    }
   };
 
   if (loading) {

@@ -12,6 +12,9 @@ vi.mock("@workspace/api-client-react", () => ({
   useCreateUser: (...args: unknown[]) => mockUseCreateUser(...args),
   useUpdateUser: (...args: unknown[]) => mockUseUpdateUser(...args),
   getListUsersQueryKey: vi.fn(() => ["/api/users"]),
+  useGetWelcomeEmailPreview: vi.fn(() => ({ data: null, isLoading: false })),
+  useSendWelcomeEmailTest: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  getGetWelcomeEmailPreviewQueryKey: vi.fn(() => ["/api/welcome-email-preview"]),
 }));
 
 vi.mock("@/hooks/useBulkSelect", () => ({

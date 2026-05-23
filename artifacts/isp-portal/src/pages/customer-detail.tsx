@@ -583,6 +583,43 @@ export default function CustomerDetail() {
 
   useEffect(() => { if (activeTab === "usage") fetchSessionLogs(); }, [activeTab, fetchSessionLogs]);
 
+  // Bandwidth history chart
+  type BwDay = { date: string; bytes_in: number; bytes_out: number; sessions: number };
+  const BW_RANGES = [
+    { label: "Today",  days: 0 },
+    { label: "7D",     days: 7 },
+    { label: "30D",    days: 30 },
+    { label: "3M",     days: 90 },
+    { label: "6M",     days: 180 },
+    { label: "12M",    days: 365 },
+  ] as const;
+  type BwRangeLabel = typeof BW_RANGES[number]["label"];
+  const [bwRange, setBwRange]     = useState<BwRangeLabel>("30D");
+  const [bwData,  setBwData]      = useState<BwDay[]>([]);
+  const [loadingBw, setLoadingBw] = useState(false);
+
+  const fetchBandwidth = useCallback(async (range: BwRangeLabel) => {
+    setLoadingBw(true);
+    try {
+      const days = BW_RANGES.find(r => r.label === range)?.days ?? 30;
+      const now = new Date();
+      const to = now.toISOString().slice(0, 10);
+      let from: string;
+      if (days === 0) {
+        from = to;
+      } else {
+        const d = new Date(now); d.setDate(d.getDate() - days);
+        from = d.toISOString().slice(0, 10);
+      }
+      const r = await fetch(`/api/customers/${customerId}/bandwidth-history?from=${from}&to=${to}`);
+      if (r.ok) setBwData(await r.json());
+    } finally { setLoadingBw(false); }
+  }, [customerId]);
+
+  useEffect(() => {
+    if (activeTab === "usage") fetchBandwidth(bwRange);
+  }, [activeTab, bwRange, fetchBandwidth]);
+
   // Communications
   const [comms, setComms]                   = useState<any[]>([]);
   const [loadingComms, setLoadingComms]     = useState(false);
@@ -1136,8 +1173,111 @@ export default function CustomerDetail() {
 
             {/* ── Usage History tab ── */}
             <TabsContent value="usage" className="m-0 space-y-4">
-              {/* Date filters */}
+
+              {/* ── Bandwidth Trend Chart ─────────────────────────────────── */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                  <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+                    <Download className="w-4 h-4 text-blue-500" /> Bandwidth Usage
+                  </h3>
+                  <div className="flex items-center gap-1.5">
+                    {(["Today","7D","30D","3M","6M","12M"] as const).map(r => (
+                      <button
+                        key={r}
+                        onClick={() => setBwRange(r)}
+                        className={`text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${
+                          bwRange === r
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
+                      >{r}</button>
+                    ))}
+                    <button
+                      onClick={() => fetchBandwidth(bwRange)}
+                      className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Refresh"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingBw ? "animate-spin" : ""}`} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Summary stats */}
+                {bwData.length > 0 && (() => {
+                  const totalIn  = bwData.reduce((a, d) => a + Number(d.bytes_in),  0);
+                  const totalOut = bwData.reduce((a, d) => a + Number(d.bytes_out), 0);
+                  const peakDay  = bwData.reduce((best, d) =>
+                    Number(d.bytes_in) + Number(d.bytes_out) > Number(best.bytes_in) + Number(best.bytes_out) ? d : best,
+                    bwData[0]!,
+                  );
+                  return (
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div className="bg-blue-50 rounded-lg p-3">
+                        <p className="text-[10px] font-medium text-blue-500 uppercase tracking-wide mb-0.5">Total Download</p>
+                        <p className="text-sm font-bold text-blue-700">{fmtBytes(totalIn)}</p>
+                      </div>
+                      <div className="bg-orange-50 rounded-lg p-3">
+                        <p className="text-[10px] font-medium text-orange-500 uppercase tracking-wide mb-0.5">Total Upload</p>
+                        <p className="text-sm font-bold text-orange-700">{fmtBytes(totalOut)}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">Peak Day</p>
+                        <p className="text-sm font-bold text-gray-700">{peakDay.date}</p>
+                        <p className="text-[10px] text-gray-400">{fmtBytes(Number(peakDay.bytes_in) + Number(peakDay.bytes_out))}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {loadingBw ? (
+                  <div className="h-[200px] flex items-center justify-center">
+                    <RefreshCw className="w-5 h-5 text-gray-300 animate-spin" />
+                  </div>
+                ) : bwData.length === 0 ? (
+                  <div className="h-[200px] flex items-center justify-center text-gray-400 text-sm">
+                    <div className="text-center">
+                      <HardDrive className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+                      No bandwidth data for this period.
+                      <p className="text-xs mt-1 text-gray-300">Data is recorded when sessions are active.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={bwData.map(d => ({
+                      date: d.date,
+                      download: Number(d.bytes_in),
+                      upload: Number(d.bytes_out),
+                    }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="bwDlGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="bwUlGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor="#f97316" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="date" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                      <YAxis tickFormatter={v => fmtBytes(v)} tick={{ fontSize: 9 }} width={62} />
+                      <Tooltip
+                        formatter={(v: number, name: string) => [fmtBytes(v), name === "download" ? "↓ Download" : "↑ Upload"]}
+                        contentStyle={{ fontSize: 11 }}
+                      />
+                      <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} formatter={v => v === "download" ? "↓ Download" : "↑ Upload"} />
+                      <Area type="monotone" dataKey="download" stroke="#3b82f6" fill="url(#bwDlGrad)" strokeWidth={2} dot={false} />
+                      <Area type="monotone" dataKey="upload"   stroke="#f97316" fill="url(#bwUlGrad)" strokeWidth={2} dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              {/* ── Session Logs Table ────────────────────────────────────── */}
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-end gap-3">
+                <h3 className="text-sm font-semibold text-gray-900 w-full mb-1 flex items-center gap-2">
+                  <History className="w-4 h-4 text-gray-400" /> Session Log
+                </h3>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
                   <input type="date" value={logFrom} onChange={e => setLogFrom(e.target.value)}

@@ -512,4 +512,19 @@ CREATE INDEX "radreply_username_idx" ON "radreply" USING btree ("username");--> 
 CREATE INDEX "radusergroup_username_idx" ON "radusergroup" USING btree ("username");--> statement-breakpoint
 CREATE INDEX "security_events_event_type_idx" ON "security_events" USING btree ("event_type");--> statement-breakpoint
 CREATE INDEX "security_events_created_at_idx" ON "security_events" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "security_events_caller_ip_idx" ON "security_events" USING btree ("caller_ip");
+CREATE INDEX "security_events_caller_ip_idx" ON "security_events" USING btree ("caller_ip");--> statement-breakpoint
+CREATE TABLE "dns_observations" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "router_id" integer NOT NULL,
+        "domain" text NOT NULL,
+        "category" text DEFAULT 'other' NOT NULL,
+        "hit_count" integer DEFAULT 1 NOT NULL,
+        "recorded_date" date NOT NULL,
+        "last_seen" timestamp DEFAULT now() NOT NULL,
+        CONSTRAINT "dns_obs_unique_idx" UNIQUE("router_id","domain","recorded_date")
+);
+--> statement-breakpoint
+ALTER TABLE "dns_observations" ADD CONSTRAINT "dns_observations_router_id_routers_id_fk" FOREIGN KEY ("router_id") REFERENCES "public"."routers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "dns_obs_router_date_idx" ON "dns_observations" USING btree ("router_id","recorded_date");--> statement-breakpoint
+CREATE INDEX "dns_obs_domain_idx" ON "dns_observations" USING btree ("domain");--> statement-breakpoint
+CREATE INDEX "dns_obs_category_idx" ON "dns_observations" USING btree ("category");

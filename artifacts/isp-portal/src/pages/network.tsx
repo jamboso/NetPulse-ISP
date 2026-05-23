@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Fragment } from "react";
+import { useState, useEffect, useCallback, Fragment, useRef } from "react";
 import { useMacVendor } from "@/hooks/useMacVendor";
 import {
   useListEquipment, useCreateEquipment, useUpdateEquipment, useDeleteEquipment,
@@ -13,8 +13,13 @@ import { Link } from "wouter";
 import {
   Plus, Server, Route, Wifi, Pencil, Trash2, ChevronDown,
   CheckCircle2, Circle, WrenchIcon, AlertTriangle, LayoutDashboard, FileCode2,
-  KeyRound, Shield, Download, X as XIcon,
+  KeyRound, Shield, Download, X as XIcon, BarChart2, RefreshCw,
+  Globe, TrendingUp,
 } from "lucide-react";
+import {
+  PieChart, Pie, Cell, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -707,6 +712,65 @@ export default function Network() {
   // IP Pool dialog
   const [poolDialog, setPoolDialog] = useState<{ open: boolean; id?: number; initial?: IpPoolFormData }>({ open: false });
 
+  // ── Traffic Analysis state ─────────────────────────────────────────────────
+  type TopDomain  = { domain: string; category: string; totalHits: number; lastSeen: string };
+  type CatTotal   = { category: string; totalHits: number; uniqueDomains: number };
+  type DailyPoint = { date: string; totalHits: number; uniqueDomains: number };
+  type TrafficData = { topDomains: TopDomain[]; categoryTotals: CatTotal[]; dailyTrend: DailyPoint[] };
+
+  const TRAFFIC_RANGES = [
+    { label: "Today", days: 0 },
+    { label: "7D",    days: 7 },
+    { label: "30D",   days: 30 },
+    { label: "3M",    days: 90 },
+  ] as const;
+  type TrafRangeLabel = typeof TRAFFIC_RANGES[number]["label"];
+
+  const CAT_COLORS: Record<string, string> = {
+    streaming:    "#ef4444",
+    social:       "#3b82f6",
+    search:       "#10b981",
+    conferencing: "#8b5cf6",
+    vpn:          "#f59e0b",
+    cloud:        "#06b6d4",
+    software:     "#6366f1",
+    finance:      "#84cc16",
+    gaming:       "#ec4899",
+    education:    "#14b8a6",
+    development:  "#f97316",
+    news:         "#a78bfa",
+    other:        "#9ca3af",
+  };
+
+  const [trafRange,     setTrafRange]     = useState<TrafRangeLabel>("7D");
+  const [trafRouter,    setTrafRouter]    = useState<string>("all");
+  const [trafData,      setTrafData]      = useState<TrafficData | null>(null);
+  const [loadingTraf,   setLoadingTraf]   = useState(false);
+  const trafAbort = useRef<AbortController | null>(null);
+
+  const fetchTraffic = useCallback(async (range: TrafRangeLabel, routerId: string) => {
+    trafAbort.current?.abort();
+    const ctrl = new AbortController();
+    trafAbort.current = ctrl;
+    setLoadingTraf(true);
+    try {
+      const days = TRAFFIC_RANGES.find(r => r.label === range)?.days ?? 7;
+      const now  = new Date();
+      const to   = now.toISOString().slice(0, 10);
+      const from = days === 0
+        ? to
+        : (() => { const d = new Date(now); d.setDate(d.getDate() - days); return d.toISOString().slice(0, 10); })();
+      const params = new URLSearchParams({ from, to });
+      if (routerId !== "all") params.set("routerId", routerId);
+      const r = await fetch(`/api/network/traffic?${params}`, { signal: ctrl.signal });
+      if (r.ok) setTrafData(await r.json());
+    } catch { /* aborted */ } finally {
+      setLoadingTraf(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchTraffic(trafRange, trafRouter); }, [trafRange, trafRouter, fetchTraffic]);
+
   const handleDeleteRouter = async (id: number) => {
     if (!confirm("Delete this router?")) return;
     await deleteRouter.mutateAsync({ id });
@@ -754,6 +818,9 @@ export default function Network() {
           </TabsTrigger>
           <TabsTrigger value="hotspot" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Wifi className="w-4 h-4" /> Hotspot
+          </TabsTrigger>
+          <TabsTrigger value="traffic" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <BarChart2 className="w-4 h-4" /> Traffic Analysis
           </TabsTrigger>
         </TabsList>
 
@@ -1164,6 +1231,188 @@ export default function Network() {
               </div>
             )}
           </div>
+        </TabsContent>
+
+        {/* ── TRAFFIC ANALYSIS ────────────────────────────────────────────── */}
+        <TabsContent value="traffic" className="mt-6 space-y-5">
+          {/* Controls */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              {(["Today","7D","30D","3M"] as const).map(r => (
+                <button
+                  key={r}
+                  onClick={() => setTrafRange(r)}
+                  className={`text-xs font-medium px-2.5 py-1.5 rounded-md transition-colors ${
+                    trafRange === r ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >{r}</button>
+              ))}
+            </div>
+            <select
+              value={trafRouter}
+              onChange={e => setTrafRouter(e.target.value)}
+              className="border border-gray-200 rounded-md px-2.5 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Routers</option>
+              {(routersData ?? []).filter(r => r.routerType === "routeros").map(r => (
+                <option key={r.id} value={String(r.id)}>{r.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => fetchTraffic(trafRange, trafRouter)}
+              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 border border-gray-200 bg-white rounded-md px-2.5 py-1.5 transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingTraf ? "animate-spin" : ""}`} /> Refresh
+            </button>
+            <p className="ml-auto text-xs text-gray-400">
+              DNS cache polled every 5 min from RouterOS devices
+            </p>
+          </div>
+
+          {!trafData || (trafData.topDomains.length === 0 && trafData.categoryTotals.length === 0) ? (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center">
+              <Globe className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">No traffic data yet</p>
+              <p className="text-sm text-gray-400 mt-1">
+                DNS observations are collected automatically from RouterOS devices every 5 minutes.<br />
+                Data will appear here after the first poll cycle.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+
+              {/* Category breakdown pie + bar */}
+              <div className="xl:col-span-1 space-y-5">
+                {/* Pie chart */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                  <h3 className="font-semibold text-gray-900 text-sm mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-blue-500" /> Traffic by Category
+                  </h3>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={trafData.categoryTotals}
+                        dataKey="totalHits"
+                        nameKey="category"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        label={({ category, percent }) =>
+                          percent > 0.04 ? `${category} ${(percent * 100).toFixed(0)}%` : ""
+                        }
+                        labelLine={false}
+                      >
+                        {trafData.categoryTotals.map(entry => (
+                          <Cell
+                            key={entry.category}
+                            fill={CAT_COLORS[entry.category] ?? "#9ca3af"}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(v: number, name: string) => [v.toLocaleString(), name]}
+                        contentStyle={{ fontSize: 11 }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Legend */}
+                  <div className="mt-3 space-y-1">
+                    {trafData.categoryTotals.slice(0, 8).map(c => (
+                      <div key={c.category} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{ background: CAT_COLORS[c.category] ?? "#9ca3af" }}
+                          />
+                          <span className="capitalize text-gray-700">{c.category}</span>
+                          <span className="text-gray-400">({c.uniqueDomains} sites)</span>
+                        </div>
+                        <span className="font-medium text-gray-600">{c.totalHits.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Daily trend bar chart */}
+                {trafData.dailyTrend.length > 1 && (
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                    <h3 className="font-semibold text-gray-900 text-sm mb-4">Daily Activity</h3>
+                    <ResponsiveContainer width="100%" height={140}>
+                      <BarChart data={trafData.dailyTrend} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="date" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
+                        <YAxis tick={{ fontSize: 9 }} />
+                        <Tooltip
+                          formatter={(v: number, name: string) => [v.toLocaleString(), name === "totalHits" ? "DNS queries" : "Unique domains"]}
+                          contentStyle={{ fontSize: 11 }}
+                        />
+                        <Bar dataKey="totalHits" name="DNS queries" fill="#3b82f6" radius={[2,2,0,0]} />
+                        <Bar dataKey="uniqueDomains" name="Unique domains" fill="#10b981" radius={[2,2,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
+              {/* Top domains table */}
+              <div className="xl:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-blue-500" /> Top Domains
+                  </h3>
+                  <span className="text-xs text-gray-400">{trafData.topDomains.length} domains</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100 text-left text-[11px] text-gray-500 uppercase">
+                        <th className="px-4 py-3 font-medium w-8">#</th>
+                        <th className="px-4 py-3 font-medium">Domain</th>
+                        <th className="px-4 py-3 font-medium">Category</th>
+                        <th className="px-4 py-3 font-medium text-right">Hits</th>
+                        <th className="px-4 py-3 font-medium text-right">Bar</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trafData.topDomains.map((d, i) => {
+                        const maxHits = trafData.topDomains[0]?.totalHits ?? 1;
+                        const pct = Math.round((d.totalHits / maxHits) * 100);
+                        return (
+                          <tr key={d.domain} className={`border-b border-gray-50 ${i % 2 === 0 ? "bg-white" : "bg-gray-50/30"}`}>
+                            <td className="px-4 py-2.5 text-gray-400 font-mono">{i + 1}</td>
+                            <td className="px-4 py-2.5 font-mono text-gray-800 truncate max-w-[220px]">{d.domain}</td>
+                            <td className="px-4 py-2.5">
+                              <span
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium capitalize"
+                                style={{
+                                  background: (CAT_COLORS[d.category] ?? "#9ca3af") + "22",
+                                  color: CAT_COLORS[d.category] ?? "#6b7280",
+                                }}
+                              >
+                                {d.category}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-medium text-gray-700">{d.totalHits.toLocaleString()}</td>
+                            <td className="px-4 py-2.5 w-28">
+                              <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-all"
+                                  style={{
+                                    width: `${pct}%`,
+                                    background: CAT_COLORS[d.category] ?? "#9ca3af",
+                                  }}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

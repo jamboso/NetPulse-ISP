@@ -34,6 +34,7 @@ import salesRouter from "./sales";
 import radiusRouter from "./radius";
 import vpnRouter from "./vpn";
 import securityEventsRouter from "./security-events";
+import trafficRouter from "./traffic";
 
 const router: IRouter = Router();
 
@@ -83,5 +84,6 @@ router.use(salesRouter);
 router.use(radiusRouter);
 router.use(vpnRouter);
 router.use(securityEventsRouter);
+router.use(trafficRouter);
 
 export default router;

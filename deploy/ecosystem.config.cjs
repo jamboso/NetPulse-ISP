@@ -4,18 +4,28 @@
  *   pm2 start deploy/ecosystem.config.cjs
  *   pm2 save && pm2 startup
  *
- * Note: dotenv is NOT available in PM2's global context, so we parse the
- * .env file inline using Node.js built-ins.
+ * Env loading strategy (belt-and-suspenders):
+ *  1. The CJS module parses /opt/netpulse/.env with Node fs so PM2 can read
+ *     PORT/FRONTEND_DIST_PATH for the env{} block below.
+ *  2. The spawned Node.js 20.6+ process receives --env-file so the runtime
+ *     itself loads DATABASE_URL, BETTER_AUTH_SECRET, etc. natively — no
+ *     third-party dotenv package required.
  */
 
 const fs = require("fs");
 const ENV_FILE = "/opt/netpulse/.env";
+
+// Simple .env parser — no external deps
+const envFromFile = {};
 try {
   fs.readFileSync(ENV_FILE, "utf8")
-    .split("\n")
+    .split(/\r?\n/)
     .forEach((line) => {
-      const m = line.match(/^\s*([^#\s=][^=]*?)\s*=\s*(.*?)\s*$/);
-      if (m) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, "$2");
+      const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)/);
+      if (!m) return;
+      // Strip optional surrounding quotes
+      const val = m[2].replace(/^(['"])(.*)\1$/, "$2");
+      envFromFile[m[1]] = val;
     });
 } catch (_) {}
 
@@ -27,15 +37,12 @@ module.exports = {
       cwd: "/opt/netpulse",
       instances: 1,
       exec_mode: "fork",
-      node_args: "--enable-source-maps",
+      // --env-file lets Node.js 20.6+ natively load .env before the script runs
+      node_args: "--enable-source-maps --env-file /opt/netpulse/.env",
       env: {
         NODE_ENV:           "production",
-        PORT:               process.env.PORT               || "8080",
-        DATABASE_URL:       process.env.DATABASE_URL,
-        SESSION_SECRET:     process.env.SESSION_SECRET,
-        BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
-        BETTER_AUTH_URL:    process.env.BETTER_AUTH_URL,
-        FRONTEND_DIST_PATH: process.env.FRONTEND_DIST_PATH
+        PORT:               envFromFile.PORT               || "8080",
+        FRONTEND_DIST_PATH: envFromFile.FRONTEND_DIST_PATH
                             || "/opt/netpulse/artifacts/isp-portal/dist/public",
       },
       max_restarts:  5,

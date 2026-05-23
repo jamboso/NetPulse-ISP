@@ -29,6 +29,10 @@ APP_PORT="${NETPULSE_PORT:-8080}"
 LOG_FILE="/var/log/netpulse/install.log"
 START_TIME=$(date +%s)
 
+# Detect the real user who invoked sudo (so files are owned by them, not root)
+REAL_USER="${SUDO_USER:-$(logname 2>/dev/null || whoami)}"
+REAL_HOME=$(eval echo "~$REAL_USER")
+
 # ── Colours ───────────────────────────────────────────────────────────────────
 BOLD='\033[1m';    DIM='\033[2m'
 RED='\033[0;31m';  GREEN='\033[0;32m';  YELLOW='\033[1;33m'
@@ -36,6 +40,7 @@ CYAN='\033[0;36m'; BLUE='\033[0;34m';   PURPLE='\033[0;35m'; NC='\033[0m'
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 mkdir -p /var/log/netpulse
+chown "$REAL_USER":"$REAL_USER" /var/log/netpulse
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 # When run via curl | bash, stdin is the pipe — redirect it to the real
@@ -447,16 +452,25 @@ sudo -u postgres psql -d "$DB_NAME" \
 step "Starting application with PM2"
 # ─────────────────────────────────────────────────────────────────────────────
 mkdir -p /var/log/netpulse
+chown "$REAL_USER":"$REAL_USER" /var/log/netpulse
 
-pm2 delete netpulse 2>/dev/null || true
-pm2 start "$APP_DIR/deploy/ecosystem.config.cjs"
-pm2 save --force
+# Ensure the app dir (including dist/) is owned by the real user so they can
+# rebuild without sudo later
+chown -R "$REAL_USER":"$REAL_USER" "$APP_DIR"
 
-# Auto-start on server reboot
-PM2_STARTUP=$(pm2 startup systemd -u root --hp /root 2>/dev/null | tail -1)
-eval "$PM2_STARTUP" 2>/dev/null || true
+# Run PM2 as the real user
+sudo -u "$REAL_USER" pm2 delete netpulse 2>/dev/null || true
+sudo -u "$REAL_USER" pm2 start "$APP_DIR/deploy/ecosystem.config.cjs"
+sudo -u "$REAL_USER" pm2 save --force
 
-ok "NetPulse started with PM2"
+# Auto-start on server reboot (as the real user, not root)
+PM2_STARTUP=$(sudo -u "$REAL_USER" pm2 startup systemd -u "$REAL_USER" --hp "$REAL_HOME" 2>/dev/null \
+  | grep "^sudo " | head -1)
+if [[ -n "$PM2_STARTUP" ]]; then
+  eval "$PM2_STARTUP" 2>/dev/null || true
+fi
+
+ok "NetPulse started with PM2 (user: $REAL_USER)"
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Configuring nginx"
@@ -874,7 +888,7 @@ echo -e "${GREEN}${BOLD}║    2. Run: bash ${APP_DIR}/deploy/update.sh         
 echo -e "${GREEN}${BOLD}║                                                          ║${NC}"
 echo -e "${GREEN}${BOLD}╠══════════════════════════════════════════════════════════╣${NC}"
 echo -e "${GREEN}${BOLD}║  ${NC}${BOLD}Services:${NC}                                                ${GREEN}${BOLD}║${NC}"
-_np_status=$(pm2 jlist 2>/dev/null | python3 -c "import sys,json; procs=json.load(sys.stdin); p=next((x for x in procs if x.get('name')=='netpulse'),None); print(p['pm2_env']['status'] if p else 'unknown')" 2>/dev/null || echo "unknown")
+_np_status=$(sudo -u "$REAL_USER" pm2 jlist 2>/dev/null | python3 -c "import sys,json; procs=json.load(sys.stdin); p=next((x for x in procs if x.get('name')=='netpulse'),None); print(p['pm2_env']['status'] if p else 'unknown')" 2>/dev/null || echo "unknown")
 echo -e "${GREEN}${BOLD}║  ${DIM}  netpulse (PM2)    ${_np_status}${NC}                        ${GREEN}${BOLD}║${NC}"
 echo -e "${GREEN}${BOLD}║  ${DIM}  nginx             $(systemctl is-active nginx 2>/dev/null || echo unknown)${NC}                           ${GREEN}${BOLD}║${NC}"
 echo -e "${GREEN}${BOLD}║  ${DIM}  postgresql        $(systemctl is-active postgresql 2>/dev/null || echo unknown)${NC}                           ${GREEN}${BOLD}║${NC}"

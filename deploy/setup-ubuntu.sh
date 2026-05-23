@@ -205,10 +205,11 @@ else
   ok "Node.js $(node --version) installed"
 fi
 
-# Pin to pnpm 10 — lockfile was generated with pnpm 10 and pnpm 11 changed
-# build-script approval in a way that breaks onlyBuiltDependencies support.
-PNPM_WANT="10"
-PNPM_HAVE=$(pnpm --version 2>/dev/null | cut -d. -f1 || echo "0")
+# Pin to the exact pnpm version used to generate pnpm-lock.yaml.
+# Newer pnpm versions added strict build-script approval (ERR_PNPM_IGNORED_BUILDS)
+# which conflicts with our onlyBuiltDependencies lockfile metadata.
+PNPM_WANT="10.26.1"
+PNPM_HAVE=$(pnpm --version 2>/dev/null || echo "0")
 if [[ "$PNPM_HAVE" != "$PNPM_WANT" ]]; then
   info "Installing pnpm v${PNPM_WANT}..."
   npm install -g pnpm@${PNPM_WANT} --silent

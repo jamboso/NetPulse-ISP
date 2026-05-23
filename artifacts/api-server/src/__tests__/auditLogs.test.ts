@@ -4,6 +4,21 @@ import request from "supertest";
 
 const mockExec = vi.hoisted(() => vi.fn());
 const mockPurge = vi.hoisted(() => vi.fn());
+const mockEq = vi.hoisted(() => vi.fn());
+const mockGte = vi.hoisted(() => vi.fn());
+const mockLte = vi.hoisted(() => vi.fn());
+const mockIlike = vi.hoisted(() => vi.fn());
+const mockAnd = vi.hoisted(() => vi.fn((...args: unknown[]) => args));
+const mockDesc = vi.hoisted(() => vi.fn());
+
+vi.mock("drizzle-orm", () => ({
+  eq: mockEq,
+  gte: mockGte,
+  lte: mockLte,
+  and: mockAnd,
+  desc: mockDesc,
+  ilike: mockIlike,
+}));
 
 vi.mock("@workspace/db", () => {
   const chain: Record<string, unknown> = {};
@@ -41,12 +56,6 @@ vi.mock("@workspace/db", () => {
       deletedCount: {},
       triggeredBy: {},
     },
-    eq: vi.fn(),
-    and: vi.fn((...conds: unknown[]) => conds),
-    gte: vi.fn(),
-    lte: vi.fn(),
-    desc: vi.fn(),
-    ilike: vi.fn(),
   };
 });
 
@@ -55,6 +64,7 @@ vi.mock("../lib/auditLogPurge.js", () => ({
 }));
 
 const { default: auditLogsRouter } = await import("../routes/audit-logs.js");
+const { auditLogsTable } = await import("@workspace/db");
 
 type MockUser = {
   id: string;
@@ -260,6 +270,166 @@ describe("GET /audit-logs/export.csv", () => {
     const res = await request(buildApp()).get("/audit-logs/export.csv?entityType=customer");
 
     expect(res.status).toBe(200);
+  });
+
+  it("CSV header row contains all seven required columns", async () => {
+    mockExec.mockResolvedValueOnce([]);
+
+    const res = await request(buildApp()).get("/audit-logs/export.csv");
+
+    expect(res.status).toBe(200);
+    const headerLine = res.text.split("\r\n")[0];
+    expect(headerLine).toBe("Timestamp,User Email,User ID,Action,Entity Type,Entity ID,Diff Summary");
+  });
+
+  it("data row fields match the seeded log values", async () => {
+    const ts = "2025-01-15T10:00:00.000Z";
+    const log = {
+      ...sampleLog,
+      userId: "u42",
+      userEmail: "ops@acme.com",
+      action: "update",
+      entityType: "subscription",
+      entityId: 99,
+      diff: null,
+      createdAt: ts,
+    };
+    mockExec.mockResolvedValueOnce([log]);
+
+    const res = await request(buildApp()).get("/audit-logs/export.csv");
+
+    expect(res.status).toBe(200);
+    const lines = res.text.split("\r\n").filter(Boolean);
+    expect(lines).toHaveLength(2);
+
+    const dataLine = lines[1];
+    expect(dataLine).toContain(ts);
+    expect(dataLine).toContain("ops@acme.com");
+    expect(dataLine).toContain("u42");
+    expect(dataLine).toContain("update");
+    expect(dataLine).toContain("subscription");
+    expect(dataLine).toContain("99");
+  });
+
+  it("multiple seeded rows produce matching number of data lines", async () => {
+    const log2 = { ...sampleLog, id: 2, userEmail: "b@test.com", action: "delete", entityId: 7 };
+    mockExec.mockResolvedValueOnce([sampleLog, log2]);
+
+    const res = await request(buildApp()).get("/audit-logs/export.csv");
+
+    expect(res.status).toBe(200);
+    const dataLines = res.text.split("\r\n").filter(Boolean).slice(1);
+    expect(dataLines).toHaveLength(2);
+    expect(res.text).toContain("admin@test.com");
+    expect(res.text).toContain("b@test.com");
+  });
+
+  it("escapes commas in values by wrapping the field in double-quotes", async () => {
+    const logWithComma = {
+      ...sampleLog,
+      diff: { before: { note: "hello, world" }, after: { note: "goodbye" } },
+    };
+    mockExec.mockResolvedValueOnce([logWithComma]);
+
+    const res = await request(buildApp()).get("/audit-logs/export.csv");
+
+    expect(res.status).toBe(200);
+    const dataLine = res.text.split("\r\n").filter(Boolean)[1]!;
+    expect(dataLine).toMatch(/^[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,".*"$/);
+  });
+
+  it("escapes double-quotes in values by doubling them per RFC 4180", async () => {
+    const logWithQuote = {
+      ...sampleLog,
+      diff: 'he said "hello"',
+    };
+    mockExec.mockResolvedValueOnce([logWithQuote]);
+
+    const res = await request(buildApp()).get("/audit-logs/export.csv");
+
+    expect(res.status).toBe(200);
+    const dataLine = res.text.split("\r\n").filter(Boolean)[1]!;
+    expect(dataLine).toContain('"he said ""hello"""');
+  });
+
+  it("prefixes formula-injection characters with a single quote", async () => {
+    const logWithFormula = {
+      ...sampleLog,
+      action: "=SUM(A1)",
+    };
+    mockExec.mockResolvedValueOnce([logWithFormula]);
+
+    const res = await request(buildApp()).get("/audit-logs/export.csv");
+
+    expect(res.status).toBe(200);
+    const dataLine = res.text.split("\r\n").filter(Boolean)[1]!;
+    const fields = dataLine.split(",");
+    expect(fields[3]).toBe("'=SUM(A1)");
+  });
+
+  it("diff summary shows before→after only for changed fields", async () => {
+    const logDiff = {
+      ...sampleLog,
+      diff: { before: { status: "active", speed: "10Mbps" }, after: { status: "suspended", speed: "10Mbps" } },
+    };
+    mockExec.mockResolvedValueOnce([logDiff]);
+
+    const res = await request(buildApp()).get("/audit-logs/export.csv");
+
+    expect(res.status).toBe(200);
+    const dataLine = res.text.split("\r\n").filter(Boolean)[1]!;
+    expect(dataLine).toContain("status");
+    expect(dataLine).toContain("active");
+    expect(dataLine).toContain("suspended");
+    expect(dataLine).not.toContain("speed");
+  });
+
+  it("builds eq predicate for action filter", async () => {
+    mockExec.mockResolvedValueOnce([sampleLog]);
+
+    await request(buildApp()).get("/audit-logs/export.csv?action=create");
+
+    expect(mockEq).toHaveBeenCalledWith(auditLogsTable.action, "create");
+  });
+
+  it("builds gte/lte predicates for date-range filters", async () => {
+    mockExec.mockResolvedValueOnce([sampleLog]);
+
+    await request(buildApp()).get(
+      "/audit-logs/export.csv?from=2025-01-01&to=2025-12-31",
+    );
+
+    expect(mockGte).toHaveBeenCalledWith(auditLogsTable.createdAt, expect.any(Date));
+    expect(mockLte).toHaveBeenCalledWith(auditLogsTable.createdAt, expect.any(Date));
+  });
+
+  it("builds predicates for combined filters (entityType + action + from/to)", async () => {
+    mockExec.mockResolvedValueOnce([sampleLog]);
+
+    const res = await request(buildApp()).get(
+      "/audit-logs/export.csv?entityType=customer&action=create&from=2025-01-01&to=2025-12-31",
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toMatch(/text\/csv/);
+    expect(mockEq).toHaveBeenCalledWith(auditLogsTable.entityType, "customer");
+    expect(mockEq).toHaveBeenCalledWith(auditLogsTable.action, "create");
+    expect(mockGte).toHaveBeenCalledWith(auditLogsTable.createdAt, expect.any(Date));
+    expect(mockLte).toHaveBeenCalledWith(auditLogsTable.createdAt, expect.any(Date));
+    expect(mockAnd).toHaveBeenCalled();
+  });
+
+  it("returns empty CSV with only header when no rows match filters", async () => {
+    mockExec.mockResolvedValueOnce([]);
+
+    const res = await request(buildApp()).get(
+      "/audit-logs/export.csv?entityType=nonexistent",
+    );
+
+    expect(res.status).toBe(200);
+    const lines = res.text.split("\r\n").filter(Boolean);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toBe("Timestamp,User Email,User ID,Action,Entity Type,Entity ID,Diff Summary");
   });
 });
 

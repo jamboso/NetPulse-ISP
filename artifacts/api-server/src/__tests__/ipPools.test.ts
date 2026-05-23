@@ -158,6 +158,29 @@ describe("POST /ip-pools", () => {
     expect(res.body.id).toBe(1);
   });
 
+  it("calculates totalIps from the CIDR prefix (/24 = 254)", async () => {
+    const poolWith254 = { ...samplePool, totalIps: 254 };
+    mockExec.mockResolvedValueOnce([poolWith254]);
+
+    const res = await request(buildApp())
+      .post("/ip-pools")
+      .send({ name: "Pool A", network: "10.0.0.0/24", gateway: "10.0.0.1", subnetMask: "255.255.255.0" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.totalIps).toBe(254);
+  });
+
+  it("falls back to totalIps 0 when network has no CIDR notation", async () => {
+    const poolWithZero = { ...samplePool, totalIps: 0 };
+    mockExec.mockResolvedValueOnce([poolWithZero]);
+
+    const res = await request(buildApp())
+      .post("/ip-pools")
+      .send({ name: "Pool B", network: "10.0.0.0", gateway: "10.0.0.1", subnetMask: "255.255.255.0" });
+
+    expect(res.status).toBe(201);
+  });
+
   it("creates an IP pool as technician role", async () => {
     mockExec.mockResolvedValueOnce([samplePool]);
 

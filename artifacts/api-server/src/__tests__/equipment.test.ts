@@ -123,6 +123,58 @@ describe("GET /equipment", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
   });
+
+  it("filters by status query param", async () => {
+    mockExec.mockResolvedValueOnce([
+      { ...sampleEquipment, status: "online" },
+      { ...sampleEquipment, id: 2, status: "offline" },
+    ]);
+
+    const res = await request(buildApp()).get("/equipment?status=online");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].status).toBe("online");
+  });
+
+  it("filters by type query param", async () => {
+    mockExec.mockResolvedValueOnce([
+      { ...sampleEquipment, type: "router" },
+      { ...sampleEquipment, id: 2, type: "switch" },
+    ]);
+
+    const res = await request(buildApp()).get("/equipment?type=router");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].type).toBe("router");
+  });
+
+  it("applies both status and type filters simultaneously", async () => {
+    mockExec.mockResolvedValueOnce([
+      { ...sampleEquipment, type: "router", status: "online" },
+      { ...sampleEquipment, id: 2, type: "switch", status: "online" },
+      { ...sampleEquipment, id: 3, type: "router", status: "offline" },
+    ]);
+
+    const res = await request(buildApp()).get("/equipment?type=router&status=online");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].type).toBe("router");
+    expect(res.body[0].status).toBe("online");
+  });
+
+  it("returns empty array when no equipment matches the filter", async () => {
+    mockExec.mockResolvedValueOnce([
+      { ...sampleEquipment, status: "offline" },
+    ]);
+
+    const res = await request(buildApp()).get("/equipment?status=online");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(0);
+  });
 });
 
 describe("GET /equipment/:id", () => {

@@ -476,6 +476,72 @@ describe("PATCH /tickets/:id", () => {
 // PATCH /tickets/:id — validation
 // ---------------------------------------------------------------------------
 
+describe("PATCH /tickets/:id — field updates", () => {
+  it("updates subject and description fields", async () => {
+    const updated = { ...sampleTicket, subject: "New subject", description: "New description" };
+    mockExec.mockResolvedValueOnce([updated]);
+
+    const res = await request(buildApp())
+      .patch("/tickets/1")
+      .send({ subject: "New subject", description: "New description" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.subject).toBe("New subject");
+    expect(res.body.description).toBe("New description");
+  });
+
+  it("updates priority field", async () => {
+    const updated = { ...sampleTicket, priority: "high" };
+    mockExec.mockResolvedValueOnce([updated]);
+
+    const res = await request(buildApp())
+      .patch("/tickets/1")
+      .send({ priority: "high" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.priority).toBe("high");
+  });
+
+  it("updates category and assignedTo fields", async () => {
+    const updated = { ...sampleTicket, category: "billing", assignedTo: "agent1" };
+    mockExec.mockResolvedValueOnce([updated]);
+
+    const res = await request(buildApp())
+      .patch("/tickets/1")
+      .send({ category: "billing", assignedTo: "agent1" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.category).toBe("billing");
+    expect(res.body.assignedTo).toBe("agent1");
+  });
+
+  it("updates resolvedAt field explicitly", async () => {
+    const resolvedAt = new Date().toISOString();
+    const updated = { ...sampleTicket, resolvedAt };
+    mockExec.mockResolvedValueOnce([updated]);
+
+    const res = await request(buildApp())
+      .patch("/tickets/1")
+      .send({ resolvedAt });
+
+    expect(res.status).toBe(200);
+    expect(res.body.resolvedAt).toBe(resolvedAt);
+  });
+
+  it("clears category and assignedTo with null", async () => {
+    const updated = { ...sampleTicket, category: null, assignedTo: null };
+    mockExec.mockResolvedValueOnce([updated]);
+
+    const res = await request(buildApp())
+      .patch("/tickets/1")
+      .send({ category: null, assignedTo: null });
+
+    expect(res.status).toBe(200);
+    expect(res.body.category).toBeNull();
+    expect(res.body.assignedTo).toBeNull();
+  });
+});
+
 describe("PATCH /tickets/:id — validation", () => {
   it("returns 400 when status is an invalid enum value", async () => {
     const res = await request(buildApp())

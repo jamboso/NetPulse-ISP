@@ -388,7 +388,7 @@ export default function Subscriptions() {
       </div>
 
       {dialog.open && (
-        <SubscriptionDialog open={dialog.open} onClose={() => setDialog({ open: false })} initial={dialog.initial} subId={dialog.id} />
+        <SubscriptionDialog key={dialog.open ? (dialog.id ?? "new") : "closed"} open={dialog.open} onClose={() => setDialog({ open: false })} initial={dialog.initial} subId={dialog.id} />
       )}
     </div>
     </TooltipProvider>

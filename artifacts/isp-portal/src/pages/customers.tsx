@@ -496,6 +496,7 @@ export default function Customers() {
       </div>
 
       <CustomerDialog
+        key={dialog.open ? (dialog.id ?? "new") : "closed"}
         open={dialog.open}
         onClose={() => setDialog({ open: false })}
         initial={dialog.initial}

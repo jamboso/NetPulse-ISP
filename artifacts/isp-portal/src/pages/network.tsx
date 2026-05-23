@@ -1492,18 +1492,21 @@ export default function Network() {
 
       {/* Dialogs */}
       <RouterDialog
+        key={routerDialog.open ? (routerDialog.id ?? "new") : "closed"}
         open={routerDialog.open}
         onClose={() => setRouterDialog({ open: false })}
         initial={routerDialog.initial}
         routerId={routerDialog.id}
       />
       <EquipmentDialog
+        key={equipDialog.open ? (equipDialog.id ?? "new") : "closed"}
         open={equipDialog.open}
         onClose={() => setEquipDialog({ open: false })}
         initial={equipDialog.initial}
         equipmentId={equipDialog.id}
       />
       <IpPoolDialog
+        key={poolDialog.open ? (poolDialog.id ?? "new") : "closed"}
         open={poolDialog.open}
         onClose={() => setPoolDialog({ open: false })}
         initial={poolDialog.initial}

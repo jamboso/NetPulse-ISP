@@ -339,7 +339,7 @@ export default function Tickets() {
         </div>
       </div>
 
-      <TicketDialog open={dialog.open} onClose={() => setDialog({ open: false })} initial={dialog.initial} ticketId={dialog.id} />
+      <TicketDialog key={dialog.open ? (dialog.id ?? "new") : "closed"} open={dialog.open} onClose={() => setDialog({ open: false })} initial={dialog.initial} ticketId={dialog.id} />
     </div>
   );
 }

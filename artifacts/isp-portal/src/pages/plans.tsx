@@ -302,7 +302,7 @@ export default function Plans() {
         )}
       </div>
 
-      <PlanDialog open={dialog.open} onClose={() => setDialog({ open: false })} initial={dialog.initial} planId={dialog.id} />
+      <PlanDialog key={dialog.open ? (dialog.id ?? "new") : "closed"} open={dialog.open} onClose={() => setDialog({ open: false })} initial={dialog.initial} planId={dialog.id} />
     </div>
   );
 }

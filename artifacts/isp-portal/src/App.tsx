@@ -4,6 +4,7 @@ import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 
 import { queryClient } from "./lib/queryClient";
 import { useSession, signOut } from "./lib/authClient";
+import { Toaster } from "./components/ui/toaster";
 import Layout from "./components/layout";
 import { RoleRoute } from "./components/RoleRoute";
 
@@ -168,6 +169,7 @@ export default function App() {
     <WouterRouter base={basePath}>
       <QueryClientProvider client={queryClient}>
         <AppRouter />
+        <Toaster />
       </QueryClientProvider>
     </WouterRouter>
   );

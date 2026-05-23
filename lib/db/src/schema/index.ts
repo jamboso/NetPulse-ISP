@@ -22,4 +22,5 @@ export * from "./auditPurgeLog";
 export * from "./radius";
 export * from "./vpnConfigs";
 export * from "./securityEvents";
+export * from "./blockedIps";
 export * from "./dnsObservations";

@@ -48,6 +48,7 @@ import type {
   IpPoolUpdate,
   ListAuditLogs200,
   ListAuditLogsParams,
+  ListBlockedIps200,
   ListCustomersParams,
   ListEquipmentParams,
   ListInvoicesParams,
@@ -86,6 +87,7 @@ import type {
   TicketReply,
   TicketReplyInput,
   TicketUpdate,
+  UnblockIp200,
   UpdateUserInput,
   UsageSnapshotBatch,
   VpnConfig,
@@ -5802,4 +5804,151 @@ export function useExportSecurityEventsCsv<TData = Awaited<ReturnType<typeof exp
 
 
 
+
+export const getListBlockedIpsUrl = () => {
+
+
+
+
+  return `/api/blocked-ips`
+}
+
+/**
+ * @summary List currently auto-blocked IP addresses (admin only)
+ */
+export const listBlockedIps = async ( options?: RequestInit): Promise<ListBlockedIps200> => {
+
+  return customFetch<ListBlockedIps200>(getListBlockedIpsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBlockedIpsQueryKey = () => {
+    return [
+    `/api/blocked-ips`
+    ] as const;
+    }
+
+
+export const getListBlockedIpsQueryOptions = <TData = Awaited<ReturnType<typeof listBlockedIps>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBlockedIps>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBlockedIpsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBlockedIps>>> = ({ signal }) => listBlockedIps({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBlockedIps>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBlockedIpsQueryResult = NonNullable<Awaited<ReturnType<typeof listBlockedIps>>>
+export type ListBlockedIpsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List currently auto-blocked IP addresses (admin only)
+ */
+
+export function useListBlockedIps<TData = Awaited<ReturnType<typeof listBlockedIps>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBlockedIps>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBlockedIpsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUnblockIpUrl = (ip: string,) => {
+
+
+
+
+  return `/api/blocked-ips/${ip}`
+}
+
+/**
+ * @summary Manually unblock an IP address (admin only)
+ */
+export const unblockIp = async (ip: string, options?: RequestInit): Promise<UnblockIp200> => {
+
+  return customFetch<UnblockIp200>(getUnblockIpUrl(ip),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getUnblockIpMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unblockIp>>, TError,{ip: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unblockIp>>, TError,{ip: string}, TContext> => {
+
+const mutationKey = ['unblockIp'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unblockIp>>, {ip: string}> = (props) => {
+          const {ip} = props ?? {};
+
+          return  unblockIp(ip,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnblockIpMutationResult = NonNullable<Awaited<ReturnType<typeof unblockIp>>>
+
+    export type UnblockIpMutationError = ErrorType<void>
+
+    /**
+ * @summary Manually unblock an IP address (admin only)
+ */
+export const useUnblockIp = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unblockIp>>, TError,{ip: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unblockIp>>,
+        TError,
+        {ip: string},
+        TContext
+      > => {
+      return useMutation(getUnblockIpMutationOptions(options));
+    }
 

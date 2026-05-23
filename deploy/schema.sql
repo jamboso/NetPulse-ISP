@@ -513,6 +513,18 @@ CREATE INDEX "radusergroup_username_idx" ON "radusergroup" USING btree ("usernam
 CREATE INDEX "security_events_event_type_idx" ON "security_events" USING btree ("event_type");--> statement-breakpoint
 CREATE INDEX "security_events_created_at_idx" ON "security_events" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "security_events_caller_ip_idx" ON "security_events" USING btree ("caller_ip");--> statement-breakpoint
+CREATE TABLE "blocked_ips" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "ip" text NOT NULL,
+        "blocked_at" timestamp DEFAULT now() NOT NULL,
+        "expires_at" timestamp NOT NULL,
+        "attempt_count" integer DEFAULT 0 NOT NULL,
+        "reason" text NOT NULL,
+        CONSTRAINT "blocked_ips_ip_unique" UNIQUE("ip")
+);
+--> statement-breakpoint
+CREATE INDEX "blocked_ips_ip_idx" ON "blocked_ips" USING btree ("ip");--> statement-breakpoint
+CREATE INDEX "blocked_ips_expires_at_idx" ON "blocked_ips" USING btree ("expires_at");--> statement-breakpoint
 CREATE TABLE "dns_observations" (
         "id" serial PRIMARY KEY NOT NULL,
         "router_id" integer NOT NULL,

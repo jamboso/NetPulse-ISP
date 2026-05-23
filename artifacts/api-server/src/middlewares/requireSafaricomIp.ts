@@ -1,6 +1,26 @@
 import type { Request, Response, NextFunction } from "express";
-import { db, settingsTable, securityEventsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, settingsTable, securityEventsTable, blockedIpsTable } from "@workspace/db";
+import { eq, gte, and, gt } from "drizzle-orm";
+import { sql } from "drizzle-orm";
+
+/**
+ * Number of blocked attempts within the rolling window before an IP is auto-blocked.
+ * Override with MPESA_BLOCK_THRESHOLD env var.
+ */
+const BLOCK_THRESHOLD = parseInt(process.env["MPESA_BLOCK_THRESHOLD"] ?? "10", 10);
+
+/**
+ * Rolling window in milliseconds to count blocked attempts (default: 1 hour).
+ * Override with MPESA_BLOCK_WINDOW_MINUTES env var.
+ */
+const BLOCK_WINDOW_MS =
+  parseInt(process.env["MPESA_BLOCK_WINDOW_MINUTES"] ?? "60", 10) * 60 * 1000;
+
+/**
+ * How long a temporary block lasts in hours (default: 24 hours).
+ * Override with MPESA_BLOCK_DURATION_HOURS env var.
+ */
+const BLOCK_DURATION_HOURS = parseInt(process.env["MPESA_BLOCK_DURATION_HOURS"] ?? "24", 10);
 
 /**
  * Safaricom's published outbound IP ranges for Daraja API callbacks.
@@ -111,6 +131,30 @@ async function fetchAllowList(): Promise<ParsedCidr[] | "*"> {
 }
 
 /**
+ * Check whether the given IP is currently in the temporary block list.
+ * Returns the blocked_ips row if the IP is blocked and the block has not expired,
+ * or null if the IP is not blocked.
+ */
+async function getActiveBlock(ip: string) {
+  try {
+    const now = new Date();
+    const rows = await db
+      .select()
+      .from(blockedIpsTable)
+      .where(
+        and(
+          eq(blockedIpsTable.ip, ip),
+          gt(blockedIpsTable.expiresAt, now)
+        )
+      )
+      .limit(1);
+    return rows[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Persist a blocked callback attempt to the security_events table.
  * Failures are swallowed so a DB hiccup never affects the 403 response.
  */
@@ -133,11 +177,65 @@ async function recordBlockedAttempt(
 }
 
 /**
+ * After recording a blocked attempt, count how many blocked_callback events
+ * came from this IP within the rolling window. If the count reaches the
+ * threshold, insert or refresh an auto-block entry in blocked_ips.
+ */
+async function maybeAutoBlock(req: Request, callerIp: string): Promise<void> {
+  try {
+    const since = new Date(Date.now() - BLOCK_WINDOW_MS);
+
+    const [row] = await db
+      .select({ count: sql<number>`cast(count(*) as integer)` })
+      .from(securityEventsTable)
+      .where(
+        and(
+          eq(securityEventsTable.callerIp, callerIp),
+          eq(securityEventsTable.eventType, "blocked_callback"),
+          gte(securityEventsTable.createdAt, since)
+        )
+      );
+
+    const count = row?.count ?? 0;
+
+    if (count >= BLOCK_THRESHOLD) {
+      const expiresAt = new Date(Date.now() + BLOCK_DURATION_HOURS * 60 * 60 * 1000);
+      const reason = `Auto-blocked: ${count} blocked attempts in the last ${Math.round(BLOCK_WINDOW_MS / 60000)} minutes`;
+
+      await db
+        .insert(blockedIpsTable)
+        .values({ ip: callerIp, expiresAt, attemptCount: count, reason })
+        .onConflictDoUpdate({
+          target: blockedIpsTable.ip,
+          set: {
+            blockedAt: new Date(),
+            expiresAt,
+            attemptCount: count,
+            reason,
+          },
+        });
+
+      req.log.warn(
+        { callerIp, count, expiresAt },
+        "M-Pesa callback: IP auto-blocked after repeated forged attempts"
+      );
+    }
+  } catch {
+    // Non-fatal — auto-blocking failure should not affect the 403 response
+  }
+}
+
+/**
  * Express middleware that restricts access to Safaricom's known IP ranges.
  *
  * Reads the caller IP from `req.ip` (which respects `app.set("trust proxy")`).
  * Responds with 403 and logs a warning if the IP is not in the allow-list.
  * Also writes a record to the `security_events` table for admin visibility.
+ *
+ * Additionally, if an IP accumulates ≥ BLOCK_THRESHOLD blocked attempts within
+ * BLOCK_WINDOW_MS, it is automatically added to the `blocked_ips` table and
+ * rejected immediately on subsequent requests until BLOCK_DURATION_HOURS elapses
+ * (or until an admin manually unblocks it).
  *
  * Priority for allowed ranges (highest wins):
  *   1. `mpesaAllowedIps` setting in the DB (editable via Settings → M-Pesa Security)
@@ -151,6 +249,22 @@ export async function requireSafaricomIp(
   res: Response,
   next: NextFunction
 ): Promise<void> {
+  const raw = req.ip ?? "";
+  const callerIp = normalizeIp(raw);
+
+  // Check auto-block list first (fast path — avoids allowlist DB lookup for repeat offenders)
+  const activeBlock = await getActiveBlock(callerIp);
+  if (activeBlock) {
+    req.log.warn(
+      { callerIp, expiresAt: activeBlock.expiresAt },
+      "M-Pesa callback rejected: IP is temporarily blocked"
+    );
+    res.status(403).json({
+      error: "Forbidden: IP temporarily blocked due to repeated forged callback attempts",
+    });
+    return;
+  }
+
   const allowList = await fetchAllowList();
 
   if (allowList === "*") {
@@ -158,14 +272,13 @@ export async function requireSafaricomIp(
     return;
   }
 
-  const raw = req.ip ?? "";
-  const callerIp = normalizeIp(raw);
-
   const allowed = allowList.some((cidr) => ipInCidr(callerIp, cidr));
 
   if (!allowed) {
     req.log.warn({ callerIp }, "M-Pesa callback rejected: IP not in Safaricom allowlist");
     await recordBlockedAttempt(req, callerIp, "IP not in Safaricom allowlist");
+    // Fire auto-block check asynchronously — don't delay the 403 response
+    maybeAutoBlock(req, callerIp).catch(() => {});
     res.status(403).json({ error: "Forbidden: request origin not permitted" });
     return;
   }

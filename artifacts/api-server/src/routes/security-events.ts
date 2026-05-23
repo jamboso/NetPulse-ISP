@@ -3,6 +3,9 @@ import { db, securityEventsTable } from "@workspace/db";
 import { desc, gte, lt, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 
+/** Mirrors the threshold constant from requireSafaricomIp — keep in sync. */
+const IP_BLOCK_THRESHOLD = parseInt(process.env["MPESA_BLOCK_THRESHOLD"] ?? "10", 10);
+
 const router = Router();
 
 /** GET /security-events — paginated list of blocked callback attempts */
@@ -38,7 +41,7 @@ router.get("/security-events/summary", requireRole("admin"), async (req, res) =>
 
   res.json({
     blockedLast24h: last24h?.count ?? 0,
-    threshold: 5,
+    threshold: IP_BLOCK_THRESHOLD,
     totalCount: total?.count ?? 0,
   });
 });

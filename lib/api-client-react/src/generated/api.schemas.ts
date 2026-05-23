@@ -1183,6 +1183,15 @@ export interface AuditPurgeLog {
   triggeredBy: string;
 }
 
+export interface BlockedIp {
+  id: number;
+  ip: string;
+  blockedAt: string;
+  expiresAt: string;
+  attemptCount: number;
+  reason: string;
+}
+
 export interface SecurityEvent {
   id: number;
   eventType: string;
@@ -1318,5 +1327,14 @@ export type ClearSecurityEventsParams = {
  * @minimum 0
  */
 retentionDays?: number;
+};
+
+export type ListBlockedIps200 = {
+  data: BlockedIp[];
+};
+
+export type UnblockIp200 = {
+  success: boolean;
+  ip: string;
 };
 

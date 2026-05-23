@@ -1558,6 +1558,57 @@ paths:
         "403":
           description: Forbidden — admin role required
 
+  /blocked-ips:
+    get:
+      operationId: listBlockedIps
+      tags: [security-events]
+      summary: List currently auto-blocked IP addresses (admin only)
+      responses:
+        "200":
+          description: List of active blocked IPs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BlockedIp"
+        "403":
+          description: Forbidden — admin role required
+
+  /blocked-ips/{ip}:
+    delete:
+      operationId: unblockIp
+      tags: [security-events]
+      summary: Manually unblock an IP address (admin only)
+      parameters:
+        - in: path
+          name: ip
+          required: true
+          schema:
+            type: string
+          description: The IP address to unblock
+      responses:
+        "200":
+          description: IP successfully unblocked
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, ip]
+                properties:
+                  success:
+                    type: boolean
+                  ip:
+                    type: string
+        "404":
+          description: No active block found for this IP
+        "403":
+          description: Forbidden — admin role required
+
 components:
   schemas:
     EmailResult:
@@ -2939,6 +2990,25 @@ components:
         deletedCount:
           type: integer
         triggeredBy:
+          type: string
+
+    BlockedIp:
+      type: object
+      required: [id, ip, blockedAt, expiresAt, attemptCount, reason]
+      properties:
+        id:
+          type: integer
+        ip:
+          type: string
+        blockedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        attemptCount:
+          type: integer
+        reason:
           type: string
 
     SecurityEvent:

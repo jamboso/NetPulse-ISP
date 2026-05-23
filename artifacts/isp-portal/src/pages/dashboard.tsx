@@ -1,10 +1,10 @@
-import { useGetDashboardSummary, useGetRevenueStats, useGetSubscriptionBreakdown, useGetRecentActivity, useGetRoutersStatus, useGetSecurityEventsSummary, useListSecurityEvents, useClearSecurityEvents, getExportSecurityEventsCsvUrl, type RouterStatus } from "@workspace/api-client-react";
+import { useGetDashboardSummary, useGetRevenueStats, useGetSubscriptionBreakdown, useGetRecentActivity, useGetRoutersStatus, useGetSecurityEventsSummary, useListSecurityEvents, useClearSecurityEvents, getExportSecurityEventsCsvUrl, useListBlockedIps, useUnblockIp, type RouterStatus } from "@workspace/api-client-react";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useEffect, useRef, useState } from "react";
 import {
   Users, CreditCard, AlertTriangle, DollarSign, LifeBuoy,
   ServerCrash, Activity, Wifi, WifiOff, RefreshCw, Clock,
-  ShieldAlert, ShieldCheck, Zap, Download, Trash2,
+  ShieldAlert, ShieldCheck, Zap, Download, Trash2, Ban, Unlock,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -32,11 +32,27 @@ const ROUTER_TYPE_COLORS: Record<string, string> = {
 function BlockedCallbackPanel() {
   const { data: summary, isLoading: loadingSummary, refetch: refetchSummary } = useGetSecurityEventsSummary();
   const { data: events, isLoading: loadingEvents, refetch: refetchEvents } = useListSecurityEvents({ limit: 10 });
+  const { data: blockedIpsData, isLoading: loadingBlocked, refetch: refetchBlocked } = useListBlockedIps();
   const clearMutation = useClearSecurityEvents();
+  const unblockMutation = useUnblockIp();
 
   const [confirmClear, setConfirmClear] = useState(false);
   const [retentionDays, setRetentionDays] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [unblockingIp, setUnblockingIp] = useState<string | null>(null);
+
+  function handleUnblock(ip: string) {
+    setUnblockingIp(ip);
+    unblockMutation.mutate(
+      { ip },
+      {
+        onSettled: () => {
+          setUnblockingIp(null);
+          refetchBlocked();
+        },
+      }
+    );
+  }
 
   const count = summary?.blockedLast24h ?? 0;
   const threshold = summary?.threshold ?? 5;
@@ -180,7 +196,7 @@ function BlockedCallbackPanel() {
         </div>
       )}
 
-      {/* Body */}
+      {/* Body — recent blocked attempts */}
       {loadingEvents ? (
         <div className="p-4 space-y-2">
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full rounded" />)}
@@ -212,6 +228,66 @@ function BlockedCallbackPanel() {
           ))}
         </div>
       )}
+
+      {/* Auto-blocked IPs sub-panel */}
+      <div className="border-t border-gray-200">
+        <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-200">
+          <div className="flex items-center gap-2">
+            <Ban className="w-4 h-4 text-orange-600" />
+            <span className="text-sm font-medium text-gray-800">Auto-Blocked IPs</span>
+            {!loadingBlocked && (blockedIpsData?.data?.length ?? 0) > 0 && (
+              <Badge variant="outline" className="text-xs px-1.5 py-0 bg-orange-50 text-orange-700 border-orange-300">
+                {blockedIpsData!.data.length} active
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-gray-400">Auto-blocks after {summary?.threshold ?? 10} blocked attempts / 1 h → 24 h ban</p>
+        </div>
+
+        {loadingBlocked ? (
+          <div className="p-4 space-y-2">
+            {[1, 2].map((i) => <Skeleton key={i} className="h-9 w-full rounded" />)}
+          </div>
+        ) : !blockedIpsData?.data || blockedIpsData.data.length === 0 ? (
+          <div className="flex items-center gap-2 px-5 py-4 text-gray-400">
+            <ShieldCheck className="w-4 h-4 opacity-40" />
+            <p className="text-sm">No IPs are currently auto-blocked</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {blockedIpsData.data.map((blocked) => {
+              const isUnblocking = unblockingIp === blocked.ip;
+              return (
+                <div key={blocked.id} className="px-5 py-3 flex items-center gap-4 hover:bg-orange-50/40 transition-colors">
+                  <div className="shrink-0 p-1.5 rounded-md bg-orange-50">
+                    <Ban className="w-3.5 h-3.5 text-orange-500" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-900 font-medium">
+                      <code className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">{blocked.ip}</code>
+                      <span className="ml-2 text-xs text-gray-400 font-normal">{blocked.attemptCount} attempts</span>
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Expires {formatDistanceToNow(new Date(blocked.expiresAt), { addSuffix: true })}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1.5 text-orange-700 border-orange-200 hover:bg-orange-50 hover:text-orange-800 shrink-0"
+                    onClick={() => handleUnblock(blocked.ip)}
+                    disabled={isUnblocking}
+                    title="Manually unblock this IP"
+                  >
+                    <Unlock className="w-3 h-3" />
+                    {isUnblocking ? "Unblocking…" : "Unblock"}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1667,3 +1667,31 @@ export const GetSecurityEventsSummaryResponse = zod.object({
 })
 
 
+/**
+ * @summary List currently auto-blocked IP addresses (admin only)
+ */
+export const ListBlockedIpsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.number(),
+  "ip": zod.string(),
+  "blockedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "attemptCount": zod.number(),
+  "reason": zod.string()
+}))
+})
+
+
+/**
+ * @summary Manually unblock an IP address (admin only)
+ */
+export const UnblockIpParams = zod.object({
+  "ip": zod.coerce.string().describe('The IP address to unblock')
+})
+
+export const UnblockIpResponse = zod.object({
+  "success": zod.boolean(),
+  "ip": zod.string()
+})
+
+

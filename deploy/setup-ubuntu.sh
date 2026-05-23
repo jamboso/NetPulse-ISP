@@ -371,7 +371,7 @@ source "$ENV_FILE" 2>/dev/null || true
 set +o allexport
 
 info "Installing Node.js dependencies (this takes ~1-2 minutes)..."
-NETPULSE_INSTALL=1 pnpm install --frozen-lockfile
+NETPULSE_INSTALL=1 pnpm install --no-frozen-lockfile
 
 info "Building shared libraries..."
 pnpm run typecheck:libs

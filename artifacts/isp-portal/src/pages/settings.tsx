@@ -139,17 +139,20 @@ function SendTestEmailButton() {
 function RadiusResyncButton() {
   const [state, setState] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [result, setResult] = useState<{ synced: number; skipped: number } | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const handleSync = async () => {
     setState("loading");
     setResult(null);
+    setSyncError(null);
     try {
       const res = await fetch("/api/admin/radius/sync", { method: "POST", credentials: "include" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setResult({ synced: data.synced, skipped: data.skipped });
       setState("ok");
-    } catch {
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : "Unknown error");
       setState("error");
     }
   };
@@ -174,7 +177,7 @@ function RadiusResyncButton() {
       )}
       {state === "error" && (
         <span className="flex items-center gap-1.5 text-xs text-red-600">
-          <AlertCircle className="w-3.5 h-3.5" /> Sync failed
+          <AlertCircle className="w-3.5 h-3.5" /> Sync failed{syncError ? `: ${syncError}` : ""}
         </span>
       )}
       <span className="text-[11px] text-gray-400">Push all active subscriptions into radcheck/radusergroup</span>

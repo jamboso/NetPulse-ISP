@@ -51,9 +51,15 @@ router.get("/customers/:id/radius-sessions", async (req, res) => {
 });
 
 router.post("/admin/radius/sync", requireRole("admin"), async (req, res) => {
-  const result = await syncAllSubscriptions();
-  req.log.info({ result }, "Manual RADIUS re-sync completed");
-  res.json({ ok: true, ...result });
+  try {
+    const result = await syncAllSubscriptions();
+    req.log.info({ result }, "Manual RADIUS re-sync completed");
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    req.log.error({ err }, "Manual RADIUS re-sync failed");
+    res.status(500).json({ ok: false, error: msg });
+  }
 });
 
 export default router;

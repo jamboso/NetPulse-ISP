@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { useMacVendor } from "@/hooks/useMacVendor";
 import {
   useListEquipment, useCreateEquipment, useUpdateEquipment, useDeleteEquipment,
@@ -13,6 +13,7 @@ import { Link } from "wouter";
 import {
   Plus, Server, Route, Wifi, Pencil, Trash2, ChevronDown,
   CheckCircle2, Circle, WrenchIcon, AlertTriangle, LayoutDashboard, FileCode2,
+  KeyRound, Shield, Download, X as XIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,6 +81,171 @@ function statusDot(status: string) {
   if (status === "offline")     return <Circle className="w-4 h-4 text-red-400" />;
   if (status === "maintenance") return <WrenchIcon className="w-4 h-4 text-orange-400" />;
   return <AlertTriangle className="w-4 h-4 text-gray-400" />;
+}
+
+// ─── Router VPN Panel ─────────────────────────────────────────────────────────
+type RouterVpnEntry = {
+  id: number;
+  routerId: number | null;
+  commonName: string;
+  issuedAt: string;
+  revokedAt: string | null;
+  revokedBy: string | null;
+  connected: boolean;
+  remoteIp: string | null;
+  vpnAvailable: boolean;
+  ovpnConfig?: string;
+};
+
+function RouterVpnPanel({ routerId }: { routerId: number }) {
+  const [loading, setLoading] = useState(true);
+  const [vpnAvailable, setVpnAvailable] = useState(false);
+  const [configs, setConfigs] = useState<RouterVpnEntry[]>([]);
+  const [issuing, setIssuing] = useState(false);
+  const [revoking, setRevoking] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/routers/${routerId}/vpn`, { credentials: "include" });
+      const data = await r.json();
+      setVpnAvailable(data.vpnAvailable);
+      setConfigs(data.configs ?? []);
+    } catch {
+      setError("Failed to load VPN configs");
+    } finally {
+      setLoading(false);
+    }
+  }, [routerId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleIssue = async () => {
+    setIssuing(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/routers/${routerId}/vpn`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!r.ok) {
+        const e = await r.json();
+        setError(e.error ?? "Issue failed");
+        return;
+      }
+      const entry: RouterVpnEntry = await r.json();
+      if (entry.ovpnConfig) {
+        const blob = new Blob([entry.ovpnConfig], { type: "application/x-openvpn-profile" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${entry.commonName}.ovpn`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+      await load();
+    } finally {
+      setIssuing(false);
+    }
+  };
+
+  const handleRevoke = async (configId: number) => {
+    if (!confirm("Revoke this VPN certificate? The router will lose VPN access.")) return;
+    setRevoking(configId);
+    try {
+      await fetch(`/api/routers/${routerId}/vpn/${configId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      await load();
+    } finally {
+      setRevoking(null);
+    }
+  };
+
+  const handleDownload = (configId: number, cn: string) => {
+    const a = document.createElement("a");
+    a.href = `/api/routers/${routerId}/vpn/${configId}/download`;
+    a.download = `${cn}.ovpn`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const activeConfigs = configs.filter(c => !c.revokedAt);
+  const revokedConfigs = configs.filter(c => c.revokedAt);
+
+  return (
+    <div className="px-6 py-4 bg-indigo-50/40 border-t border-indigo-100">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Shield className="w-4 h-4 text-indigo-600" />
+          <span className="text-sm font-medium text-gray-800">VPN Certificates</span>
+          {!vpnAvailable && (
+            <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+              VPN server not configured
+            </Badge>
+          )}
+        </div>
+        {vpnAvailable && (
+          <Button size="sm" variant="outline"
+            className="h-7 text-xs border-indigo-300 text-indigo-700 hover:bg-indigo-100"
+            onClick={handleIssue} disabled={issuing}>
+            {issuing ? "Issuing…" : <><Plus className="w-3 h-3 mr-1" />Issue Cert</>}
+          </Button>
+        )}
+      </div>
+      {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
+      {loading ? (
+        <Skeleton className="h-8 w-full" />
+      ) : activeConfigs.length === 0 && revokedConfigs.length === 0 ? (
+        <p className="text-xs text-gray-400 italic">No VPN certificates issued for this router yet.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {activeConfigs.map(c => (
+            <div key={c.id}
+              className="flex items-center gap-2 bg-white rounded border border-indigo-100 px-3 py-1.5 text-xs">
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${c.connected ? "bg-green-500" : "bg-gray-300"}`} />
+              <code className="text-gray-700 flex-1 truncate">{c.commonName}</code>
+              {c.connected && (
+                <Badge className="bg-green-100 text-green-700 border-green-200 text-[10px] px-1.5 border">
+                  {c.remoteIp ?? "connected"}
+                </Badge>
+              )}
+              <span className="text-gray-400 flex-shrink-0">
+                {new Date(c.issuedAt).toLocaleDateString()}
+              </span>
+              <Button size="icon" variant="ghost" className="h-5 w-5 text-gray-400 hover:text-indigo-600"
+                title="Download .ovpn" onClick={() => handleDownload(c.id, c.commonName)}>
+                <Download className="w-3 h-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-5 w-5 text-gray-400 hover:text-red-600"
+                title="Revoke certificate" onClick={() => handleRevoke(c.id)}
+                disabled={revoking === c.id}>
+                <XIcon className="w-3 h-3" />
+              </Button>
+            </div>
+          ))}
+          {revokedConfigs.length > 0 && (
+            <details className="text-xs text-gray-400 mt-1">
+              <summary className="cursor-pointer hover:text-gray-600 select-none">
+                {revokedConfigs.length} revoked cert{revokedConfigs.length > 1 ? "s" : ""}
+              </summary>
+              <div className="mt-1 space-y-1">
+                {revokedConfigs.map(c => (
+                  <div key={c.id} className="flex items-center gap-2 px-3 py-1 opacity-50">
+                    <code className="flex-1 truncate line-through">{c.commonName}</code>
+                    {c.revokedBy && <span className="flex-shrink-0">by {c.revokedBy}</span>}
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Router Dialog ────────────────────────────────────────────────────────────
@@ -531,6 +697,9 @@ export default function Network() {
   const qc = useQueryClient();
   const { canManageNetwork, canDeleteNetworkRecords } = useCurrentUser();
 
+  // VPN panel expand
+  const [expandedVpn, setExpandedVpn] = useState<number | null>(null);
+
   // Router dialog
   const [routerDialog, setRouterDialog] = useState<{ open: boolean; id?: number; initial?: RouterFormData }>({ open: false });
   // Equipment dialog
@@ -622,7 +791,8 @@ export default function Network() {
                   ))
                 ) : routersData && routersData.length > 0 ? (
                   routersData.map((r) => (
-                    <TableRow key={r.id} className="hover:bg-gray-50/50">
+                    <Fragment key={r.id}>
+                    <TableRow className="hover:bg-gray-50/50">
                       <TableCell>
                         <div className={`w-2 h-2 rounded-full mx-auto ${r.enabled ? "bg-green-500" : "bg-gray-300"}`} />
                       </TableCell>
@@ -666,6 +836,14 @@ export default function Network() {
                               <FileCode2 className="w-3.5 h-3.5" />
                             </Button>
                           )}
+                          {r.routerType === "routeros" && (
+                            <Button variant="ghost" size="icon"
+                              className={`h-7 w-7 ${expandedVpn === r.id ? "text-indigo-600 bg-indigo-50" : "text-gray-500 hover:text-indigo-600"}`}
+                              title="Manage VPN certificates"
+                              onClick={() => setExpandedVpn(expandedVpn === r.id ? null : r.id)}>
+                              <KeyRound className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
                           {canManageNetwork && (
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
                               onClick={() => setRouterDialog({
@@ -693,6 +871,14 @@ export default function Network() {
                         </div>
                       </TableCell>
                     </TableRow>
+                    {expandedVpn === r.id && (
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell colSpan={7} className="p-0 border-b border-indigo-100">
+                          <RouterVpnPanel routerId={r.id} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    </Fragment>
                   ))
                 ) : (
                   <TableRow>

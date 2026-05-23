@@ -82,7 +82,11 @@ router.post("/setup/wizard", async (req, res) => {
 
     return res.json({ success: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Setup failed";
+    // Include the root cause (err.cause) so DB connection errors are visible
+    const cause = (err instanceof Error && err.cause instanceof Error)
+      ? ` — cause: ${err.cause.message}`
+      : "";
+    const msg = (err instanceof Error ? err.message : "Setup failed") + cause;
     return res.status(500).json({ error: msg });
   }
 });

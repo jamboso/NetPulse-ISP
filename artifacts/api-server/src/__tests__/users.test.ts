@@ -309,6 +309,57 @@ describe("PATCH /users/:id", () => {
   });
 });
 
+describe("GET /users — lastActiveAt field", () => {
+  it("returns lastActiveAt when the user has a recent session", async () => {
+    const recentDate = new Date().toISOString();
+    const userWithSession = { ...sampleUser, lastActiveAt: recentDate };
+    mockExec.mockResolvedValueOnce([userWithSession]);
+
+    const res = await request(buildApp()).get("/users");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toHaveProperty("lastActiveAt", recentDate);
+  });
+
+  it("returns lastActiveAt as null when the user has no sessions", async () => {
+    const userNoSession = { ...sampleUser, lastActiveAt: null };
+    mockExec.mockResolvedValueOnce([userNoSession]);
+
+    const res = await request(buildApp()).get("/users");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].lastActiveAt).toBeNull();
+  });
+
+  it("returns lastActiveAt for multiple users with mixed session data", async () => {
+    const recentDate = new Date().toISOString();
+    const users = [
+      { ...sampleUser, id: "u1", lastActiveAt: recentDate },
+      { ...sampleUser, id: "u2", email: "other@example.com", lastActiveAt: null },
+    ];
+    mockExec.mockResolvedValueOnce(users);
+
+    const res = await request(buildApp()).get("/users");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].lastActiveAt).toBe(recentDate);
+    expect(res.body.data[1].lastActiveAt).toBeNull();
+  });
+
+  it("returns lastActiveAt for old sessions (reflects the stored timestamp)", async () => {
+    const oldDate = new Date(Date.now() - 40 * 86_400_000).toISOString();
+    const userOldSession = { ...sampleUser, lastActiveAt: oldDate };
+    mockExec.mockResolvedValueOnce([userOldSession]);
+
+    const res = await request(buildApp()).get("/users");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0]).toHaveProperty("lastActiveAt", oldDate);
+  });
+});
+
 describe("PATCH /users/:id — validation", () => {
   it("returns 400 when role is an invalid enum value", async () => {
     const res = await request(buildApp())

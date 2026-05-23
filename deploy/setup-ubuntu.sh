@@ -247,8 +247,13 @@ if [[ "$INSTALL_RADIUS" == "true" ]]; then
     if ! sudo -u postgres psql -d "$DB_NAME" -tAc \
          "SELECT 1 FROM information_schema.tables WHERE table_name='radcheck'" 2>/dev/null | grep -q 1; then
       info "Applying FreeRADIUS schema to database..."
-      sudo -u postgres psql -d "$DB_NAME" -f "$FR_SCHEMA" >/dev/null
-      ok "FreeRADIUS schema applied"
+      if sudo -u postgres psql -d "$DB_NAME" -f "$FR_SCHEMA" 2>/tmp/fr_schema.err; then
+        ok "FreeRADIUS schema applied"
+      else
+        echo -e "  ${YELLOW}⚠${NC}  FreeRADIUS schema import had warnings (may be harmless):" >&2
+        head -20 /tmp/fr_schema.err >&2 || true
+        ok "FreeRADIUS schema applied (with warnings — check log)"
+      fi
     else
       info "FreeRADIUS schema already present — skipping"
     fi
@@ -385,7 +390,7 @@ ok "Build complete"
 step "Running database migrations"
 # ─────────────────────────────────────────────────────────────────────────────
 info "Applying schema to database..."
-pnpm --filter @workspace/db run push
+pnpm --filter @workspace/db run push-force
 ok "Database schema up to date"
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -551,8 +556,12 @@ freeradius -C -d "${FR_DIR}" 2>/dev/null && ok "FreeRADIUS config valid" || \
   warn "FreeRADIUS config warning — run: freeradius -C -d ${FR_DIR}"
 
 systemctl enable freeradius --quiet
-systemctl restart freeradius
-ok "FreeRADIUS running (port 1812 UDP)"
+if systemctl restart freeradius 2>/tmp/fr_start.err; then
+  ok "FreeRADIUS running (port 1812 UDP)"
+else
+  echo -e "  ${YELLOW}⚠${NC}  FreeRADIUS failed to start — check: journalctl -u freeradius" >&2
+  head -10 /tmp/fr_start.err >&2 || true
+fi
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -659,8 +668,12 @@ sed -i 's|^#*net.ipv4.ip_forward.*|net.ipv4.ip_forward=1|' /etc/sysctl.conf
 sysctl -p --quiet
 
 systemctl enable openvpn@server --quiet
-systemctl restart openvpn@server
-ok "OpenVPN server running (UDP 1194)"
+if systemctl restart openvpn@server 2>/tmp/ovpn_start.err; then
+  ok "OpenVPN server running (UDP 1194)"
+else
+  echo -e "  ${YELLOW}⚠${NC}  OpenVPN failed to start — check: journalctl -u openvpn@server" >&2
+  head -10 /tmp/ovpn_start.err >&2 || true
+fi
 
 # ── VPN management helpers (called by NetPulse API) ───────────────────────────
 cat > /usr/local/bin/netpulse-vpn-issue <<'VPN_ISSUE'

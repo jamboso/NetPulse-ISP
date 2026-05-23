@@ -299,7 +299,8 @@ fi
 if [[ -n "$REPO_URL" ]]; then
   if [[ "$UPGRADE" == "true" ]]; then
     info "Pulling latest changes..."
-    git -C "$APP_DIR" pull origin main
+    git -C "$APP_DIR" fetch origin
+    git -C "$APP_DIR" reset --hard origin/main
   else
     info "Cloning repo to $APP_DIR..."
     git clone "$REPO_URL" "$APP_DIR"

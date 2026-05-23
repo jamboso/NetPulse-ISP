@@ -58,15 +58,15 @@ function parseBytes(s: string | undefined): number {
   return s ? parseInt(s, 10) || 0 : 0;
 }
 
-function enrichInterface(iface: Record<string, string>): Record<string, unknown> {
+function enrichInterface(iface: Record<string, any>): Record<string, unknown> {
   return {
     ...iface,
     txBytes: parseBytes(iface["tx-byte"]),
     rxBytes: parseBytes(iface["rx-byte"]),
     txPackets: parseBytes(iface["tx-packet"]),
     rxPackets: parseBytes(iface["rx-packet"]),
-    running: iface.running === "true",
-    disabled: iface.disabled === "true",
+    running: iface.running === true || iface.running === "true",
+    disabled: iface.disabled === true || iface.disabled === "true",
     comment: iface.comment || "",
   };
 }
@@ -123,7 +123,7 @@ router.get("/routers/:id/ros/live", async (req, res) => {
     bgpRaw, ospfRaw, etherStatsRaw,
   ] = await Promise.all([
     safeGet(ipAddress, ssl, username, password, "/system/resource"),
-    safeGet(ipAddress, ssl, username, password, "/interface?detail"),
+    safeGet(ipAddress, ssl, username, password, "/interface"),
     safeGet(ipAddress, ssl, username, password, "/ppp/active"),
     safeGet(ipAddress, ssl, username, password, "/ip/dhcp-server/lease"),
     safeGet(ipAddress, ssl, username, password, "/ip/address"),
@@ -181,6 +181,38 @@ router.get("/routers/:id/ros/live", async (req, res) => {
     ospfNeighbors: Array.isArray(ospfRaw) ? ospfRaw : [],
     etherStats: Array.isArray(etherStatsRaw) ? etherStatsRaw : [],
   });
+});
+
+// ── Lightweight traffic snapshot (dashboard widget) ───────────────────────────
+
+router.get("/routers/:id/ros/traffic", async (req, res) => {
+  const id = parseInt(req.params.id!);
+  const [r] = await db.select().from(routersTable).where(eq(routersTable.id, id));
+  if (!r) { res.status(404).json({ error: "Router not found" }); return; }
+  if (r.routerType !== "routeros") {
+    res.status(400).json({ error: "RouterOS only" });
+    return;
+  }
+
+  const { ipAddress, username, password } = r;
+  const ssl = r.apiSsl ?? false;
+
+  try {
+    const ifacesRaw = await rosGet(ipAddress, ssl, username, password, "/interface");
+    const interfaces = Array.isArray(ifacesRaw)
+      ? (ifacesRaw as Record<string, any>[]).map(i => ({
+          name: i.name as string,
+          type: (i.type as string) || "ether",
+          running: i.running === true || i.running === "true",
+          disabled: i.disabled === true || i.disabled === "true",
+          txBytes: parseBytes(i["tx-byte"]),
+          rxBytes: parseBytes(i["rx-byte"]),
+        }))
+      : [];
+    res.json({ routerId: id, fetchedAt: new Date().toISOString(), error: null, interfaces });
+  } catch (err: any) {
+    res.json({ routerId: id, fetchedAt: new Date().toISOString(), error: err.message as string, interfaces: [] });
+  }
 });
 
 export default router;

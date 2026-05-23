@@ -1,20 +1,10 @@
 import { useGetDashboardSummary, useGetRevenueStats, useGetSubscriptionBreakdown, useGetRecentActivity, useGetRoutersStatus, useGetSecurityEventsSummary, useListSecurityEvents, type RouterStatus } from "@workspace/api-client-react";
 import { useCurrency } from "@/hooks/useCurrency";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  Users,
-  CreditCard,
-  AlertTriangle,
-  DollarSign,
-  LifeBuoy,
-  ServerCrash,
-  Activity,
-  Wifi,
-  WifiOff,
-  RefreshCw,
-  Clock,
-  ShieldAlert,
-  ShieldCheck,
+  Users, CreditCard, AlertTriangle, DollarSign, LifeBuoy,
+  ServerCrash, Activity, Wifi, WifiOff, RefreshCw, Clock,
+  ShieldAlert, ShieldCheck, Zap,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -22,17 +12,9 @@ import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/formatDate";
 import { formatDistanceToNow, isValid } from "date-fns";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
+  LineChart, Line, AreaChart, Area,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
 
 const ROUTER_TYPE_LABELS: Record<string, string> = {
@@ -282,11 +264,168 @@ function RouterCard({ router: r }: { router: RouterStatus }) {
   );
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function fmtBps(bps: number): string {
+  if (bps >= 1e9) return (bps / 1e9).toFixed(2) + " Gbps";
+  if (bps >= 1e6) return (bps / 1e6).toFixed(2) + " Mbps";
+  if (bps >= 1e3) return (bps / 1e3).toFixed(1) + " Kbps";
+  return bps.toFixed(0) + " bps";
+}
+
+type TrafficPoint = { time: string; txBps: number; rxBps: number };
+type TrafficIface = { name: string; type: string; running: boolean; disabled: boolean; txBytes: number; rxBytes: number };
+
+// ── Live Network Traffic Widget ────────────────────────────────────────────────
+
+function LiveNetworkWidget({ routers }: { routers: RouterStatus[] }) {
+  const rosRouters = routers.filter(r => r.enabled && r.reachable && r.routerType === "routeros");
+  const [selectedId, setSelectedId] = useState<number>(rosRouters[0]?.id ?? 0);
+  const [currentTx, setCurrentTx] = useState(0);
+  const [currentRx, setCurrentRx] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [, setTick] = useState(0);
+  const history = useRef<TrafficPoint[]>([]);
+  const prevBytes = useRef<{ tx: number; rx: number; at: number } | null>(null);
+
+  // reset history when router changes
+  useEffect(() => {
+    history.current = [];
+    prevBytes.current = null;
+    setCurrentTx(0);
+    setCurrentRx(0);
+    setError(null);
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    let cancelled = false;
+
+    async function poll() {
+      try {
+        const r = await fetch(`/api/routers/${selectedId}/ros/traffic`, { credentials: "include" });
+        const data = await r.json() as { error: string | null; interfaces: TrafficIface[] };
+        if (cancelled) return;
+        if (data.error) { setError(data.error); return; }
+        setError(null);
+
+        const now = Date.now();
+        const timeLabel = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        let totalTx = 0; let totalRx = 0;
+        for (const iface of data.interfaces) {
+          if (!iface.disabled && (iface.type === "ether" || iface.type === "wlan" || iface.type === "bridge")) {
+            totalTx += iface.txBytes;
+            totalRx += iface.rxBytes;
+          }
+        }
+        if (prevBytes.current) {
+          const dt = (now - prevBytes.current.at) / 1000;
+          const txBps = dt > 0 ? Math.round(((totalTx - prevBytes.current.tx) * 8) / dt) : 0;
+          const rxBps = dt > 0 ? Math.round(((totalRx - prevBytes.current.rx) * 8) / dt) : 0;
+          history.current.push({ time: timeLabel, txBps: Math.max(0, txBps), rxBps: Math.max(0, rxBps) });
+          if (history.current.length > 60) history.current.shift();
+          setCurrentTx(Math.max(0, txBps));
+          setCurrentRx(Math.max(0, rxBps));
+          setTick(t => t + 1);
+        }
+        prevBytes.current = { tx: totalTx, rx: totalRx, at: now };
+      } catch { /* router unreachable during poll — skip */ }
+    }
+
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [selectedId]);
+
+  if (rosRouters.length === 0) return null;
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+        <div className="flex items-center gap-2.5">
+          <Zap className="w-5 h-5 text-blue-600" />
+          <h3 className="text-base font-semibold text-gray-900">Live Network Traffic</h3>
+          <span className="flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse inline-block" />
+            LIVE
+          </span>
+        </div>
+        {rosRouters.length > 1 && (
+          <div className="flex gap-1">
+            {rosRouters.map(r => (
+              <button key={r.id}
+                onClick={() => setSelectedId(r.id)}
+                className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${selectedId === r.id ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>
+                {r.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="px-5 pt-4 pb-2">
+        {error ? (
+          <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-4 py-3">
+            <WifiOff className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        ) : (
+          <>
+            {/* Speed readouts */}
+            <div className="flex gap-6 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-1 bg-blue-500 rounded inline-block" />
+                <span className="text-xs text-gray-500">TX</span>
+                <span className="text-sm font-bold font-mono text-blue-700">{fmtBps(currentTx)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-1 bg-emerald-500 rounded inline-block" />
+                <span className="text-xs text-gray-500">RX</span>
+                <span className="text-sm font-bold font-mono text-emerald-700">{fmtBps(currentRx)}</span>
+              </div>
+              <span className="text-xs text-gray-400 ml-auto self-center">polls every 5s · last 5 min</span>
+            </div>
+
+            {history.current.length > 1 ? (
+              <ResponsiveContainer width="100%" height={140}>
+                <AreaChart data={history.current} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="dashTxGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="dashRxGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="time" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
+                  <YAxis tickFormatter={v => fmtBps(v)} tick={{ fontSize: 9 }} width={56} />
+                  <Tooltip formatter={(v: number) => fmtBps(v)} contentStyle={{ fontSize: 11 }} />
+                  <Area type="monotone" dataKey="txBps" name="TX" stroke="#3b82f6" fill="url(#dashTxGrad)" strokeWidth={2} dot={false} />
+                  <Area type="monotone" dataKey="rxBps" name="RX" stroke="#10b981" fill="url(#dashRxGrad)" strokeWidth={2} dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[140px] flex items-center justify-center text-gray-400 text-sm">
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Collecting data…
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { data: summary, isLoading: loadingSummary } = useGetDashboardSummary();
   const { data: revenueStats, isLoading: loadingRevenue } = useGetRevenueStats();
   const { data: subscriptionBreakdown, isLoading: loadingBreakdown } = useGetSubscriptionBreakdown();
   const { data: recentActivity, isLoading: loadingActivity } = useGetRecentActivity();
+  const { data: routers } = useGetRoutersStatus();
   const { fmtMoney, fmtMoneyCompact } = useCurrency();
 
   const metrics = [
@@ -334,6 +473,9 @@ export default function Dashboard() {
 
       {/* Router Live Status */}
       <RouterStatusPanel />
+
+      {/* Live Network Traffic */}
+      {routers && routers.length > 0 && <LiveNetworkWidget routers={routers} />}
 
       {/* Revenue + Subscription charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

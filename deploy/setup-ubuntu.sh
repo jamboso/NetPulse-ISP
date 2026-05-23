@@ -38,6 +38,12 @@ CYAN='\033[0;36m'; BLUE='\033[0;34m';   PURPLE='\033[0;35m'; NC='\033[0m'
 mkdir -p /var/log/netpulse
 exec > >(tee -a "$LOG_FILE") 2>&1
 
+# When run via curl | bash, stdin is the pipe — redirect it to the real
+# terminal so all subsequent `read` prompts work correctly.
+if ! [ -t 0 ] && [ -c /dev/tty ]; then
+  exec < /dev/tty
+fi
+
 STEP=0; TOTAL=9   # updated below after prompts if optional modules are chosen
 step() {
   STEP=$((STEP+1))

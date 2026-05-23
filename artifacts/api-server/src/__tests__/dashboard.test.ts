@@ -129,6 +129,62 @@ describe("GET /dashboard/summary", () => {
 
     expect(res.headers["cache-control"]).toMatch(/max-age=30/);
   });
+
+  it("returns exactly 8 top-level KPI keys", async () => {
+    setupSummaryCounts();
+
+    const res = await request(buildApp()).get("/dashboard/summary");
+
+    const keys = Object.keys(res.body);
+    expect(keys).toHaveLength(8);
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        "totalCustomers",
+        "activeSubscriptions",
+        "overdueInvoices",
+        "monthlyRevenue",
+        "openTickets",
+        "totalEquipment",
+        "totalIpPools",
+        "newCustomersThisMonth",
+      ])
+    );
+  });
+
+  it("handles fractional revenue correctly", async () => {
+    setupSummaryCounts({ revenue: 1234.56 });
+
+    const res = await request(buildApp()).get("/dashboard/summary");
+
+    expect(res.status).toBe(200);
+    expect(res.body.monthlyRevenue).toBe(1234.56);
+  });
+
+  it("returns all zeros when the database has no data at all", async () => {
+    mockExec
+      .mockResolvedValueOnce([{ count: "0" }])
+      .mockResolvedValueOnce([{ count: "0" }])
+      .mockResolvedValueOnce([{ count: "0" }])
+      .mockResolvedValueOnce([{ total: "0" }])
+      .mockResolvedValueOnce([{ count: "0" }])
+      .mockResolvedValueOnce([{ count: "0" }])
+      .mockResolvedValueOnce([{ count: "0" }])
+      .mockResolvedValueOnce([{ count: "0" }]);
+
+    const res = await request(buildApp()).get("/dashboard/summary");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      totalCustomers: 0,
+      activeSubscriptions: 0,
+      overdueInvoices: 0,
+      monthlyRevenue: 0,
+      openTickets: 0,
+      totalEquipment: 0,
+      totalIpPools: 0,
+      newCustomersThisMonth: 0,
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

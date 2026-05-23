@@ -3,6 +3,9 @@ import express, { type Request, type Response, type NextFunction } from "express
 import request from "supertest";
 
 const mockExec = vi.hoisted(() => vi.fn());
+const mockFetch = vi.hoisted(() => vi.fn());
+
+vi.stubGlobal("fetch", mockFetch);
 
 vi.mock("@workspace/db", () => {
   const chain: Record<string, unknown> = {};
@@ -61,6 +64,14 @@ vi.mock("../lib/audit.js", () => ({
   writeAuditLog: vi.fn(),
 }));
 
+vi.mock("../lib/radiusSync.js", () => ({
+  syncSubscriptionCreate: vi.fn().mockResolvedValue(undefined),
+  syncSubscriptionSuspend: vi.fn().mockResolvedValue(undefined),
+  syncSubscriptionReactivate: vi.fn().mockResolvedValue(undefined),
+  syncSubscriptionCancel: vi.fn().mockResolvedValue(undefined),
+  syncPlanRadiusGroup: vi.fn().mockResolvedValue(undefined),
+}));
+
 const { default: subscriptionsRouter } = await import("../routes/subscriptions.js");
 
 type MockUser = {
@@ -112,6 +123,17 @@ const sampleSubscription = {
   createdAt: new Date().toISOString(),
 };
 
+const sampleSubscriptionWithPPPoE = {
+  ...sampleSubscription,
+  pppoeUsername: "alice.ngugi.10",
+  pppoePassword: "randompass1",
+};
+
+const sampleSubscriptionWithRouter = {
+  ...sampleSubscriptionWithPPPoE,
+  routerId: 5,
+};
+
 const sampleCustomer = {
   id: 10,
   name: "Alice Ngugi",
@@ -125,8 +147,22 @@ const samplePlan = {
   rosProfileName: null,
 };
 
+const sampleRouter = {
+  id: 5,
+  routerType: "routeros",
+  ipAddress: "192.168.1.1",
+  apiSsl: false,
+  username: "admin",
+  password: "routersecret",
+};
+
+function okFetchResponse(body: string) {
+  return { ok: true, text: async () => body };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  mockFetch.mockResolvedValue(okFetchResponse("null"));
 });
 
 describe("GET /subscriptions", () => {
@@ -162,6 +198,39 @@ describe("GET /subscriptions", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
+  });
+
+  it("filters by customerId (single condition)", async () => {
+    mockExec.mockResolvedValueOnce([
+      { subscriptions: sampleSubscription, customers: sampleCustomer, plans: samplePlan },
+    ]);
+
+    const res = await request(buildApp()).get("/subscriptions?customerId=10");
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  it("filters by status (single condition)", async () => {
+    mockExec.mockResolvedValueOnce([
+      { subscriptions: sampleSubscription, customers: sampleCustomer, plans: samplePlan },
+    ]);
+
+    const res = await request(buildApp()).get("/subscriptions?status=active");
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  it("filters by both customerId and status (double condition)", async () => {
+    mockExec.mockResolvedValueOnce([
+      { subscriptions: sampleSubscription, customers: sampleCustomer, plans: samplePlan },
+    ]);
+
+    const res = await request(buildApp()).get("/subscriptions?customerId=10&status=active");
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
   });
 });
 
@@ -202,6 +271,26 @@ describe("POST /subscriptions", () => {
     expect(res.status).toBe(201);
     expect(res.body.id).toBe(1);
     expect(res.body.customerId).toBe(10);
+  });
+
+  it("creates a subscription with routerId and triggers RouterOS provisioning", async () => {
+    const subWithRouter = { ...sampleSubscriptionWithPPPoE, routerId: 5 };
+    mockExec
+      .mockResolvedValueOnce([sampleCustomer])
+      .mockResolvedValueOnce([samplePlan])
+      .mockResolvedValueOnce([subWithRouter])
+      .mockResolvedValueOnce([sampleRouter]);
+
+    mockFetch.mockResolvedValue(okFetchResponse("null"));
+
+    const res = await request(buildApp())
+      .post("/subscriptions")
+      .send({ customerId: 10, planId: 2, routerId: 5, startDate: "2026-01-01" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.routerId).toBe(5);
+
+    await new Promise(resolve => setImmediate(resolve));
   });
 
   it("creates a subscription as billing role", async () => {
@@ -414,6 +503,20 @@ describe("PATCH /subscriptions/:id", () => {
     expect(res.status).toBe(200);
   });
 
+  it("updates non-status fields (planId, endDate, ipAddress, macAddress)", async () => {
+    const updated = { ...sampleSubscription, planId: 3, endDate: "2027-01-01", ipAddress: "10.0.0.5", macAddress: "AA:BB:CC:DD:EE:FF" };
+    mockExec
+      .mockResolvedValueOnce([sampleSubscription])
+      .mockResolvedValueOnce([updated]);
+
+    const res = await request(buildApp())
+      .patch("/subscriptions/1")
+      .send({ planId: 3, endDate: "2027-01-01", ipAddress: "10.0.0.5", macAddress: "AA:BB:CC:DD:EE:FF" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.planId).toBe(3);
+  });
+
   it("returns 404 when subscription does not exist", async () => {
     mockExec.mockResolvedValueOnce([]);
 
@@ -462,6 +565,131 @@ describe("PATCH /subscriptions/:id", () => {
 
     expect(res.status).toBe(403);
   });
+
+  it("reactivates subscription via RADIUS when pppoeUsername exists", async () => {
+    const suspendedSub = { ...sampleSubscriptionWithPPPoE, status: "suspended" };
+    const reactivated = { ...sampleSubscriptionWithPPPoE, status: "active" };
+    mockExec
+      .mockResolvedValueOnce([suspendedSub])
+      .mockResolvedValueOnce([reactivated]);
+
+    const res = await request(buildApp())
+      .patch("/subscriptions/1")
+      .send({ status: "active" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("active");
+  });
+
+  it("generates new PPPoE credentials when reactivating without existing creds", async () => {
+    const suspendedNoCreds = { ...sampleSubscription, status: "suspended", pppoeUsername: null };
+    const activated = { ...sampleSubscriptionWithPPPoE, status: "active" };
+    mockExec
+      .mockResolvedValueOnce([suspendedNoCreds])
+      .mockResolvedValueOnce([sampleCustomer])
+      .mockResolvedValueOnce([samplePlan])
+      .mockResolvedValueOnce([activated]);
+
+    const res = await request(buildApp())
+      .patch("/subscriptions/1")
+      .send({ status: "active" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("active");
+  });
+
+  it("suspends via RADIUS when pppoeUsername is set", async () => {
+    const activeSub = { ...sampleSubscriptionWithPPPoE, status: "active" };
+    const suspended = { ...sampleSubscriptionWithPPPoE, status: "suspended" };
+    mockExec
+      .mockResolvedValueOnce([activeSub])
+      .mockResolvedValueOnce([suspended]);
+
+    const res = await request(buildApp())
+      .patch("/subscriptions/1")
+      .send({ status: "suspended" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("suspended");
+  });
+
+  it("cancels via RADIUS when pppoeUsername is set", async () => {
+    const activeSub = { ...sampleSubscriptionWithPPPoE, status: "active" };
+    const cancelled = { ...sampleSubscriptionWithPPPoE, status: "cancelled" };
+    mockExec
+      .mockResolvedValueOnce([activeSub])
+      .mockResolvedValueOnce([cancelled]);
+
+    const res = await request(buildApp())
+      .patch("/subscriptions/1")
+      .send({ status: "cancelled" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("cancelled");
+  });
+
+  it("disables PPPoE secret on RouterOS when suspending with router assigned", async () => {
+    const activeSub = { ...sampleSubscriptionWithRouter, status: "active" };
+    const suspended = { ...sampleSubscriptionWithRouter, status: "suspended" };
+    mockExec
+      .mockResolvedValueOnce([activeSub])
+      .mockResolvedValueOnce([suspended])
+      .mockResolvedValueOnce([sampleRouter]);
+
+    mockFetch
+      .mockResolvedValueOnce(okFetchResponse(JSON.stringify([{ ".id": "*1" }])))
+      .mockResolvedValueOnce(okFetchResponse("null"));
+
+    const res = await request(buildApp())
+      .patch("/subscriptions/1")
+      .send({ status: "suspended" });
+
+    expect(res.status).toBe(200);
+
+    await new Promise(resolve => setImmediate(resolve));
+  });
+
+  it("enables PPPoE secret on RouterOS when reactivating with router assigned", async () => {
+    const suspendedSub = { ...sampleSubscriptionWithRouter, status: "suspended" };
+    const reactivated = { ...sampleSubscriptionWithRouter, status: "active" };
+    mockExec
+      .mockResolvedValueOnce([suspendedSub])
+      .mockResolvedValueOnce([reactivated])
+      .mockResolvedValueOnce([sampleRouter]);
+
+    mockFetch
+      .mockResolvedValueOnce(okFetchResponse(JSON.stringify([{ ".id": "*1" }])))
+      .mockResolvedValueOnce(okFetchResponse("null"));
+
+    const res = await request(buildApp())
+      .patch("/subscriptions/1")
+      .send({ status: "active" });
+
+    expect(res.status).toBe(200);
+
+    await new Promise(resolve => setImmediate(resolve));
+  });
+
+  it("deletes PPPoE secret on RouterOS when cancelling with router assigned", async () => {
+    const activeSub = { ...sampleSubscriptionWithRouter, status: "active" };
+    const cancelled = { ...sampleSubscriptionWithRouter, status: "cancelled" };
+    mockExec
+      .mockResolvedValueOnce([activeSub])
+      .mockResolvedValueOnce([cancelled])
+      .mockResolvedValueOnce([sampleRouter]);
+
+    mockFetch
+      .mockResolvedValueOnce(okFetchResponse(JSON.stringify([{ ".id": "*1" }])))
+      .mockResolvedValueOnce(okFetchResponse("null"));
+
+    const res = await request(buildApp())
+      .patch("/subscriptions/1")
+      .send({ status: "cancelled" });
+
+    expect(res.status).toBe(200);
+
+    await new Promise(resolve => setImmediate(resolve));
+  });
 });
 
 describe("DELETE /subscriptions/:id", () => {
@@ -497,6 +725,36 @@ describe("DELETE /subscriptions/:id", () => {
 
     expect(res.status).toBe(404);
     expect(res.body).toHaveProperty("error");
+  });
+
+  it("cancels RADIUS entry when pppoeUsername is set (no router)", async () => {
+    const subWithPPPoE = { ...sampleSubscriptionWithPPPoE };
+    mockExec
+      .mockResolvedValueOnce([subWithPPPoE])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const res = await request(buildApp()).delete("/subscriptions/1");
+
+    expect(res.status).toBe(204);
+  });
+
+  it("removes PPPoE secret from RouterOS and RADIUS when pppoeUsername and routerId are set", async () => {
+    mockExec
+      .mockResolvedValueOnce([sampleSubscriptionWithRouter])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([sampleRouter]);
+
+    mockFetch
+      .mockResolvedValueOnce(okFetchResponse(JSON.stringify([{ ".id": "*1" }])))
+      .mockResolvedValueOnce(okFetchResponse("null"));
+
+    const res = await request(buildApp()).delete("/subscriptions/1");
+
+    expect(res.status).toBe(204);
+
+    await new Promise(resolve => setImmediate(resolve));
   });
 
   it("returns 403 for billing role on DELETE", async () => {

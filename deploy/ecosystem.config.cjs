@@ -4,50 +4,58 @@
  *   pm2 start deploy/ecosystem.config.cjs
  *   pm2 save && pm2 startup
  *
- * Env loading strategy (belt-and-suspenders):
- *  1. The CJS module parses /opt/netpulse/.env with Node fs so PM2 can read
- *     PORT/FRONTEND_DIST_PATH for the env{} block below.
- *  2. The spawned Node.js 20.6+ process receives --env-file so the runtime
- *     itself loads DATABASE_URL, BETTER_AUTH_SECRET, etc. natively — no
- *     third-party dotenv package required.
+ * All required env vars are passed explicitly via the env{} block so the app
+ * always gets them regardless of Node.js --env-file flag support.
  */
 
-const fs = require("fs");
-const ENV_FILE = "/opt/netpulse/.env";
+const fs   = require("fs");
+const path = require("path");
 
-// Simple .env parser — no external deps
+const APP_DIR  = "/opt/netpulse";
+const ENV_FILE = path.join(APP_DIR, ".env");
+
+// Simple .env parser — no external deps needed
 const envFromFile = {};
 try {
   fs.readFileSync(ENV_FILE, "utf8")
     .split(/\r?\n/)
     .forEach((line) => {
+      // Match KEY=VALUE, skip comments and blanks
       const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)/);
       if (!m) return;
-      // Strip optional surrounding quotes
-      const val = m[2].replace(/^(['"])(.*)\1$/, "$2");
+      // Strip optional surrounding quotes (single or double)
+      const val = m[2].replace(/^(['"])(.*)\1$/, "$2").trim();
       envFromFile[m[1]] = val;
     });
-} catch (_) {}
+} catch (_) {
+  // .env not yet written (first-run before env step) — PM2 will still work,
+  // but the app will exit immediately due to missing DATABASE_URL.
+}
 
 module.exports = {
   apps: [
     {
-      name: "netpulse",
-      script: "./artifacts/api-server/dist/index.mjs",
-      cwd: "/opt/netpulse",
-      instances: 1,
-      exec_mode: "fork",
-      // --env-file lets Node.js 20.6+ natively load .env before the script runs
-      node_args: "--enable-source-maps --env-file /opt/netpulse/.env",
+      name:        "netpulse",
+      script:      "./artifacts/api-server/dist/index.mjs",
+      cwd:         APP_DIR,
+      instances:   1,
+      exec_mode:   "fork",
+      node_args:   "--enable-source-maps",
+
       env: {
         NODE_ENV:           "production",
         PORT:               envFromFile.PORT               || "8080",
+        DATABASE_URL:       envFromFile.DATABASE_URL       || "",
+        BETTER_AUTH_SECRET: envFromFile.BETTER_AUTH_SECRET || "",
+        BETTER_AUTH_URL:    envFromFile.BETTER_AUTH_URL    || "http://localhost",
+        SESSION_SECRET:     envFromFile.SESSION_SECRET     || "",
         FRONTEND_DIST_PATH: envFromFile.FRONTEND_DIST_PATH
-                            || "/opt/netpulse/artifacts/isp-portal/dist/public",
+                            || path.join(APP_DIR, "artifacts/isp-portal/dist/public"),
       },
-      max_restarts:  5,
-      min_uptime:    "5s",
-      restart_delay: 3000,
+
+      max_restarts:    5,
+      min_uptime:      "5s",
+      restart_delay:   3000,
       out_file:        "/var/log/netpulse/out.log",
       error_file:      "/var/log/netpulse/error.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss",

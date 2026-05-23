@@ -886,9 +886,9 @@ if [[ "$INSTALL_VPN" == "true" ]]; then
 fi
 echo -e "${GREEN}${BOLD}╠══════════════════════════════════════════════════════════╣${NC}"
 echo -e "${GREEN}${BOLD}║  ${NC}${DIM}Useful commands:${NC}                                         ${GREEN}${BOLD}║${NC}"
-echo -e "${GREEN}${BOLD}║  ${DIM}  pm2 status              — app process status${NC}            ${GREEN}${BOLD}║${NC}"
-echo -e "${GREEN}${BOLD}║  ${DIM}  pm2 logs netpulse       — live logs${NC}                     ${GREEN}${BOLD}║${NC}"
-echo -e "${GREEN}${BOLD}║  ${DIM}  bash ${APP_DIR}/deploy/update.sh  — update${NC}              ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║  ${DIM}  sudo pm2 status         — app process status${NC}            ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║  ${DIM}  sudo pm2 logs netpulse  — live logs${NC}                     ${GREEN}${BOLD}║${NC}"
+echo -e "${GREEN}${BOLD}║  ${DIM}  sudo bash ${APP_DIR}/deploy/update.sh  — update${NC}         ${GREEN}${BOLD}║${NC}"
 echo -e "${GREEN}${BOLD}║  ${DIM}  cat $LOG_FILE           — full install log${NC}              ${GREEN}${BOLD}║${NC}"
 echo -e "${GREEN}${BOLD}║                                                          ║${NC}"
 echo -e "${GREEN}${BOLD}║  ${DIM}Next: add HTTPS with Let's Encrypt (certbot):${NC}             ${GREEN}${BOLD}║${NC}"

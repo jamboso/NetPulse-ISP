@@ -34,7 +34,7 @@ set -o allexport; source "$APP_DIR/.env" 2>/dev/null || true; set +o allexport
 info "Pulling latest code from origin/main..."
 git fetch origin
 BEFORE=$(git rev-parse HEAD)
-git pull origin main
+git reset --hard origin/main
 AFTER=$(git rev-parse HEAD)
 if [[ "$BEFORE" == "$AFTER" ]]; then
   warn "Already up to date ($(git rev-parse --short HEAD))"

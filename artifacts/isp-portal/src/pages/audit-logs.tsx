@@ -33,6 +33,8 @@ import {
   History,
   Link2,
   Check,
+  Plus,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +73,25 @@ const ACTION_COLORS: Record<string, string> = {
   update: "bg-blue-100 text-blue-800 border-blue-200",
   delete: "bg-red-100 text-red-800 border-red-200",
 };
+
+const ACTION_ICONS: Record<string, React.ElementType> = {
+  create: Plus,
+  update: Pencil,
+  delete: Trash2,
+};
+
+function ActionBadge({ action }: { action: string }) {
+  const Icon = ACTION_ICONS[action];
+  return (
+    <Badge
+      variant="outline"
+      className={`inline-flex items-center gap-1 text-xs capitalize ${ACTION_COLORS[action] ?? ""}`}
+    >
+      {Icon && <Icon className="w-3 h-3 flex-shrink-0" />}
+      {action}
+    </Badge>
+  );
+}
 
 const ENTITY_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   customer:     { label: "Customer",      icon: Users,        color: "text-violet-600" },
@@ -212,9 +233,7 @@ function DiffModal({ log, onClose }: DiffModalProps) {
             </div>
             <div>
               <p className="text-xs text-gray-500 font-medium mb-0.5">Action</p>
-              <Badge variant="outline" className={`text-xs capitalize ${ACTION_COLORS[log.action]}`}>
-                {log.action}
-              </Badge>
+              <ActionBadge action={log.action} />
             </div>
             <div>
               <p className="text-xs text-gray-500 font-medium mb-0.5">Entity</p>
@@ -657,12 +676,7 @@ export default function AuditLogs() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <Badge
-                          variant="outline"
-                          className={`text-xs capitalize ${ACTION_COLORS[log.action] ?? ""}`}
-                        >
-                          {log.action}
-                        </Badge>
+                        <ActionBadge action={log.action} />
                       </td>
                       <td className="px-4 py-3">
                         <EntityTypeBadge type={log.entityType} />

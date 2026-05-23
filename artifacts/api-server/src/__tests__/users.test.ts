@@ -72,8 +72,14 @@ vi.mock("../lib/sms.js", () => ({
   normalisePhone: vi.fn((p: string) => p),
 }));
 
+const mockSendStaffWelcomeEmail = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({ success: false, message: "SMTP not configured" }),
+);
+
 vi.mock("../lib/mailer.js", () => ({
-  sendStaffWelcomeEmail: vi.fn().mockResolvedValue({ success: false, message: "SMTP not configured" }),
+  sendStaffWelcomeEmail: mockSendStaffWelcomeEmail,
+  buildWelcomeEmailHtml: vi.fn().mockReturnValue("<html/>"),
+  buildWelcomeEmailText: vi.fn().mockReturnValue("text"),
 }));
 
 const { default: usersRouter } = await import("../routes/users.js");
@@ -167,6 +173,43 @@ describe("POST /users", () => {
       .send({ name: "New Staff", email: "newstaff@example.com", password: "securepass", role: "support" });
 
     expect(res.status).toBe(201);
+  });
+
+  it("calls sendStaffWelcomeEmail with the correct name, email, role, and appUrl", async () => {
+    mockExec
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([sampleUser]);
+    mockSignUp.mockResolvedValueOnce({ user: { id: "u99" } });
+
+    await request(buildApp())
+      .post("/users")
+      .send({ name: "New Staff", email: "newstaff@example.com", password: "securepass", role: "support" });
+
+    expect(mockSendStaffWelcomeEmail).toHaveBeenCalledOnce();
+    expect(mockSendStaffWelcomeEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "New Staff",
+        email: "newstaff@example.com",
+        password: "securepass",
+        role: "support",
+        appUrl: expect.any(String),
+      }),
+    );
+  });
+
+  it("returns 201 and does not throw when SMTP is not configured (sendStaffWelcomeEmail returns success:false)", async () => {
+    mockSendStaffWelcomeEmail.mockResolvedValueOnce({ success: false, message: "SMTP not configured — email skipped" });
+    mockExec
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([sampleUser]);
+    mockSignUp.mockResolvedValueOnce({ user: { id: "u99" } });
+
+    const res = await request(buildApp())
+      .post("/users")
+      .send({ name: "New Staff", email: "newstaff@example.com", password: "securepass", role: "support" });
+
+    expect(res.status).toBe(201);
+    expect(mockSendStaffWelcomeEmail).toHaveBeenCalledOnce();
   });
 
   it("returns 403 for non-admin role", async () => {

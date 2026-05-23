@@ -7,15 +7,16 @@ import { SectionCard } from "@/components/SectionCard";
 import { changePassword } from "@/lib/authClient";
 
 export function ChangePasswordSection() {
-  const [currentPassword, setCurrentPassword]   = useState("");
-  const [newPassword, setNewPassword]           = useState("");
-  const [confirmPassword, setConfirmPassword]   = useState("");
-  const [showCurrent, setShowCurrent]           = useState(false);
-  const [showNew, setShowNew]                   = useState(false);
-  const [showConfirm, setShowConfirm]           = useState(false);
-  const [loading, setLoading]                   = useState(false);
-  const [success, setSuccess]                   = useState(false);
-  const [error, setError]                       = useState("");
+  const [currentPassword, setCurrentPassword]         = useState("");
+  const [newPassword, setNewPassword]                 = useState("");
+  const [confirmPassword, setConfirmPassword]         = useState("");
+  const [revokeOtherSessions, setRevokeOtherSessions] = useState(false);
+  const [showCurrent, setShowCurrent]                 = useState(false);
+  const [showNew, setShowNew]                         = useState(false);
+  const [showConfirm, setShowConfirm]                 = useState(false);
+  const [loading, setLoading]                         = useState(false);
+  const [success, setSuccess]                         = useState(false);
+  const [error, setError]                             = useState("");
 
   const reset = () => {
     setCurrentPassword("");
@@ -47,7 +48,7 @@ export function ChangePasswordSection() {
       const res = await changePassword({
         currentPassword,
         newPassword,
-        revokeOtherSessions: false,
+        revokeOtherSessions,
       });
       if (res.error) {
         setError(res.error.message ?? "Failed to change password. Check your current password and try again.");
@@ -125,7 +126,7 @@ export function ChangePasswordSection() {
           </div>
 
           {/* Confirm new password */}
-          <div className="grid grid-cols-12 gap-3 items-start py-3">
+          <div className="grid grid-cols-12 gap-3 items-start py-3 border-b border-gray-100">
             <div className="col-span-4">
               <Label className="text-sm font-medium text-gray-700">Confirm new password</Label>
             </div>
@@ -151,6 +152,28 @@ export function ChangePasswordSection() {
               </div>
             </div>
           </div>
+
+          {/* Sign out other devices */}
+          <div className="grid grid-cols-12 gap-3 items-center py-3">
+            <div className="col-span-4">
+              <Label htmlFor="revoke-sessions" className="text-sm font-medium text-gray-700">
+                Sign out all other devices
+              </Label>
+              <p className="text-xs text-gray-400 mt-0.5">Invalidate all other active sessions</p>
+            </div>
+            <div className="col-span-8 flex items-center gap-2">
+              <input
+                id="revoke-sessions"
+                type="checkbox"
+                checked={revokeOtherSessions}
+                onChange={(e) => setRevokeOtherSessions(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              />
+              <label htmlFor="revoke-sessions" className="text-sm text-gray-600 cursor-pointer select-none">
+                Log me out everywhere else after changing password
+              </label>
+            </div>
+          </div>
         </div>
 
         {error && (
@@ -163,7 +186,7 @@ export function ChangePasswordSection() {
         {success && (
           <div role="status" className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mt-3">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
-            Password changed successfully.
+            Password changed successfully.{revokeOtherSessions ? " All other devices have been signed out." : ""}
           </div>
         )}
 

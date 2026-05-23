@@ -393,6 +393,7 @@ describe("Audit log — equipment", () => {
         entityType: "equipment",
         entityId:   sampleEquipment.id,
         userId:     "u1",
+        diff:       sampleEquipment,
       }),
     );
   });
@@ -412,6 +413,7 @@ describe("Audit log — equipment", () => {
         entityType: "equipment",
         entityId:   1,
         userId:     "u1",
+        diff:       { status: "maintenance" },
       }),
     );
   });
@@ -422,14 +424,14 @@ describe("Audit log — equipment", () => {
     await request(buildApp()).delete("/equipment/1");
 
     expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
-    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action:     "delete",
-        entityType: "equipment",
-        entityId:   1,
-        userId:     "u1",
-      }),
-    );
+    const auditCall = vi.mocked(writeAuditLog).mock.calls[0][0];
+    expect(auditCall).toMatchObject({
+      action:     "delete",
+      entityType: "equipment",
+      entityId:   1,
+      userId:     "u1",
+    });
+    expect(auditCall.diff).toBeUndefined();
   });
 
   it("does NOT write an audit record when POST /equipment fails validation", async () => {

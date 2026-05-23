@@ -364,6 +364,7 @@ describe("Audit log — ip_pool", () => {
         entityType: "ip_pool",
         entityId:   samplePool.id,
         userId:     "u1",
+        diff:       samplePool,
       }),
     );
   });
@@ -383,6 +384,7 @@ describe("Audit log — ip_pool", () => {
         entityType: "ip_pool",
         entityId:   1,
         userId:     "u1",
+        diff:       { gateway: "192.168.1.254" },
       }),
     );
   });
@@ -393,14 +395,14 @@ describe("Audit log — ip_pool", () => {
     await request(buildApp()).delete("/ip-pools/1");
 
     expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();
-    expect(vi.mocked(writeAuditLog)).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action:     "delete",
-        entityType: "ip_pool",
-        entityId:   1,
-        userId:     "u1",
-      }),
-    );
+    const auditCall = vi.mocked(writeAuditLog).mock.calls[0][0];
+    expect(auditCall).toMatchObject({
+      action:     "delete",
+      entityType: "ip_pool",
+      entityId:   1,
+      userId:     "u1",
+    });
+    expect(auditCall.diff).toBeUndefined();
   });
 
   it("does NOT write an audit record when POST /ip-pools fails validation", async () => {

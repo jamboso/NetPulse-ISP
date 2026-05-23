@@ -371,18 +371,18 @@ source "$ENV_FILE" 2>/dev/null || true
 set +o allexport
 
 info "Installing Node.js dependencies (this takes ~1-2 minutes)..."
-pnpm install --frozen-lockfile 2>&1 | tail -3
+pnpm install --frozen-lockfile
 
 info "Building shared libraries..."
-pnpm run typecheck:libs 2>&1 | tail -3
+pnpm run typecheck:libs
 
 info "Building API server..."
-pnpm --filter @workspace/api-server run build 2>&1 | tail -5
+pnpm --filter @workspace/api-server run build
 
 info "Building frontend..."
 PORT=3000 BASE_PATH=/ \
   NODE_ENV=production \
-  pnpm --filter @workspace/isp-portal run build 2>&1 | tail -5
+  pnpm --filter @workspace/isp-portal run build
 
 ok "Build complete"
 

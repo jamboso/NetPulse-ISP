@@ -66,7 +66,7 @@ ok "Frontend built"
 
 # ── 6. Run DB migrations ──────────────────────────────────────────────────
 info "Running database migrations..."
-pnpm --filter @workspace/db run push
+pnpm --filter @workspace/db run push-force
 ok "Database schema up to date"
 
 # ── 7. Restart app ────────────────────────────────────────────────────────

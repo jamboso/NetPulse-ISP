@@ -8,7 +8,7 @@ import {
 import { useCurrency } from "@/hooks/useCurrency";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { Plus, CreditCard, ArrowDownToLine, Receipt, Smartphone } from "lucide-react";
+import { Plus, CreditCard, ArrowDownToLine, Receipt, Smartphone, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -198,6 +198,7 @@ export default function Payments() {
                 <TableHead>Method</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -219,10 +220,17 @@ export default function Payments() {
                       <Badge variant="outline" className={`capitalize ${STATUS_COLORS[payment.status] ?? ""}`}>{payment.status}</Badge>
                     </TableCell>
                     <TableCell className="text-sm text-gray-600">{formatDate(payment.createdAt, "MMM d, yyyy h:mm a")}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" asChild title="View audit history">
+                        <Link href={`/audit-logs?entityType=payment&entityId=${payment.id}`}>
+                          <ClipboardList className="w-3.5 h-3.5" />
+                        </Link>
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
-                <TableRow><TableCell colSpan={7} className="h-24 text-center text-gray-500">No payments recorded yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="h-24 text-center text-gray-500">No payments recorded yet.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

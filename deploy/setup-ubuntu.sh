@@ -410,17 +410,30 @@ ok "Build complete"
 step "Running database migrations"
 # ─────────────────────────────────────────────────────────────────────────────
 info "Applying schema to database..."
-if pnpm --filter @workspace/db run push-force 2>/tmp/drizzle.err; then
+# The FreeRADIUS SQL schema uses 'inet' column types for IP addresses, but our
+# Drizzle schema maps those columns as 'text'.  drizzle-kit introspects ALL
+# existing tables and crashes silently when it encounters the 'inet' type.
+# Drop the radius tables first so drizzle recreates them with 'text' columns.
+# FreeRADIUS works fine with text — it stores plain strings either way.
+info "Removing FreeRADIUS-created tables so drizzle can recreate them with compatible types..."
+sudo -u postgres psql -d "$DB_NAME" -c "
+  DROP TABLE IF EXISTS
+    radacct, radpostauth, radcheck, radreply,
+    radusergroup, radgroupcheck, radgroupreply, radnas
+  CASCADE;
+" >/dev/null 2>&1 || true
+
+if CI=true NO_COLOR=1 pnpm --filter @workspace/db run push-force 2>/tmp/drizzle.err; then
   ok "Database schema up to date"
 else
   echo ""
-  echo -e "  ${YELLOW}⚠${NC}  drizzle-kit push failed. Error output:" >&2
+  echo -e "  ${YELLOW}⚠${NC}  drizzle-kit push failed. Captured output:" >&2
   cat /tmp/drizzle.err >&2 || true
   # For upgrades the schema likely already exists — check and continue
   if sudo -u postgres psql -d "$DB_NAME" -c "SELECT 1 FROM users LIMIT 1" >/dev/null 2>&1; then
     echo -e "  ${YELLOW}⚠${NC}  Schema exists from previous install — continuing" >&2
   else
-    die "Database migration failed on fresh install. Fix the error above and re-run."
+    die "Database migration failed. See captured output above and re-run."
   fi
 fi
 

@@ -797,7 +797,7 @@ export default function Network() {
       </div>
 
       <Tabs defaultValue="routers" className="w-full">
-        <TabsList className="bg-gray-100">
+        <TabsList className="bg-gray-100 flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="routers" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Wifi className="w-4 h-4" /> Routers
             {routersData && (

@@ -1,10 +1,15 @@
 /**
- * Integration tests for purgeAuditLogs().
+ * Tests for auditLogPurge module.
  *
- * These tests run against the real database so we can verify actual deletion
- * semantics: old rows are removed, recent rows survive.
+ * Integration tests for purgeAuditLogs() run against the real database to
+ * verify actual deletion semantics.
  *
- * Isolation strategy:
+ * Unit tests for startAuditLogPurgeScheduler() use fake timers and spies to
+ * confirm: (a) the initial purge fires on startup, (b) setInterval is
+ * registered with the correct 24-hour interval, and (c) errors are caught
+ * and logged rather than thrown.
+ *
+ * Isolation strategy (integration tests):
  *  - All seeded audit_log rows use userId = "__test_purge__" so they never
  *    clash with real data and are cleaned up in beforeEach / afterEach.
  *  - The `auditLogRetentionDays` setting is upserted before each test and
@@ -30,7 +35,8 @@ vi.mock("../lib/logger.js", () => ({
   },
 }));
 
-const { purgeAuditLogs } = await import("../lib/auditLogPurge.js");
+const { purgeAuditLogs, startAuditLogPurgeScheduler } = await import("../lib/auditLogPurge.js");
+const { logger } = await import("../lib/logger.js");
 
 const TEST_USER_ID = "__test_purge__";
 
@@ -323,5 +329,110 @@ describe("purgeAuditLogs() — integration", () => {
     await db
       .delete(auditPurgeLogTable)
       .where(eq(auditPurgeLogTable.triggeredBy, marker));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// startAuditLogPurgeScheduler() — unit tests
+// ---------------------------------------------------------------------------
+
+describe("startAuditLogPurgeScheduler() — scheduler behaviour", () => {
+  const INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * `purgeAuditLogs` is async and calls `db.select()` synchronously (before its
+   * first `await`) as part of building the Drizzle query chain.  Checking that
+   * `db.select` was called immediately — without advancing any timers — proves
+   * that `purgeAuditLogs` was invoked on startup, before the first interval tick.
+   */
+  it("calls purgeAuditLogs immediately on startup before any interval tick", () => {
+    const selectSpy = vi.spyOn(db, "select");
+
+    startAuditLogPurgeScheduler();
+
+    expect(selectSpy).toHaveBeenCalled();
+
+    selectSpy.mockRestore();
+  });
+
+  it("registers setInterval with exactly 24 hours (86 400 000 ms)", () => {
+    const setIntervalSpy = vi.spyOn(globalThis, "setInterval");
+
+    startAuditLogPurgeScheduler();
+
+    expect(setIntervalSpy).toHaveBeenCalledWith(
+      expect.any(Function),
+      INTERVAL_MS,
+    );
+
+    setIntervalSpy.mockRestore();
+  });
+
+  it("fires purgeAuditLogs again after advancing exactly 24 hours", async () => {
+    const selectSpy = vi.spyOn(db, "select");
+
+    startAuditLogPurgeScheduler();
+
+    const selectCallsAfterStartup = selectSpy.mock.calls.length;
+    expect(selectCallsAfterStartup).toBeGreaterThanOrEqual(1);
+
+    await vi.advanceTimersByTimeAsync(INTERVAL_MS);
+
+    expect(selectSpy.mock.calls.length).toBeGreaterThan(selectCallsAfterStartup);
+
+    selectSpy.mockRestore();
+  });
+
+  it("does not fire the interval callback before 24 hours have elapsed", async () => {
+    const selectSpy = vi.spyOn(db, "select");
+
+    startAuditLogPurgeScheduler();
+
+    const selectCallsAfterStartup = selectSpy.mock.calls.length;
+
+    await vi.advanceTimersByTimeAsync(INTERVAL_MS - 1);
+
+    expect(selectSpy.mock.calls.length).toBe(selectCallsAfterStartup);
+
+    selectSpy.mockRestore();
+  });
+
+  it("catches errors from the initial purge run and logs a warning instead of throwing", async () => {
+    vi.spyOn(db, "select").mockImplementationOnce(() => {
+      throw new Error("DB connection refused");
+    });
+
+    expect(() => startAuditLogPurgeScheduler()).not.toThrow();
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      "Audit log purge: initial run failed",
+    );
+  });
+
+  it("catches errors from interval purge runs and logs a warning instead of throwing", async () => {
+    startAuditLogPurgeScheduler();
+
+    vi.spyOn(db, "select").mockImplementationOnce(() => {
+      throw new Error("connection timeout");
+    });
+
+    await vi.advanceTimersByTimeAsync(INTERVAL_MS);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      "Audit log purge: scheduled run failed",
+    );
   });
 });

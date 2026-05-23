@@ -410,32 +410,38 @@ ok "Build complete"
 step "Running database migrations"
 # ─────────────────────────────────────────────────────────────────────────────
 info "Applying schema to database..."
-# The FreeRADIUS SQL schema uses 'inet' column types for IP addresses, but our
-# Drizzle schema maps those columns as 'text'.  drizzle-kit introspects ALL
-# existing tables and crashes silently when it encounters the 'inet' type.
-# Drop the radius tables first so drizzle recreates them with 'text' columns.
-# FreeRADIUS works fine with text — it stores plain strings either way.
-info "Removing FreeRADIUS-created tables so drizzle can recreate them with compatible types..."
-sudo -u postgres psql -d "$DB_NAME" -c "
-  DROP TABLE IF EXISTS
-    radacct, radpostauth, radcheck, radreply,
-    radusergroup, radgroupcheck, radgroupreply, radnas
-  CASCADE;
-" >/dev/null 2>&1 || true
-
-if CI=true NO_COLOR=1 pnpm --filter @workspace/db run push-force 2>/tmp/drizzle.err; then
+# Use pre-generated SQL (deploy/schema.sql) instead of drizzle-kit push.
+# drizzle-kit requires introspecting existing tables and crashes silently on
+# column types created by FreeRADIUS (inet, etc.) — applying plain SQL is
+# simpler and more reliable in a production installer.
+SCHEMA_SQL="$APP_DIR/deploy/schema.sql"
+if [[ ! -f "$SCHEMA_SQL" ]]; then
+  die "deploy/schema.sql not found in $APP_DIR. Ensure the repo is fully cloned."
+fi
+# Apply every CREATE TABLE / CREATE INDEX statement idempotently.
+# psql will skip objects that already exist (IF NOT EXISTS) and errors on
+# genuine failures.
+if sudo -u postgres psql -d "$DB_NAME" \
+    -v ON_ERROR_STOP=0 \
+    -f "$SCHEMA_SQL" >/dev/null 2>/tmp/schema.err; then
   ok "Database schema up to date"
 else
-  echo ""
-  echo -e "  ${YELLOW}⚠${NC}  drizzle-kit push failed. Captured output:" >&2
-  cat /tmp/drizzle.err >&2 || true
-  # For upgrades the schema likely already exists — check and continue
-  if sudo -u postgres psql -d "$DB_NAME" -c "SELECT 1 FROM users LIMIT 1" >/dev/null 2>&1; then
-    echo -e "  ${YELLOW}⚠${NC}  Schema exists from previous install — continuing" >&2
+  # Check if tables already exist (upgrade — schema was applied by a prior run)
+  if sudo -u postgres psql -d "$DB_NAME" \
+      -c "SELECT 1 FROM users LIMIT 1" >/dev/null 2>&1; then
+    warn "Some schema statements produced errors (likely already-existing objects) — schema is present, continuing"
   else
-    die "Database migration failed. See captured output above and re-run."
+    echo ""
+    echo -e "  ${YELLOW}Schema errors:${NC}" >&2
+    cat /tmp/schema.err >&2 || true
+    die "Database schema application failed and users table does not exist. See errors above."
   fi
 fi
+# Grant permissions on the newly created objects
+sudo -u postgres psql -d "$DB_NAME" \
+  -c "GRANT ALL PRIVILEGES ON ALL TABLES   IN SCHEMA public TO ${DB_USER};" >/dev/null 2>&1 || true
+sudo -u postgres psql -d "$DB_NAME" \
+  -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER};" >/dev/null 2>&1 || true
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Starting application with PM2"

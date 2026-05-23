@@ -4,6 +4,7 @@ import { ticketsTable, ticketRepliesTable, customersTable } from "@workspace/db"
 import { eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import { validateBody } from "../middlewares/validateBody";
+import { requireRole } from "../middlewares/requireRole";
 
 const TICKET_STATUSES = ["open", "in_progress", "resolved", "closed"] as const;
 const TICKET_PRIORITIES = ["low", "medium", "high", "urgent"] as const;
@@ -36,16 +37,16 @@ const createTicketReplySchema = z.object({
 
 const router = Router();
 
-function fmt(t: typeof ticketsTable.$inferSelect, customer?: typeof customersTable.$inferSelect | null) {
-  return { ...t, isStaff: undefined, customer: customer ?? null };
-}
-
 function fmtReply(r: typeof ticketRepliesTable.$inferSelect) {
   return { ...r, isStaff: r.isStaff === "true" };
 }
 
 router.get("/tickets", async (req, res) => {
-  const { customerId, status, priority } = req.query as Record<string, string>;
+  const { customerId, status, priority, page = "1", limit = "20" } = req.query as Record<string, string>;
+  const pageNum = Math.max(1, parseInt(page));
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+  const offset = (pageNum - 1) * limitNum;
+
   const rows = await db
     .select()
     .from(ticketsTable)
@@ -59,10 +60,13 @@ router.get("/tickets", async (req, res) => {
     return true;
   });
 
-  res.json(filtered.map(r => ({ ...r.tickets, customer: r.customers ?? null })));
+  const total = filtered.length;
+  const data = filtered.slice(offset, offset + limitNum).map(r => ({ ...r.tickets, customer: r.customers ?? null }));
+
+  res.json({ data, total, page: pageNum, limit: limitNum });
 });
 
-router.post("/tickets", validateBody(createTicketSchema), async (req, res) => {
+router.post("/tickets", requireRole("admin", "billing", "support"), validateBody(createTicketSchema), async (req, res) => {
   const body = req.body;
   const [ticket] = await db.insert(ticketsTable).values({
     customerId: body.customerId,
@@ -87,7 +91,7 @@ router.get("/tickets/:id", async (req, res) => {
   res.json({ ...row.tickets, customer: row.customers ?? null });
 });
 
-router.patch("/tickets/:id", validateBody(updateTicketSchema), async (req, res) => {
+router.patch("/tickets/:id", requireRole("admin", "billing", "support"), validateBody(updateTicketSchema), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   const body = req.body;
   const update: Record<string, unknown> = {};
@@ -106,14 +110,16 @@ router.patch("/tickets/:id", validateBody(updateTicketSchema), async (req, res) 
   res.json(updated);
 });
 
-router.delete("/tickets/:id", async (req, res) => {
+router.delete("/tickets/:id", requireRole("admin"), async (req, res) => {
   const id = parseInt(req.params.id!);
+  const [existing] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(eq(ticketsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
   await db.delete(ticketRepliesTable).where(eq(ticketRepliesTable.ticketId, id));
   await db.delete(ticketsTable).where(eq(ticketsTable.id, id));
   res.status(204).send();
 });
 
-router.post("/tickets/:id/reply", validateBody(createTicketReplySchema), async (req, res) => {
+router.post("/tickets/:id/reply", requireRole("admin", "billing", "support"), validateBody(createTicketReplySchema), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   const body = req.body;
   const [reply] = await db.insert(ticketRepliesTable).values({

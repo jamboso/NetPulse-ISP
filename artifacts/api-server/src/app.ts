@@ -72,7 +72,8 @@ if (process.env.NODE_ENV === "production" && process.env.FRONTEND_DIST_PATH) {
   if (existsSync(frontendDist)) {
     app.use(express.static(frontendDist, { index: false, maxAge: "1y", immutable: true }));
     // Serve index.html for any unmatched path (SPA client-side routing)
-    app.get("*", (_req: Request, res: Response) => {
+    // Express 5 + path-to-regexp v8 requires named wildcards — bare "*" throws PathError
+    app.get("/{*path}", (_req: Request, res: Response) => {
       res.sendFile(path.join(frontendDist, "index.html"));
     });
     logger.info({ frontendDist }, "Serving frontend static files");

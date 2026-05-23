@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useSearch } from "wouter";
+import React, { useState, useCallback } from "react";
+import { useSearch, useLocation } from "wouter";
 import {
   useListAuditLogs,
   getListAuditLogsQueryKey,
@@ -31,6 +31,8 @@ import {
   UserCog,
   Trash2,
   History,
+  Link2,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -239,23 +241,66 @@ function DiffModal({ log, onClose }: DiffModalProps) {
 
 export default function AuditLogs() {
   const search = useSearch();
+  const [, setLocation] = useLocation();
   const searchParams = new URLSearchParams(search);
+
   const initialEntityType = searchParams.get("entityType") ?? "all";
   const initialEntityId = searchParams.get("entityId") ?? "";
+  const initialAction = searchParams.get("action") ?? "all";
+  const initialFrom = searchParams.get("from") ?? "";
+  const initialTo = searchParams.get("to") ?? "";
 
   const [entityTypeFilter, setEntityTypeFilter] = useState<string>(
     ENTITY_TYPES.includes(initialEntityType) ? initialEntityType : "all"
   );
-  const [actionFilter, setActionFilter] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [actionFilter, setActionFilter] = useState<string>(
+    ["create", "update", "delete"].includes(initialAction) ? initialAction : "all"
+  );
+  const [dateFrom, setDateFrom] = useState(initialFrom);
+  const [dateTo, setDateTo] = useState(initialTo);
   const [userSearch, setUserSearch] = useState("");
   const [entityIdInput, setEntityIdInput] = useState(initialEntityId);
   const [page, setPage] = useState(1);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [copied, setCopied] = useState(false);
   const qc = useQueryClient();
   const { toast } = useToast();
+
+  const pushFiltersToUrl = useCallback(
+    (overrides: {
+      entityType?: string;
+      entityId?: string;
+      action?: string;
+      from?: string;
+      to?: string;
+    }) => {
+      const merged = {
+        entityType: overrides.entityType ?? entityTypeFilter,
+        entityId: overrides.entityId ?? entityIdInput,
+        action: overrides.action ?? actionFilter,
+        from: overrides.from ?? dateFrom,
+        to: overrides.to ?? dateTo,
+      };
+      const qs = new URLSearchParams();
+      if (merged.entityType !== "all") qs.set("entityType", merged.entityType);
+      if (merged.entityId.trim() !== "") qs.set("entityId", merged.entityId.trim());
+      if (merged.action !== "all") qs.set("action", merged.action);
+      if (merged.from) qs.set("from", merged.from);
+      if (merged.to) qs.set("to", merged.to);
+      const qs_str = qs.toString();
+      setLocation(`/audit-logs${qs_str ? "?" + qs_str : ""}`, { replace: true });
+    },
+    [entityTypeFilter, entityIdInput, actionFilter, dateFrom, dateTo, setLocation]
+  );
+
+  function handleCopyLink() {
+    const url = window.location.href;
+    void navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   const { data: purgeHistoryData, isLoading: purgeHistoryLoading } = useGetAuditPurgeHistory();
   const purgeMutation = usePurgeAuditLogs({
@@ -343,7 +388,8 @@ export default function AuditLogs() {
     setUserSearch("");
     setEntityIdInput("");
     setPage(1);
-    qc.invalidateQueries({ queryKey: getListAuditLogsQueryKey() });
+    setLocation("/audit-logs", { replace: true });
+    void qc.invalidateQueries({ queryKey: getListAuditLogsQueryKey() });
   }
 
   const hasFilters =
@@ -368,6 +414,19 @@ export default function AuditLogs() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopyLink}
+            className="gap-2"
+            title="Copy a shareable link to the current filtered view"
+          >
+            {copied ? (
+              <><Check className="w-4 h-4 text-emerald-600" /> Copied!</>
+            ) : (
+              <><Link2 className="w-4 h-4" /> Copy link</>
+            )}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -468,7 +527,7 @@ export default function AuditLogs() {
 
           <Select
             value={entityTypeFilter}
-            onValueChange={(v) => { setEntityTypeFilter(v); setPage(1); }}
+            onValueChange={(v) => { setEntityTypeFilter(v); setPage(1); pushFiltersToUrl({ entityType: v }); }}
           >
             <SelectTrigger className="h-9 text-sm">
               <SelectValue placeholder="Entity type" />
@@ -496,12 +555,12 @@ export default function AuditLogs() {
             className="h-9 text-sm"
             placeholder="Entity ID…"
             value={entityIdInput}
-            onChange={(e) => { setEntityIdInput(e.target.value); setPage(1); }}
+            onChange={(e) => { setEntityIdInput(e.target.value); setPage(1); pushFiltersToUrl({ entityId: e.target.value }); }}
           />
 
           <Select
             value={actionFilter}
-            onValueChange={(v) => { setActionFilter(v); setPage(1); }}
+            onValueChange={(v) => { setActionFilter(v); setPage(1); pushFiltersToUrl({ action: v }); }}
           >
             <SelectTrigger className="h-9 text-sm">
               <SelectValue placeholder="Action" />
@@ -519,14 +578,14 @@ export default function AuditLogs() {
               type="date"
               className="h-9 text-sm"
               value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+              onChange={(e) => { setDateFrom(e.target.value); setPage(1); pushFiltersToUrl({ from: e.target.value }); }}
               title="From date"
             />
             <Input
               type="date"
               className="h-9 text-sm"
               value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+              onChange={(e) => { setDateTo(e.target.value); setPage(1); pushFiltersToUrl({ to: e.target.value }); }}
               title="To date"
             />
           </div>

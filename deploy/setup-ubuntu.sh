@@ -235,9 +235,25 @@ systemctl start postgresql
 
 DB_PASSWORD=$(openssl rand -hex 24)
 
-sudo -u postgres psql -tc "SELECT 1 FROM pg_user WHERE usename='$DB_USER'" | grep -q 1 \
-  && info "DB user '$DB_USER' already exists" \
-  || { sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" > /dev/null; ok "Created DB user"; }
+# On upgrades, reuse the password already stored in .env so the DB user and
+# the connection string never fall out of sync.
+EXISTING_ENV="$APP_DIR/.env"
+if [[ "$UPGRADE" == "true" ]] && [[ -f "$EXISTING_ENV" ]]; then
+  _saved=$(grep -oP '(?<=://'"$DB_USER"':)[^@]+' "$EXISTING_ENV" 2>/dev/null || true)
+  if [[ -n "$_saved" ]]; then
+    DB_PASSWORD="$_saved"
+    info "Reusing existing DB password from .env"
+  fi
+fi
+
+if sudo -u postgres psql -tc "SELECT 1 FROM pg_user WHERE usename='$DB_USER'" | grep -q 1; then
+  # User exists — always sync the password so it matches DATABASE_URL in .env
+  sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" > /dev/null
+  ok "DB user '$DB_USER' password synced"
+else
+  sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" > /dev/null
+  ok "Created DB user '$DB_USER'"
+fi
 
 sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1 \
   && info "Database '$DB_NAME' already exists" \

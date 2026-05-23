@@ -148,4 +148,116 @@ describe("requireSafaricomIp middleware", () => {
     const resBlocked = await request(blocked).post("/api/mpesa/callback").send({});
     expect(resBlocked.status).toBe(403);
   });
+
+  // --- DB setting tests ---
+  // These use vi.doMock (not vi.mock) because vi.mock is statically hoisted by
+  // Vitest's transform and cannot be overridden at runtime inside a test body.
+  // vi.doMock is the non-hoisted alternative designed for per-test mocking.
+
+  it("allows an IP that falls within a CIDR returned by the DB mpesaAllowedIps setting", async () => {
+    vi.resetModules();
+    vi.doMock("@workspace/db", () => ({
+      db: {
+        select: () => ({
+          from: () => ({
+            where: () =>
+              Promise.resolve([{ key: "mpesaAllowedIps", value: "10.20.30.0/24" }]),
+          }),
+        }),
+        insert: () => ({ values: () => Promise.resolve() }),
+      },
+      settingsTable: {},
+      securityEventsTable: {},
+      pool: {},
+    }));
+    const app = await buildApp("10.20.30.55");
+    const res = await request(app).post("/api/mpesa/callback").send({});
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+  });
+
+  it("rejects an IP that is outside the CIDR returned by the DB mpesaAllowedIps setting", async () => {
+    vi.resetModules();
+    vi.doMock("@workspace/db", () => ({
+      db: {
+        select: () => ({
+          from: () => ({
+            where: () =>
+              Promise.resolve([{ key: "mpesaAllowedIps", value: "10.20.30.0/24" }]),
+          }),
+        }),
+        insert: () => ({ values: () => Promise.resolve() }),
+      },
+      settingsTable: {},
+      securityEventsTable: {},
+      pool: {},
+    }));
+    const app = await buildApp("10.20.31.1");
+    const res = await request(app).post("/api/mpesa/callback").send({});
+    expect(res.status).toBe(403);
+  });
+
+  it("allows all IPs when DB mpesaAllowedIps setting is set to * (bypass)", async () => {
+    vi.resetModules();
+    vi.doMock("@workspace/db", () => ({
+      db: {
+        select: () => ({
+          from: () => ({
+            where: () =>
+              Promise.resolve([{ key: "mpesaAllowedIps", value: "*" }]),
+          }),
+        }),
+        insert: () => ({ values: () => Promise.resolve() }),
+      },
+      settingsTable: {},
+      securityEventsTable: {},
+      pool: {},
+    }));
+    const app = await buildApp("1.2.3.4");
+    const res = await request(app).post("/api/mpesa/callback").send({});
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+  });
+
+  it("falls through to MPESA_ALLOWED_IPS env var when DB returns an empty mpesaAllowedIps value", async () => {
+    process.env["MPESA_ALLOWED_IPS"] = "7.7.7.7/32";
+    vi.resetModules();
+    vi.doMock("@workspace/db", () => ({
+      db: {
+        select: () => ({
+          from: () => ({
+            where: () => Promise.resolve([{ key: "mpesaAllowedIps", value: "" }]),
+          }),
+        }),
+        insert: () => ({ values: () => Promise.resolve() }),
+      },
+      settingsTable: {},
+      securityEventsTable: {},
+      pool: {},
+    }));
+    const app = await buildApp("7.7.7.7");
+    const res = await request(app).post("/api/mpesa/callback").send({});
+    expect(res.status).toBe(200);
+  });
+
+  it("falls through to MPESA_ALLOWED_IPS env var when DB returns no rows for mpesaAllowedIps", async () => {
+    process.env["MPESA_ALLOWED_IPS"] = "8.8.8.8/32";
+    vi.resetModules();
+    vi.doMock("@workspace/db", () => ({
+      db: {
+        select: () => ({
+          from: () => ({
+            where: () => Promise.resolve([]),
+          }),
+        }),
+        insert: () => ({ values: () => Promise.resolve() }),
+      },
+      settingsTable: {},
+      securityEventsTable: {},
+      pool: {},
+    }));
+    const app = await buildApp("8.8.8.8");
+    const res = await request(app).post("/api/mpesa/callback").send({});
+    expect(res.status).toBe(200);
+  });
 });

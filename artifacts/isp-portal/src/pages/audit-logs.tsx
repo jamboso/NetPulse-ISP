@@ -6,6 +6,9 @@ import {
   useGetAuditPurgeHistory,
   usePurgeAuditLogs,
   getGetAuditPurgeHistoryQueryKey,
+  useGetSettings,
+  useUpdateSettings,
+  getGetSettingsQueryKey,
 } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import type { AuditLog, ListAuditLogsParams } from "@workspace/api-client-react";
@@ -278,6 +281,8 @@ export default function AuditLogs() {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [exporting, setExporting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [retentionEditing, setRetentionEditing] = useState(false);
+  const [retentionInput, setRetentionInput] = useState("");
   const qc = useQueryClient();
   const { toast } = useToast();
 
@@ -337,6 +342,57 @@ export default function AuditLogs() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  const { data: settingsData, isLoading: settingsLoading } = useGetSettings();
+  const currentRetentionDays = settingsData?.auditLogRetentionDays ?? null;
+
+  const updateSettingsMutation = useUpdateSettings({
+    mutation: {
+      onSuccess: (data) => {
+        void qc.invalidateQueries({ queryKey: getGetSettingsQueryKey() });
+        setRetentionEditing(false);
+        setRetentionInput("");
+        const days = data.auditLogRetentionDays;
+        toast({
+          title: "Retention period updated",
+          description: days
+            ? `Audit logs older than ${days} days will be removed on the next purge.`
+            : "Retention period cleared.",
+        });
+      },
+      onError: () => {
+        toast({
+          title: "Failed to update retention",
+          description: "Could not save the retention period. Please try again.",
+          variant: "destructive",
+        });
+      },
+    },
+  });
+
+  function handleRetentionSave() {
+    const trimmed = retentionInput.trim();
+    const num = parseInt(trimmed, 10);
+    if (trimmed === "" || isNaN(num) || num < 1) {
+      toast({
+        title: "Invalid value",
+        description: "Please enter a positive number of days.",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateSettingsMutation.mutate({ data: { auditLogRetentionDays: String(num) } });
+  }
+
+  function handleRetentionEdit() {
+    setRetentionInput(currentRetentionDays ?? "");
+    setRetentionEditing(true);
+  }
+
+  function handleRetentionCancel() {
+    setRetentionEditing(false);
+    setRetentionInput("");
   }
 
   const { data: purgeHistoryData, isLoading: purgeHistoryLoading } = useGetAuditPurgeHistory();
@@ -482,16 +538,74 @@ export default function AuditLogs() {
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
             <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center">
               <History className="w-4.5 h-4.5 text-amber-600" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-800">Retention &amp; Purge</p>
+
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-gray-500">Retention period:</span>
+                {retentionEditing ? (
+                  <>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        min={1}
+                        className="h-7 w-20 text-xs px-2"
+                        value={retentionInput}
+                        onChange={(e) => setRetentionInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleRetentionSave();
+                          if (e.key === "Escape") handleRetentionCancel();
+                        }}
+                        autoFocus
+                        placeholder="e.g. 90"
+                      />
+                      <span className="text-xs text-gray-500">days</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs px-3 gap-1"
+                      onClick={handleRetentionSave}
+                      disabled={updateSettingsMutation.isPending}
+                    >
+                      <Check className="w-3 h-3" />
+                      {updateSettingsMutation.isPending ? "Saving…" : "Save"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs px-2 text-gray-500"
+                      onClick={handleRetentionCancel}
+                      disabled={updateSettingsMutation.isPending}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                ) : settingsLoading ? (
+                  <Skeleton className="h-4 w-16" />
+                ) : (
+                  <>
+                    <span className="text-xs font-semibold text-gray-800">
+                      {currentRetentionDays ? `${currentRetentionDays} days` : "Not set"}
+                    </span>
+                    <button
+                      className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1"
+                      onClick={handleRetentionEdit}
+                      title="Edit retention period"
+                    >
+                      <Pencil className="w-3 h-3" /> Edit
+                    </button>
+                  </>
+                )}
+              </div>
+
               {purgeHistoryLoading ? (
-                <Skeleton className="h-4 w-48 mt-1" />
+                <Skeleton className="h-4 w-48 mt-1.5" />
               ) : lastPurge ? (
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 mt-1.5">
                   Last purge:{" "}
                   <span className="font-medium text-gray-700">
                     {new Date(lastPurge.purgedAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" })}
@@ -504,7 +618,7 @@ export default function AuditLogs() {
                   <span className="capitalize text-gray-400">{lastPurge.triggeredBy}</span>
                 </p>
               ) : (
-                <p className="text-xs text-gray-400 mt-0.5">No purge runs recorded yet.</p>
+                <p className="text-xs text-gray-400 mt-1.5">No purge runs recorded yet.</p>
               )}
               {purgeHistory.length > 1 && (
                 <details className="mt-2">

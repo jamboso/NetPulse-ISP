@@ -27,6 +27,7 @@ const SETTINGS_KEYS = [
   // M-Pesa payment details (shown in SMS)
   "mpesaPaybillNumber",
   "mpesaAllowedIps",
+  "mpesaWebhookSecret",
   // Alert recipients
   "alertPhone",
   "alertSlackWebhook",

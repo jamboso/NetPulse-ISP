@@ -241,18 +241,38 @@ mpesaProtectedRouter.post("/mpesa/register-urls", registerUrlsLimiter, async (re
  * Returns M-Pesa configuration status (no secrets exposed).
  * Requires auth — staff only.
  */
-mpesaProtectedRouter.get("/mpesa/status", (_req, res) => {
-  res.json({
-    configured: !!(
-      process.env.MPESA_CONSUMER_KEY &&
-      process.env.MPESA_CONSUMER_SECRET &&
-      process.env.MPESA_SHORTCODE &&
-      process.env.MPESA_PASSKEY &&
-      process.env.MPESA_CALLBACK_URL
-    ),
-    environment: process.env.MPESA_ENV ?? "sandbox",
-    shortcode: process.env.MPESA_SHORTCODE ?? null,
-  });
+mpesaProtectedRouter.get("/mpesa/status", async (req, res) => {
+  try {
+    const s = await getSettings();
+    const consumerKey = s["mpesaConsumerKey"] || process.env.MPESA_CONSUMER_KEY;
+    const consumerSecret = s["mpesaConsumerSecret"] || process.env.MPESA_CONSUMER_SECRET;
+    const shortcode = s["mpesaShortcode"] || process.env.MPESA_SHORTCODE;
+    const passkey = s["mpesaPasskey"] || process.env.MPESA_PASSKEY;
+    const callbackUrl = s["mpesaCallbackUrl"] || process.env.MPESA_CALLBACK_URL;
+    const environment = s["mpesaEnv"] || process.env.MPESA_ENV || "sandbox";
+    const webhookSecret = s["mpesaWebhookSecret"] || process.env.MPESA_WEBHOOK_SECRET;
+
+    res.json({
+      configured: !!(consumerKey && consumerSecret && shortcode && passkey && callbackUrl),
+      environment,
+      shortcode: shortcode ?? null,
+      webhookSecretConfigured: !!webhookSecret,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to read M-Pesa status");
+    res.json({
+      configured: !!(
+        process.env.MPESA_CONSUMER_KEY &&
+        process.env.MPESA_CONSUMER_SECRET &&
+        process.env.MPESA_SHORTCODE &&
+        process.env.MPESA_PASSKEY &&
+        process.env.MPESA_CALLBACK_URL
+      ),
+      environment: process.env.MPESA_ENV ?? "sandbox",
+      shortcode: process.env.MPESA_SHORTCODE ?? null,
+      webhookSecretConfigured: !!process.env.MPESA_WEBHOOK_SECRET,
+    });
+  }
 });
 
 /*

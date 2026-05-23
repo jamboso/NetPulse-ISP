@@ -502,6 +502,15 @@ export default function Settings() {
           <RegisterUrlsCard />
 
           <SectionCard icon={Shield} title="M-Pesa Security">
+            <SettingField
+              label="Webhook Secret"
+              name="mpesaWebhookSecret"
+              value={f("mpesaWebhookSecret")}
+              onChange={set}
+              secret
+              placeholder="Shared secret sent in X-Mpesa-Webhook-Secret header"
+              hint="Safaricom must include this value in the X-Mpesa-Webhook-Secret header on every callback. Leave blank to skip this check. Overrides the MPESA_WEBHOOK_SECRET env var — no redeploy needed to rotate."
+            />
             <div className="grid grid-cols-12 gap-3 items-start py-3 border-b border-gray-100">
               <div className="col-span-4">
                 <Label className="text-sm font-medium text-gray-700">Allowed IP Ranges</Label>
@@ -909,10 +918,15 @@ function RegisterUrlsCard() {
 }
 
 function MpesaStatus() {
-  const [status, setStatus] = useState<{ configured: boolean; environment: string; shortcode: string | null } | null>(null);
+  const [status, setStatus] = useState<{
+    configured: boolean;
+    environment: string;
+    shortcode: string | null;
+    webhookSecretConfigured: boolean;
+  } | null>(null);
 
   useEffect(() => {
-    fetch("/api/mpesa/status")
+    fetch("/api/mpesa/status", { credentials: "include" })
       .then((r) => r.json())
       .then(setStatus)
       .catch(() => null);
@@ -921,19 +935,34 @@ function MpesaStatus() {
   if (!status) return <Skeleton className="h-8 w-48" />;
 
   return (
-    <div className="flex items-center gap-3 text-sm">
-      <Badge
-        className={status.configured
-          ? "bg-green-100 text-green-700 border-green-200"
-          : "bg-yellow-100 text-yellow-700 border-yellow-200"}
-        variant="outline"
-      >
-        {status.configured ? "Configured" : "Not configured"}
-      </Badge>
-      <span className="text-gray-500">
-        Environment: <strong>{status.environment}</strong>
-        {status.shortcode && <> · Shortcode: <strong>{status.shortcode}</strong></>}
-      </span>
+    <div className="space-y-2 text-sm">
+      <div className="flex items-center gap-3">
+        <Badge
+          className={status.configured
+            ? "bg-green-100 text-green-700 border-green-200"
+            : "bg-yellow-100 text-yellow-700 border-yellow-200"}
+          variant="outline"
+        >
+          {status.configured ? "Configured" : "Not configured"}
+        </Badge>
+        <span className="text-gray-500">
+          Environment: <strong>{status.environment}</strong>
+          {status.shortcode && <> · Shortcode: <strong>{status.shortcode}</strong></>}
+        </span>
+      </div>
+      <div className="flex items-center gap-3">
+        <Badge
+          className={status.webhookSecretConfigured
+            ? "bg-green-100 text-green-700 border-green-200"
+            : "bg-gray-100 text-gray-500 border-gray-200"}
+          variant="outline"
+        >
+          Webhook secret: {status.webhookSecretConfigured ? "set" : "not set"}
+        </Badge>
+        {!status.webhookSecretConfigured && (
+          <span className="text-xs text-gray-400">Set a webhook secret above for extra callback security.</span>
+        )}
+      </div>
     </div>
   );
 }

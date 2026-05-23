@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -11,28 +11,77 @@ import type { ReactNode } from "react";
 const mockUseListAuditLogs = vi.fn();
 const mockUseGetAuditPurgeHistory = vi.fn();
 const mockUsePurgeAuditLogs = vi.fn();
+const mockUseGetSettings = vi.fn();
+const mockUseUpdateSettings = vi.fn();
 
 vi.mock("@workspace/api-client-react", () => ({
   useListAuditLogs: (...args: unknown[]) => mockUseListAuditLogs(...args),
   useGetAuditPurgeHistory: (...args: unknown[]) => mockUseGetAuditPurgeHistory(...args),
   usePurgeAuditLogs: (...args: unknown[]) => mockUsePurgeAuditLogs(...args),
+  useGetSettings: (...args: unknown[]) => mockUseGetSettings(...args),
+  useUpdateSettings: (...args: unknown[]) => mockUseUpdateSettings(...args),
   getListAuditLogsQueryKey: vi.fn(() => ["/api/audit-logs"]),
   getGetAuditPurgeHistoryQueryKey: vi.fn(() => ["/api/audit-logs/purge-history"]),
+  getGetSettingsQueryKey: vi.fn(() => ["/api/settings"]),
 }));
+
+// ---------------------------------------------------------------------------
+// Reactive URL mock
+//
+// The component drives all filter state from the URL: it reads useSearch() on
+// every render and calls setLocation() when the user changes a filter. In a
+// real browser, wouter re-renders the tree on history changes. In jsdom we
+// replicate that by maintaining a listener list: setLocation() updates
+// `currentSearch` and notifies listeners. The ReactiveWrapper subscribes and
+// owns a React state slice for search, so any setLocation() call triggers a
+// proper re-render and lets the component pick up the new URL params.
+// ---------------------------------------------------------------------------
+
+let currentSearch = "";
+const urlListeners: Array<(search: string) => void> = [];
+
+const mockSetLocation = vi.fn((path: string) => {
+  const qIndex = path.indexOf("?");
+  currentSearch = qIndex >= 0 ? path.slice(qIndex + 1) : "";
+  urlListeners.forEach((fn) => fn(currentSearch));
+});
+
+const mockUseSearch = vi.fn(() => currentSearch);
 
 vi.mock("wouter", () => ({
-  useSearch: vi.fn(() => ""),
+  useSearch: () => mockUseSearch(),
+  useLocation: () => ["", mockSetLocation],
 }));
 
+const mockToast = vi.fn();
 vi.mock("@/hooks/use-toast", () => ({
-  useToast: vi.fn(() => ({ toast: vi.fn() })),
+  useToast: vi.fn(() => ({ toast: mockToast })),
 }));
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function wrapper({ children }: { children: ReactNode }) {
+/**
+ * A wrapper that subscribes to URL changes and re-renders the component tree
+ * whenever setLocation is called, keeping mockUseSearch in sync.
+ */
+function ReactiveWrapper({ children }: { children: ReactNode }) {
+  const [search, setSearch] = useState(currentSearch);
+
+  useEffect(() => {
+    const handler = (s: string) => setSearch(s);
+    urlListeners.push(handler);
+    return () => {
+      const idx = urlListeners.indexOf(handler);
+      if (idx >= 0) urlListeners.splice(idx, 1);
+    };
+  }, []);
+
+  // Keep the mock in sync with the reactive state so the component reads the
+  // correct value on each render triggered by a URL update.
+  mockUseSearch.mockReturnValue(search);
+
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -52,11 +101,16 @@ function setupDefaultMocks() {
     isLoading: false,
   });
   mockUsePurgeAuditLogs.mockReturnValue({ mutate: vi.fn(), isPending: false });
+  mockUseGetSettings.mockReturnValue({
+    data: { auditLogRetentionDays: "90" },
+    isLoading: false,
+  });
+  mockUseUpdateSettings.mockReturnValue({ mutate: vi.fn(), isPending: false });
 }
 
 async function renderAuditLogs() {
   const { default: AuditLogs } = await import("../pages/audit-logs");
-  return render(<AuditLogs />, { wrapper });
+  return render(<AuditLogs />, { wrapper: ReactiveWrapper });
 }
 
 function getLastCallParams(): Record<string, unknown> {
@@ -66,6 +120,15 @@ function getLastCallParams(): Record<string, unknown> {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  currentSearch = "";
+  urlListeners.length = 0;
+  mockUseSearch.mockReturnValue("");
+  // Restore setLocation side-effect after clearAllMocks resets it.
+  mockSetLocation.mockImplementation((path: string) => {
+    const qIndex = path.indexOf("?");
+    currentSearch = qIndex >= 0 ? path.slice(qIndex + 1) : "";
+    urlListeners.forEach((fn) => fn(currentSearch));
+  });
   setupDefaultMocks();
 });
 
@@ -125,12 +188,12 @@ describe("Audit Logs — Entity ID filter: hook params", () => {
 
 describe("Audit Logs — Entity ID filter: combined with entity type", () => {
   it("includes both entityType and entityId when entity type is pre-set via URL and ID is typed", async () => {
-    const { useSearch } = await import("wouter");
-    vi.mocked(useSearch).mockReturnValue("entityType=customer");
+    currentSearch = "entityType=customer";
+    mockUseSearch.mockReturnValue(currentSearch);
     setupDefaultMocks();
 
     const { default: AuditLogs } = await import("../pages/audit-logs");
-    render(<AuditLogs />, { wrapper });
+    render(<AuditLogs />, { wrapper: ReactiveWrapper });
 
     const user = userEvent.setup();
     const entityIdInput = screen.getByPlaceholderText("Entity ID…");
@@ -184,6 +247,152 @@ describe("Audit Logs — Entity ID filter: table content", () => {
       expect(
         screen.getByText("No audit records match your filters."),
       ).toBeInTheDocument();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Purge Now button tests
+// ---------------------------------------------------------------------------
+
+describe("Audit Logs — Purge Now button", () => {
+  it("opens the confirm dialog when Purge Now is clicked", async () => {
+    await renderAuditLogs();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /purge now/i }));
+
+    expect(screen.getByText("Confirm Purge")).toBeInTheDocument();
+    expect(screen.getByText(/This action cannot be undone/i)).toBeInTheDocument();
+  });
+
+  it("calls mutate when the 'Yes, purge now' confirmation button is clicked", async () => {
+    const mockMutate = vi.fn();
+    mockUsePurgeAuditLogs.mockReturnValue({ mutate: mockMutate, isPending: false });
+
+    await renderAuditLogs();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /purge now/i }));
+    await user.click(screen.getByRole("button", { name: /yes, purge now/i }));
+
+    expect(mockMutate).toHaveBeenCalledOnce();
+  });
+
+  it("closes the dialog and does not call mutate when Cancel is clicked", async () => {
+    const mockMutate = vi.fn();
+    mockUsePurgeAuditLogs.mockReturnValue({ mutate: mockMutate, isPending: false });
+
+    await renderAuditLogs();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /purge now/i }));
+    expect(screen.getByText("Confirm Purge")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Confirm Purge")).not.toBeInTheDocument();
+    });
+    expect(mockMutate).not.toHaveBeenCalled();
+  });
+
+  it("disables the Purge Now button and shows 'Purging…' while the request is in flight", async () => {
+    mockUsePurgeAuditLogs.mockReturnValue({ mutate: vi.fn(), isPending: true });
+
+    await renderAuditLogs();
+
+    const purgeButton = screen.getByRole("button", { name: /purging…/i });
+    expect(purgeButton).toBeDisabled();
+  });
+
+  it("shows a toast with the plural deleted count on success", async () => {
+    let capturedOnSuccess:
+      | ((data: { deleted: number }) => void)
+      | undefined;
+
+    mockUsePurgeAuditLogs.mockImplementation(
+      (opts: {
+        mutation: { onSuccess: (data: { deleted: number }) => void };
+      }) => {
+        capturedOnSuccess = opts.mutation.onSuccess;
+        return { mutate: vi.fn(), isPending: false };
+      },
+    );
+
+    await renderAuditLogs();
+
+    act(() => {
+      capturedOnSuccess!({ deleted: 5 });
+    });
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Purge complete",
+          description: "5 records deleted.",
+        }),
+      );
+    });
+  });
+
+  it("shows 'record' (singular) in the toast when exactly 1 record is deleted", async () => {
+    let capturedOnSuccess:
+      | ((data: { deleted: number }) => void)
+      | undefined;
+
+    mockUsePurgeAuditLogs.mockImplementation(
+      (opts: {
+        mutation: { onSuccess: (data: { deleted: number }) => void };
+      }) => {
+        capturedOnSuccess = opts.mutation.onSuccess;
+        return { mutate: vi.fn(), isPending: false };
+      },
+    );
+
+    await renderAuditLogs();
+
+    act(() => {
+      capturedOnSuccess!({ deleted: 1 });
+    });
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Purge complete",
+          description: "1 record deleted.",
+        }),
+      );
+    });
+  });
+
+  it("shows a toast with '0 records deleted' when nothing was purged", async () => {
+    let capturedOnSuccess:
+      | ((data: { deleted: number }) => void)
+      | undefined;
+
+    mockUsePurgeAuditLogs.mockImplementation(
+      (opts: {
+        mutation: { onSuccess: (data: { deleted: number }) => void };
+      }) => {
+        capturedOnSuccess = opts.mutation.onSuccess;
+        return { mutate: vi.fn(), isPending: false };
+      },
+    );
+
+    await renderAuditLogs();
+
+    act(() => {
+      capturedOnSuccess!({ deleted: 0 });
+    });
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Purge complete",
+          description: "0 records deleted.",
+        }),
+      );
     });
   });
 });

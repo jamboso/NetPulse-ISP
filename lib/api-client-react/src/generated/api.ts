@@ -22,6 +22,8 @@ import type {
 import type {
   ActivityItem,
   BreakdownItem,
+  ClearSecurityEventsParams,
+  ClearSecurityEventsResult,
   CreateUserInput,
   Customer,
   CustomerInput,
@@ -5570,6 +5572,83 @@ export function useListSecurityEvents<TData = Awaited<ReturnType<typeof listSecu
 
 
 
+export const getClearSecurityEventsUrl = (params?: ClearSecurityEventsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/security-events?${stringifiedParams}` : `/api/security-events`
+}
+
+/**
+ * @summary Delete security event records older than the given retention window (admin only)
+ */
+export const clearSecurityEvents = async (params?: ClearSecurityEventsParams, options?: RequestInit): Promise<ClearSecurityEventsResult> => {
+
+  return customFetch<ClearSecurityEventsResult>(getClearSecurityEventsUrl(params),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getClearSecurityEventsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearSecurityEvents>>, TError,{params?: ClearSecurityEventsParams}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearSecurityEvents>>, TError,{params?: ClearSecurityEventsParams}, TContext> => {
+
+const mutationKey = ['clearSecurityEvents'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearSecurityEvents>>, {params?: ClearSecurityEventsParams}> = (props) => {
+          const {params} = props ?? {};
+
+          return  clearSecurityEvents(params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearSecurityEventsMutationResult = NonNullable<Awaited<ReturnType<typeof clearSecurityEvents>>>
+
+    export type ClearSecurityEventsMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete security event records older than the given retention window (admin only)
+ */
+export const useClearSecurityEvents = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearSecurityEvents>>, TError,{params?: ClearSecurityEventsParams}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof clearSecurityEvents>>,
+        TError,
+        {params?: ClearSecurityEventsParams},
+        TContext
+      > => {
+      return useMutation(getClearSecurityEventsMutationOptions(options));
+    }
+
 export const getGetSecurityEventsSummaryUrl = () => {
 
 
@@ -5635,6 +5714,83 @@ export function useGetSecurityEventsSummary<TData = Awaited<ReturnType<typeof ge
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetSecurityEventsSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getExportSecurityEventsCsvUrl = () => {
+
+
+
+
+  return `/api/security-events/export.csv`
+}
+
+/**
+ * @summary Export all blocked webhook attempts as a CSV file (admin only)
+ */
+export const exportSecurityEventsCsv = async ( options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportSecurityEventsCsvUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportSecurityEventsCsvQueryKey = () => {
+    return [
+    `/api/security-events/export.csv`
+    ] as const;
+    }
+
+
+export const getExportSecurityEventsCsvQueryOptions = <TData = Awaited<ReturnType<typeof exportSecurityEventsCsv>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportSecurityEventsCsv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportSecurityEventsCsvQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportSecurityEventsCsv>>> = ({ signal }) => exportSecurityEventsCsv({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportSecurityEventsCsv>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportSecurityEventsCsvQueryResult = NonNullable<Awaited<ReturnType<typeof exportSecurityEventsCsv>>>
+export type ExportSecurityEventsCsvQueryError = ErrorType<void>
+
+
+/**
+ * @summary Export all blocked webhook attempts as a CSV file (admin only)
+ */
+
+export function useExportSecurityEventsCsv<TData = Awaited<ReturnType<typeof exportSecurityEventsCsv>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportSecurityEventsCsv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportSecurityEventsCsvQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

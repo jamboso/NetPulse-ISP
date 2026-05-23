@@ -1,10 +1,10 @@
-import { useGetDashboardSummary, useGetRevenueStats, useGetSubscriptionBreakdown, useGetRecentActivity, useGetRoutersStatus, useGetSecurityEventsSummary, useListSecurityEvents, type RouterStatus } from "@workspace/api-client-react";
+import { useGetDashboardSummary, useGetRevenueStats, useGetSubscriptionBreakdown, useGetRecentActivity, useGetRoutersStatus, useGetSecurityEventsSummary, useListSecurityEvents, useClearSecurityEvents, getExportSecurityEventsCsvUrl, type RouterStatus } from "@workspace/api-client-react";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useEffect, useRef, useState } from "react";
 import {
   Users, CreditCard, AlertTriangle, DollarSign, LifeBuoy,
   ServerCrash, Activity, Wifi, WifiOff, RefreshCw, Clock,
-  ShieldAlert, ShieldCheck, Zap,
+  ShieldAlert, ShieldCheck, Zap, Download, Trash2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -30,18 +30,61 @@ const ROUTER_TYPE_COLORS: Record<string, string> = {
 };
 
 function BlockedCallbackPanel() {
-  const { data: summary, isLoading: loadingSummary } = useGetSecurityEventsSummary();
-  const { data: events, isLoading: loadingEvents } = useListSecurityEvents({ limit: 10 });
+  const { data: summary, isLoading: loadingSummary, refetch: refetchSummary } = useGetSecurityEventsSummary();
+  const { data: events, isLoading: loadingEvents, refetch: refetchEvents } = useListSecurityEvents({ limit: 10 });
+  const clearMutation = useClearSecurityEvents();
+
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [retentionDays, setRetentionDays] = useState(0);
+  const [exporting, setExporting] = useState(false);
 
   const count = summary?.blockedLast24h ?? 0;
   const threshold = summary?.threshold ?? 5;
+  const totalCount = summary?.totalCount ?? 0;
   const isAlert = count >= threshold;
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const res = await fetch(getExportSecurityEventsCsvUrl(), { credentials: "include" });
+      if (!res.ok) {
+        console.error("Export failed:", res.status, await res.text());
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const cd = res.headers.get("content-disposition") ?? "";
+      const match = cd.match(/filename="([^"]+)"/);
+      a.download = match?.[1] ?? `security-events-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function handleClearConfirmed() {
+    clearMutation.mutate(
+      { params: retentionDays > 0 ? { retentionDays } : undefined },
+      {
+        onSuccess: () => {
+          setConfirmClear(false);
+          refetchSummary();
+          refetchEvents();
+        },
+      }
+    );
+  }
 
   return (
     <div className={`bg-white rounded-lg border shadow-sm overflow-hidden ${isAlert ? "border-red-300" : "border-gray-200"}`}>
       {/* Header */}
       <div className={`flex items-center justify-between px-5 py-4 border-b ${isAlert ? "border-red-200 bg-red-50" : "border-gray-200"}`}>
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
           {isAlert ? (
             <ShieldAlert className="w-5 h-5 text-red-600" />
           ) : (
@@ -56,13 +99,86 @@ function BlockedCallbackPanel() {
               {count} in last 24h
             </Badge>
           )}
+          {!loadingSummary && (
+            <Badge variant="outline" className="text-xs px-1.5 py-0 bg-gray-50 text-gray-600 border-gray-200">
+              {totalCount} total
+            </Badge>
+          )}
           {!loadingSummary && isAlert && (
             <Badge variant="outline" className="text-xs px-1.5 py-0 bg-orange-50 text-orange-700 border-orange-300">
               ⚠ Above threshold
             </Badge>
           )}
         </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs gap-1.5"
+            onClick={handleExport}
+            disabled={exporting || totalCount === 0}
+            title="Download all events as CSV"
+          >
+            <Download className="w-3.5 h-3.5" />
+            {exporting ? "Exporting…" : "Export CSV"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs gap-1.5 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+            onClick={() => setConfirmClear(true)}
+            disabled={totalCount === 0}
+            title="Clear log entries"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Clear
+          </Button>
+        </div>
       </div>
+
+      {/* Clear confirmation dialog */}
+      {confirmClear && (
+        <div className="px-5 py-4 bg-red-50 border-b border-red-200 flex flex-col gap-3">
+          <p className="text-sm font-medium text-red-800">Clear security event log?</p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="text-xs text-gray-600 flex items-center gap-2">
+              Keep records newer than
+              <select
+                value={retentionDays}
+                onChange={(e) => setRetentionDays(Number(e.target.value))}
+                className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+              >
+                <option value={0}>— delete all —</option>
+                <option value={7}>7 days</option>
+                <option value={30}>30 days</option>
+                <option value={90}>90 days</option>
+              </select>
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-7 text-xs"
+              onClick={handleClearConfirmed}
+              disabled={clearMutation.isPending}
+            >
+              {clearMutation.isPending ? "Clearing…" : "Confirm Clear"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+              onClick={() => { setConfirmClear(false); clearMutation.reset(); }}
+            >
+              Cancel
+            </Button>
+            {clearMutation.isError && (
+              <span className="text-xs text-red-600">Failed to clear. Please try again.</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Body */}
       {loadingEvents ? (

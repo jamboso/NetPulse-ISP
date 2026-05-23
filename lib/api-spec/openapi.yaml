@@ -1503,6 +1503,29 @@ paths:
                     type: integer
         "403":
           description: Forbidden — admin role required
+    delete:
+      operationId: clearSecurityEvents
+      tags: [security-events]
+      summary: Delete security event records older than the given retention window (admin only)
+      parameters:
+        - in: query
+          name: retentionDays
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Keep records newer than this many days. 0 = delete all records. Must be a non-negative integer.
+      responses:
+        "200":
+          description: Number of records deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearSecurityEventsResult"
+        "400":
+          description: Invalid retentionDays value
+        "403":
+          description: Forbidden — admin role required
 
   /security-events/summary:
     get:
@@ -1516,6 +1539,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SecurityEventsSummary"
+        "403":
+          description: Forbidden — admin role required
+
+  /security-events/export.csv:
+    get:
+      operationId: exportSecurityEventsCsv
+      tags: [security-events]
+      summary: Export all blocked webhook attempts as a CSV file (admin only)
+      responses:
+        "200":
+          description: CSV file of all security events
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
         "403":
           description: Forbidden — admin role required
 
@@ -2924,7 +2963,7 @@ components:
 
     SecurityEventsSummary:
       type: object
-      required: [blockedLast24h, threshold]
+      required: [blockedLast24h, threshold, totalCount]
       properties:
         blockedLast24h:
           type: integer
@@ -2932,3 +2971,14 @@ components:
         threshold:
           type: integer
           description: Alert threshold — show warning badge when blockedLast24h exceeds this
+        totalCount:
+          type: integer
+          description: Total number of security events stored in the log
+
+    ClearSecurityEventsResult:
+      type: object
+      required: [deletedCount]
+      properties:
+        deletedCount:
+          type: integer
+          description: Number of records that were deleted

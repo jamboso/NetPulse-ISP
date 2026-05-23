@@ -11,4 +11,6 @@ export interface SecurityEventsSummary {
   blockedLast24h: number;
   /** Alert threshold — show warning badge when blockedLast24h exceeds this */
   threshold: number;
+  /** Total number of security events stored in the log */
+  totalCount: number;
 }

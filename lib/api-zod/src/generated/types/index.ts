@@ -11,6 +11,8 @@ export * from './auditLog';
 export * from './auditLogAction';
 export * from './auditPurgeLog';
 export * from './breakdownItem';
+export * from './clearSecurityEventsParams';
+export * from './clearSecurityEventsResult';
 export * from './createUserInput';
 export * from './createUserInputNotifyMethod';
 export * from './createUserInputRole';

@@ -1641,11 +1641,29 @@ export const ListSecurityEventsResponse = zod.object({
 
 
 /**
+ * @summary Delete security event records older than the given retention window (admin only)
+ */
+export const clearSecurityEventsQueryRetentionDaysDefault = 0;
+export const clearSecurityEventsQueryRetentionDaysMin = 0;
+
+
+
+export const ClearSecurityEventsQueryParams = zod.object({
+  "retentionDays": zod.coerce.number().min(clearSecurityEventsQueryRetentionDaysMin).default(clearSecurityEventsQueryRetentionDaysDefault).describe('Keep records newer than this many days. 0 = delete all records. Must be a non-negative integer.')
+})
+
+export const ClearSecurityEventsResponse = zod.object({
+  "deletedCount": zod.number().describe('Number of records that were deleted')
+})
+
+
+/**
  * @summary Count of blocked attempts in the last 24 hours (admin only)
  */
 export const GetSecurityEventsSummaryResponse = zod.object({
   "blockedLast24h": zod.number().describe('Number of blocked callback attempts in the last 24 hours'),
-  "threshold": zod.number().describe('Alert threshold — show warning badge when blockedLast24h exceeds this')
+  "threshold": zod.number().describe('Alert threshold — show warning badge when blockedLast24h exceeds this'),
+  "totalCount": zod.number().describe('Total number of security events stored in the log')
 })
 
 

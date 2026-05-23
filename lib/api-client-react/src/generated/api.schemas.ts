@@ -1198,6 +1198,13 @@ export interface SecurityEventsSummary {
   blockedLast24h: number;
   /** Alert threshold — show warning badge when blockedLast24h exceeds this */
   threshold: number;
+  /** Total number of security events stored in the log */
+  totalCount: number;
+}
+
+export interface ClearSecurityEventsResult {
+  /** Number of records that were deleted */
+  deletedCount: number;
 }
 
 export type ListUsersParams = {
@@ -1303,5 +1310,13 @@ export type ListSecurityEvents200 = {
   data: SecurityEvent[];
   page: number;
   limit: number;
+};
+
+export type ClearSecurityEventsParams = {
+/**
+ * Keep records newer than this many days. 0 = delete all records. Must be a non-negative integer.
+ * @minimum 0
+ */
+retentionDays?: number;
 };
 

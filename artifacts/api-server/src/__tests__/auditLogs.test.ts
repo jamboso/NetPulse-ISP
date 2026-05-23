@@ -547,6 +547,70 @@ describe("GET /audit-logs/purge-history", () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
   });
+
+  it("preserves triggeredBy field for manual entry", async () => {
+    const purgeRow = { id: 1, purgedAt: new Date().toISOString(), deletedCount: 50, triggeredBy: "manual" };
+    mockExec.mockResolvedValueOnce([purgeRow]);
+
+    const res = await request(buildApp()).get("/audit-logs/purge-history");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].triggeredBy).toBe("manual");
+  });
+
+  it("preserves triggeredBy field for scheduler entry", async () => {
+    const purgeRow = { id: 2, purgedAt: new Date().toISOString(), deletedCount: 10, triggeredBy: "scheduler" };
+    mockExec.mockResolvedValueOnce([purgeRow]);
+
+    const res = await request(buildApp()).get("/audit-logs/purge-history");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].triggeredBy).toBe("scheduler");
+  });
+
+  it("returns multiple entries ordered most recent first (descending purgedAt)", async () => {
+    const older = { id: 1, purgedAt: "2025-01-01T00:00:00.000Z", deletedCount: 5, triggeredBy: "scheduler" };
+    const newer = { id: 2, purgedAt: "2025-06-01T00:00:00.000Z", deletedCount: 15, triggeredBy: "manual" };
+    mockExec.mockResolvedValueOnce([newer, older]);
+
+    const res = await request(buildApp()).get("/audit-logs/purge-history");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].id).toBe(2);
+    expect(res.body.data[1].id).toBe(1);
+  });
+
+  it("each entry has the expected fields: id, purgedAt, deletedCount, triggeredBy", async () => {
+    const purgeRow = { id: 7, purgedAt: new Date().toISOString(), deletedCount: 123, triggeredBy: "manual" };
+    mockExec.mockResolvedValueOnce([purgeRow]);
+
+    const res = await request(buildApp()).get("/audit-logs/purge-history");
+
+    expect(res.status).toBe(200);
+    const entry = res.body.data[0];
+    expect(entry).toHaveProperty("id", 7);
+    expect(entry).toHaveProperty("deletedCount", 123);
+    expect(entry).toHaveProperty("triggeredBy", "manual");
+    expect(entry).toHaveProperty("purgedAt");
+  });
+
+  it("returns mixed manual and scheduler entries preserving their triggeredBy values", async () => {
+    const rows = [
+      { id: 3, purgedAt: "2025-09-01T00:00:00.000Z", deletedCount: 20, triggeredBy: "manual" },
+      { id: 2, purgedAt: "2025-08-01T00:00:00.000Z", deletedCount: 8, triggeredBy: "scheduler" },
+      { id: 1, purgedAt: "2025-07-01T00:00:00.000Z", deletedCount: 0, triggeredBy: "scheduler" },
+    ];
+    mockExec.mockResolvedValueOnce(rows);
+
+    const res = await request(buildApp()).get("/audit-logs/purge-history");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.data[0].triggeredBy).toBe("manual");
+    expect(res.body.data[1].triggeredBy).toBe("scheduler");
+    expect(res.body.data[2].triggeredBy).toBe("scheduler");
+  });
 });
 
 // ---------------------------------------------------------------------------

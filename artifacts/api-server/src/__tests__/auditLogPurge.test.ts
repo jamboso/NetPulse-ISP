@@ -217,4 +217,111 @@ describe("purgeAuditLogs() — integration", () => {
 
     await db.delete(auditLogsTable).where(eq(auditLogsTable.id, recentId));
   });
+
+  it('writes a purge_log row with triggeredBy set to "scheduler"', async () => {
+    await setRetentionDays(30);
+
+    await purgeAuditLogs("scheduler");
+
+    const rows = await db
+      .select()
+      .from(auditPurgeLogTable)
+      .where(eq(auditPurgeLogTable.triggeredBy, "scheduler"));
+
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+    const last = rows[rows.length - 1]!;
+    expect(last.triggeredBy).toBe("scheduler");
+    expect(typeof last.deletedCount).toBe("number");
+    expect(last.purgedAt).toBeInstanceOf(Date);
+
+    await db
+      .delete(auditPurgeLogTable)
+      .where(eq(auditPurgeLogTable.triggeredBy, "scheduler"));
+  });
+
+  it('writes a purge_log row with triggeredBy set to "manual"', async () => {
+    await setRetentionDays(30);
+
+    await purgeAuditLogs("manual");
+
+    const rows = await db
+      .select()
+      .from(auditPurgeLogTable)
+      .where(eq(auditPurgeLogTable.triggeredBy, "manual"));
+
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+    const last = rows[rows.length - 1]!;
+    expect(last.triggeredBy).toBe("manual");
+
+    await db
+      .delete(auditPurgeLogTable)
+      .where(eq(auditPurgeLogTable.triggeredBy, "manual"));
+  });
+
+  it("each run appends a new row — two runs produce two purge_log entries", async () => {
+    await setRetentionDays(30);
+    const marker = "test-two-runs";
+
+    await purgeAuditLogs(marker);
+    await purgeAuditLogs(marker);
+
+    const rows = await db
+      .select()
+      .from(auditPurgeLogTable)
+      .where(eq(auditPurgeLogTable.triggeredBy, marker));
+
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+
+    await db
+      .delete(auditPurgeLogTable)
+      .where(eq(auditPurgeLogTable.triggeredBy, marker));
+  });
+
+  it("purge_log rows are stored in ascending insertion order (most recent last by purgedAt)", async () => {
+    await setRetentionDays(30);
+    const marker = "test-order";
+
+    await purgeAuditLogs(marker);
+    await purgeAuditLogs(marker);
+
+    const rows = await db
+      .select()
+      .from(auditPurgeLogTable)
+      .where(eq(auditPurgeLogTable.triggeredBy, marker));
+
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+
+    for (let i = 1; i < rows.length; i++) {
+      expect(rows[i]!.purgedAt.getTime()).toBeGreaterThanOrEqual(
+        rows[i - 1]!.purgedAt.getTime(),
+      );
+    }
+
+    await db
+      .delete(auditPurgeLogTable)
+      .where(eq(auditPurgeLogTable.triggeredBy, marker));
+  });
+
+  it("purge_log entry has the expected shape (id, purgedAt, deletedCount, triggeredBy)", async () => {
+    await setRetentionDays(30);
+    const marker = "test-shape";
+
+    await purgeAuditLogs(marker);
+
+    const rows = await db
+      .select()
+      .from(auditPurgeLogTable)
+      .where(eq(auditPurgeLogTable.triggeredBy, marker));
+
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+    const row = rows[0]!;
+    expect(typeof row.id).toBe("number");
+    expect(row.purgedAt).toBeInstanceOf(Date);
+    expect(typeof row.deletedCount).toBe("number");
+    expect(row.triggeredBy).toBe(marker);
+
+    await db
+      .delete(auditPurgeLogTable)
+      .where(eq(auditPurgeLogTable.triggeredBy, marker));
+  });
 });

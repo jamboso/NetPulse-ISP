@@ -35,6 +35,11 @@ const SETTINGS_KEYS = [
   "rolePermissions",
   // Audit log retention
   "auditLogRetentionDays",
+  // Scheduled CSV export
+  "exportScheduleEnabled",
+  "exportScheduleFrequency",
+  "exportScheduleEmail",
+  "exportScheduleLastSentAt",
 ] as const;
 
 type SettingsKey = (typeof SETTINGS_KEYS)[number];

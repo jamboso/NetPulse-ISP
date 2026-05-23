@@ -4,6 +4,7 @@ import { startSessionPoller } from "./lib/sessionPoller";
 import { startSmsScheduler } from "./lib/smsScheduler";
 import { startRouterMonitor } from "./lib/routerMonitor";
 import { startAuditLogPurgeScheduler } from "./lib/auditLogPurge";
+import { startAuditExportScheduler } from "./lib/auditExportScheduler";
 
 const rawPort = process.env["PORT"];
 
@@ -30,4 +31,5 @@ app.listen(port, (err) => {
   startSmsScheduler();
   startRouterMonitor();
   startAuditLogPurgeScheduler();
+  startAuditExportScheduler();
 });

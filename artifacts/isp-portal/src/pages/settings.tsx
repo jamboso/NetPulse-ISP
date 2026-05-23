@@ -430,6 +430,42 @@ export default function Settings() {
               <p className="text-[11px] text-gray-400 mt-1.5">Sends a test message to your account email address using the settings above. Save first if you've made changes.</p>
             </div>
           </SectionCard>
+
+          <SectionCard icon={Bell} title="Scheduled Audit Log Export">
+            <ToggleRow
+              label="Enable Scheduled Export"
+              name="exportScheduleEnabled"
+              value={f("exportScheduleEnabled")}
+              onChange={set}
+              hint="Automatically email an audit log CSV on the chosen schedule. Requires SMTP to be configured above."
+            />
+            <SelectField
+              label="Frequency"
+              name="exportScheduleFrequency"
+              value={f("exportScheduleFrequency")}
+              onChange={set}
+              hint="How often to generate and send the export"
+              options={[
+                { value: "daily",   label: "Daily" },
+                { value: "weekly",  label: "Weekly" },
+                { value: "monthly", label: "Monthly" },
+              ]}
+            />
+            <SettingField
+              label="Destination Email"
+              name="exportScheduleEmail"
+              value={f("exportScheduleEmail")}
+              onChange={set}
+              type="email"
+              placeholder="compliance@myisp.co.ke"
+              hint="The CSV will be sent as an attachment to this address"
+            />
+            {f("exportScheduleLastSentAt") && (
+              <div className="py-3 text-xs text-gray-400">
+                Last sent: {new Date(f("exportScheduleLastSentAt")).toLocaleString()}
+              </div>
+            )}
+          </SectionCard>
         </TabsContent>
 
         {/* ── SMS ─────────────────────────────────────────────────────────── */}

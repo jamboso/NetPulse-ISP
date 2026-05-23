@@ -376,8 +376,22 @@ set -o allexport
 source "$ENV_FILE" 2>/dev/null || true
 set +o allexport
 
-info "Installing Node.js dependencies (this takes ~1-2 minutes)..."
-NETPULSE_INSTALL=1 pnpm install --no-frozen-lockfile
+info "Installing Node.js dependencies (slow connections may take 5-10 minutes)..."
+# Configure pnpm for slow/unreliable connections
+pnpm config set fetch-retries 5 --location project
+pnpm config set fetch-retry-mintimeout 30000 --location project
+pnpm config set fetch-retry-maxtimeout 300000 --location project
+pnpm config set fetch-timeout 300000 --location project
+pnpm config set network-concurrency 4 --location project
+# Retry the install up to 3 times in case of transient network errors
+for _attempt in 1 2 3; do
+  NETPULSE_INSTALL=1 pnpm install --no-frozen-lockfile && break
+  if [[ "$_attempt" -eq 3 ]]; then
+    die "pnpm install failed after 3 attempts. Check your internet connection and re-run."
+  fi
+  warn "pnpm install attempt $_attempt failed — retrying in 15s..."
+  sleep 15
+done
 
 info "Building shared libraries..."
 pnpm run typecheck:libs

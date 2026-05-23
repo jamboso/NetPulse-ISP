@@ -238,8 +238,13 @@ router.post("/subscriptions", requireRole("admin", "billing"), validateBody(crea
   // Always generate credentials for active subscriptions (even without a router)
   // so RADIUS can auth the user immediately.
   const needsCreds = status === "active" && !!customer;
-  const pppoeUsername = needsCreds ? genUsername(customer!.name, body.customerId) : null;
-  const pppoePassword = needsCreds ? genPassword() : null;
+  // Re-use customer-level PPPoE credentials if already set; otherwise auto-generate
+  const pppoeUsername = needsCreds
+    ? (customer!.pppoeUsername ?? genUsername(customer!.name, body.customerId))
+    : null;
+  const pppoePassword = needsCreds
+    ? (customer!.pppoePassword ?? genPassword())
+    : null;
 
   const [sub] = await db.insert(subscriptionsTable).values({
     customerId: body.customerId,

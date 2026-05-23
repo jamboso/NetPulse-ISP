@@ -16,5 +16,9 @@ export interface Customer {
   status: CustomerStatus;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  pppoeUsername?: string | null;
+  /** @nullable */
+  pppoePassword?: string | null;
   createdAt: string;
 }

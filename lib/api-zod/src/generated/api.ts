@@ -220,6 +220,8 @@ export const ListCustomersResponse = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 })),
   "total": zod.number(),
@@ -237,7 +239,9 @@ export const CreateCustomerBody = zod.object({
   "phone": zod.string(),
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']).optional(),
-  "notes": zod.string().optional()
+  "notes": zod.string().optional(),
+  "pppoeUsername": zod.string().optional(),
+  "pppoePassword": zod.string().optional()
 })
 
 
@@ -256,6 +260,8 @@ export const GetCustomerResponse = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -273,7 +279,9 @@ export const UpdateCustomerBody = zod.object({
   "phone": zod.string().optional(),
   "address": zod.string().optional(),
   "status": zod.enum(['active', 'suspended', 'terminated']).optional(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish()
 })
 
 export const UpdateCustomerResponse = zod.object({
@@ -284,6 +292,8 @@ export const UpdateCustomerResponse = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -568,6 +578,8 @@ export const ListSubscriptionsResponseItem = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 }).optional(),
   "plan": zod.object({
@@ -629,6 +641,8 @@ export const GetSubscriptionResponse = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 }).optional(),
   "plan": zod.object({
@@ -683,6 +697,8 @@ export const UpdateSubscriptionResponse = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 }).optional(),
   "plan": zod.object({
@@ -739,6 +755,8 @@ export const ListInvoicesResponse = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 }).optional()
 })),
@@ -789,6 +807,8 @@ export const GetInvoiceResponse = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 }).optional()
 })
@@ -830,6 +850,8 @@ export const UpdateInvoiceResponse = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 }).optional()
 })
@@ -869,6 +891,8 @@ export const ListPaymentsResponseItem = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 }).optional()
 })
@@ -914,6 +938,8 @@ export const GetPaymentResponse = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 }).optional()
 })
@@ -947,6 +973,8 @@ export const ListTicketsResponseItem = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 }).optional()
 })
@@ -993,6 +1021,8 @@ export const GetTicketResponse = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 }).optional()
 })
@@ -1034,6 +1064,8 @@ export const UpdateTicketResponse = zod.object({
   "address": zod.string(),
   "status": zod.enum(['active', 'suspended', 'terminated']),
   "notes": zod.string().nullish(),
+  "pppoeUsername": zod.string().nullish(),
+  "pppoePassword": zod.string().nullish(),
   "createdAt": zod.string()
 }).optional()
 })

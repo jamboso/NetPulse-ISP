@@ -1619,6 +1619,10 @@ components:
           enum: [active, suspended, terminated]
         notes:
           type: ["string", "null"]
+        pppoeUsername:
+          type: ["string", "null"]
+        pppoePassword:
+          type: ["string", "null"]
         createdAt:
           type: string
 
@@ -1654,6 +1658,10 @@ components:
           enum: [active, suspended, terminated]
         notes:
           type: string
+        pppoeUsername:
+          type: string
+        pppoePassword:
+          type: string
 
     CustomerUpdate:
       type: object
@@ -1670,6 +1678,10 @@ components:
           type: string
           enum: [active, suspended, terminated]
         notes:
+          type: ["string", "null"]
+        pppoeUsername:
+          type: ["string", "null"]
+        pppoePassword:
           type: ["string", "null"]
 
     # ── PLANS ──────────────────────────────────────────────────────────────────

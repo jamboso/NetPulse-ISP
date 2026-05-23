@@ -9,10 +9,12 @@ export const customersTable = pgTable("customers", {
   phone:     text("phone").notNull(),
   address:   text("address").notNull(),
   status:    text("status").notNull().default("active"),
-  notes:     text("notes"),
-  latitude:  doublePrecision("latitude"),
-  longitude: doublePrecision("longitude"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  notes:          text("notes"),
+  latitude:       doublePrecision("latitude"),
+  longitude:      doublePrecision("longitude"),
+  pppoeUsername:  text("pppoe_username"),
+  pppoePassword:  text("pppoe_password"),
+  createdAt:      timestamp("created_at").notNull().defaultNow(),
 });
 
 export const insertCustomerSchema = createInsertSchema(customersTable).omit({ id: true, createdAt: true });

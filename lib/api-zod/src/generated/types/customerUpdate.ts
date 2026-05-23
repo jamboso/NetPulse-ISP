@@ -15,4 +15,8 @@ export interface CustomerUpdate {
   status?: CustomerUpdateStatus;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  pppoeUsername?: string | null;
+  /** @nullable */
+  pppoePassword?: string | null;
 }

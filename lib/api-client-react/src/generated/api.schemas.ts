@@ -63,6 +63,10 @@ export interface Customer {
   status: CustomerStatus;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  pppoeUsername?: string | null;
+  /** @nullable */
+  pppoePassword?: string | null;
   createdAt: string;
 }
 
@@ -89,6 +93,8 @@ export interface CustomerInput {
   address: string;
   status?: CustomerInputStatus;
   notes?: string;
+  pppoeUsername?: string;
+  pppoePassword?: string;
 }
 
 export type CustomerUpdateStatus = typeof CustomerUpdateStatus[keyof typeof CustomerUpdateStatus];
@@ -108,6 +114,10 @@ export interface CustomerUpdate {
   status?: CustomerUpdateStatus;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  pppoeUsername?: string | null;
+  /** @nullable */
+  pppoePassword?: string | null;
 }
 
 export type PlanBillingCycle = typeof PlanBillingCycle[keyof typeof PlanBillingCycle];

@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useBulkSelect } from "@/hooks/useBulkSelect";
 import { BulkActionBar } from "@/components/BulkActionBar";
-import { Plus, Search, MoreHorizontal, Mail, Phone, MapPin, Pencil, Trash2, UserX, UserCheck, LocateFixed } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Mail, Phone, MapPin, Pencil, Trash2, UserX, UserCheck, LocateFixed, Eye, EyeOff, Copy, Check, RefreshCw, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,11 +24,21 @@ const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 type CustomerForm = {
   name: string; email: string; phone: string; address: string;
   status: string; notes: string; latitude: string; longitude: string;
+  pppoeUsername: string; pppoePassword: string;
 };
 const EMPTY: CustomerForm = {
   name: "", email: "", phone: "", address: "",
   status: "active", notes: "", latitude: "", longitude: "",
+  pppoeUsername: "", pppoePassword: "",
 };
+
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, ".").replace(/\.+/g, ".").replace(/^\.+|\.+$/g, "").substring(0, 24);
+}
+function randPass(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
 
 function CustomerDialog({ open, onClose, initial, customerId }: {
   open: boolean; onClose: () => void; initial?: CustomerForm; customerId?: number;
@@ -38,7 +48,16 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [createdCreds, setCreatedCreds] = useState<{ username: string; password: string } | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
   const set = (k: keyof CustomerForm, v: string) => setForm(p => ({ ...p, [k]: v }));
+
+  const copyText = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
 
   const getGpsLocation = () => {
     if (!navigator.geolocation) return;
@@ -59,25 +78,32 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
     setSaveError(null);
     try {
       const body = {
-        name:      form.name,
-        email:     form.email,
-        phone:     form.phone,
-        address:   form.address,
-        status:    form.status,
-        notes:     form.notes || null,
-        latitude:  form.latitude  ? parseFloat(form.latitude)  : null,
-        longitude: form.longitude ? parseFloat(form.longitude) : null,
+        name:          form.name,
+        email:         form.email,
+        phone:         form.phone,
+        address:       form.address,
+        status:        form.status,
+        notes:         form.notes || null,
+        latitude:      form.latitude  ? parseFloat(form.latitude)  : null,
+        longitude:     form.longitude ? parseFloat(form.longitude) : null,
+        pppoeUsername: form.pppoeUsername || null,
+        pppoePassword: form.pppoePassword || null,
       };
       const url    = customerId ? `${API}/api/customers/${customerId}` : `${API}/api/customers`;
       const method = customerId ? "PATCH" : "POST";
-      const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "include" });
       if (!r.ok) {
         const data = await r.json().catch(() => null);
         throw new Error(data?.error ?? data?.message ?? "Save failed");
       }
+      const saved = await r.json();
       await qc.invalidateQueries({ queryKey: ["/api/customers"] });
       await qc.invalidateQueries({ queryKey: ["network-map"] });
-      onClose();
+      if (!customerId && saved.pppoeUsername && saved.pppoePassword) {
+        setCreatedCreds({ username: saved.pppoeUsername, password: saved.pppoePassword });
+      } else {
+        onClose();
+      }
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Save failed. Please try again.");
     } finally { setSaving(false); }
@@ -86,7 +112,8 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
   const hasCoords = !!form.latitude && !!form.longitude;
 
   return (
-    <Dialog open={open} onOpenChange={o => !o && onClose()}>
+    <>
+    <Dialog open={open && !createdCreds} onOpenChange={o => !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>{customerId ? "Edit Customer" : "Add Customer"}</DialogTitle></DialogHeader>
         <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
@@ -157,6 +184,42 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
             )}
             <p className="text-[10px] text-gray-400">Coordinates place this customer on the Network Map.</p>
           </div>
+
+          <div className="space-y-2 pt-1 border-t">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5">
+                <Wifi className="w-3.5 h-3.5 text-blue-500" /> PPPoE Credentials
+                <span className="text-[10px] font-normal text-gray-400 ml-1">optional</span>
+              </Label>
+              {!customerId && (
+                <Button type="button" variant="outline" size="sm" className="h-7 gap-1.5 text-xs"
+                  onClick={() => { set("pppoeUsername", slugify(form.name)); set("pppoePassword", randPass()); }}>
+                  <RefreshCw className="w-3 h-3" /> Auto-fill
+                </Button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-gray-500">Username</Label>
+                <Input className="font-mono text-sm h-8" value={form.pppoeUsername}
+                  onChange={e => set("pppoeUsername", e.target.value)} placeholder="john.doe" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-gray-500">Password</Label>
+                <div className="relative">
+                  <Input className="font-mono text-sm h-8 pr-8"
+                    type={showPass ? "text" : "password"}
+                    value={form.pppoePassword}
+                    onChange={e => set("pppoePassword", e.target.value)} />
+                  <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={() => setShowPass(p => !p)}>
+                    {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <p className="text-[10px] text-gray-400">Credentials are synced to FreeRADIUS immediately on save.</p>
+          </div>
         </div>
 
         {saveError && <p className="text-sm text-red-600 text-center px-1">{saveError}</p>}
@@ -172,6 +235,41 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={!!createdCreds} onOpenChange={() => { setCreatedCreds(null); onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Check className="w-5 h-5 text-green-500" /> Customer Created
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-gray-600">PPPoE credentials are ready. Share these with the technician installing the connection.</p>
+        <div className="space-y-3 bg-gray-50 rounded-lg border p-3 mt-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-gray-500 w-20">Username</span>
+            <span className="font-mono font-semibold text-gray-900 flex-1 truncate">{createdCreds?.username}</span>
+            <button onClick={() => copyText(createdCreds!.username, "user")} className="text-gray-400 hover:text-blue-600 transition-colors flex-shrink-0">
+              {copied === "user" ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
+          <div className="border-t" />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-gray-500 w-20">Password</span>
+            <span className="font-mono font-semibold text-gray-900 flex-1 truncate">{createdCreds?.password}</span>
+            <button onClick={() => copyText(createdCreds!.password, "pass")} className="text-gray-400 hover:text-blue-600 transition-colors flex-shrink-0">
+              {copied === "pass" ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+        <p className="text-[10px] text-gray-400">Synced to FreeRADIUS. SMS delivery coming soon.</p>
+        <DialogFooter>
+          <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={() => { setCreatedCreds(null); onClose(); }}>
+            Done
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
@@ -358,6 +456,8 @@ export default function Customers() {
                                 address: customer.address, status: customer.status, notes: customer.notes ?? "",
                                 latitude:  (customer as any).latitude  != null ? String((customer as any).latitude)  : "",
                                 longitude: (customer as any).longitude != null ? String((customer as any).longitude) : "",
+                                pppoeUsername: (customer as any).pppoeUsername ?? "",
+                                pppoePassword: (customer as any).pppoePassword ?? "",
                               },
                             })}>
                               <Pencil className="w-4 h-4 mr-2" /> Edit

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { customersTable, subscriptionsTable, invoicesTable, paymentsTable, ticketsTable, ticketRepliesTable } from "@workspace/db";
-import { eq, ilike, or, sql, inArray } from "drizzle-orm";
+import { customersTable, subscriptionsTable, invoicesTable, paymentsTable, ticketsTable, ticketRepliesTable, radcheckTable } from "@workspace/db";
+import { eq, ilike, or, sql, inArray, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
@@ -11,17 +11,30 @@ import { getSettings, sendSms } from "../lib/sms.js";
 const CUSTOMER_STATUSES = ["active", "inactive", "suspended"] as const;
 
 const createCustomerSchema = z.object({
-  name:      z.string().min(1),
-  email:     z.string().email(),
-  phone:     z.string().min(1),
-  address:   z.string().min(1),
-  status:    z.enum(CUSTOMER_STATUSES).optional(),
-  notes:     z.string().optional().nullable(),
-  latitude:  z.number().optional().nullable(),
-  longitude: z.number().optional().nullable(),
+  name:          z.string().min(1),
+  email:         z.string().email(),
+  phone:         z.string().min(1),
+  address:       z.string().min(1),
+  status:        z.enum(CUSTOMER_STATUSES).optional(),
+  notes:         z.string().optional().nullable(),
+  latitude:      z.number().optional().nullable(),
+  longitude:     z.number().optional().nullable(),
+  pppoeUsername: z.string().optional().nullable(),
+  pppoePassword: z.string().optional().nullable(),
 });
 
 const updateCustomerSchema = createCustomerSchema.partial();
+
+async function upsertRadcheck(username: string, password: string): Promise<void> {
+  const [existing] = await db.select({ id: radcheckTable.id })
+    .from(radcheckTable)
+    .where(and(eq(radcheckTable.username, username), eq(radcheckTable.attribute, "Cleartext-Password")));
+  if (existing) {
+    await db.update(radcheckTable).set({ value: password }).where(eq(radcheckTable.id, existing.id));
+  } else {
+    await db.insert(radcheckTable).values({ username, attribute: "Cleartext-Password", op: ":=", value: password });
+  }
+}
 
 const router = Router();
 
@@ -61,15 +74,21 @@ router.get("/customers", async (req, res) => {
 router.post("/customers", requireRole("admin", "billing", "support"), validateBody(createCustomerSchema), async (req, res) => {
   const body = req.body;
   const [customer] = await db.insert(customersTable).values({
-    name:      body.name,
-    email:     body.email,
-    phone:     body.phone,
-    address:   body.address,
-    status:    body.status ?? "active",
-    notes:     body.notes ?? null,
-    latitude:  body.latitude  != null ? Number(body.latitude)  : null,
-    longitude: body.longitude != null ? Number(body.longitude) : null,
+    name:          body.name,
+    email:         body.email,
+    phone:         body.phone,
+    address:       body.address,
+    status:        body.status ?? "active",
+    notes:         body.notes ?? null,
+    latitude:      body.latitude  != null ? Number(body.latitude)  : null,
+    longitude:     body.longitude != null ? Number(body.longitude) : null,
+    pppoeUsername: body.pppoeUsername ?? null,
+    pppoePassword: body.pppoePassword ?? null,
   }).returning();
+
+  if (body.pppoeUsername && body.pppoePassword) {
+    void upsertRadcheck(body.pppoeUsername, body.pppoePassword);
+  }
 
   void writeAuditLog({
     userId:     req.user!.id,
@@ -104,10 +123,16 @@ router.patch("/customers/:id", requireRole("admin", "billing", "support"), valid
   if (body.address   !== undefined) update.address   = body.address;
   if (body.status    !== undefined) update.status    = body.status;
   if (body.notes     !== undefined) update.notes     = body.notes;
-  if (body.latitude  !== undefined) update.latitude  = body.latitude  != null ? Number(body.latitude)  : null;
-  if (body.longitude !== undefined) update.longitude = body.longitude != null ? Number(body.longitude) : null;
+  if (body.latitude     !== undefined) update.latitude     = body.latitude  != null ? Number(body.latitude)  : null;
+  if (body.longitude    !== undefined) update.longitude    = body.longitude != null ? Number(body.longitude) : null;
+  if (body.pppoeUsername !== undefined) update.pppoeUsername = body.pppoeUsername ?? null;
+  if (body.pppoePassword !== undefined) update.pppoePassword = body.pppoePassword ?? null;
 
   const [updated] = await db.update(customersTable).set(update).where(eq(customersTable.id, id)).returning();
+
+  if (body.pppoeUsername && body.pppoePassword) {
+    void upsertRadcheck(body.pppoeUsername, body.pppoePassword);
+  }
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
 
   void writeAuditLog({

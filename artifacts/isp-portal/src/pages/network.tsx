@@ -14,7 +14,7 @@ import {
   Plus, Server, Route, Wifi, Pencil, Trash2, ChevronDown,
   CheckCircle2, Circle, WrenchIcon, AlertTriangle, LayoutDashboard, FileCode2,
   KeyRound, Shield, Download, X as XIcon, BarChart2, RefreshCw,
-  Globe, TrendingUp,
+  Globe, TrendingUp, Copy, Check,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar,
@@ -704,6 +704,13 @@ export default function Network() {
 
   // VPN panel expand
   const [expandedVpn, setExpandedVpn] = useState<number | null>(null);
+  const [expandedRadius, setExpandedRadius] = useState<number | null>(null);
+  const [radiusCopied, setRadiusCopied] = useState<string | null>(null);
+  const copyRadius = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setRadiusCopied(key);
+    setTimeout(() => setRadiusCopied(null), 2000);
+  };
 
   // Router dialog
   const [routerDialog, setRouterDialog] = useState<{ open: boolean; id?: number; initial?: RouterFormData }>({ open: false });
@@ -911,6 +918,14 @@ export default function Network() {
                               <KeyRound className="w-3.5 h-3.5" />
                             </Button>
                           )}
+                          {r.routerType === "routeros" && (
+                            <Button variant="ghost" size="icon"
+                              className={`h-7 w-7 ${expandedRadius === r.id ? "text-blue-600 bg-blue-50" : "text-gray-500 hover:text-blue-600"}`}
+                              title="RADIUS configuration for this router"
+                              onClick={() => setExpandedRadius(expandedRadius === r.id ? null : r.id)}>
+                              <Shield className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
                           {canManageNetwork && (
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
                               onClick={() => setRouterDialog({
@@ -942,6 +957,65 @@ export default function Network() {
                       <TableRow className="hover:bg-transparent">
                         <TableCell colSpan={7} className="p-0 border-b border-indigo-100">
                           <RouterVpnPanel routerId={r.id} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {expandedRadius === r.id && (
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell colSpan={7} className="p-0 border-b border-blue-100">
+                          <div className="bg-blue-50/60 px-6 py-4 space-y-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Shield className="w-4 h-4 text-blue-600" />
+                              <span className="font-semibold text-blue-900 text-sm">RADIUS / NAS Configuration</span>
+                              <span className="text-xs text-blue-500 ml-auto">RouterOS commands for <span className="font-mono">{r.name}</span></span>
+                            </div>
+
+                            {!(r as any).radiusSecret ? (
+                              <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                                No RADIUS secret set for this router. Edit the router and add a Shared Secret under the RADIUS section.
+                              </div>
+                            ) : (
+                              <>
+                                <p className="text-xs text-blue-700">
+                                  Run these commands on <span className="font-mono font-semibold">{r.ipAddress}</span> via RouterOS terminal or Winbox. Replace <span className="font-mono bg-blue-100 px-1 rounded">&lt;SERVER_IP&gt;</span> with your NetPulse server IP (set in Settings → RADIUS Server).
+                                </p>
+                                {[
+                                  {
+                                    label: "Add RADIUS server",
+                                    key: "add",
+                                    cmd: `/radius add address=<SERVER_IP> secret=${(r as any).radiusSecret} service=ppp authentication-port=1812 accounting-port=${(r as any).radiusPort ?? 1813}`,
+                                  },
+                                  {
+                                    label: "Enable RADIUS for PPPoE",
+                                    key: "aaa",
+                                    cmd: `/ip ppp aaa set use-radius=yes accounting=yes`,
+                                  },
+                                  {
+                                    label: "Reload RADIUS config",
+                                    key: "reload",
+                                    cmd: `/radius print`,
+                                  },
+                                ].map(({ label, key, cmd }) => (
+                                  <div key={key} className="space-y-1">
+                                    <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">{label}</p>
+                                    <div className="flex items-start gap-2 bg-gray-900 rounded-md px-3 py-2">
+                                      <code className="text-green-300 text-xs font-mono flex-1 break-all">{cmd}</code>
+                                      <button
+                                        onClick={() => copyRadius(cmd, key)}
+                                        className="text-gray-400 hover:text-white transition-colors mt-0.5 flex-shrink-0">
+                                        {radiusCopied === key
+                                          ? <Check className="w-3.5 h-3.5 text-green-400" />
+                                          : <Copy className="w-3.5 h-3.5" />}
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                                <div className="text-xs text-blue-600 bg-blue-100 rounded px-3 py-2 mt-1">
+                                  <strong>NAS registered:</strong> this router's IP (<span className="font-mono">{r.ipAddress}</span>) and secret are stored in FreeRADIUS's <span className="font-mono">radnas</span> table automatically when the router is saved.
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     )}

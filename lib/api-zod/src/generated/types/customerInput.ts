@@ -14,4 +14,6 @@ export interface CustomerInput {
   address: string;
   status?: CustomerInputStatus;
   notes?: string;
+  pppoeUsername?: string;
+  pppoePassword?: string;
 }

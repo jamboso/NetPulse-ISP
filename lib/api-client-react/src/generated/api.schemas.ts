@@ -5,6 +5,11 @@
  * ISP Management System API
  * OpenAPI spec version: 0.1.0
  */
+export interface EmailResult {
+  success: boolean;
+  message: string;
+}
+
 export interface HealthStatus {
   status: string;
 }

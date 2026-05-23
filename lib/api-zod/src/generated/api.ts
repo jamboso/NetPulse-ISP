@@ -1278,6 +1278,15 @@ export const DeleteIpPoolParams = zod.object({
 
 
 /**
+ * @summary Send a test email to verify SMTP configuration
+ */
+export const SendTestEmailResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
  * @summary Get all app settings
  */
 export const GetSettingsResponse = zod.object({

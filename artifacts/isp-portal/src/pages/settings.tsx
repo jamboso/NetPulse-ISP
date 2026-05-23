@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useGetSettings, useUpdateSettings } from "@workspace/api-client-react";
+import { useGetSettings, useUpdateSettings, useSendTestEmail } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -91,6 +91,50 @@ function SelectField({
   );
 }
 
+
+function SendTestEmailButton() {
+  const mutation = useSendTestEmail();
+  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleSend = async () => {
+    setResult(null);
+    try {
+      const data = await mutation.mutateAsync();
+      setResult({ success: data.success, message: data.message });
+    } catch {
+      setResult({ success: false, message: "Request failed — check the console" });
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={handleSend}
+        disabled={mutation.isPending}
+        className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+      >
+        {mutation.isPending
+          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          : <Send className="w-3.5 h-3.5" />}
+        {mutation.isPending ? "Sending…" : "Send Test Email"}
+      </Button>
+      {result?.success && (
+        <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          {result.message}
+        </span>
+      )}
+      {result && !result.success && (
+        <span className="flex items-center gap-1.5 text-xs text-red-600">
+          <AlertCircle className="w-3.5 h-3.5" />
+          {result.message}
+        </span>
+      )}
+    </div>
+  );
+}
 
 function RadiusResyncButton() {
   const [state, setState] = useState<"idle" | "loading" | "ok" | "error">("idle");
@@ -381,6 +425,10 @@ export default function Settings() {
             <SettingField label="Username" name="smtpUser" value={f("smtpUser")} onChange={set} placeholder="you@gmail.com" />
             <SettingField label="Password" name="smtpPass" value={f("smtpPass")} onChange={set} secret placeholder="app password" />
             <SettingField label="From Address" name="smtpFrom" value={f("smtpFrom")} onChange={set} placeholder="noreply@myisp.co.ke" hint="Displayed sender in customer emails" />
+            <div className="py-3">
+              <SendTestEmailButton />
+              <p className="text-[11px] text-gray-400 mt-1.5">Sends a test message to your account email address using the settings above. Save first if you've made changes.</p>
+            </div>
           </SectionCard>
         </TabsContent>
 

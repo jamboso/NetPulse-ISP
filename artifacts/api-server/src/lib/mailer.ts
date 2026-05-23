@@ -82,6 +82,55 @@ export function buildWelcomeEmailHtml(opts: WelcomeEmailOptions & { company: str
 }
 
 /**
+ * Sends a plain test email to verify SMTP configuration.
+ * Returns { success, message } — never throws.
+ */
+export async function sendTestEmail(
+  toEmail: string,
+  toName: string,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const s = await getSettings();
+
+    if (!s["smtpHost"] || !s["smtpUser"] || !s["smtpPass"]) {
+      return { success: false, message: "SMTP not configured — set host, username and password first" };
+    }
+
+    const company = s["companyName"] ?? "NetPulse ISP";
+    const from    = s["smtpFrom"] ?? s["smtpUser"];
+    const port    = Number(s["smtpPort"] ?? 587);
+
+    const transporter = nodemailer.createTransport({
+      host:   s["smtpHost"],
+      port,
+      secure: port === 465,
+      auth:   { user: s["smtpUser"], pass: s["smtpPass"] },
+    });
+
+    await transporter.sendMail({
+      from,
+      to:      toEmail,
+      subject: `${company} — SMTP test email`,
+      text:    `Hi ${toName},\n\nThis is a test email from ${company}.\nYour SMTP configuration is working correctly.\n\n— ${company}`,
+      html:    `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#111827">
+  <h2 style="color:#1e40af">SMTP test successful ✓</h2>
+  <p>Hi <strong>${toName}</strong>,</p>
+  <p>This is a test email from <strong>${company}</strong>. Your SMTP configuration is working correctly.</p>
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0"/>
+  <p style="font-size:0.8em;color:#9ca3af">— The ${company} Team</p>
+</div>`,
+    });
+
+    return { success: true, message: `Test email sent to ${toEmail}` };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      message: `SMTP error: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+/**
  * Sends a welcome email to a newly created staff member.
  * Silently skips (returns false) when SMTP is not configured.
  * Never throws — all errors are caught and returned as { success: false }.

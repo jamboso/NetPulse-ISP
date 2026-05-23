@@ -1281,6 +1281,25 @@ paths:
           description: Deleted
 
   # ── SETTINGS ──────────────────────────────────────────────────────────────────
+  /settings/test-email:
+    post:
+      operationId: sendTestEmail
+      tags: [settings]
+      summary: Send a test email to verify SMTP configuration
+      responses:
+        "200":
+          description: Test email sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailResult"
+        "502":
+          description: SMTP error or not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailResult"
+
   /settings:
     get:
       operationId: getSettings
@@ -1489,6 +1508,15 @@ paths:
 
 components:
   schemas:
+    EmailResult:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
     HealthStatus:
       type: object
       properties:

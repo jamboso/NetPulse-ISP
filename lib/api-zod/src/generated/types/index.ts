@@ -25,6 +25,7 @@ export * from './customerStatus';
 export * from './customerUpdate';
 export * from './customerUpdateStatus';
 export * from './dashboardSummary';
+export * from './emailResult';
 export * from './equipment';
 export * from './equipmentInput';
 export * from './equipmentInputStatus';

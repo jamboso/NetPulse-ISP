@@ -29,6 +29,7 @@ import type {
   CustomerSession,
   CustomerUpdate,
   DashboardSummary,
+  EmailResult,
   Equipment,
   EquipmentInput,
   EquipmentUpdate,
@@ -4666,6 +4667,76 @@ export const useDeleteIpPool = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteIpPoolMutationOptions(options));
+    }
+
+export const getSendTestEmailUrl = () => {
+
+
+
+
+  return `/api/settings/test-email`
+}
+
+/**
+ * @summary Send a test email to verify SMTP configuration
+ */
+export const sendTestEmail = async ( options?: RequestInit): Promise<EmailResult> => {
+
+  return customFetch<EmailResult>(getSendTestEmailUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSendTestEmailMutationOptions = <TError = ErrorType<EmailResult>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTestEmail>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendTestEmail>>, TError,void, TContext> => {
+
+const mutationKey = ['sendTestEmail'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendTestEmail>>, void> = () => {
+
+
+          return  sendTestEmail(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendTestEmailMutationResult = NonNullable<Awaited<ReturnType<typeof sendTestEmail>>>
+
+    export type SendTestEmailMutationError = ErrorType<EmailResult>
+
+    /**
+ * @summary Send a test email to verify SMTP configuration
+ */
+export const useSendTestEmail = <TError = ErrorType<EmailResult>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTestEmail>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendTestEmail>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSendTestEmailMutationOptions(options));
     }
 
 export const getGetSettingsUrl = () => {

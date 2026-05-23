@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { settingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { sendTestEmail } from "../lib/mailer";
 
 const router = Router();
 
@@ -49,6 +50,19 @@ async function loadSettings(): Promise<Record<string, string | null>> {
   }
   return result;
 }
+
+router.post("/settings/test-email", requireRole("admin"), async (req, res) => {
+  const toEmail = req.user!.email ?? "";
+  const toName  = req.user!.name ?? "Admin";
+
+  if (!toEmail) {
+    res.status(400).json({ success: false, message: "No email address on your account" });
+    return;
+  }
+
+  const result = await sendTestEmail(toEmail, toName);
+  res.status(result.success ? 200 : 502).json(result);
+});
 
 router.get("/settings", requireRole("admin"), async (_req, res) => {
   const settings = await loadSettings();

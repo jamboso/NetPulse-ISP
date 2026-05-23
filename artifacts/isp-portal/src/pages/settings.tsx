@@ -968,7 +968,7 @@ function EffectiveAllowlist() {
         </p>
       ) : (
         <ul className="space-y-0.5">
-          {data.cidrs.map((cidr) => (
+          {data.cidrs.map((cidr: string) => (
             <li key={cidr} className="text-xs font-mono">{cidr}</li>
           ))}
         </ul>

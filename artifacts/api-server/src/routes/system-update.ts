@@ -56,15 +56,38 @@ router.post("/system/update", requireRole("admin"), (req, res) => {
 
   send("log", `Starting update from ${APP_DIR}…`);
 
+  // Detach the child so it survives when pm2 restarts this Node process
+  // mid-update (the restart step kills the parent, but the bash script
+  // should keep running to completion).
   const child = spawn("bash", [UPDATE_SCRIPT], {
     cwd: APP_DIR,
     env: { ...process.env },
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
   });
+  child.unref();
+
+  let doneSent = false;
+
+  const finish = (type: "done" | "error", msg: string) => {
+    if (doneSent) return;
+    doneSent = true;
+    send(type, msg);
+    res.end();
+  };
 
   child.stdout.on("data", (chunk: Buffer) => {
     const lines = chunk.toString().split("\n");
     for (const line of lines) {
-      if (line.trim()) send("log", line);
+      if (!line.trim()) continue;
+      // Sentinel printed by update.sh just before pm2 restart — send the
+      // "done" event NOW so the browser receives it before the Node process
+      // is killed by pm2.
+      if (line.includes("NETPULSE_RESTART_NOW")) {
+        finish("done", "Update complete ✓ — server is restarting, refresh in 20 seconds.");
+        return;
+      }
+      send("log", line);
     }
   });
 
@@ -76,24 +99,24 @@ router.post("/system/update", requireRole("admin"), (req, res) => {
   });
 
   child.on("close", (code) => {
+    if (doneSent) return;
     if (code === 0) {
-      send("done", "Update complete ✓ — server is restarting, refresh in 15 seconds.");
+      finish("done", "Update complete ✓ — server is restarting, refresh in 20 seconds.");
     } else {
-      send("error", `Update script exited with code ${code ?? "unknown"}. Check server logs.`);
+      finish("error", `Update script exited with code ${code ?? "unknown"}. Check server logs.`);
     }
-    res.end();
   });
 
   child.on("error", (err) => {
     if (err.message.includes("ENOENT")) {
-      send("error", `Update script not found at ${UPDATE_SCRIPT}. This feature works on the installed Ubuntu server, not in the Replit dev environment.`);
+      finish("error", `Update script not found at ${UPDATE_SCRIPT}. This feature works on the installed Ubuntu server, not in the Replit dev environment.`);
     } else {
-      send("error", err.message);
+      finish("error", err.message);
     }
-    res.end();
   });
 
-  req.on("close", () => { child.kill(); });
+  // Only kill child if done hasn't been sent yet (i.e. user cancelled early)
+  req.on("close", () => { if (!doneSent) child.kill(); });
 });
 
 export default router;

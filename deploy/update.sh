@@ -70,6 +70,13 @@ pnpm --filter @workspace/db run push
 ok "Database schema up to date"
 
 # ── 7. Restart app ────────────────────────────────────────────────────────
+info "Build complete — signalling dashboard before restart..."
+# This sentinel tells the in-app updater to send the SSE 'done' event and
+# close the browser stream *before* pm2 kills the Node process.
+echo "NETPULSE_RESTART_NOW"
+# Give the API 3 seconds to flush the SSE response to the browser.
+sleep 3
+
 info "Restarting PM2 process..."
 pm2 restart netpulse 2>/dev/null || pm2 start "$APP_DIR/deploy/ecosystem.config.cjs"
 pm2 save --force >/dev/null
@@ -82,7 +89,7 @@ if systemctl is-active nginx --quiet; then
 fi
 
 # ── Health check ──────────────────────────────────────────────────────────
-sleep 3
+sleep 5
 if curl -fsS "http://localhost:80/api/healthz" -o /dev/null 2>/dev/null; then
   ok "App is healthy ✓"
 else

@@ -1,0 +1,133 @@
+
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+
+┌─────────────────────────────────────────────────────
+│ [6/11] Writing environment configuration  (20s elapsed)
+└─────────────────────────────────────────────────────
+  →  .env already exists — preserving existing configuration
+
+┌─────────────────────────────────────────────────────
+│ [7/11] Building application  (20s elapsed)
+└─────────────────────────────────────────────────────
+  →  Installing Node.js dependencies (this takes ~1-2 minutes)...
+Scope: all 9 workspace projects
+Lockfile is up to date, resolution step is skipped
+Already up to date
+
+Done in 1.2s using pnpm v11.2.2
+  →  Building shared libraries...
+$ tsc --build
+  →  Building API server...
+$ node ./build.mjs
+✘ [ERROR] Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+
+    ../../node_modules/.pnpm/drizzle-zod@0.8.3_drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.20.0__zod@3.25.76/node_modules/drizzle-zod/index.mjs:1:18:
+      1 │ import { z } from 'zod/v4';
+        ╵                   ~~~~~~~~
+
+  The path "zod/v4" was remapped to "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" using the alias feature, which then couldn't be resolved. Keep in mind that import path aliases are resolved in the current working directory.
+
+✘ [ERROR] Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+
+    src/routes/customers.ts:5:18:
+      5 │ import { z } from "zod/v4";
+        ╵                   ~~~~~~~~
+
+  The path "zod/v4" was remapped to "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" using the alias feature, which then couldn't be resolved. Keep in mind that import path aliases are resolved in the current working directory.
+
+✘ [ERROR] Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+
+    src/routes/plans.ts:5:18:
+      5 │ import { z } from "zod/v4";
+        ╵                   ~~~~~~~~
+
+  The path "zod/v4" was remapped to "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" using the alias feature, which then couldn't be resolved. Keep in mind that import path aliases are resolved in the current working directory.
+
+✘ [ERROR] Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+
+    src/routes/invoices.ts:5:18:
+      5 │ import { z } from "zod/v4";
+        ╵                   ~~~~~~~~
+
+  The path "zod/v4" was remapped to "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" using the alias feature, which then couldn't be resolved. Keep in mind that import path aliases are resolved in the current working directory.
+
+✘ [ERROR] Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+
+    src/routes/subscriptions.ts:5:18:
+      5 │ import { z } from "zod/v4";
+        ╵                   ~~~~~~~~
+
+  The path "zod/v4" was remapped to "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" using the alias feature, which then couldn't be resolved. Keep in mind that import path aliases are resolved in the current working directory.
+
+✘ [ERROR] Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+
+    src/routes/tickets.ts:5:18:
+      5 │ import { z } from "zod/v4";
+        ╵                   ~~~~~~~~
+
+  The path "zod/v4" was remapped to "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" using the alias feature, which then couldn't be resolved. Keep in mind that import path aliases are resolved in the current working directory.
+
+✘ [ERROR] Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+
+    src/routes/payments.ts:5:18:
+      5 │ import { z } from "zod/v4";
+        ╵                   ~~~~~~~~
+
+  The path "zod/v4" was remapped to "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" using the alias feature, which then couldn't be resolved. Keep in mind that import path aliases are resolved in the current working directory.
+
+✘ [ERROR] Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+
+    src/routes/users.ts:4:18:
+      4 │ import { z } from "zod/v4";
+        ╵                   ~~~~~~~~
+
+  The path "zod/v4" was remapped to "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" using the alias feature, which then couldn't be resolved. Keep in mind that import path aliases are resolved in the current working directory.
+
+✘ [ERROR] Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+
+    src/routes/equipment.ts:5:18:
+      5 │ import { z } from "zod/v4";
+        ╵                   ~~~~~~~~
+
+  The path "zod/v4" was remapped to "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" using the alias feature, which then couldn't be resolved. Keep in mind that import path aliases are resolved in the current working directory.
+
+✘ [ERROR] Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+
+    src/routes/ipPools.ts:5:18:
+      5 │ import { z } from "zod/v4";
+        ╵                   ~~~~~~~~
+
+  The path "zod/v4" was remapped to "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" using the alias feature, which then couldn't be resolved. Keep in mind that import path aliases are resolved in the current working directory.
+
+✘ [ERROR] Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+
+    src/middlewares/validateBody.ts:2:18:
+      2 │ import { z } from "zod/v4";
+        ╵                   ~~~~~~~~
+
+  The path "zod/v4" was remapped to "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" using the alias feature, which then couldn't be resolved. Keep in mind that import path aliases are resolved in the current working directory.
+
+11 errors
+Error: Build failed with 11 errors:
+src/middlewares/validateBody.ts:2:18: ERROR: Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+src/routes/customers.ts:5:18: ERROR: Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+src/routes/equipment.ts:5:18: ERROR: Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+src/routes/invoices.ts:5:18: ERROR: Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+src/routes/ipPools.ts:5:18: ERROR: Could not resolve "/home/runner/workspace/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.js" (originally "zod/v4")
+...
+    at failureErrorWithLog (/opt/netpulse/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:1467:15)
+    at /opt/netpulse/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:926:25
+    at /opt/netpulse/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:1345:9
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  errors: [Getter/Setter],
+  warnings: [Getter/Setter]
+}
+/opt/netpulse/artifacts/api-server:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @workspace/api-server@0.0.0 build: `node ./build.mjs`
+Exit status 1
+
+╔══ INSTALLATION FAILED ══════════════════════════════
+║  Unexpected error on line 380. Last command: pnpm --filter @workspace/api-server run build
+║  Full log: /var/log/netpulse/install.log
+╚═══════════════════════════════════════════════

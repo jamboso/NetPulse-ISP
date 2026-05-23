@@ -61,9 +61,11 @@ app.all("/api/auth/{*path}", toNodeHandler(auth));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
-app.use("/api", router);
-
+// Global M-Pesa rate limiter: must be mounted BEFORE the router so it fires
+// on every /api/mpesa/* request, regardless of which sub-route is targeted.
 app.use("/api/mpesa", mpesaLimiter);
+
+app.use("/api", router);
 
 // Production: serve built frontend static files when FRONTEND_DIST_PATH is set
 // (not needed when nginx handles static files, but useful for simple single-process deploys)

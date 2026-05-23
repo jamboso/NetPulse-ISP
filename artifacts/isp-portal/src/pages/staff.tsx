@@ -4,7 +4,10 @@ import {
   useListUsers,
   useCreateUser,
   useUpdateUser,
+  useGetWelcomeEmailPreview,
+  useSendWelcomeEmailTest,
   getListUsersQueryKey,
+  getGetWelcomeEmailPreviewQueryKey,
 } from "@workspace/api-client-react";
 import type { StaffUser } from "@workspace/api-client-react";
 import { useBulkSelect } from "@/hooks/useBulkSelect";
@@ -29,7 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { UserCog, Plus, MoreHorizontal, Search, MessageSquare, Mail, BellOff, UserX, UserCheck, ShieldCheck, ChevronDown, ChevronUp, Check, X, AlertTriangle, Clock } from "lucide-react";
+import { UserCog, Plus, MoreHorizontal, Search, MessageSquare, Mail, BellOff, UserX, UserCheck, ShieldCheck, ChevronDown, ChevronUp, Check, X, AlertTriangle, Clock, Eye, Send, WifiOff } from "lucide-react";
 
 const ROLES = ["admin", "billing", "support", "technician"] as const;
 
@@ -246,6 +249,8 @@ export default function StaffPage() {
   const [editRole, setEditRole] = useState<Role>("admin");
   const [formError, setFormError] = useState("");
   const [bulkWorking, setBulkWorking] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [testSendStatus, setTestSendStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
@@ -253,6 +258,29 @@ export default function StaffPage() {
   const [newRole, setNewRole] = useState<Role>("support");
   const [newPhone, setNewPhone] = useState("");
   const [notifyMethod, setNotifyMethod] = useState<"none" | "sms" | "email" | "both">("none");
+
+  const previewQuery = useGetWelcomeEmailPreview({
+    query: { queryKey: getGetWelcomeEmailPreviewQueryKey(), enabled: previewOpen, staleTime: 30_000 },
+  });
+
+  const sendTestMutation = useSendWelcomeEmailTest({
+    mutation: {
+      onSuccess: (data) => {
+        setTestSendStatus({ type: "success", message: data.message });
+      },
+      onError: async (err) => {
+        try {
+          const resp = (err as { response?: Response }).response;
+          if (resp) {
+            const j = (await resp.json()) as { error?: string };
+            setTestSendStatus({ type: "error", message: j.error ?? "Failed to send test email" });
+            return;
+          }
+        } catch { /* ignore */ }
+        setTestSendStatus({ type: "error", message: "Failed to send test email" });
+      },
+    },
+  });
 
   const { data, isLoading } = useListUsers({ search: search || undefined });
   const users = data?.data ?? [];
@@ -359,10 +387,16 @@ export default function StaffPage() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">Manage staff accounts and assign access roles</p>
         </div>
-        <Button onClick={handleInviteOpen} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Invite Staff
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => { setTestSendStatus(null); setPreviewOpen(true); }} className="gap-2">
+            <Eye className="w-4 h-4" />
+            Preview Welcome Email
+          </Button>
+          <Button onClick={handleInviteOpen} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Invite Staff
+          </Button>
+        </div>
       </div>
 
       <RolePermissionsMatrix />
@@ -597,6 +631,92 @@ export default function StaffPage() {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Welcome email preview dialog */}
+      <Dialog open={previewOpen} onOpenChange={(o) => { setPreviewOpen(o); if (!o) setTestSendStatus(null); }}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5 text-blue-600" />
+              Welcome Email Preview
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-auto space-y-4 pt-1">
+            {previewQuery.isLoading && (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-40 w-full" />
+              </div>
+            )}
+
+            {previewQuery.isError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                Failed to load email preview. Please try again.
+              </p>
+            )}
+
+            {previewQuery.data && (
+              <>
+                {!previewQuery.data.smtpConfigured && (
+                  <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+                    <WifiOff className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>
+                      SMTP is not configured — welcome emails will be skipped when inviting staff.
+                      Configure SMTP in <strong>Settings</strong> to enable email delivery.
+                    </span>
+                  </div>
+                )}
+
+                <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded px-3 py-1.5">
+                  This is a preview using sample data (Jane Doe / jane@example.com). Real emails use the actual staff member's details.
+                </div>
+
+                <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                  <div className="bg-gray-50 border-b border-gray-200 px-3 py-2 text-xs text-gray-500 flex items-center gap-2">
+                    <Mail className="w-3.5 h-3.5" />
+                    <span><strong>Subject:</strong> Welcome to [Company] — Your Staff Account</span>
+                  </div>
+                  <iframe
+                    srcDoc={previewQuery.data.html}
+                    title="Welcome email preview"
+                    className="w-full border-0"
+                    style={{ height: "420px" }}
+                    sandbox="allow-same-origin"
+                  />
+                </div>
+              </>
+            )}
+
+            {testSendStatus && (
+              <div className={`flex items-start gap-2 rounded-md border px-3 py-2.5 text-sm ${
+                testSendStatus.type === "success"
+                  ? "border-green-200 bg-green-50 text-green-800"
+                  : "border-red-200 bg-red-50 text-red-700"
+              }`}>
+                {testSendStatus.type === "success"
+                  ? <Check className="w-4 h-4 mt-0.5 shrink-0" />
+                  : <X className="w-4 h-4 mt-0.5 shrink-0" />}
+                <span>{testSendStatus.message}</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 pt-4 border-t border-gray-100 mt-2">
+            <Button type="button" variant="outline" onClick={() => setPreviewOpen(false)}>Close</Button>
+            <Button
+              type="button"
+              onClick={() => { setTestSendStatus(null); sendTestMutation.mutate(); }}
+              disabled={sendTestMutation.isPending || !previewQuery.data?.smtpConfigured}
+              className="gap-2"
+              title={!previewQuery.data?.smtpConfigured ? "Configure SMTP in Settings first" : undefined}
+            >
+              <Send className="w-4 h-4" />
+              {sendTestMutation.isPending ? "Sending…" : "Send Test to My Email"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

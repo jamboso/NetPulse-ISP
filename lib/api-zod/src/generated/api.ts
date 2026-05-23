@@ -46,6 +46,24 @@ export const CreateUserBody = zod.object({
 
 
 /**
+ * @summary Return HTML preview of the welcome email (admin only)
+ */
+export const GetWelcomeEmailPreviewResponse = zod.object({
+  "html": zod.string().describe('Rendered HTML body of the welcome email'),
+  "smtpConfigured": zod.boolean().describe('Whether SMTP settings are configured')
+})
+
+
+/**
+ * @summary Send a test welcome email to the currently signed-in admin (admin only)
+ */
+export const SendWelcomeEmailTestResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
  * @summary Update a staff user's role or active status (admin only)
  */
 export const UpdateUserParams = zod.object({

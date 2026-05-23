@@ -7,7 +7,7 @@ import { validateBody } from "../middlewares/validateBody";
 import { auth } from "../lib/auth";
 import { writeAuditLog } from "../lib/audit";
 import { getSettings, sendSms, normalisePhone } from "../lib/sms.js";
-import { sendStaffWelcomeEmail } from "../lib/mailer.js";
+import { sendStaffWelcomeEmail, buildWelcomeEmailHtml, buildWelcomeEmailText, type WelcomeEmailOptions } from "../lib/mailer.js";
 
 const VALID_ROLES = ["admin", "billing", "support", "technician"] as const;
 
@@ -142,6 +142,91 @@ router.post("/users", requireRole("admin"), validateBody(createUserSchema), asyn
   }
 
   res.status(201).json(updated);
+});
+
+// ── Welcome email preview & test-send ────────────────────────────────────────
+
+const SAMPLE_PREVIEW: WelcomeEmailOptions = {
+  name:     "Jane Doe",
+  email:    "jane@example.com",
+  password: "Temp@1234",
+  role:     "support",
+  appUrl:   "",
+};
+
+const ROLE_LABELS_LOCAL: Record<string, string> = {
+  admin:      "Admin (full access)",
+  billing:    "Billing (invoices/payments)",
+  support:    "Support (customers/tickets)",
+  technician: "Technician (network/equipment)",
+};
+
+router.get("/users/welcome-email-preview", requireRole("admin"), async (req, res) => {
+  const s = await getSettings();
+  const smtpConfigured = !!(s["smtpHost"] && s["smtpUser"] && s["smtpPass"]);
+  const company  = s["companyName"] ?? "NetPulse ISP";
+  const appUrl   = process.env["REPLIT_DOMAINS"]
+    ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]}`
+    : (process.env["BETTER_AUTH_URL"] ?? "https://your-app.example.com");
+
+  const opts = { ...SAMPLE_PREVIEW, appUrl, companyName: company };
+  const roleLabel = ROLE_LABELS_LOCAL[opts.role] ?? opts.role;
+  const html = buildWelcomeEmailHtml({ ...opts, company, roleLabel });
+
+  res.json({ html, smtpConfigured });
+});
+
+router.post("/users/welcome-email-preview/send", requireRole("admin"), async (req, res) => {
+  const user = req.user!;
+  const s = await getSettings();
+
+  if (!s["smtpHost"] || !s["smtpUser"] || !s["smtpPass"]) {
+    res.status(400).json({ error: "SMTP is not configured. Please add SMTP settings in Settings." });
+    return;
+  }
+
+  const appUrl = process.env["REPLIT_DOMAINS"]
+    ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]}`
+    : (process.env["BETTER_AUTH_URL"] ?? "");
+
+  const company   = s["companyName"] ?? "NetPulse ISP";
+  const roleLabel = ROLE_LABELS_LOCAL[user.role ?? "admin"] ?? (user.role ?? "admin");
+  const from      = s["smtpFrom"] ?? s["smtpUser"];
+  const port      = Number(s["smtpPort"] ?? 587);
+
+  const opts: WelcomeEmailOptions = {
+    name:        user.name,
+    email:       user.email,
+    password:    "(your current password)",
+    role:        user.role ?? "admin",
+    appUrl,
+    companyName: company,
+  };
+
+  try {
+    const { createTransport } = await import("nodemailer");
+    const transporter = createTransport({
+      host:   s["smtpHost"],
+      port,
+      secure: port === 465,
+      auth:   { user: s["smtpUser"], pass: s["smtpPass"] },
+    });
+
+    await transporter.sendMail({
+      from,
+      to:      user.email,
+      subject: `[Test] Welcome to ${company} — Your Staff Account`,
+      text:    buildWelcomeEmailText({ ...opts, company, roleLabel }),
+      html:    buildWelcomeEmailHtml({ ...opts, company, roleLabel }),
+    });
+
+    req.log.info({ email: user.email }, "Test welcome email sent");
+    res.json({ success: true, message: `Test email sent to ${user.email}` });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    req.log.warn({ err }, "Test welcome email failed");
+    res.status(500).json({ error: `Failed to send test email: ${message}` });
+  }
 });
 
 router.patch("/users/:id", requireRole("admin"), validateBody(updateUserSchema), async (req, res) => {

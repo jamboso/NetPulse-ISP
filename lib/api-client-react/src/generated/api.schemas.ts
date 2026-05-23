@@ -1174,6 +1174,18 @@ export type ListUsers200 = {
   data: StaffUser[];
 };
 
+export type GetWelcomeEmailPreview200 = {
+  /** Rendered HTML body of the welcome email */
+  html: string;
+  /** Whether SMTP settings are configured */
+  smtpConfigured: boolean;
+};
+
+export type SendWelcomeEmailTest200 = {
+  success: boolean;
+  message: string;
+};
+
 export type ListAuditLogsParams = {
 entityType?: string;
 entityId?: number;

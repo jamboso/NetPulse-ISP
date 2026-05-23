@@ -91,6 +91,54 @@ paths:
         "403":
           description: Forbidden — admin role required
 
+  /users/welcome-email-preview:
+    get:
+      operationId: getWelcomeEmailPreview
+      tags: [users]
+      summary: Return HTML preview of the welcome email (admin only)
+      responses:
+        "200":
+          description: Welcome email HTML preview and SMTP status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [html, smtpConfigured]
+                properties:
+                  html:
+                    type: string
+                    description: Rendered HTML body of the welcome email
+                  smtpConfigured:
+                    type: boolean
+                    description: Whether SMTP settings are configured
+        "403":
+          description: Forbidden — admin role required
+
+  /users/welcome-email-preview/send:
+    post:
+      operationId: sendWelcomeEmailTest
+      tags: [users]
+      summary: Send a test welcome email to the currently signed-in admin (admin only)
+      responses:
+        "200":
+          description: Test email sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message]
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        "400":
+          description: SMTP not configured
+        "403":
+          description: Forbidden — admin role required
+        "500":
+          description: SMTP send error
+
   /users/{id}:
     patch:
       operationId: updateUser

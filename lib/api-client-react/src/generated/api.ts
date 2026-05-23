@@ -34,6 +34,7 @@ import type {
   EquipmentUpdate,
   GetAuditPurgeHistory200,
   GetCustomerUsageSnapshots200,
+  GetWelcomeEmailPreview200,
   HealthStatus,
   Invoice,
   InvoiceInput,
@@ -69,6 +70,7 @@ import type {
   RouterDeviceUpdate,
   RouterStatus,
   SecurityEventsSummary,
+  SendWelcomeEmailTest200,
   Settings,
   SettingsInput,
   StaffUser,
@@ -252,6 +254,153 @@ export const useCreateUser = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreateUserMutationOptions(options));
+    }
+
+export const getGetWelcomeEmailPreviewUrl = () => {
+
+
+
+
+  return `/api/users/welcome-email-preview`
+}
+
+/**
+ * @summary Return HTML preview of the welcome email (admin only)
+ */
+export const getWelcomeEmailPreview = async ( options?: RequestInit): Promise<GetWelcomeEmailPreview200> => {
+
+  return customFetch<GetWelcomeEmailPreview200>(getGetWelcomeEmailPreviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWelcomeEmailPreviewQueryKey = () => {
+    return [
+    `/api/users/welcome-email-preview`
+    ] as const;
+    }
+
+
+export const getGetWelcomeEmailPreviewQueryOptions = <TData = Awaited<ReturnType<typeof getWelcomeEmailPreview>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWelcomeEmailPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWelcomeEmailPreviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWelcomeEmailPreview>>> = ({ signal }) => getWelcomeEmailPreview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWelcomeEmailPreview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWelcomeEmailPreviewQueryResult = NonNullable<Awaited<ReturnType<typeof getWelcomeEmailPreview>>>
+export type GetWelcomeEmailPreviewQueryError = ErrorType<void>
+
+
+/**
+ * @summary Return HTML preview of the welcome email (admin only)
+ */
+
+export function useGetWelcomeEmailPreview<TData = Awaited<ReturnType<typeof getWelcomeEmailPreview>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWelcomeEmailPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWelcomeEmailPreviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSendWelcomeEmailTestUrl = () => {
+
+
+
+
+  return `/api/users/welcome-email-preview/send`
+}
+
+/**
+ * @summary Send a test welcome email to the currently signed-in admin (admin only)
+ */
+export const sendWelcomeEmailTest = async ( options?: RequestInit): Promise<SendWelcomeEmailTest200> => {
+
+  return customFetch<SendWelcomeEmailTest200>(getSendWelcomeEmailTestUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSendWelcomeEmailTestMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendWelcomeEmailTest>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendWelcomeEmailTest>>, TError,void, TContext> => {
+
+const mutationKey = ['sendWelcomeEmailTest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendWelcomeEmailTest>>, void> = () => {
+
+
+          return  sendWelcomeEmailTest(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendWelcomeEmailTestMutationResult = NonNullable<Awaited<ReturnType<typeof sendWelcomeEmailTest>>>
+
+    export type SendWelcomeEmailTestMutationError = ErrorType<void>
+
+    /**
+ * @summary Send a test welcome email to the currently signed-in admin (admin only)
+ */
+export const useSendWelcomeEmailTest = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendWelcomeEmailTest>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendWelcomeEmailTest>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSendWelcomeEmailTestMutationOptions(options));
     }
 
 export const getUpdateUserUrl = (id: string,) => {

@@ -1,0 +1,66 @@
+  →  .env already exists — preserving existing configuration
+
+┌─────────────────────────────────────────────────────
+│ [7/11] Building application  (20s elapsed)
+└─────────────────────────────────────────────────────
+  →  Installing Node.js dependencies (this takes ~1-2 minutes)...
+Scope: all 9 workspace projects
+Already up to date
+Done in 449ms using pnpm v11.2.2
+  →  Building shared libraries...
+$ tsc --build
+  →  Building API server...
+$ node ./build.mjs
+
+  dist/index.mjs                       4.8mb ⚠️
+  dist/pino-worker.mjs               153.4kb
+  dist/pino-file.mjs                 142.0kb
+  dist/pino-pretty.mjs               114.6kb
+  dist/thread-stream-worker.mjs        7.3kb
+  dist/index.mjs.map                   8.8mb
+  dist/pino-worker.mjs.map           256.9kb
+  dist/pino-file.mjs.map             229.0kb
+  dist/pino-pretty.mjs.map           204.0kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+
+⚡ Done in 395ms
+  →  Building frontend...
+$ vite build --config vite.config.ts
+vite v7.3.3 building client environment for production...
+transforming...
+src/components/ui/label.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/select.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/progress.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/dropdown-menu.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+✓ 2876 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/public/index.html                     1.44 kB │ gzip:   0.55 kB
+dist/public/assets/index-PJbjJ2ki.css    147.93 kB │ gzip:  27.82 kB
+dist/public/assets/index-CVY--Dhh.js   1,517.18 kB │ gzip: 408.11 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 6.10s
+  ✓  Build complete
+
+┌─────────────────────────────────────────────────────
+│ [8/11] Running database migrations  (30s elapsed)
+└─────────────────────────────────────────────────────
+  →  Applying schema to database...
+$ drizzle-kit push --force --config ./drizzle.config.ts
+Reading config file '/opt/netpulse/lib/db/drizzle.config.ts'
+Using 'pg' driver for database querying
+[⣷] Pulling schema from database...
+[⣷] Pulling schema from database...
+/opt/netpulse/lib/db:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @workspace/db@0.0.0 push-force: `drizzle-kit push --force --config ./drizzle.config.ts`
+Exit status 1
+
+╔══ INSTALLATION FAILED ══════════════════════════════
+║  Unexpected error on line 393. Last command: pnpm --filter @workspace/db run push-force
+║  Full log: /var/log/netpulse/install.log
+╚════════════════════════════════════════════════

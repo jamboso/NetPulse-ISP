@@ -205,9 +205,13 @@ else
   ok "Node.js $(node --version) installed"
 fi
 
-if ! command -v pnpm &>/dev/null; then
-  info "Installing pnpm..."
-  npm install -g pnpm@latest --silent
+# Pin to pnpm 10 — lockfile was generated with pnpm 10 and pnpm 11 changed
+# build-script approval in a way that breaks onlyBuiltDependencies support.
+PNPM_WANT="10"
+PNPM_HAVE=$(pnpm --version 2>/dev/null | cut -d. -f1 || echo "0")
+if [[ "$PNPM_HAVE" != "$PNPM_WANT" ]]; then
+  info "Installing pnpm v${PNPM_WANT}..."
+  npm install -g pnpm@${PNPM_WANT} --silent
 fi
 ok "pnpm $(pnpm --version) ready"
 
@@ -371,7 +375,7 @@ source "$ENV_FILE" 2>/dev/null || true
 set +o allexport
 
 info "Installing Node.js dependencies (this takes ~1-2 minutes)..."
-NETPULSE_INSTALL=1 pnpm install --no-frozen-lockfile --ignore-scripts
+NETPULSE_INSTALL=1 pnpm install --no-frozen-lockfile
 
 info "Building shared libraries..."
 pnpm run typecheck:libs
@@ -390,8 +394,19 @@ ok "Build complete"
 step "Running database migrations"
 # ─────────────────────────────────────────────────────────────────────────────
 info "Applying schema to database..."
-pnpm --filter @workspace/db run push-force
-ok "Database schema up to date"
+if pnpm --filter @workspace/db run push-force 2>/tmp/drizzle.err; then
+  ok "Database schema up to date"
+else
+  echo ""
+  echo -e "  ${YELLOW}⚠${NC}  drizzle-kit push failed. Error output:" >&2
+  cat /tmp/drizzle.err >&2 || true
+  # For upgrades the schema likely already exists — check and continue
+  if sudo -u postgres psql -d "$DB_NAME" -c "SELECT 1 FROM users LIMIT 1" >/dev/null 2>&1; then
+    echo -e "  ${YELLOW}⚠${NC}  Schema exists from previous install — continuing" >&2
+  else
+    die "Database migration failed on fresh install. Fix the error above and re-run."
+  fi
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Starting application with PM2"

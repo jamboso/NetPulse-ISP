@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useSearch, useLocation } from "wouter";
 import {
   useListAuditLogs,
@@ -242,24 +242,19 @@ function DiffModal({ log, onClose }: DiffModalProps) {
 export default function AuditLogs() {
   const search = useSearch();
   const [, setLocation] = useLocation();
+
+  // Derive all filter values directly from the URL so that browser
+  // back/forward navigation automatically restores the correct filter state.
   const searchParams = new URLSearchParams(search);
+  const rawEntityType = searchParams.get("entityType") ?? "all";
+  const entityTypeFilter = ENTITY_TYPES.includes(rawEntityType) ? rawEntityType : "all";
+  const entityIdInput = searchParams.get("entityId") ?? "";
+  const rawAction = searchParams.get("action") ?? "all";
+  const actionFilter = ["create", "update", "delete"].includes(rawAction) ? rawAction : "all";
+  const dateFrom = searchParams.get("from") ?? "";
+  const dateTo = searchParams.get("to") ?? "";
+  const userSearch = searchParams.get("user") ?? "";
 
-  const initialEntityType = searchParams.get("entityType") ?? "all";
-  const initialEntityId = searchParams.get("entityId") ?? "";
-  const initialAction = searchParams.get("action") ?? "all";
-  const initialFrom = searchParams.get("from") ?? "";
-  const initialTo = searchParams.get("to") ?? "";
-
-  const [entityTypeFilter, setEntityTypeFilter] = useState<string>(
-    ENTITY_TYPES.includes(initialEntityType) ? initialEntityType : "all"
-  );
-  const [actionFilter, setActionFilter] = useState<string>(
-    ["create", "update", "delete"].includes(initialAction) ? initialAction : "all"
-  );
-  const [dateFrom, setDateFrom] = useState(initialFrom);
-  const [dateTo, setDateTo] = useState(initialTo);
-  const [userSearch, setUserSearch] = useState("");
-  const [entityIdInput, setEntityIdInput] = useState(initialEntityId);
   const [page, setPage] = useState(1);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -267,32 +262,55 @@ export default function AuditLogs() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  const pushFiltersToUrl = useCallback(
-    (overrides: {
+  function pushFiltersToUrl(
+    overrides: {
       entityType?: string;
       entityId?: string;
       action?: string;
       from?: string;
       to?: string;
-    }) => {
-      const merged = {
-        entityType: overrides.entityType ?? entityTypeFilter,
-        entityId: overrides.entityId ?? entityIdInput,
-        action: overrides.action ?? actionFilter,
-        from: overrides.from ?? dateFrom,
-        to: overrides.to ?? dateTo,
-      };
-      const qs = new URLSearchParams();
-      if (merged.entityType !== "all") qs.set("entityType", merged.entityType);
-      if (merged.entityId.trim() !== "") qs.set("entityId", merged.entityId.trim());
-      if (merged.action !== "all") qs.set("action", merged.action);
-      if (merged.from) qs.set("from", merged.from);
-      if (merged.to) qs.set("to", merged.to);
-      const qs_str = qs.toString();
-      setLocation(`/audit-logs${qs_str ? "?" + qs_str : ""}`, { replace: true });
+      user?: string;
     },
-    [entityTypeFilter, entityIdInput, actionFilter, dateFrom, dateTo, setLocation]
-  );
+    replace = false,
+  ) {
+    const merged = {
+      entityType: overrides.entityType ?? entityTypeFilter,
+      entityId: overrides.entityId ?? entityIdInput,
+      action: overrides.action ?? actionFilter,
+      from: overrides.from ?? dateFrom,
+      to: overrides.to ?? dateTo,
+      user: overrides.user ?? userSearch,
+    };
+    const qs = new URLSearchParams();
+    if (merged.entityType !== "all") qs.set("entityType", merged.entityType);
+    if (merged.entityId.trim() !== "") qs.set("entityId", merged.entityId.trim());
+    if (merged.action !== "all") qs.set("action", merged.action);
+    if (merged.from) qs.set("from", merged.from);
+    if (merged.to) qs.set("to", merged.to);
+    if (merged.user.trim() !== "") qs.set("user", merged.user.trim());
+    const qs_str = qs.toString();
+    setLocation(`/audit-logs${qs_str ? "?" + qs_str : ""}`, { replace });
+  }
+
+  // Keep a ref to the latest pushFiltersToUrl to avoid stale closures in the
+  // debounced history-commit callback below.
+  const pushFiltersToUrlRef = useRef(pushFiltersToUrl);
+  pushFiltersToUrlRef.current = pushFiltersToUrl;
+
+  // For text inputs we update the URL with replace:true on every keystroke (so
+  // the URL stays in sync without flooding history), then after 600 ms of quiet
+  // we push a real history entry so back/forward navigation still works.
+  const historyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function scheduleHistoryEntry() {
+    if (historyDebounceRef.current !== null) clearTimeout(historyDebounceRef.current);
+    historyDebounceRef.current = setTimeout(() => {
+      historyDebounceRef.current = null;
+      pushFiltersToUrlRef.current({}, false);
+    }, 600);
+  }
+  useEffect(() => () => {
+    if (historyDebounceRef.current !== null) clearTimeout(historyDebounceRef.current);
+  }, []);
 
   function handleCopyLink() {
     const url = window.location.href;
@@ -381,12 +399,6 @@ export default function AuditLogs() {
     : logs;
 
   function resetFilters() {
-    setEntityTypeFilter("all");
-    setActionFilter("all");
-    setDateFrom("");
-    setDateTo("");
-    setUserSearch("");
-    setEntityIdInput("");
     setPage(1);
     setLocation("/audit-logs", { replace: true });
     void qc.invalidateQueries({ queryKey: getListAuditLogsQueryKey() });
@@ -521,13 +533,17 @@ export default function AuditLogs() {
               className="pl-9 h-9 text-sm"
               placeholder="User email…"
               value={userSearch}
-              onChange={(e) => { setUserSearch(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setPage(1);
+                pushFiltersToUrl({ user: e.target.value }, true);
+                scheduleHistoryEntry();
+              }}
             />
           </div>
 
           <Select
             value={entityTypeFilter}
-            onValueChange={(v) => { setEntityTypeFilter(v); setPage(1); pushFiltersToUrl({ entityType: v }); }}
+            onValueChange={(v) => { setPage(1); pushFiltersToUrl({ entityType: v }); }}
           >
             <SelectTrigger className="h-9 text-sm">
               <SelectValue placeholder="Entity type" />
@@ -555,12 +571,12 @@ export default function AuditLogs() {
             className="h-9 text-sm"
             placeholder="Entity ID…"
             value={entityIdInput}
-            onChange={(e) => { setEntityIdInput(e.target.value); setPage(1); pushFiltersToUrl({ entityId: e.target.value }); }}
+            onChange={(e) => { setPage(1); pushFiltersToUrl({ entityId: e.target.value }, true); scheduleHistoryEntry(); }}
           />
 
           <Select
             value={actionFilter}
-            onValueChange={(v) => { setActionFilter(v); setPage(1); pushFiltersToUrl({ action: v }); }}
+            onValueChange={(v) => { setPage(1); pushFiltersToUrl({ action: v }); }}
           >
             <SelectTrigger className="h-9 text-sm">
               <SelectValue placeholder="Action" />
@@ -578,14 +594,14 @@ export default function AuditLogs() {
               type="date"
               className="h-9 text-sm"
               value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setPage(1); pushFiltersToUrl({ from: e.target.value }); }}
+              onChange={(e) => { setPage(1); pushFiltersToUrl({ from: e.target.value }); }}
               title="From date"
             />
             <Input
               type="date"
               className="h-9 text-sm"
               value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setPage(1); pushFiltersToUrl({ to: e.target.value }); }}
+              onChange={(e) => { setPage(1); pushFiltersToUrl({ to: e.target.value }); }}
               title="To date"
             />
           </div>

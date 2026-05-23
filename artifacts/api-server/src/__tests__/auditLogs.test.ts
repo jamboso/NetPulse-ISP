@@ -181,6 +181,58 @@ describe("GET /audit-logs", () => {
 
     expect(res.status).toBe(200);
   });
+
+  it("builds eq predicate for entityId filter", async () => {
+    mockExec.mockResolvedValueOnce([sampleLog]);
+
+    await request(buildApp()).get("/audit-logs?entityId=42");
+
+    expect(mockEq).toHaveBeenCalledWith(auditLogsTable.entityId, 42);
+  });
+
+  it("returns only matching rows when entityId is supplied", async () => {
+    const matchingLog = { ...sampleLog, entityId: 42 };
+    mockExec.mockResolvedValueOnce([matchingLog]);
+
+    const res = await request(buildApp()).get("/audit-logs?entityId=42");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].entityId).toBe(42);
+  });
+
+  it("returns empty data when no rows match the entityId", async () => {
+    mockExec.mockResolvedValueOnce([]);
+
+    const res = await request(buildApp()).get("/audit-logs?entityId=9999");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+
+  it("builds eq predicates for both entityType and entityId when combined", async () => {
+    mockExec.mockResolvedValueOnce([sampleLog]);
+
+    await request(buildApp()).get("/audit-logs?entityType=customer&entityId=42");
+
+    expect(mockEq).toHaveBeenCalledWith(auditLogsTable.entityType, "customer");
+    expect(mockEq).toHaveBeenCalledWith(auditLogsTable.entityId, 42);
+    expect(mockAnd).toHaveBeenCalled();
+  });
+
+  it("returns intersection of entityType + entityId filters", async () => {
+    const matchingLog = { ...sampleLog, entityType: "customer", entityId: 42 };
+    mockExec.mockResolvedValueOnce([matchingLog]);
+
+    const res = await request(buildApp()).get(
+      "/audit-logs?entityType=customer&entityId=42",
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].entityType).toBe("customer");
+    expect(res.body.data[0].entityId).toBe(42);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -416,6 +468,38 @@ describe("GET /audit-logs/export.csv", () => {
     expect(mockEq).toHaveBeenCalledWith(auditLogsTable.action, "create");
     expect(mockGte).toHaveBeenCalledWith(auditLogsTable.createdAt, expect.any(Date));
     expect(mockLte).toHaveBeenCalledWith(auditLogsTable.createdAt, expect.any(Date));
+    expect(mockAnd).toHaveBeenCalled();
+  });
+
+  it("builds eq predicate for entityId filter in CSV export", async () => {
+    mockExec.mockResolvedValueOnce([sampleLog]);
+
+    await request(buildApp()).get("/audit-logs/export.csv?entityId=42");
+
+    expect(mockEq).toHaveBeenCalledWith(auditLogsTable.entityId, 42);
+  });
+
+  it("CSV export with entityId returns only rows for that entity", async () => {
+    const matchingLog = { ...sampleLog, entityId: 42 };
+    mockExec.mockResolvedValueOnce([matchingLog]);
+
+    const res = await request(buildApp()).get("/audit-logs/export.csv?entityId=42");
+
+    expect(res.status).toBe(200);
+    const dataLines = res.text.split("\r\n").filter(Boolean).slice(1);
+    expect(dataLines).toHaveLength(1);
+    expect(dataLines[0]).toContain("42");
+  });
+
+  it("builds eq predicates for entityType + entityId in CSV export", async () => {
+    mockExec.mockResolvedValueOnce([sampleLog]);
+
+    await request(buildApp()).get(
+      "/audit-logs/export.csv?entityType=customer&entityId=42",
+    );
+
+    expect(mockEq).toHaveBeenCalledWith(auditLogsTable.entityType, "customer");
+    expect(mockEq).toHaveBeenCalledWith(auditLogsTable.entityId, 42);
     expect(mockAnd).toHaveBeenCalled();
   });
 

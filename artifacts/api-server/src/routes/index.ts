@@ -36,6 +36,7 @@ import vpnRouter from "./vpn";
 import securityEventsRouter from "./security-events";
 import blockedIpsRouter from "./blocked-ips";
 import trafficRouter from "./traffic";
+import provisionRouter from "./provision";
 
 const router: IRouter = Router();
 
@@ -43,6 +44,9 @@ const router: IRouter = Router();
 router.use(healthRouter);
 router.use(macVendorRouter);
 router.use(setupRouter); // setup wizard API — public
+
+// Zero-touch provisioning — public (MikroTik routers call these with a token, no session)
+router.use(provisionRouter);
 
 // M-Pesa callback endpoints are public (Safaricom calls them directly with no session)
 router.use(mpesaPublicRouter);

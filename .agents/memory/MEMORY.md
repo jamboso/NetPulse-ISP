@@ -1,5 +1,6 @@
 - [Oslo password hash format](oslo-password-hash.md) — better-auth stores passwords as `hex-salt:hex-hash`, not `$scrypt$...`; requires `maxmem=67108864` on Ubuntu 24.04
 - [FreeRADIUS setup](freeradius-setup.md) — four-step fix: PGSSLMODE, MD5 password, schema import, GRANT permissions
+- [Zero-Touch Provisioning](zero-touch-provision.md) — two-stage .rsc bootstrap for MikroTik; token-in-URL is the auth pattern; DB fields + endpoint map inside
 - [Orval generated hook query options](orval-query-options-typing.md) — passing `{query: {enabled}}` to generated `useX` hooks fails typecheck unless `queryKey` is also supplied
 - [Secret updates need a full Repl restart](secret-update-needs-restart.md) — updating a secret's value doesn't refresh already-running shells; container must be restarted
 - [Bash tool git-lock false positive](bash-tool-git-lock-false-positive.md) — bash tool blocks any git command that transiently creates a `.git/*.lock` file, even safe ones like `fetch`/`remote set-url`; use code_execution instead

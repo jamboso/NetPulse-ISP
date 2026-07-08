@@ -24,6 +24,14 @@ export const routersTable = pgTable("routers", {
   radiusSecret: text("radius_secret"),
   radiusPort: integer("radius_port").default(1812),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  // ── Zero-Touch Provisioning ──────────────────────────────────────────────
+  provisionToken: text("provision_token").unique(),
+  provisionStatus: text("provision_status").notNull().default("pending"), // "pending" | "provisioned" | "connected"
+  macAddress: text("mac_address"),
+  rosVersion: text("ros_version"),
+  vpnConnected: boolean("vpn_connected").notNull().default(false),
+  lastCallbackAt: timestamp("last_callback_at"),
+  vpnIp: text("vpn_ip"),
 });
 
 export const insertRouterSchema = createInsertSchema(routersTable).omit({ id: true, createdAt: true, lastSeen: true });

@@ -14,7 +14,7 @@ import {
   Plus, Server, Route, Wifi, Pencil, Trash2, ChevronDown,
   CheckCircle2, Circle, WrenchIcon, AlertTriangle, LayoutDashboard, FileCode2,
   KeyRound, Shield, Download, X as XIcon, BarChart2, RefreshCw,
-  Globe, TrendingUp, Copy, Check,
+  Globe, TrendingUp, Copy, Check, Zap, Loader2, Radio, RotateCcw,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar,
@@ -86,6 +86,190 @@ function statusDot(status: string) {
   if (status === "offline")     return <Circle className="w-4 h-4 text-red-400" />;
   if (status === "maintenance") return <WrenchIcon className="w-4 h-4 text-orange-400" />;
   return <AlertTriangle className="w-4 h-4 text-gray-400" />;
+}
+
+// ─── Router Provision Panel ───────────────────────────────────────────────────
+type ProvisionInfo = {
+  id: number;
+  name: string;
+  routerType: string;
+  provisionToken: string | null;
+  provisionStatus: string;
+  macAddress: string | null;
+  rosVersion: string | null;
+  vpnConnected: boolean;
+  vpnIp: string | null;
+  lastCallbackAt: string | null;
+};
+
+function RouterProvisionPanel({ routerId, routerName }: { routerId: number; routerName: string }) {
+  const [info, setInfo] = useState<ProvisionInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reprovisioning, setReprovisioning] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/routers/${routerId}/provision-info`, { credentials: "include" });
+      if (r.ok) setInfo(await r.json());
+    } catch { /* ignore */ } finally {
+      setLoading(false);
+    }
+  }, [routerId]);
+
+  useEffect(() => {
+    load();
+    // Poll every 5 seconds while not yet connected
+    const interval = setInterval(() => { void load(); }, 5000);
+    return () => clearInterval(interval);
+  }, [load]);
+
+  const reprovision = async () => {
+    if (!confirm("Generate a new bootstrap token and VPN certificate for this router? The previous token will stop working.")) return;
+    setReprovisioning(true);
+    try {
+      await fetch(`/api/routers/${routerId}/reprovision`, { method: "POST", credentials: "include" });
+      await load();
+    } finally {
+      setReprovisioning(false);
+    }
+  };
+
+  const copyText = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const downloadBootstrap = () => {
+    if (!info?.provisionToken) return;
+    const a = document.createElement("a");
+    a.href = `/api/provision/${info.provisionToken}/bootstrap.rsc`;
+    a.download = `np-boot-${routerId}.rsc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const serverUrl = window.location.origin;
+  const bootstrapCmd = info?.provisionToken
+    ? `/tool fetch url="${serverUrl}/api/provision/${info.provisionToken}/bootstrap.rsc" dst-path="np-boot.rsc" mode=https; /import file-name=np-boot.rsc`
+    : "";
+
+  const status = info?.provisionStatus ?? "pending";
+  const connected = info?.vpnConnected ?? false;
+
+  const statusConfig = {
+    pending:     { color: "text-amber-600",  bg: "bg-amber-50 border-amber-200",  dot: "bg-amber-400",  label: "Awaiting provisioning" },
+    provisioned: { color: "text-blue-600",   bg: "bg-blue-50 border-blue-200",    dot: "bg-blue-400 animate-pulse", label: "Downloading config…" },
+    connected:   { color: "text-green-600",  bg: "bg-green-50 border-green-200",  dot: "bg-green-500",  label: "VPN Tunnel Active" },
+  }[status] ?? { color: "text-gray-600", bg: "bg-gray-50 border-gray-200", dot: "bg-gray-400", label: status };
+
+  return (
+    <div className="px-6 py-4 bg-emerald-50/40 border-t border-emerald-100 space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Zap className="w-4 h-4 text-emerald-600" />
+          <span className="text-sm font-semibold text-gray-800">Zero-Touch Provisioning</span>
+          {!loading && (
+            <div className={`flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border ${statusConfig.bg} ${statusConfig.color}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
+              {statusConfig.label}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {connected && info?.vpnIp && (
+            <Badge className="bg-green-100 text-green-700 border-green-200 text-xs font-mono border">
+              VPN {info.vpnIp}
+            </Badge>
+          )}
+          <Button size="sm" variant="outline"
+            className="h-7 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100 gap-1"
+            onClick={reprovision} disabled={reprovisioning}>
+            {reprovisioning ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+            Reprovision
+          </Button>
+        </div>
+      </div>
+
+      {loading ? (
+        <Skeleton className="h-20 w-full" />
+      ) : !info?.provisionToken ? (
+        <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+          No provision token yet. Click <strong>Reprovision</strong> to generate one.
+        </div>
+      ) : (
+        <>
+          {/* How it works */}
+          {!connected && (
+            <div className="text-xs text-gray-600 bg-white border border-emerald-100 rounded-lg px-4 py-3 space-y-1">
+              <p className="font-semibold text-emerald-700 mb-1.5">How to provision this router in 1 step:</p>
+              <p>1. Open a <strong>terminal</strong> on your MikroTik (via Winbox, SSH, or console)</p>
+              <p>2. Paste the command below and press <strong>Enter</strong></p>
+              <p>3. The router configures itself — VPN tunnel, RADIUS, and PPPoE ready automatically</p>
+            </div>
+          )}
+
+          {/* The magic command */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">RouterOS Terminal Command</p>
+            <div className="flex items-start gap-2 bg-gray-950 rounded-lg px-4 py-3">
+              <code className="text-green-300 text-xs font-mono flex-1 break-all leading-relaxed">{bootstrapCmd}</code>
+              <button
+                onClick={() => copyText(bootstrapCmd, "cmd")}
+                className="text-gray-400 hover:text-white transition-colors mt-0.5 flex-shrink-0 flex items-center gap-1 text-xs">
+                {copied === "cmd" ? <><Check className="w-3.5 h-3.5 text-green-400" />Copied!</> : <><Copy className="w-3.5 h-3.5" />Copy</>}
+              </button>
+            </div>
+          </div>
+
+          {/* Download + info row */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button size="sm" variant="outline" className="gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+              onClick={downloadBootstrap}>
+              <Download className="w-3 h-3" /> Download .rsc
+            </Button>
+
+            {info.macAddress && (
+              <span className="text-xs text-gray-500 font-mono">MAC: {info.macAddress}</span>
+            )}
+            {info.rosVersion && (
+              <span className="text-xs text-gray-500">ROS: {info.rosVersion}</span>
+            )}
+            {info.lastCallbackAt && (
+              <span className="text-xs text-gray-400">
+                Last seen: {new Date(info.lastCallbackAt).toLocaleString()}
+              </span>
+            )}
+          </div>
+
+          {/* Connected state — unlocked management */}
+          {connected && (
+            <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-sm font-semibold text-green-800">Tunnel active — remote management unlocked</span>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button size="sm" className="gap-1.5 text-xs bg-green-600 hover:bg-green-700 text-white" asChild>
+                  <Link href={`/network/routers/${routerId}`}>
+                    <LayoutDashboard className="w-3 h-3" /> RouterOS Dashboard
+                  </Link>
+                </Button>
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-100" asChild>
+                  <Link href={`/network/routers/${routerId}/pppoe`}>
+                    <Radio className="w-3 h-3" /> PPPoE Setup
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 // ─── Router VPN Panel ─────────────────────────────────────────────────────────
@@ -702,9 +886,10 @@ export default function Network() {
   const qc = useQueryClient();
   const { canManageNetwork, canDeleteNetworkRecords } = useCurrentUser();
 
-  // VPN panel expand
+  // Panel expand state
   const [expandedVpn, setExpandedVpn] = useState<number | null>(null);
   const [expandedRadius, setExpandedRadius] = useState<number | null>(null);
+  const [expandedProvision, setExpandedProvision] = useState<number | null>(null);
   const [radiusCopied, setRadiusCopied] = useState<string | null>(null);
   const copyRadius = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -903,9 +1088,22 @@ export default function Network() {
                       </TableCell>
                       <TableCell className="text-gray-500 text-sm">{r.location || "—"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={r.enabled ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-100 text-gray-500"}>
-                          {r.enabled ? "Active" : "Disabled"}
-                        </Badge>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge variant="outline" className={r.enabled ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-100 text-gray-500"}>
+                            {r.enabled ? "Active" : "Disabled"}
+                          </Badge>
+                          {r.routerType === "routeros" && (r as any).vpnConnected && (
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] gap-1">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              VPN
+                            </Badge>
+                          )}
+                          {r.routerType === "routeros" && !(r as any).vpnConnected && (r as any).provisionToken && (
+                            <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-[10px]">
+                              {(r as any).provisionStatus === "provisioned" ? "Provisioning…" : "Unprovisioned"}
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -948,6 +1146,14 @@ export default function Network() {
                               <Shield className="w-3.5 h-3.5" />
                             </Button>
                           )}
+                          {r.routerType === "routeros" && (
+                            <Button variant="ghost" size="icon"
+                              className={`h-7 w-7 ${expandedProvision === r.id ? "text-emerald-600 bg-emerald-50" : "text-gray-500 hover:text-emerald-600"} ${(r as any).vpnConnected ? "ring-1 ring-emerald-400/60 rounded" : ""}`}
+                              title="Zero-touch provisioning"
+                              onClick={() => setExpandedProvision(expandedProvision === r.id ? null : r.id)}>
+                              <Zap className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
                           {canManageNetwork && (
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
                               onClick={() => setRouterDialog({
@@ -979,6 +1185,13 @@ export default function Network() {
                       <TableRow className="hover:bg-transparent">
                         <TableCell colSpan={7} className="p-0 border-b border-indigo-100">
                           <RouterVpnPanel routerId={r.id} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {expandedProvision === r.id && (
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell colSpan={7} className="p-0 border-b border-emerald-100">
+                          <RouterProvisionPanel routerId={r.id} routerName={r.name} />
                         </TableCell>
                       </TableRow>
                     )}

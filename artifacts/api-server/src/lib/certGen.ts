@@ -192,6 +192,69 @@ management 127.0.0.1 7505
 `;
 }
 
+// ── Stage 1: Tiny bootstrap launcher ─────────────────────────────────────────
+// Admin pastes one command in RouterOS terminal. The router fetches Stage 2
+// from the NetPulse server (identified by token + MAC) and imports it.
+export function generateStage1Bootstrap(params: {
+  routerName: string;
+  token: string;
+  serverUrl: string;
+}): string {
+  const now = new Date().toISOString();
+  return `# =================================================================
+# NetPulse ISP Manager — Zero-Touch Provisioning Bootstrap
+# Router:    ${params.routerName}
+# Generated: ${now}
+#
+# RUN THIS ONE COMMAND IN YOUR RouterOS TERMINAL:
+#
+# /tool fetch url="${params.serverUrl}/api/provision/${params.token}/bootstrap.rsc" dst-path="np-boot.rsc" mode=https; /import file-name=np-boot.rsc
+#
+# The router configures itself automatically — no further steps needed.
+# =================================================================
+
+:local token "${params.token}"
+:local server "${params.serverUrl}"
+:local rosVer [:tonum [:pick [/system resource get version] 0 1]]
+:local mac [/interface ethernet get 0 mac-address]
+:local identity [/system identity get name]
+
+:put ""
+:put "======================================"
+:put "  NetPulse Zero-Touch Provisioning"
+:put "======================================"
+:put ("  Router:  " . $identity)
+:put ("  MAC:     " . $mac)
+:put ("  ROS:     " . [/system resource get version])
+:put ""
+:put "  Step 1/3: Registering with NetPulse..."
+
+:do {
+  /tool fetch \\
+    url=($server . "/api/provision/" . $token . "/register?mac=" . $mac . "&ver=" . $rosVer . "&name=" . $identity) \\
+    mode=https \\
+    keep-result=no
+} on-error={ :put "  (registration ping failed — continuing)" }
+
+:delay 3s
+:put "  Step 2/3: Downloading secure configuration..."
+
+/tool fetch \\
+  url=($server . "/api/provision/" . $token . "/setup.rsc?mac=" . $mac . "&ver=" . $rosVer) \\
+  dst-path="netpulse-setup.rsc" \\
+  mode=https \\
+  keep-result=yes
+
+:delay 2s
+:put "  Step 3/3: Applying configuration..."
+:put ""
+/import file-name=netpulse-setup.rsc
+`;
+}
+
+// ── Stage 2: Full setup script (served dynamically per router) ────────────────
+// Returned by GET /api/provision/:token/setup.rsc
+// Configures: OpenVPN tunnel + RADIUS + PPPoE skeleton + callback to NetPulse
 export function generateRosScript(params: {
   routerName: string;
   serverIp: string;
@@ -202,60 +265,71 @@ export function generateRosScript(params: {
   clientCertPem: string;
   clientKeyPem: string;
   radiusSecret: string;
+  token?: string;
+  serverUrl?: string;
+  vpnIp?: string;
 }): string {
   const now = new Date().toISOString();
-  const safe = params.routerName.replace(/[^a-zA-Z0-9_-]/g, "-").toLowerCase();
   const subnetBase = params.vpnSubnet.split(".").slice(0, 3).join(".");
   const serverVpnIp = `${subnetBase}.1`;
 
-  return `# ============================================================
-# NetPulse ISP Manager — MikroTik RouterOS VPN Tunnel Script
+  const callbackBlock = params.token && params.serverUrl
+    ? `
+# ── 7/7  Signal provisioning complete ────────────────────────────────────────
+:put "[7/7] Calling home to NetPulse..."
+
+:local mac2 [/interface ethernet get 0 mac-address]
+:local ver2 [/system resource get version]
+
+:do {
+  /tool fetch \\
+    url=("${params.serverUrl}/api/provision/${params.token}/callback?mac=" . $mac2 . "&ver=" . $ver2) \\
+    http-method=post \\
+    http-data=("mac=" . $mac2 . "&ver=" . $ver2) \\
+    mode=https \\
+    keep-result=no
+} on-error={ :log warning "NetPulse: callback failed — tunnel may still be active" }
+
+:log info "NetPulse: provisioning complete"
+`
+    : "";
+
+  return `# =================================================================
+# NetPulse ISP Manager — RouterOS Full Setup (Stage 2)
 # Router:    ${params.routerName}
 # Generated: ${now}
 # Server:    ${params.serverIp}:${params.vpnPort}/${params.vpnProtocol.toUpperCase()}
-# ============================================================
-#
-# HOW TO APPLY:
-#   Option A — Winbox:
-#     1. Open Files panel and drag this .rsc file onto it
-#     2. Open New Terminal
-#     3. Run: /import file-name=netpulse-vpn-${safe}.rsc
-#
-#   Option B — SSH:
-#     1. scp netpulse-vpn-${safe}.rsc admin@ROUTER_IP:
-#     2. ssh admin@ROUTER_IP "/import file-name=netpulse-vpn-${safe}.rsc"
-#
-#   Option C — Paste in terminal:
-#     Copy all lines below and paste into RouterOS terminal
-# ============================================================
+${params.vpnIp ? `# VPN IP:    ${params.vpnIp}` : ""}
+# =================================================================
 
-:log info message="NetPulse: starting VPN tunnel setup for ${params.routerName}"
-:put "\\n=============================="
-:put " NetPulse VPN Tunnel Setup"
-:put " Router: ${params.routerName}"
-:put "=============================="
+:log info message="NetPulse: configuring ${params.routerName}"
+:put ""
+:put "======================================"
+:put "  NetPulse Full Configuration"
+:put "  Router: ${params.routerName}"
+:put "======================================"
 
-# ── 1/6  Remove previous NetPulse config ───────────────────
-:put "\\n[1/6] Removing old NetPulse config (if any)..."
-/interface ovpn-client remove [find name="netpulse-vpn"] ;
+# ── 1/7  Remove previous NetPulse config ─────────────────────────────────────
+:put "[1/7] Cleaning old config..."
+:do { /interface ovpn-client remove [find name="netpulse-vpn"] } on-error={}
 :delay 1s
-/certificate remove [find name~"netpulse"] ;
+:do { /certificate remove [find name~"netpulse"] } on-error={}
 :delay 1s
-/file remove [find name~"netpulse-"] ;
+:do { /file remove [find name~"netpulse-"] } on-error={}
 :delay 1s
 
-# ── 2/6  Write certificate + key files ──────────────────────
-:put "[2/6] Writing certificate files to router storage..."
+# ── 2/7  Write certificate + key files ───────────────────────────────────────
+:put "[2/7] Writing certificates..."
 
-/file add name="netpulse-ca.pem" contents="${escapePem(params.caCertPem)}"
+/file add name="netpulse-ca.pem"     contents="${escapePem(params.caCertPem)}"
 /file add name="netpulse-client.pem" contents="${escapePem(params.clientCertPem)}"
 /file add name="netpulse-client.key" contents="${escapePem(params.clientKeyPem)}"
 :delay 2s
 
-# ── 3/6  Import certificates ─────────────────────────────────
-:put "[3/6] Importing certificates (allow ~15 seconds)..."
+# ── 3/7  Import certificates ──────────────────────────────────────────────────
+:put "[3/7] Importing certificates (~15 seconds)..."
 
-/certificate import file-name="netpulse-ca.pem" passphrase="" name="netpulse-ca"
+/certificate import file-name="netpulse-ca.pem"     passphrase="" name="netpulse-ca"
 :delay 4s
 /certificate import file-name="netpulse-client.pem" passphrase="" name="netpulse-client"
 :delay 4s
@@ -265,13 +339,14 @@ export function generateRosScript(params: {
 :local caCert [/certificate find where name="netpulse-ca" and !private-key]
 :if ([:len $caCert] = 0) do={
   :log error "NetPulse: CA cert import failed"
-  :error "CA certificate import failed — check file format"
+  :error "CA certificate import failed"
 }
 
-# ── 4/6  Create OpenVPN client interface ──────────────────────
-:put "[4/6] Creating OpenVPN tunnel interface..."
+# ── 4/7  Create OpenVPN tunnel interface ──────────────────────────────────────
+:put "[4/7] Creating OpenVPN tunnel..."
 
-/interface ovpn-client add \\
+:do {
+  /interface ovpn-client add \\
     name="netpulse-vpn" \\
     connect-to="${params.serverIp}" \\
     port=${params.vpnPort} \\
@@ -280,52 +355,68 @@ export function generateRosScript(params: {
     certificate="netpulse-client" \\
     add-default-route=no \\
     disabled=no
+} on-error={ :log warning "NetPulse: ovpn-client already exists" }
 
-:put "Waiting 15 seconds for tunnel to establish..."
-:delay 15s
+:put "Waiting 20 seconds for tunnel..."
+:delay 20s
 
-# ── 5/6  Configure RADIUS over VPN for PPPoE auth ─────────────
-:put "[5/6] Configuring RADIUS authentication..."
+# ── 5/7  Configure RADIUS over VPN for PPPoE auth ────────────────────────────
+:put "[5/7] Configuring RADIUS..."
 
-/radius remove [find address="${serverVpnIp}" and service~"ppp"] ;
+:do { /radius remove [find address="${serverVpnIp}" and service~"ppp"] } on-error={}
 
 /radius add \\
-    address="${serverVpnIp}" \\
-    secret="${params.radiusSecret}" \\
-    service=ppp \\
-    authentication-port=1812 \\
-    accounting-port=1813 \\
-    timeout=3000 \\
-    realm=""
+  address="${serverVpnIp}" \\
+  secret="${params.radiusSecret}" \\
+  service=ppp \\
+  authentication-port=1812 \\
+  accounting-port=1813 \\
+  timeout=3000 \\
+  realm=""
 
 /ppp aaa set use-radius=yes accounting=yes
 
-# ── 6/6  Add route to NetPulse server via VPN ─────────────────
-:put "[6/6] Adding VPN route..."
+# ── 6/7  Routing + firewall ───────────────────────────────────────────────────
+:put "[6/7] Configuring routing..."
 
-/ip route remove [find comment="netpulse-radius-route"] ;
+:do { /ip route remove [find comment="netpulse-radius-route"] } on-error={}
 /ip route add \\
-    dst-address="${serverVpnIp}/32" \\
-    gateway="netpulse-vpn" \\
-    comment="netpulse-radius-route"
+  dst-address="${serverVpnIp}/32" \\
+  gateway="netpulse-vpn" \\
+  comment="netpulse-radius-route"
 
-# ── Verify ───────────────────────────────────────────────────
+:do {
+  /ip firewall filter add \\
+    chain=input \\
+    in-interface="netpulse-vpn" \\
+    protocol=udp \\
+    dst-port=1812-1813 \\
+    action=accept \\
+    comment="netpulse-radius-in" \\
+    place-before=0
+} on-error={}
+${callbackBlock}
+# ── Verify ────────────────────────────────────────────────────────────────────
 :delay 3s
-:local running [/interface ovpn-client get [find name="netpulse-vpn"] running]
-:put "\\n=============================="
+:local running false
+:do { :set running [/interface ovpn-client get [find name="netpulse-vpn"] running] } on-error={}
+
+:put ""
+:put "======================================"
 :if ($running = true) do={
-  :put " STATUS: CONNECTED ✓"
+  :put "  STATUS: CONNECTED"
   :log info "NetPulse: VPN tunnel ACTIVE"
 } else={
-  :put " STATUS: NOT CONNECTED"
-  :put " Check: firewall rules allow ${params.serverIp}:${params.vpnPort}/${params.vpnProtocol.toUpperCase()}"
-  :log warning "NetPulse: VPN tunnel not connected — check server reachability"
+  :put "  STATUS: NOT YET CONNECTED"
+  :put "  Verify ${params.serverIp}:${params.vpnPort} is reachable"
+  :log warning "NetPulse: VPN not yet connected"
 }
-:put " Server:  ${params.serverIp}:${params.vpnPort}/${params.vpnProtocol.toUpperCase()}"
-:put " RADIUS:  ${serverVpnIp}:1812 (via VPN)"
-:put "=============================="
-:put "\\nCheck tunnel: /interface ovpn-client print"
-:put "Check RADIUS: /radius print"
+:put "  Server: ${params.serverIp}:${params.vpnPort}/${params.vpnProtocol.toUpperCase()}"
+:put "  RADIUS: ${serverVpnIp}:1812 (via VPN)"
+:put "======================================"
+:put ""
+:put "Check: /interface ovpn-client print"
+:put "Check: /radius print"
 `;
 }
 

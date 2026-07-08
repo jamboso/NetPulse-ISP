@@ -6,3 +6,27 @@ id = "twJGbVXSByurerNuVavVA"
 uri = "file://deploy/NetPulse-Installation-Guide.pdf"
 type = "pdf"
 title = "NetPulse Installation Guide"
+
+[[outputs]]
+id = "NYqSOsNobYEpjLnqlvkB6"
+uri = "file://screenshots/theme-current.jpg"
+type = "image"
+title = "Current (Baseline)"
+
+[[outputs]]
+id = "hlw2C7dD_M9mxDlfjyjCX"
+uri = "file://screenshots/theme-daylight.jpg"
+type = "image"
+title = "Daylight"
+
+[[outputs]]
+id = "kJSETnan-tlxjzW6fFq_M"
+uri = "file://screenshots/theme-nightops.jpg"
+type = "image"
+title = "Night Ops"
+
+[[outputs]]
+id = "-wHH8RyueZrL9pfz_h0jR"
+uri = "file://screenshots/theme-terracotta.jpg"
+type = "image"
+title = "Terracotta"

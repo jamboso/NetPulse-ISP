@@ -1,0 +1,35 @@
+
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ # Check if the app is running
+sudo pm2 logs netpulse-api --lines 20 --nostream 2>/dev/null || sudo journalctl -u netpulse-api -n 20 --no-pager 2>/dev/null || sudo pm2 logs --lines 20 --nostream 2>/dev/null
+[TAILING] Tailing last 20 lines for [netpulse-api] process (change the value with --lines option)
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo pm2 logs --lines 10 --nostream 2>/dev/null || sudo journalctl -u netpulse* -n 10 --no-pager 2>/dev/null
+[TAILING] Tailing last 10 lines for [all] processes (change the value with --lines option)
+/root/.pm2/pm2.log last 10 lines:
+PM2        | 2026-07-08T06:02:07: PM2 log: BUS socket file      : /root/.pm2/pub.sock
+PM2        | 2026-07-08T06:02:07: PM2 log: Application log path : /root/.pm2/logs
+PM2        | 2026-07-08T06:02:07: PM2 log: Worker Interval      : 30000
+PM2        | 2026-07-08T06:02:07: PM2 log: Process dump file    : /root/.pm2/dump.pm2
+PM2        | 2026-07-08T06:02:07: PM2 log: Concurrent actions   : 2
+PM2        | 2026-07-08T06:02:07: PM2 log: SIGTERM timeout      : 1600
+PM2        | 2026-07-08T06:02:07: PM2 log: Runtime Binary       : /usr/bin/node
+PM2        | 2026-07-08T06:02:07: PM2 log: ===============================================================================
+PM2        | 2026-07-08T06:02:07: PM2 log: App [netpulse:0] starting in -fork mode-
+PM2        | 2026-07-08T06:02:07: PM2 log: App [netpulse:0] online
+
+/var/log/netpulse/out-0.log last 10 lines:
+0|netpulse | by: error: password authentication failed for user \"netpulse\"\n    at <anonymous> (/opt/netpulse/node_modules/.pnpm/pg-pool@3.13.0_pg@8.20.0/node_modules/pg-pool/index.js:45:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async <anonymous> (/opt/netpulse/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.20.0/node_modules/src/node-postgres/session.ts:161:13)\n    at async NodePgPreparedQuery.queryWithCache (/opt/netpulse/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.20.0/node_modules/src/pg-core/session.ts:71:12)\n    at async <anonymous> (/opt/netpulse/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.20.0/node_modules/src/node-postgres/session.ts:154:19)\n    at async getSettings (/opt/netpulse/artifacts/api-server/src/lib/sms.ts:9:16)\n    at async pollRouters (/opt/netpulse/artifacts/api-server/src/lib/routerMonitor.ts:120:22)","query":"select \"id\", \"key\", \"value\", \"updated_at\" from \"settings\"","params":[]},"msg":"Router monitor: poll failed"}
+0|netpulse | 2026-07-08 06:06:46: {"level":30,"time":1783480006809,"pid":1412,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":6,"method":"POST","url":"/api/auth/sign-in/email"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500","stack":"Error: failed with status code 500\n    at onResFinished (/opt/netpulse/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)\n    at ServerResponse.onResponseComplete (/opt/netpulse/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)\n    at ServerResponse.emit (node:events:521:24)\n    at onFinish (node:_http_outgoing:1026:10)\n    at afterWrite (node:internal/streams/writable:708:5)\n    at afterWriteTick (node:internal/streams/writable:694:10)\n    at process.processTicksAndRejections (node:internal/process/task_queues:89:21)"},"responseTime":10,"msg":"request errored"}
+
+/var/log/netpulse/error-0.log last 10 lines:
+0|netpulse | 2026-07-08 06:06:46:     schema: undefined,
+0|netpulse | 2026-07-08 06:06:46:     table: undefined,
+0|netpulse | 2026-07-08 06:06:46:     column: undefined,
+0|netpulse | 2026-07-08 06:06:46:     dataType: undefined,
+0|netpulse | 2026-07-08 06:06:46:     constraint: undefined,
+0|netpulse | 2026-07-08 06:06:46:     file: 'auth.c',
+0|netpulse | 2026-07-08 06:06:46:     line: '331',
+0|netpulse | 2026-07-08 06:06:46:     routine: 'auth_failed'
+0|netpulse | 2026-07-08 06:06:46:   }
+0|netpulse | 2026-07-08 06:06:46: }
+
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

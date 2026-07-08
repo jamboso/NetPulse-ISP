@@ -254,7 +254,7 @@ export function generateStage1Bootstrap(params: {
 
 // ── Stage 2: Full setup script (served dynamically per router) ────────────────
 // Returned by GET /api/provision/:token/setup.rsc
-// Configures: OpenVPN tunnel + RADIUS + PPPoE skeleton + callback to NetPulse
+// Configures: OpenVPN tunnel + RADIUS + NETPULSE bridge + PPPoE + Hotspot + callback
 export function generateRosScript(params: {
   routerName: string;
   serverIp: string;
@@ -275,8 +275,8 @@ export function generateRosScript(params: {
 
   const callbackBlock = params.token && params.serverUrl
     ? `
-# ── 7/7  Signal provisioning complete ────────────────────────────────────────
-:put "[7/7] Calling home to NetPulse..."
+# ── 8/8  Signal provisioning complete ────────────────────────────────────────
+:put "[8/8] Calling home to NetPulse..."
 
 :local mac2 [/interface ethernet get 0 mac-address]
 :local ver2 [/system resource get version]
@@ -309,8 +309,8 @@ ${params.vpnIp ? `# VPN IP:    ${params.vpnIp}` : ""}
 :put "  Router: ${params.routerName}"
 :put "======================================"
 
-# ── 1/7  Remove previous NetPulse config ─────────────────────────────────────
-:put "[1/7] Cleaning old config..."
+# ── 1/8  Remove previous NetPulse config ─────────────────────────────────────
+:put "[1/8] Cleaning old config..."
 :do { /interface ovpn-client remove [find name="netpulse-vpn"] } on-error={}
 :delay 1s
 :do { /certificate remove [find name~"netpulse"] } on-error={}
@@ -318,16 +318,16 @@ ${params.vpnIp ? `# VPN IP:    ${params.vpnIp}` : ""}
 :do { /file remove [find name~"netpulse-"] } on-error={}
 :delay 1s
 
-# ── 2/7  Write certificate + key files ───────────────────────────────────────
-:put "[2/7] Writing certificates..."
+# ── 2/8  Write certificate + key files ───────────────────────────────────────
+:put "[2/8] Writing certificates..."
 
 /file add name="netpulse-ca.pem"     contents="${escapePem(params.caCertPem)}"
 /file add name="netpulse-client.pem" contents="${escapePem(params.clientCertPem)}"
 /file add name="netpulse-client.key" contents="${escapePem(params.clientKeyPem)}"
 :delay 2s
 
-# ── 3/7  Import certificates ──────────────────────────────────────────────────
-:put "[3/7] Importing certificates (~15 seconds)..."
+# ── 3/8  Import certificates ──────────────────────────────────────────────────
+:put "[3/8] Importing certificates (~15 seconds)..."
 
 /certificate import file-name="netpulse-ca.pem"     passphrase="" name="netpulse-ca"
 :delay 4s
@@ -342,8 +342,8 @@ ${params.vpnIp ? `# VPN IP:    ${params.vpnIp}` : ""}
   :error "CA certificate import failed"
 }
 
-# ── 4/7  Create OpenVPN tunnel interface ──────────────────────────────────────
-:put "[4/7] Creating OpenVPN tunnel..."
+# ── 4/8  Create OpenVPN tunnel interface ──────────────────────────────────────
+:put "[4/8] Creating OpenVPN tunnel..."
 
 :do {
   /interface ovpn-client add \\
@@ -360,15 +360,15 @@ ${params.vpnIp ? `# VPN IP:    ${params.vpnIp}` : ""}
 :put "Waiting 20 seconds for tunnel..."
 :delay 20s
 
-# ── 5/7  Configure RADIUS over VPN for PPPoE auth ────────────────────────────
-:put "[5/7] Configuring RADIUS..."
+# ── 5/8  Configure RADIUS over VPN ───────────────────────────────────────────
+:put "[5/8] Configuring RADIUS..."
 
 :do { /radius remove [find address="${serverVpnIp}" and service~"ppp"] } on-error={}
 
 /radius add \\
   address="${serverVpnIp}" \\
   secret="${params.radiusSecret}" \\
-  service=ppp \\
+  service=ppp,hotspot \\
   authentication-port=1812 \\
   accounting-port=1813 \\
   timeout=3000 \\
@@ -376,8 +376,71 @@ ${params.vpnIp ? `# VPN IP:    ${params.vpnIp}` : ""}
 
 /ppp aaa set use-radius=yes accounting=yes
 
-# ── 6/7  Routing + firewall ───────────────────────────────────────────────────
-:put "[6/7] Configuring routing..."
+# ── 6/8  Create NETPULSE bridge + PPPoE server + Hotspot server ───────────────
+:put "[6/8] Creating NETPULSE bridge + PPPoE + Hotspot..."
+
+# -- Bridge --
+:do { /interface bridge remove [find name="NETPULSE"] } on-error={}
+:delay 1s
+/interface bridge add name="NETPULSE" protocol-mode=rstp comment="netpulse-managed"
+
+# -- Add ether2 as LAN port (default) --
+:do { /interface bridge port remove [find interface="ether2"] } on-error={}
+/interface bridge port add interface=ether2 bridge=NETPULSE comment="netpulse-lan"
+
+# -- PPPoE server --
+:do { /ip pool remove [find name="netpulse-pppoe-pool"] } on-error={}
+/ip pool add name="netpulse-pppoe-pool" ranges=10.0.10.1-10.0.10.254
+
+:do { /ppp profile remove [find name="netpulse-profile"] } on-error={}
+/ppp profile add \\
+  name="netpulse-profile" \\
+  local-address=10.0.10.254 \\
+  remote-address=netpulse-pppoe-pool \\
+  use-encryption=yes \\
+  dns-server=8.8.8.8,8.8.4.4
+
+:do { /interface pppoe-server server remove [find comment="netpulse-pppoe"] } on-error={}
+/interface pppoe-server server add \\
+  service-name="netpulse-pppoe" \\
+  interface=NETPULSE \\
+  default-profile=netpulse-profile \\
+  one-session-per-host=yes \\
+  enabled=yes \\
+  authentication=mschap2,mschap1,chap,pap \\
+  comment="netpulse-pppoe"
+
+# -- Hotspot --
+:do { /ip hotspot remove [find comment="netpulse-hotspot"] } on-error={}
+:do { /ip hotspot profile remove [find name="netpulse-hs"] } on-error={}
+:do { /ip pool remove [find name="netpulse-hs-pool"] } on-error={}
+:do { /ip address remove [find comment="netpulse-hs-addr"] } on-error={}
+:delay 1s
+
+/ip pool add name="netpulse-hs-pool" ranges=192.168.10.2-192.168.10.254
+/ip address add address=192.168.10.1/24 interface=NETPULSE comment="netpulse-hs-addr"
+:delay 2s
+
+/ip hotspot profile add \\
+  name="netpulse-hs" \\
+  hotspot-address=192.168.10.1 \\
+  use-radius=yes \\
+  radius-address="${serverVpnIp}" \\
+  radius-secret="${params.radiusSecret}" \\
+  login-by=http-chap,mac \\
+  mac-auth-mode=mac-as-username+password
+
+/ip hotspot add \\
+  name="netpulse-hotspot" \\
+  interface=NETPULSE \\
+  address-pool=netpulse-hs-pool \\
+  profile=netpulse-hs \\
+  idle-timeout=none \\
+  keepalive-timeout=none \\
+  comment="netpulse-hotspot"
+
+# ── 7/8  Routing + firewall ───────────────────────────────────────────────────
+:put "[7/8] Configuring routing..."
 
 :do { /ip route remove [find comment="netpulse-radius-route"] } on-error={}
 /ip route add \\
@@ -411,12 +474,17 @@ ${callbackBlock}
   :put "  Verify ${params.serverIp}:${params.vpnPort} is reachable"
   :log warning "NetPulse: VPN not yet connected"
 }
-:put "  Server: ${params.serverIp}:${params.vpnPort}/${params.vpnProtocol.toUpperCase()}"
-:put "  RADIUS: ${serverVpnIp}:1812 (via VPN)"
+:put "  Server:  ${params.serverIp}:${params.vpnPort}/${params.vpnProtocol.toUpperCase()}"
+:put "  RADIUS:  ${serverVpnIp}:1812 (via VPN)"
+:put "  Bridge:  NETPULSE (ether2 + PPPoE + Hotspot)"
+:put "  PPPoE:   pool 10.0.10.1-254 on NETPULSE"
+:put "  Hotspot: 192.168.10.1/24 on NETPULSE"
 :put "======================================"
 :put ""
 :put "Check: /interface ovpn-client print"
-:put "Check: /radius print"
+:put "Check: /interface bridge port print"
+:put "Check: /interface pppoe-server server print"
+:put "Check: /ip hotspot print"
 `;
 }
 

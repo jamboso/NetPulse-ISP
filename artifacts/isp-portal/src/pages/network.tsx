@@ -263,10 +263,158 @@ function RouterProvisionPanel({ routerId, routerName }: { routerId: number; rout
                     <Radio className="w-3 h-3" /> PPPoE Setup
                   </Link>
                 </Button>
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-100" asChild>
+                  <Link href={`/network/routers/${routerId}/hotspot`}>
+                    <Wifi className="w-3 h-3" /> Hotspot Config
+                  </Link>
+                </Button>
               </div>
+              {/* NETPULSE Bridge port manager */}
+              <BridgePortsManager routerId={routerId} />
             </div>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+// ─── NETPULSE Bridge Port Manager ────────────────────────────────────────────
+function BridgePortsManager({ routerId }: { routerId: number }) {
+  const [ports, setPorts] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newPort, setNewPort] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [lastCmd, setLastCmd] = useState<string | null>(null);
+  const [cmdCopied, setCmdCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadPorts = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/routers/${routerId}/bridge-ports`, { credentials: "include" });
+      if (r.ok) { const d = await r.json(); setPorts(d.ports ?? []); }
+    } catch { /* ignore */ } finally { setLoading(false); }
+  }, [routerId]);
+
+  useEffect(() => { loadPorts(); }, [loadPorts]);
+
+  const addPort = async () => {
+    const port = newPort.trim();
+    if (!port) return;
+    setAdding(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/routers/${routerId}/bridge-ports`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ port }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setError(d.error ?? "Failed to add port"); return; }
+      setPorts(d.ports);
+      setLastCmd(d.command);
+      setNewPort("");
+    } finally { setAdding(false); }
+  };
+
+  const removePort = async (portName: string) => {
+    setRemoving(portName);
+    setError(null);
+    try {
+      const r = await fetch(`/api/routers/${routerId}/bridge-ports/${portName}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const d = await r.json();
+      if (r.ok) { setPorts(d.ports); setLastCmd(d.command); }
+    } finally { setRemoving(null); }
+  };
+
+  const copyCmd = (cmd: string) => {
+    navigator.clipboard.writeText(cmd);
+    setCmdCopied(true);
+    setTimeout(() => setCmdCopied(false), 2000);
+  };
+
+  return (
+    <div className="mt-3 border border-emerald-200 rounded-lg bg-white overflow-hidden">
+      <div className="px-3 py-2 bg-emerald-50/80 border-b border-emerald-200 flex items-center gap-2">
+        <Route className="w-3.5 h-3.5 text-emerald-600" />
+        <span className="text-xs font-semibold text-emerald-800">NETPULSE Bridge Ports</span>
+        <span className="ml-auto text-[10px] text-emerald-500 font-mono bg-emerald-100 px-1.5 py-0.5 rounded">
+          PPPoE + Hotspot on bridge
+        </span>
+      </div>
+
+      {loading ? (
+        <div className="px-3 py-2"><Skeleton className="h-5 w-40" /></div>
+      ) : (
+        <div className="px-3 py-2 space-y-1.5">
+          {ports.length === 0 && (
+            <p className="text-[11px] text-gray-400 italic">No ports in bridge yet.</p>
+          )}
+          {ports.map(port => (
+            <div key={port} className="flex items-center gap-2 text-xs">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+              <code className="font-mono text-gray-700 flex-1">{port}</code>
+              {port === "ether2"
+                ? <span className="text-[10px] text-gray-400 italic">default</span>
+                : (
+                  <button
+                    onClick={() => removePort(port)}
+                    disabled={removing === port}
+                    title="Remove from bridge"
+                    className="text-gray-300 hover:text-red-500 transition-colors">
+                    {removing === port
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <XIcon className="w-3.5 h-3.5" />}
+                  </button>
+                )
+              }
+            </div>
+          ))}
+
+          {/* Add port row */}
+          <div className="flex items-center gap-1.5 pt-1">
+            <Input
+              value={newPort}
+              onChange={e => setNewPort(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && !adding && addPort()}
+              placeholder="ether3, ether4, wlan1…"
+              className="h-6 text-xs font-mono border-emerald-200 focus-visible:ring-emerald-400"
+            />
+            <Button
+              size="sm"
+              onClick={addPort}
+              disabled={adding || !newPort.trim()}
+              className="h-6 text-xs px-2 bg-emerald-600 hover:bg-emerald-700 text-white gap-1 flex-shrink-0">
+              {adding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+              Add
+            </Button>
+          </div>
+
+          {error && <p className="text-[11px] text-red-600">{error}</p>}
+        </div>
+      )}
+
+      {/* Command to apply — copy and run on the router */}
+      {lastCmd && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-gray-950 border-t border-gray-800">
+          <code className="text-green-300 text-[10px] font-mono flex-1 break-all leading-relaxed">{lastCmd}</code>
+          <button
+            onClick={() => copyCmd(lastCmd)}
+            title="Copy command"
+            className="text-gray-400 hover:text-white transition-colors flex-shrink-0">
+            {cmdCopied ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
+          </button>
+        </div>
+      )}
+      {lastCmd && (
+        <p className="px-3 pb-2 text-[10px] text-gray-400 bg-gray-950">
+          ↑ Copy and run in RouterOS terminal to apply this change on the router
+        </p>
       )}
     </div>
   );

@@ -32,6 +32,9 @@ export const routersTable = pgTable("routers", {
   vpnConnected: boolean("vpn_connected").notNull().default(false),
   lastCallbackAt: timestamp("last_callback_at"),
   vpnIp: text("vpn_ip"),
+  // ── NETPULSE Bridge ───────────────────────────────────────────────────────
+  // JSON array of interface names currently in the NETPULSE bridge, e.g. ["ether2","ether3"]
+  bridgePorts: text("bridge_ports").default('["ether2"]'),
 });
 
 export const insertRouterSchema = createInsertSchema(routersTable).omit({ id: true, createdAt: true, lastSeen: true });

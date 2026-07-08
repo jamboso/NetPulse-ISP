@@ -235,10 +235,65 @@ router.post("/routers/:id/reprovision", async (req, res) => {
     provisionStatus: "pending",
     vpnConnected: false,
     lastCallbackAt: null,
+    bridgePorts: '["ether2"]',
   }).where(eq(routersTable.id, id));
 
   void autoProvision(id, row.name, req.log);
   res.json({ success: true, provisionToken: newToken });
+});
+
+// ── Bridge port management ────────────────────────────────────────────────────
+// Ports are tracked in DB (JSON array). Changes return the RouterOS command to
+// run on the router to apply the change (admin copies it and pastes in terminal).
+
+function parseBridgePorts(raw: string | null | undefined): string[] {
+  try {
+    const parsed = JSON.parse(raw ?? '["ether2"]');
+    return Array.isArray(parsed) ? (parsed as string[]) : ["ether2"];
+  } catch {
+    return ["ether2"];
+  }
+}
+
+router.get("/routers/:id/bridge-ports", async (req, res) => {
+  const id = parseInt(req.params.id!);
+  const [row] = await db.select({ bridgePorts: routersTable.bridgePorts })
+    .from(routersTable).where(eq(routersTable.id, id));
+  if (!row) { res.status(404).json({ error: "Not found" }); return; }
+  res.json({ ports: parseBridgePorts(row.bridgePorts) });
+});
+
+router.post("/routers/:id/bridge-ports", async (req, res) => {
+  const id = parseInt(req.params.id!);
+  const portName = String(req.body.port ?? "").trim();
+  if (!portName || !/^[a-zA-Z0-9_.-]+$/.test(portName)) {
+    res.status(400).json({ error: "Invalid port name. Use alphanumeric, dash, underscore, or dot." });
+    return;
+  }
+  const [row] = await db.select({ bridgePorts: routersTable.bridgePorts })
+    .from(routersTable).where(eq(routersTable.id, id));
+  if (!row) { res.status(404).json({ error: "Not found" }); return; }
+  const ports = parseBridgePorts(row.bridgePorts);
+  if (ports.includes(portName)) {
+    res.status(409).json({ error: "Port already in NETPULSE bridge" });
+    return;
+  }
+  ports.push(portName);
+  await db.update(routersTable).set({ bridgePorts: JSON.stringify(ports) }).where(eq(routersTable.id, id));
+  const command = `/interface bridge port add interface=${portName} bridge=NETPULSE comment="netpulse-lan"`;
+  res.json({ ports, command });
+});
+
+router.delete("/routers/:id/bridge-ports/:portName", async (req, res) => {
+  const id = parseInt(req.params.id!);
+  const portName = req.params.portName!;
+  const [row] = await db.select({ bridgePorts: routersTable.bridgePorts })
+    .from(routersTable).where(eq(routersTable.id, id));
+  if (!row) { res.status(404).json({ error: "Not found" }); return; }
+  const ports = parseBridgePorts(row.bridgePorts).filter(p => p !== portName);
+  await db.update(routersTable).set({ bridgePorts: JSON.stringify(ports) }).where(eq(routersTable.id, id));
+  const command = `/interface bridge port remove [find bridge="NETPULSE" and interface="${portName}"]`;
+  res.json({ ports, command });
 });
 
 router.patch("/routers/:id", async (req, res) => {

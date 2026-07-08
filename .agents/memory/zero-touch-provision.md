@@ -21,7 +21,8 @@ Two-stage .rsc bootstrap pattern (like the user's sample from Tabana Wireless):
 
 ## DB fields added to routersTable
 provisionToken, provisionStatus ("pending"/"provisioned"/"connected"),
-macAddress, rosVersion, vpnConnected, lastCallbackAt, vpnIp
+macAddress, rosVersion, vpnConnected, lastCallbackAt, vpnIp,
+bridgePorts (text JSON array, default '["ether2"]')
 
 ## Auto-provisioning on creation
 POST /routers automatically:

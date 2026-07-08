@@ -1,0 +1,53 @@
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$ DATABASE_URL=$(grep DATABASE_URL /opt/netpulse/.env | cut -d= -f2-) \
+node --input-type=module << 'EOF'
+import { Scrypt } from "/opt/netpulse/node_modules/oslo/dist/password/index.js";
+import pg from "/opt/netpulse/node_modules/pg/lib/index.js";
+
+const email = "jamesbunoro@gmail.com";
+const newPassword = "Larrymahugu@2134";
+
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+await client.connect();
+
+const scrypt = new Scrypt();
+const hash = await scrypt.hash(newPassword);
+
+const userRes = await client.query(`SELECT id FROM users WHERE email = $1`, [email]);
+if (userRes.rows.length === 0) { console.error("User not found"); process.exit(1); }
+const userId = userRes.rows[0].id;
+
+const upd = await client.query(
+  `UPDATE accounts SET password=$1 WHERE "userId"=$2 AND "providerId"='credential'`,
+  [hash, userId]
+);
+if (upd.rowCount === 0) {
+  await client.query(
+    `INSERT INTO accounts ("userId","accountId","providerId",password,"createdAt","updatedAt") VALUES ($1,$2,'credential',$3,NOW(),NOW())`,
+    [userId, email, hash]
+  );
+  console.log("Account created with new password.");
+} else {
+  console.log("Password reset successfully for", email);
+}
+await client.end();
+EOF
+node:internal/modules/esm/resolve:271
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/opt/netpulse/node_modules/oslo/dist/password/index.js' imported from /opt/netpulse/[eval1]
+    at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+    at moduleResolve (node:internal/modules/esm/resolve:861:10)
+    at defaultResolve (node:internal/modules/esm/resolve:988:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:697:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:714:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:746:52)
+    at #resolve (node:internal/modules/esm/loader:679:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:599:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:162:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:252:17) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///opt/netpulse/node_modules/oslo/dist/password/index.js'
+}
+
+Node.js v24.15.0

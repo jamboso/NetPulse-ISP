@@ -4,5 +4,8 @@ export const modules: ModuleMap = {
   "./components/mockups/app-themes/Current.tsx": () => import("../components/mockups/app-themes/Current.tsx"),
   "./components/mockups/app-themes/Daylight.tsx": () => import("../components/mockups/app-themes/Daylight.tsx"),
   "./components/mockups/app-themes/NightOps.tsx": () => import("../components/mockups/app-themes/NightOps.tsx"),
-  "./components/mockups/app-themes/Terracotta.tsx": () => import("../components/mockups/app-themes/Terracotta.tsx")
+  "./components/mockups/app-themes/Terracotta.tsx": () => import("../components/mockups/app-themes/Terracotta.tsx"),
+  "./components/mockups/sign-in-layouts/LayoutA.tsx": () => import("../components/mockups/sign-in-layouts/LayoutA.tsx"),
+  "./components/mockups/sign-in-layouts/LayoutB.tsx": () => import("../components/mockups/sign-in-layouts/LayoutB.tsx"),
+  "./components/mockups/sign-in-layouts/LayoutC.tsx": () => import("../components/mockups/sign-in-layouts/LayoutC.tsx")
 };

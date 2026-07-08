@@ -711,6 +711,28 @@ export default function Network() {
     setRadiusCopied(key);
     setTimeout(() => setRadiusCopied(null), 2000);
   };
+  const [adminLoginRunning, setAdminLoginRunning] = useState<number | null>(null);
+  const [adminLoginResult, setAdminLoginResult] = useState<{ routerId: number; success: boolean; steps: string[]; errors: string[] } | null>(null);
+  const handleEnableAdminLogin = async (routerId: number) => {
+    setAdminLoginRunning(routerId);
+    setAdminLoginResult(null);
+    try {
+      const r = await fetch(`/api/routers/${routerId}/ros/radius/admin-login`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        setAdminLoginResult({ routerId, success: false, steps: [], errors: [data.error ?? "Failed to enable RADIUS admin login"] });
+        return;
+      }
+      setAdminLoginResult({ routerId, success: data.success, steps: data.steps ?? [], errors: data.errors ?? [] });
+    } catch {
+      setAdminLoginResult({ routerId, success: false, steps: [], errors: ["Network error contacting router"] });
+    } finally {
+      setAdminLoginRunning(null);
+    }
+  };
 
   // Router dialog
   const [routerDialog, setRouterDialog] = useState<{ open: boolean; id?: number; initial?: RouterFormData }>({ open: false });
@@ -1012,6 +1034,33 @@ export default function Network() {
                                 ))}
                                 <div className="text-xs text-blue-600 bg-blue-100 rounded px-3 py-2 mt-1">
                                   <strong>NAS registered:</strong> this router's IP (<span className="font-mono">{r.ipAddress}</span>) and secret are stored in FreeRADIUS's <span className="font-mono">radnas</span> table automatically when the router is saved.
+                                </div>
+
+                                <div className="border-t border-blue-200 pt-3 mt-3">
+                                  <div className="flex items-center justify-between gap-3 mb-1">
+                                    <div>
+                                      <p className="text-xs font-semibold text-blue-900">Admin login via RADIUS</p>
+                                      <p className="text-[11px] text-blue-600">
+                                        Lets staff log into this router (Winbox/SSH/web/API) with RADIUS credentials instead of local router accounts.
+                                      </p>
+                                    </div>
+                                    {canManageNetwork && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="shrink-0 border-blue-300 text-blue-700 hover:bg-blue-100"
+                                        disabled={adminLoginRunning === r.id}
+                                        onClick={() => handleEnableAdminLogin(r.id)}>
+                                        {adminLoginRunning === r.id ? "Configuring…" : "Enable admin login via RADIUS"}
+                                      </Button>
+                                    )}
+                                  </div>
+                                  {adminLoginResult && adminLoginResult.routerId === r.id && (
+                                    <div className={`text-xs rounded-md px-3 py-2 mt-2 space-y-0.5 ${adminLoginResult.success ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-700"}`}>
+                                      {adminLoginResult.steps.map((s, i) => <div key={`s-${i}`}>{s}</div>)}
+                                      {adminLoginResult.errors.map((e, i) => <div key={`e-${i}`}>{e}</div>)}
+                                    </div>
+                                  )}
                                 </div>
                               </>
                             )}

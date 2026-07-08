@@ -7,7 +7,7 @@ const router = Router();
 
 // ── RouterOS API helpers ──────────────────────────────────────────────────────
 
-async function rosReq(
+export async function rosReq(
   ip: string, ssl: boolean, user: string, pass: string,
   method: "GET" | "PUT" | "PATCH" | "DELETE",
   path: string, body?: object
@@ -44,7 +44,7 @@ async function rosReq(
   }
 }
 
-async function getRouter(id: number) {
+export async function getRouter(id: number) {
   const [r] = await db.select().from(routersTable).where(eq(routersTable.id, id));
   return r;
 }
@@ -53,7 +53,7 @@ async function getRouter(id: number) {
 // or service-name+interface). RouterOS REST `PUT` always creates a *new* object, so
 // re-running setup against a router that already has the object would otherwise fail
 // with "already exists" errors. This looks the object up first and PATCHes it if found.
-async function upsertRos(
+export async function upsertRos(
   ip: string, ssl: boolean, user: string, pass: string,
   path: string, match: Record<string, string>, body: Record<string, unknown>
 ): Promise<unknown> {
@@ -71,7 +71,7 @@ async function upsertRos(
 // Resolves the RADIUS server/secret to configure on a given router: prefers the
 // router's own NAS secret (set on the router record, also used for its radnas entry)
 // and falls back to the global RADIUS settings configured in Settings → Network.
-async function getRadiusConfig(r: typeof routersTable.$inferSelect): Promise<{
+export async function getRadiusConfig(r: typeof routersTable.$inferSelect): Promise<{
   server: string; secret: string; authPort: number; acctPort: number;
 } | null> {
   const rows = await db

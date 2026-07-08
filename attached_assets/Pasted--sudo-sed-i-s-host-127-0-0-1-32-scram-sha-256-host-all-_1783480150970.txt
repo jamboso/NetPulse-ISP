@@ -1,0 +1,36 @@
+
+sudo sed -i 's|^host.*127\.0\.0\.1/32.*scram-sha-256|host    all             all             127.0.0.1/32            md5|' /etc/postgresql/*/main/pg_hba.conf
+
+# 3. Also fix the IPv6 line
+sudo sed -i 's|^host.*::1/128.*scram-sha-256|host    all             all             ::1/128                 md5|' /etc/postgresql/*/main/pg_hba.conf
+
+# 4. Reload PostgreSQL
+sudo systemctl reload postgresql
+
+# 5. Test the app's database connection
+sudo -u postgres psql -d netpulse -c "SELECT 'ok';"
+
+# 6. Restart the app
+sudo pm2 restart netpulse
+
+# 7. Check app is running
+sudo pm2 status
+ ?column?
+----------
+ ok
+(1 row)
+
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [netpulse](ids: [ 0 ])
+[PM2] [netpulse](0) ✓
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 2561     │ 0s     │ 1    │ online    │ 0%       │ 14.7mb   │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 2561     │ 0s     │ 1    │ online    │ 0%       │ 88.8mb   │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

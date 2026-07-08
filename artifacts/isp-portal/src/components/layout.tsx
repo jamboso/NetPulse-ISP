@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CustomerSearch } from "@/components/customer-search";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -124,6 +125,13 @@ export default function Layout({ children }: LayoutProps) {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0">
+        {canManageCustomers && (
+          <div className="sticky top-0 z-40 bg-white border-b border-gray-200 px-6 lg:px-8 py-3">
+            <div className="mx-auto max-w-6xl flex justify-end">
+              <CustomerSearch />
+            </div>
+          </div>
+        )}
         <div className="flex-1 p-6 lg:p-8 overflow-y-auto">
           <div className="mx-auto max-w-6xl">
             {children}

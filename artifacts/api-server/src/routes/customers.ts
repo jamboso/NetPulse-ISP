@@ -53,6 +53,7 @@ router.get("/customers", async (req, res) => {
       ilike(customersTable.name, `%${search}%`),
       ilike(customersTable.email, `%${search}%`),
       ilike(customersTable.phone, `%${search}%`),
+      ilike(customersTable.pppoeUsername, `%${search}%`),
     ));
   }
   if (status) conditions.push(eq(customersTable.status, status));

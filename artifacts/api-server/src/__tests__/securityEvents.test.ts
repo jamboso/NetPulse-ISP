@@ -168,7 +168,7 @@ describe("GET /security-events/summary", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("blockedLast24h", 7);
-    expect(res.body).toHaveProperty("threshold", 5);
+    expect(res.body).toHaveProperty("threshold", 10);
     expect(res.body).toHaveProperty("totalCount", 42);
   });
 

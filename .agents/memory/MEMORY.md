@@ -1,0 +1,2 @@
+- [Oslo password hash format](oslo-password-hash.md) — better-auth stores passwords as `hex-salt:hex-hash`, not `$scrypt$...`; requires `maxmem=67108864` on Ubuntu 24.04
+- [FreeRADIUS setup](freeradius-setup.md) — four-step fix: PGSSLMODE, MD5 password, schema import, GRANT permissions

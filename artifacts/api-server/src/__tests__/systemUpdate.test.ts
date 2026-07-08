@@ -11,11 +11,12 @@ vi.mock("child_process", () => ({
       stdout: { on: vi.fn() },
       stderr: { on: vi.fn() },
       on: vi.fn((event: string, cb: (code: number | null) => void) => {
-        if (event === "error") {
-          cb(Object.assign(new Error("ENOENT: no such file"), { message: "ENOENT: no such file" }));
+        if (event === "close") {
+          setImmediate(() => cb(0));
         }
       }),
       kill: vi.fn(),
+      unref: vi.fn(),
     };
     return child;
   }),

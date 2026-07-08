@@ -78,8 +78,8 @@ function buildApp(user: MockUser = adminUser) {
   const app = express();
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    (req as Request & { user: MockUser; log: { info: () => void } }).user = user;
-    (req as Request & { user: MockUser; log: { info: () => void } }).log = { info: vi.fn() };
+    (req as unknown as { user: MockUser; log: { info: () => void } }).user = user;
+    (req as unknown as { user: MockUser; log: { info: () => void } }).log = { info: vi.fn() };
     next();
   });
   app.use(radiusRouter);

@@ -59,7 +59,7 @@ function buildApp() {
     }
 
     try {
-      const result = await (auth.api as { changePassword: typeof mockChangePassword }).changePassword({
+      const result = await (auth.api as unknown as { changePassword: typeof mockChangePassword }).changePassword({
         body: req.body,
         headers: new Headers(req.headers as Record<string, string>),
       });
@@ -133,8 +133,8 @@ describe("Password mismatch — client-side validation", () => {
   it("never calls the change-password API when new and confirm passwords differ", () => {
     // The ChangePasswordSection component validates newPassword === confirmPassword
     // before calling changePassword().  Simulate that logic here.
-    const newPassword = "NewPass123!";
-    const confirmPassword = "DifferentPass!";
+    const newPassword: string = "NewPass123!";
+    const confirmPassword: string = "DifferentPass!";
 
     const wouldCallApi = newPassword === confirmPassword;
 

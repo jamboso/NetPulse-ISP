@@ -81,7 +81,7 @@ router.post("/tickets", requireRole("admin", "billing", "support"), validateBody
 });
 
 router.get("/tickets/:id", async (req, res) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(req.params["id"] as string);
   const [row] = await db
     .select()
     .from(ticketsTable)
@@ -111,7 +111,7 @@ router.patch("/tickets/:id", requireRole("admin", "billing", "support"), validat
 });
 
 router.delete("/tickets/:id", requireRole("admin"), async (req, res) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(req.params["id"] as string);
   const [existing] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(eq(ticketsTable.id, id));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
   await db.delete(ticketRepliesTable).where(eq(ticketRepliesTable.ticketId, id));
@@ -138,7 +138,7 @@ router.post("/tickets/:id/reply", requireRole("admin", "billing", "support"), va
 });
 
 router.get("/tickets/:id/replies", async (req, res) => {
-  const id = parseInt(req.params.id!);
+  const id = parseInt(req.params["id"] as string);
   const replies = await db.select().from(ticketRepliesTable)
     .where(eq(ticketRepliesTable.ticketId, id))
     .orderBy(ticketRepliesTable.createdAt);

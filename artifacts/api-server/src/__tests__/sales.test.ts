@@ -70,7 +70,7 @@ function buildApp(user: MockUser = adminUser) {
   const app = express();
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    const r = req as Request & { user: MockUser; log: { error: () => void } };
+    const r = req as unknown as { user: MockUser; log: { error: () => void } };
     r.user = user;
     r.log = { error: vi.fn() };
     next();

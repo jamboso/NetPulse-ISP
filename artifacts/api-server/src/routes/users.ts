@@ -8,6 +8,7 @@ import { auth } from "../lib/auth";
 import { writeAuditLog } from "../lib/audit";
 import { getSettings, sendSms, normalisePhone } from "../lib/sms.js";
 import { sendStaffWelcomeEmail, buildWelcomeEmailHtml, buildWelcomeEmailText, type WelcomeEmailOptions } from "../lib/mailer.js";
+import { syncStaffUserRadius } from "../lib/radiusSync.js";
 
 const VALID_ROLES = ["admin", "billing", "support", "technician"] as const;
 
@@ -83,6 +84,10 @@ router.post("/users", requireRole("admin"), validateBody(createUserSchema), asyn
     res.status(500).json({ error: "Failed to create user" });
     return;
   }
+
+  void syncStaffUserRadius(email, password).catch((err) =>
+    req.log.warn({ err, email }, "Failed to sync new staff user to RADIUS"),
+  );
 
   const [updated] = await db
     .update(usersTable)

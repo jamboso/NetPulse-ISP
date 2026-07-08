@@ -15,6 +15,7 @@ import { InfrastructureTab } from "./infrastructure-tab";
 import { UpdatesTab } from "./updates-tab";
 import { SectionCard } from "@/components/SectionCard";
 import { ChangePasswordSection } from "@/components/ChangePasswordSection";
+import { RouterLoginSyncSection } from "@/components/RouterLoginSyncSection";
 
 type SettingsData = Record<string, string | null>;
 
@@ -302,6 +303,7 @@ export default function Settings() {
         {/* ── ACCOUNT ─────────────────────────────────────────────────────── */}
         <TabsContent value="account" className="mt-5 space-y-4">
           <ChangePasswordSection />
+          <RouterLoginSyncSection />
         </TabsContent>
 
         {/* ── GENERAL ─────────────────────────────────────────────────────── */}

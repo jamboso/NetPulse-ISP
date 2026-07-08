@@ -2,9 +2,10 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { radacctTable, subscriptionsTable } from "@workspace/db";
 import { eq, inArray, desc } from "drizzle-orm";
-import { syncAllSubscriptions } from "../lib/radiusSync";
+import { syncAllSubscriptions, syncStaffUserRadius } from "../lib/radiusSync";
 import { requireRole } from "../middlewares/requireRole";
 import { getRouter, getRadiusConfig, upsertRos, rosReq } from "./pppoe";
+import { auth } from "../lib/auth";
 
 const router = Router();
 
@@ -53,6 +54,38 @@ router.post("/routers/:id/ros/radius/admin-login", requireRole("admin"), async (
   );
 
   res.json({ success: errors.length === 0, steps, errors });
+});
+
+// ── POST /api/radius/staff-login/sync ──────────────────────────────────────
+// Self-service sync for the *current* signed-in staff/admin user. Needed
+// because better-auth stores passwords hashed — the app can only mirror a
+// plaintext password into FreeRADIUS's radcheck table at the moment it is
+// known (sign-up, change-password, or here, by re-confirming it). This lets
+// existing accounts (created before RADIUS admin-login existed) start
+// logging into routers via RADIUS without changing their app password.
+router.post("/radius/staff-login/sync", async (req, res) => {
+  const { password } = req.body as { password?: string };
+  if (!password) {
+    res.status(400).json({ error: "Password is required." });
+    return;
+  }
+
+  const user = req.user!;
+  try {
+    const check = await auth.api.signInEmail({
+      body: { email: user.email, password },
+    });
+    if (!check?.user) {
+      res.status(400).json({ error: "Incorrect password." });
+      return;
+    }
+  } catch {
+    res.status(400).json({ error: "Incorrect password." });
+    return;
+  }
+
+  await syncStaffUserRadius(user.email, password);
+  res.json({ success: true });
 });
 
 router.get("/customers/:id/radius-sessions", async (req, res) => {

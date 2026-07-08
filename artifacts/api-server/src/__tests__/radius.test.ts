@@ -24,6 +24,12 @@ vi.mock("@workspace/db", () => {
 
   return {
     db: chain,
+    usersTable: { id: {}, email: {} },
+    sessionsTable: { id: {} },
+    accountsTable: { id: {} },
+    verificationsTable: { id: {} },
+    settingsTable: { key: {}, value: {} },
+    radcheckTable: { id: {}, username: {}, attribute: {}, value: {} },
     subscriptionsTable: { id: {}, customerId: {}, pppoeUsername: {} },
     radacctTable: {
       radacctid: {},
@@ -47,8 +53,20 @@ vi.mock("@workspace/db", () => {
   };
 });
 
+const mockSignInEmail = vi.hoisted(() => vi.fn());
+const mockSyncStaffUserRadius = vi.hoisted(() => vi.fn());
+
 vi.mock("../lib/radiusSync.js", () => ({
   syncAllSubscriptions: mockSyncAll,
+  syncStaffUserRadius: mockSyncStaffUserRadius,
+}));
+
+vi.mock("../lib/auth.js", () => ({
+  auth: {
+    api: {
+      signInEmail: mockSignInEmail,
+    },
+  },
 }));
 
 const { default: radiusRouter } = await import("../routes/radius.js");

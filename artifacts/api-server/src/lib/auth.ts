@@ -1,7 +1,10 @@
 import { betterAuth } from "better-auth";
+import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db, usersTable, sessionsTable, accountsTable, verificationsTable, settingsTable } from "@workspace/db";
 import nodemailer from "nodemailer";
+import { syncStaffUserRadius } from "./radiusSync";
+import { logger } from "./logger";
 
 async function loadSmtpSettings(): Promise<Record<string, string>> {
   const rows = await db.select().from(settingsTable);
@@ -78,6 +81,30 @@ export const auth = betterAuth({
     // HTTP-only cookie; origin checking adds no security behind a proxy and
     // breaks every environment where the domain isn't known at build time.
     disableCSRFCheck: true,
+  },
+  hooks: {
+    // Mirror plaintext staff/admin passwords into FreeRADIUS's radcheck table
+    // whenever they pass through the app, so RouterOS RADIUS admin-login
+    // (Winbox/SSH/web/API — see routes/radius.ts) works with the same
+    // credentials. better-auth only hashes irreversibly, so this is the only
+    // point where the plaintext is available; existing accounts that never
+    // sign up/change password again must use the self-service sync endpoint
+    // (POST /api/radius/staff-login/sync) instead.
+    after: createAuthMiddleware(async (ctx) => {
+      try {
+        if (ctx.path === "/sign-up/email") {
+          const email = (ctx.body as { email?: string } | undefined)?.email;
+          const password = (ctx.body as { password?: string } | undefined)?.password;
+          if (email && password) await syncStaffUserRadius(email, password);
+        } else if (ctx.path === "/change-password") {
+          const email = ctx.context.session?.user?.email;
+          const newPassword = (ctx.body as { newPassword?: string } | undefined)?.newPassword;
+          if (email && newPassword) await syncStaffUserRadius(email, newPassword);
+        }
+      } catch (err) {
+        logger.error({ err, path: ctx.path }, "auth hook: failed to sync staff RADIUS login");
+      }
+    }),
   },
 });
 

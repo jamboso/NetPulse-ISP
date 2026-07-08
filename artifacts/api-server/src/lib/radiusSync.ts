@@ -95,6 +95,36 @@ export async function syncSubscriptionCreate(params: {
   }
 }
 
+// ── Staff/admin app-user RADIUS login sync ─────────────────────────────────
+// Lets staff (admin/support/etc.) log into MikroTik routers (Winbox/SSH/web/
+// API) with their NetPulse app credentials when a router has RADIUS admin
+// login enabled (`POST /routers/:id/ros/radius/admin-login`). This is
+// separate from PPPoE subscriber sync above — better-auth hashes app
+// passwords irreversibly, so we can only capture the plaintext at the moment
+// it passes through the app (sign-up, change-password, or explicit
+// self-service sync) and mirror it into radcheck here.
+export async function syncStaffUserRadius(username: string, password: string): Promise<void> {
+  try {
+    const [existing] = await db.select({ id: radcheckTable.id })
+      .from(radcheckTable)
+      .where(and(
+        eq(radcheckTable.username, username),
+        eq(radcheckTable.attribute, "Cleartext-Password"),
+      ));
+    if (existing) {
+      await db.update(radcheckTable).set({ value: password })
+        .where(eq(radcheckTable.id, existing.id));
+    } else {
+      await db.insert(radcheckTable).values({
+        username, attribute: "Cleartext-Password", op: ":=", value: password,
+      });
+    }
+    await removeRejectCheck(username);
+  } catch (err) {
+    logger.error({ err, username }, "radiusSync: failed to sync staff user login");
+  }
+}
+
 async function removeRejectCheck(username: string): Promise<void> {
   await db.delete(radcheckTable).where(and(
     eq(radcheckTable.username, username),

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db, settingsTable, usersTable } from "@workspace/db";
 import { auth } from "../lib/auth";
+import { syncStaffUserRadius } from "../lib/radiusSync.js";
 
 const router = Router();
 
@@ -51,6 +52,9 @@ router.post("/setup/wizard", async (req, res) => {
     if (existingUsers.length === 0) {
       await auth.api.signUpEmail({
         body: { name: adminName, email: adminEmail, password: adminPassword },
+      });
+      void syncStaffUserRadius(adminEmail, adminPassword).catch(() => {
+        // Non-fatal — RADIUS may not be configured yet during first-run setup.
       });
     }
 

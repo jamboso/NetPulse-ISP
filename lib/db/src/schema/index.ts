@@ -1,20 +1,26 @@
-// Export your models here. Add one export per file
-// export * from "./posts";
-//
-// Each model/table should ideally be split into different files.
-// Each model/table should define a Drizzle table, insert schema, and types:
-//
-//   import { pgTable, text, serial } from "drizzle-orm/pg-core";
-//   import { createInsertSchema } from "drizzle-zod";
-//   import { z } from "zod/v4";
-//
-//   export const postsTable = pgTable("posts", {
-//     id: serial("id").primaryKey(),
-//     title: text("title").notNull(),
-//   });
-//
-//   export const insertPostSchema = createInsertSchema(postsTable).omit({ id: true });
-//   export type InsertPost = z.infer<typeof insertPostSchema>;
-//   export type Post = typeof postsTable.$inferSelect;
-
-export {}
+export * from "./customers";
+export * from "./plans";
+export * from "./subscriptions";
+export * from "./invoices";
+export * from "./payments";
+export * from "./tickets";
+export * from "./equipment";
+export * from "./ipPools";
+export * from "./settings";
+export * from "./routers";
+export * from "./hotspot";
+export * from "./usageSnapshots";
+export * from "./sessionLogs";
+export * from "./customerCommunications";
+export * from "./smsTemplates";
+export * from "./smsLogs";
+export * from "./splitters";
+export * from "./infrastructure";
+export * from "./users";
+export * from "./auditLogs";
+export * from "./auditPurgeLog";
+export * from "./radius";
+export * from "./vpnConfigs";
+export * from "./securityEvents";
+export * from "./blockedIps";
+export * from "./dnsObservations";

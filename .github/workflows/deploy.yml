@@ -1,0 +1,141 @@
+name: Deploy to Replit
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Trigger Replit Deployment
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Trigger Replit deployment
+        env:
+          REPLIT_DEPLOY_TOKEN: ${{ secrets.REPLIT_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$REPLIT_DEPLOY_TOKEN" ]; then
+            echo "REPLIT_DEPLOY_TOKEN is not set — skipping deployment trigger."
+            echo "Add REPLIT_DEPLOY_TOKEN to your GitHub repository secrets to enable automatic deployment."
+            exit 0
+          fi
+
+          echo "Triggering Replit deployment..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://api.replit.com/v1/deployments/trigger" \
+            -H "Authorization: Bearer $REPLIT_DEPLOY_TOKEN" \
+            -H "Content-Type: application/json")
+
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+
+          echo "Response: $BODY"
+          echo "HTTP status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "Deployment triggered successfully."
+          else
+            echo "Failed to trigger deployment (HTTP $HTTP_STATUS)."
+            exit 1
+          fi
+
+      - name: Notify Slack on deploy failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not configured — skipping Slack notification."
+            echo "Add SLACK_WEBHOOK_URL to GitHub repository secrets to enable Slack alerts."
+            exit 0
+          fi
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "text": ":red_circle: *Deployment failed* on `${{ github.repository }}`",
+              "attachments": [{
+                "color": "danger",
+                "fields": [
+                  { "title": "Workflow", "value": "${{ github.workflow }}", "short": true },
+                  { "title": "Branch", "value": "${{ github.ref_name }}", "short": true },
+                  { "title": "Run", "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>", "short": false }
+                ]
+              }]
+            }'
+          echo "Slack notification sent."
+
+      - name: Notify email on deploy failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        continue-on-error: true
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: GitHub Actions <${{ secrets.SMTP_USERNAME }}>
+          subject: "[${{ github.repository }}] Deployment failed"
+          body: |
+            The deployment workflow failed for ${{ github.repository }}.
+
+            Workflow:  ${{ github.workflow }}
+            Branch:    ${{ github.ref_name }}
+            Commit:    ${{ github.sha }}
+            Run URL:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Please check the run above for details.
+
+  notify-ci-failure:
+    name: Notify on CI Failure
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+
+    steps:
+      - name: Notify Slack when CI fails
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not configured — skipping Slack notification."
+            echo "Add SLACK_WEBHOOK_URL to GitHub repository secrets to enable Slack alerts."
+            exit 0
+          fi
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "text": ":red_circle: *CI failed* — deployment blocked on `${{ github.repository }}`",
+              "attachments": [{
+                "color": "danger",
+                "fields": [
+                  { "title": "Failed Workflow", "value": "${{ github.event.workflow_run.name }}", "short": true },
+                  { "title": "Branch", "value": "${{ github.event.workflow_run.head_branch }}", "short": true },
+                  { "title": "Run", "value": "<${{ github.event.workflow_run.html_url }}|View run>", "short": false }
+                ]
+              }]
+            }'
+          echo "Slack notification sent."
+
+      - name: Notify email when CI fails
+        uses: dawidd6/action-send-mail@v3
+        continue-on-error: true
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: GitHub Actions <${{ secrets.SMTP_USERNAME }}>
+          subject: "[${{ github.repository }}] CI failed — deployment blocked"
+          body: |
+            The CI workflow failed for ${{ github.repository }}, so deployment was not triggered.
+
+            Failed Workflow: ${{ github.event.workflow_run.name }}
+            Branch:          ${{ github.event.workflow_run.head_branch }}
+            Commit:          ${{ github.event.workflow_run.head_sha }}
+            Run URL:         ${{ github.event.workflow_run.html_url }}
+
+            Please fix the failing checks before the next deployment can proceed.

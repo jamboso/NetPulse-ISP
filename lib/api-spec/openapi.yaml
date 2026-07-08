@@ -3,20 +3,266 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: ISP Management System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: users
+    description: Staff user management (admin only)
+  - name: customers
+    description: Customer management
+  - name: plans
+    description: Internet service plans
+  - name: subscriptions
+    description: Customer subscriptions
+  - name: invoices
+    description: Billing and invoices
+  - name: payments
+    description: Payment records
+  - name: tickets
+    description: Support tickets
+  - name: equipment
+    description: Network equipment/routers
+  - name: ip-pools
+    description: IP address pool management
+  - name: dashboard
+    description: Dashboard analytics and summaries
+  - name: settings
+    description: Application settings
+  - name: routers
+    description: Managed router devices (RouterOS, Juniper, EdgeRouter)
+  - name: audit-logs
+    description: Audit trail of sensitive mutations
+  - name: radius
+    description: FreeRADIUS integration — RADIUS session data and sync
+  - name: vpn
+    description: OpenVPN certificate management — issue and revoke per customer
+  - name: security-events
+    description: Blocked M-Pesa callback attempts and security event log
+
 paths:
+  # ── USERS (STAFF MANAGEMENT) ─────────────────────────────────────────────────
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all staff user accounts (admin only)
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        "200":
+          description: List of staff users
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/StaffUser"
+        "403":
+          description: Forbidden — admin role required
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new staff account (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserInput"
+      responses:
+        "201":
+          description: Created staff user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffUser"
+        "400":
+          description: Validation error or email already exists
+        "403":
+          description: Forbidden — admin role required
+
+  /users/welcome-email-preview:
+    get:
+      operationId: getWelcomeEmailPreview
+      tags: [users]
+      summary: Return HTML preview of the welcome email (admin only)
+      responses:
+        "200":
+          description: Welcome email HTML preview and SMTP status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [html, smtpConfigured]
+                properties:
+                  html:
+                    type: string
+                    description: Rendered HTML body of the welcome email
+                  smtpConfigured:
+                    type: boolean
+                    description: Whether SMTP settings are configured
+        "403":
+          description: Forbidden — admin role required
+
+  /users/welcome-email-preview/send:
+    post:
+      operationId: sendWelcomeEmailTest
+      tags: [users]
+      summary: Send a test welcome email to the currently signed-in admin (admin only)
+      responses:
+        "200":
+          description: Test email sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message]
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        "400":
+          description: SMTP not configured
+        "403":
+          description: Forbidden — admin role required
+        "500":
+          description: SMTP send error
+
+  /users/{id}:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a staff user's role or active status (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserInput"
+      responses:
+        "200":
+          description: Updated staff user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffUser"
+        "403":
+          description: Forbidden — admin role required
+        "404":
+          description: User not found
+
+  # ── AUDIT LOGS ───────────────────────────────────────────────────────────────
+  /audit-logs:
+    get:
+      operationId: listAuditLogs
+      tags: [audit-logs]
+      summary: List audit log entries (admin only)
+      parameters:
+        - in: query
+          name: entityType
+          schema: { type: string }
+        - in: query
+          name: entityId
+          schema: { type: integer }
+        - in: query
+          name: userId
+          schema: { type: string }
+        - in: query
+          name: action
+          schema: { type: string, enum: [create, update, delete] }
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50, maximum: 200 }
+      responses:
+        "200":
+          description: Paginated list of audit log entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page, limit]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditLog"
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+        "403":
+          description: Forbidden — admin role required
+
+  /audit-logs/purge-history:
+    get:
+      operationId: getAuditPurgeHistory
+      tags: [audit-logs]
+      summary: List recent purge runs (admin only)
+      responses:
+        "200":
+          description: Recent purge history entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditPurgeLog"
+        "403":
+          description: Forbidden — admin role required
+
+  /audit-logs/purge:
+    post:
+      operationId: purgeAuditLogs
+      tags: [audit-logs]
+      summary: Delete audit log entries older than the configured retention period (admin only)
+      responses:
+        "200":
+          description: Number of deleted rows
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted:
+                    type: integer
+        "403":
+          description: Forbidden — admin role required
+
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,8 +270,1370 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── DASHBOARD ────────────────────────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary statistics
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/revenue:
+    get:
+      operationId: getRevenueStats
+      tags: [dashboard]
+      summary: Get monthly revenue statistics
+      responses:
+        "200":
+          description: Revenue stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RevenuePoint"
+
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent system activity
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /dashboard/subscription-breakdown:
+    get:
+      operationId: getSubscriptionBreakdown
+      tags: [dashboard]
+      summary: Get subscription status breakdown
+      responses:
+        "200":
+          description: Subscription breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BreakdownItem"
+
+  # ── CUSTOMERS ────────────────────────────────────────────────────────────────
+  /customers:
+    get:
+      operationId: listCustomers
+      tags: [customers]
+      summary: List all customers
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of customers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerList"
+    post:
+      operationId: createCustomer
+      tags: [customers]
+      summary: Create a new customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+
+  /customers/{id}:
+    get:
+      operationId: getCustomer
+      tags: [customers]
+      summary: Get customer by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateCustomer
+      tags: [customers]
+      summary: Update a customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerUpdate"
+      responses:
+        "200":
+          description: Updated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+    delete:
+      operationId: deleteCustomer
+      tags: [customers]
+      summary: Delete a customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /customers/{id}/vpn:
+    get:
+      operationId: listCustomerVpnConfigs
+      tags: [vpn]
+      summary: List VPN configs for a customer (always includes vpnAvailable even when empty)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: VPN config list with server availability flag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VpnConfigList"
+    post:
+      operationId: issueCustomerVpnConfig
+      tags: [vpn]
+      summary: Issue a new VPN config for a customer (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "201":
+          description: Issued VPN config with .ovpn content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VpnConfigWithFile"
+        "503":
+          description: VPN server not configured on this host
+
+  /customers/{id}/vpn/{configId}:
+    delete:
+      operationId: revokeCustomerVpnConfig
+      tags: [vpn]
+      summary: Revoke a VPN config (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: configId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Revoked VPN config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VpnConfig"
+        "404":
+          description: Config not found
+        "409":
+          description: Already revoked
+        "503":
+          description: VPN server not configured on this host
+
+  /customers/{id}/radius-sessions:
+    get:
+      operationId: getCustomerRadiusSessions
+      tags: [radius]
+      summary: RADIUS accounting sessions for a customer (from radacct)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: RADIUS accounting session rows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RadiusSession"
+
+  /admin/radius/sync:
+    post:
+      operationId: syncRadius
+      tags: [radius]
+      summary: Re-sync all subscriptions to RADIUS tables (admin only)
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadiusSyncResult"
+        "403":
+          description: Forbidden
+
+  /customers/{id}/sessions:
+    get:
+      operationId: getCustomerSessions
+      tags: [customers]
+      summary: Get live PPPoE/Hotspot session data for all customer subscriptions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Live session data per subscription
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CustomerSession"
+
+  /customers/{id}/usage-snapshots:
+    get:
+      operationId: getCustomerUsageSnapshots
+      tags: [customers]
+      summary: Get historical usage snapshots for all customer subscriptions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Map of subscriptionId to array of usage snapshots
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/UsageSnapshot"
+
+  /customers/{id}/sessions/snapshot:
+    post:
+      operationId: saveUsageSnapshot
+      tags: [customers]
+      summary: Save usage snapshots for graphing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsageSnapshotBatch"
+      responses:
+        "201":
+          description: Saved
+
+  # ── PLANS ─────────────────────────────────────────────────────────────────────
+  /plans:
+    get:
+      operationId: listPlans
+      tags: [plans]
+      summary: List all service plans
+      responses:
+        "200":
+          description: Plans list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Plan"
+    post:
+      operationId: createPlan
+      tags: [plans]
+      summary: Create a new plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+
+  /plans/{id}:
+    get:
+      operationId: getPlan
+      tags: [plans]
+      summary: Get plan by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+    patch:
+      operationId: updatePlan
+      tags: [plans]
+      summary: Update a plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanUpdate"
+      responses:
+        "200":
+          description: Updated plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+    delete:
+      operationId: deletePlan
+      tags: [plans]
+      summary: Delete a plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── SUBSCRIPTIONS ─────────────────────────────────────────────────────────────
+  /subscriptions:
+    get:
+      operationId: listSubscriptions
+      tags: [subscriptions]
+      summary: List all subscriptions
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Subscriptions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subscription"
+    post:
+      operationId: createSubscription
+      tags: [subscriptions]
+      summary: Create a subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+
+  /subscriptions/{id}:
+    get:
+      operationId: getSubscription
+      tags: [subscriptions]
+      summary: Get subscription by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+    patch:
+      operationId: updateSubscription
+      tags: [subscriptions]
+      summary: Update a subscription
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionUpdate"
+      responses:
+        "200":
+          description: Updated subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+    delete:
+      operationId: deleteSubscription
+      tags: [subscriptions]
+      summary: Cancel/delete a subscription
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── INVOICES ──────────────────────────────────────────────────────────────────
+  /invoices:
+    get:
+      operationId: listInvoices
+      tags: [invoices]
+      summary: List all invoices
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceList"
+    post:
+      operationId: createInvoice
+      tags: [invoices]
+      summary: Create an invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      tags: [invoices]
+      summary: Get invoice by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+    patch:
+      operationId: updateInvoice
+      tags: [invoices]
+      summary: Update an invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceUpdate"
+      responses:
+        "200":
+          description: Updated invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+    delete:
+      operationId: deleteInvoice
+      tags: [invoices]
+      summary: Delete an invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── PAYMENTS ──────────────────────────────────────────────────────────────────
+  /payments:
+    get:
+      operationId: listPayments
+      tags: [payments]
+      summary: List all payments
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: invoiceId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payments list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+    post:
+      operationId: createPayment
+      tags: [payments]
+      summary: Record a payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+
+  /payments/{id}:
+    get:
+      operationId: getPayment
+      tags: [payments]
+      summary: Get payment by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+
+  # ── TICKETS ───────────────────────────────────────────────────────────────────
+  /tickets:
+    get:
+      operationId: listTickets
+      tags: [tickets]
+      summary: List all support tickets
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: priority
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tickets list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ticket"
+    post:
+      operationId: createTicket
+      tags: [tickets]
+      summary: Create a support ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+
+  /tickets/{id}:
+    get:
+      operationId: getTicket
+      tags: [tickets]
+      summary: Get ticket by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+    patch:
+      operationId: updateTicket
+      tags: [tickets]
+      summary: Update a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketUpdate"
+      responses:
+        "200":
+          description: Updated ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+    delete:
+      operationId: deleteTicket
+      tags: [tickets]
+      summary: Delete a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /tickets/{id}/reply:
+    post:
+      operationId: replyToTicket
+      tags: [tickets]
+      summary: Add a reply to a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketReplyInput"
+      responses:
+        "201":
+          description: Reply added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketReply"
+
+  /tickets/{id}/replies:
+    get:
+      operationId: getTicketReplies
+      tags: [tickets]
+      summary: Get replies for a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ticket replies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TicketReply"
+
+  # ── EQUIPMENT ─────────────────────────────────────────────────────────────────
+  /equipment:
+    get:
+      operationId: listEquipment
+      tags: [equipment]
+      summary: List all network equipment
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Equipment list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Equipment"
+    post:
+      operationId: createEquipment
+      tags: [equipment]
+      summary: Add network equipment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EquipmentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Equipment"
+
+  /equipment/{id}:
+    get:
+      operationId: getEquipment
+      tags: [equipment]
+      summary: Get equipment by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Equipment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Equipment"
+    patch:
+      operationId: updateEquipment
+      tags: [equipment]
+      summary: Update equipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EquipmentUpdate"
+      responses:
+        "200":
+          description: Updated equipment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Equipment"
+    delete:
+      operationId: deleteEquipment
+      tags: [equipment]
+      summary: Delete equipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── IP POOLS ──────────────────────────────────────────────────────────────────
+  /ip-pools:
+    get:
+      operationId: listIpPools
+      tags: [ip-pools]
+      summary: List all IP pools
+      responses:
+        "200":
+          description: IP pools
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IpPool"
+    post:
+      operationId: createIpPool
+      tags: [ip-pools]
+      summary: Create an IP pool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IpPoolInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IpPool"
+
+  /ip-pools/{id}:
+    get:
+      operationId: getIpPool
+      tags: [ip-pools]
+      summary: Get IP pool by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: IP pool
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IpPool"
+    patch:
+      operationId: updateIpPool
+      tags: [ip-pools]
+      summary: Update an IP pool
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IpPoolUpdate"
+      responses:
+        "200":
+          description: Updated IP pool
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IpPool"
+    delete:
+      operationId: deleteIpPool
+      tags: [ip-pools]
+      summary: Delete an IP pool
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── SETTINGS ──────────────────────────────────────────────────────────────────
+  /settings/test-email:
+    post:
+      operationId: sendTestEmail
+      tags: [settings]
+      summary: Send a test email to verify SMTP configuration
+      responses:
+        "200":
+          description: Test email sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailResult"
+        "502":
+          description: SMTP error or not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailResult"
+
+  /settings/mpesa-ip-allowlist:
+    get:
+      operationId: getMpesaIpAllowlist
+      tags: [settings]
+      summary: Return the effective M-Pesa IP allowlist with its source
+      responses:
+        "200":
+          description: Effective allowlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MpesaIpAllowlist"
+
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get all app settings
+      responses:
+        "200":
+          description: Settings object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+    patch:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update settings (partial)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+
+  # ── ROUTERS ───────────────────────────────────────────────────────────────────
+  /routers/status:
+    get:
+      operationId: getRoutersStatus
+      tags: [routers]
+      summary: Live reachability status for all routers (TCP probe)
+      responses:
+        "200":
+          description: Array of router status objects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RouterStatus"
+
+  /routers:
+    get:
+      operationId: listRouters
+      tags: [routers]
+      summary: List all managed routers
+      responses:
+        "200":
+          description: Routers list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RouterDevice"
+    post:
+      operationId: createRouter
+      tags: [routers]
+      summary: Add a router
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RouterDeviceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouterDevice"
+
+  /routers/{id}/ros/live:
+    get:
+      operationId: getRouterRosLive
+      tags: [routers]
+      summary: Fetch live RouterOS data (interfaces, PPPoE, resources, DHCP, logs)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Live RouterOS data bundle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RosLiveData"
+        "404":
+          description: Router not found
+        "502":
+          description: Cannot reach RouterOS device
+
+  /routers/{id}:
+    get:
+      operationId: getRouter
+      tags: [routers]
+      summary: Get router by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Router
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouterDevice"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateRouter
+      tags: [routers]
+      summary: Update a router
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RouterDeviceUpdate"
+      responses:
+        "200":
+          description: Updated router
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouterDevice"
+    delete:
+      operationId: deleteRouter
+      tags: [routers]
+      summary: Delete a router
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── SECURITY EVENTS ──────────────────────────────────────────────────────────
+  /security-events:
+    get:
+      operationId: listSecurityEvents
+      tags: [security-events]
+      summary: List blocked M-Pesa callback attempts (admin only)
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+      responses:
+        "200":
+          description: Paginated list of security events
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page, limit]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SecurityEvent"
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+        "403":
+          description: Forbidden — admin role required
+    delete:
+      operationId: clearSecurityEvents
+      tags: [security-events]
+      summary: Delete security event records older than the given retention window (admin only)
+      parameters:
+        - in: query
+          name: retentionDays
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Keep records newer than this many days. 0 = delete all records. Must be a non-negative integer.
+      responses:
+        "200":
+          description: Number of records deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearSecurityEventsResult"
+        "400":
+          description: Invalid retentionDays value
+        "403":
+          description: Forbidden — admin role required
+
+  /security-events/summary:
+    get:
+      operationId: getSecurityEventsSummary
+      tags: [security-events]
+      summary: Count of blocked attempts in the last 24 hours (admin only)
+      responses:
+        "200":
+          description: Summary of recent blocked attempts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityEventsSummary"
+        "403":
+          description: Forbidden — admin role required
+
+  /security-events/export.csv:
+    get:
+      operationId: exportSecurityEventsCsv
+      tags: [security-events]
+      summary: Export all blocked webhook attempts as a CSV file (admin only)
+      responses:
+        "200":
+          description: CSV file of all security events
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        "403":
+          description: Forbidden — admin role required
+
+  /blocked-ips:
+    get:
+      operationId: listBlockedIps
+      tags: [security-events]
+      summary: List currently auto-blocked IP addresses (admin only)
+      responses:
+        "200":
+          description: List of active blocked IPs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BlockedIp"
+        "403":
+          description: Forbidden — admin role required
+
+  /blocked-ips/{ip}:
+    delete:
+      operationId: unblockIp
+      tags: [security-events]
+      summary: Manually unblock an IP address (admin only)
+      parameters:
+        - in: path
+          name: ip
+          required: true
+          schema:
+            type: string
+          description: The IP address to unblock
+      responses:
+        "200":
+          description: IP successfully unblocked
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, ip]
+                properties:
+                  success:
+                    type: boolean
+                  ip:
+                    type: string
+        "404":
+          description: No active block found for this IP
+        "403":
+          description: Forbidden — admin role required
+
 components:
   schemas:
+    EmailResult:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    MpesaIpAllowlist:
+      type: object
+      required: [source, cidrs]
+      properties:
+        source:
+          type: string
+          enum: [db, env, default]
+          description: Where the effective list came from
+        cidrs:
+          type: array
+          items:
+            type: string
+          description: CIDR blocks (or '*' for bypass) that will be applied on the next callback
+
     HealthStatus:
       type: object
       properties:
@@ -34,3 +1642,1413 @@ components:
       required:
         - status
 
+    # ── DASHBOARD ──────────────────────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      required:
+        - totalCustomers
+        - activeSubscriptions
+        - overdueInvoices
+        - monthlyRevenue
+        - openTickets
+        - totalEquipment
+        - totalIpPools
+        - newCustomersThisMonth
+      properties:
+        totalCustomers:
+          type: integer
+        activeSubscriptions:
+          type: integer
+        overdueInvoices:
+          type: integer
+        monthlyRevenue:
+          type: number
+        openTickets:
+          type: integer
+        totalEquipment:
+          type: integer
+        totalIpPools:
+          type: integer
+        newCustomersThisMonth:
+          type: integer
+
+    RevenuePoint:
+      type: object
+      required: [month, revenue, invoiceCount]
+      properties:
+        month:
+          type: string
+        revenue:
+          type: number
+        invoiceCount:
+          type: integer
+
+    ActivityItem:
+      type: object
+      required: [id, type, description, timestamp, entityId, entityType]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        description:
+          type: string
+        timestamp:
+          type: string
+        entityId:
+          type: integer
+        entityType:
+          type: string
+
+    BreakdownItem:
+      type: object
+      required: [status, count]
+      properties:
+        status:
+          type: string
+        count:
+          type: integer
+
+    # ── CUSTOMERS ──────────────────────────────────────────────────────────────
+    Customer:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - phone
+        - address
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, terminated]
+        notes:
+          type: ["string", "null"]
+        pppoeUsername:
+          type: ["string", "null"]
+        pppoePassword:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    CustomerList:
+      type: object
+      required: [data, total, page, limit]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Customer"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    CustomerInput:
+      type: object
+      required: [name, email, phone, address]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, terminated]
+        notes:
+          type: string
+        pppoeUsername:
+          type: string
+        pppoePassword:
+          type: string
+
+    CustomerUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, terminated]
+        notes:
+          type: ["string", "null"]
+        pppoeUsername:
+          type: ["string", "null"]
+        pppoePassword:
+          type: ["string", "null"]
+
+    # ── PLANS ──────────────────────────────────────────────────────────────────
+    Plan:
+      type: object
+      required:
+        - id
+        - name
+        - downloadSpeed
+        - uploadSpeed
+        - price
+        - billingCycle
+        - isActive
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        downloadSpeed:
+          type: integer
+          description: Download speed in Mbps
+        uploadSpeed:
+          type: integer
+          description: Upload speed in Mbps
+        price:
+          type: number
+        billingCycle:
+          type: string
+          enum: [monthly, quarterly, annually]
+        isActive:
+          type: boolean
+        rosProfileName:
+          type: ["string", "null"]
+          description: RouterOS PPP profile name (e.g. plan-5mbps)
+        createdAt:
+          type: string
+
+    PlanInput:
+      type: object
+      required: [name, downloadSpeed, uploadSpeed, price, billingCycle]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        downloadSpeed:
+          type: integer
+        uploadSpeed:
+          type: integer
+        price:
+          type: number
+        billingCycle:
+          type: string
+          enum: [monthly, quarterly, annually]
+        isActive:
+          type: boolean
+        rosProfileName:
+          type: string
+          description: RouterOS PPP profile name (e.g. plan-5mbps)
+
+    PlanUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        downloadSpeed:
+          type: integer
+        uploadSpeed:
+          type: integer
+        price:
+          type: number
+        billingCycle:
+          type: string
+          enum: [monthly, quarterly, annually]
+        isActive:
+          type: boolean
+        rosProfileName:
+          type: ["string", "null"]
+          description: RouterOS PPP profile name (e.g. plan-5mbps)
+
+    # ── SUBSCRIPTIONS ──────────────────────────────────────────────────────────
+    Subscription:
+      type: object
+      required:
+        - id
+        - customerId
+        - planId
+        - status
+        - startDate
+        - createdAt
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        planId:
+          type: integer
+        status:
+          type: string
+          enum: [active, suspended, cancelled, expired]
+        startDate:
+          type: string
+        endDate:
+          type: ["string", "null"]
+        ipAddress:
+          type: ["string", "null"]
+        macAddress:
+          type: ["string", "null"]
+        routerId:
+          type: ["integer", "null"]
+          description: RouterOS router to provision PPPoE secret on
+        pppoeUsername:
+          type: ["string", "null"]
+          description: Auto-generated PPPoE username
+        pppoePassword:
+          type: ["string", "null"]
+          description: Auto-generated PPPoE password
+        createdAt:
+          type: string
+        customer:
+          $ref: "#/components/schemas/Customer"
+        plan:
+          $ref: "#/components/schemas/Plan"
+
+    SubscriptionInput:
+      type: object
+      required: [customerId, planId, startDate]
+      properties:
+        customerId:
+          type: integer
+        planId:
+          type: integer
+        routerId:
+          type: integer
+          description: RouterOS router to provision PPPoE secret on
+        status:
+          type: string
+          enum: [active, suspended, cancelled, expired]
+        startDate:
+          type: string
+        endDate:
+          type: string
+        ipAddress:
+          type: string
+        macAddress:
+          type: string
+
+    SubscriptionUpdate:
+      type: object
+      properties:
+        planId:
+          type: integer
+        routerId:
+          type: ["integer", "null"]
+        status:
+          type: string
+          enum: [active, suspended, cancelled, expired]
+        endDate:
+          type: ["string", "null"]
+        ipAddress:
+          type: ["string", "null"]
+        macAddress:
+          type: ["string", "null"]
+
+    # ── INVOICES ───────────────────────────────────────────────────────────────
+    Invoice:
+      type: object
+      required:
+        - id
+        - customerId
+        - amount
+        - status
+        - dueDate
+        - createdAt
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        subscriptionId:
+          type: ["integer", "null"]
+        amount:
+          type: number
+        tax:
+          type: ["number", "null"]
+        total:
+          type: number
+        status:
+          type: string
+          enum: [draft, sent, paid, overdue, cancelled]
+        dueDate:
+          type: string
+        paidAt:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        customer:
+          $ref: "#/components/schemas/Customer"
+
+    InvoiceList:
+      type: object
+      required: [data, total, page, limit]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    InvoiceInput:
+      type: object
+      required: [customerId, amount, dueDate]
+      properties:
+        customerId:
+          type: integer
+        subscriptionId:
+          type: integer
+        amount:
+          type: number
+        tax:
+          type: number
+        status:
+          type: string
+          enum: [draft, sent, paid, overdue, cancelled]
+        dueDate:
+          type: string
+        notes:
+          type: string
+
+    InvoiceUpdate:
+      type: object
+      properties:
+        amount:
+          type: number
+        tax:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [draft, sent, paid, overdue, cancelled]
+        dueDate:
+          type: string
+        paidAt:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+
+    # ── PAYMENTS ───────────────────────────────────────────────────────────────
+    Payment:
+      type: object
+      required:
+        - id
+        - customerId
+        - invoiceId
+        - amount
+        - method
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        invoiceId:
+          type: integer
+        amount:
+          type: number
+        method:
+          type: string
+          enum: [cash, bank_transfer, mobile_money, card, cheque]
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+        reference:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        customer:
+          $ref: "#/components/schemas/Customer"
+
+    PaymentInput:
+      type: object
+      required: [customerId, invoiceId, amount, method]
+      properties:
+        customerId:
+          type: integer
+        invoiceId:
+          type: integer
+        amount:
+          type: number
+        method:
+          type: string
+          enum: [cash, bank_transfer, mobile_money, card, cheque]
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+        reference:
+          type: string
+        notes:
+          type: string
+
+    # ── TICKETS ────────────────────────────────────────────────────────────────
+    Ticket:
+      type: object
+      required:
+        - id
+        - customerId
+        - subject
+        - description
+        - status
+        - priority
+        - createdAt
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        subject:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        category:
+          type: ["string", "null"]
+        assignedTo:
+          type: ["string", "null"]
+        resolvedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        customer:
+          $ref: "#/components/schemas/Customer"
+
+    TicketInput:
+      type: object
+      required: [customerId, subject, description]
+      properties:
+        customerId:
+          type: integer
+        subject:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        category:
+          type: string
+        assignedTo:
+          type: string
+
+    TicketUpdate:
+      type: object
+      properties:
+        subject:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        category:
+          type: ["string", "null"]
+        assignedTo:
+          type: ["string", "null"]
+        resolvedAt:
+          type: ["string", "null"]
+
+    TicketReply:
+      type: object
+      required: [id, ticketId, message, author, isStaff, createdAt]
+      properties:
+        id:
+          type: integer
+        ticketId:
+          type: integer
+        message:
+          type: string
+        author:
+          type: string
+        isStaff:
+          type: boolean
+        createdAt:
+          type: string
+
+    TicketReplyInput:
+      type: object
+      required: [message, author, isStaff]
+      properties:
+        message:
+          type: string
+        author:
+          type: string
+        isStaff:
+          type: boolean
+
+    # ── EQUIPMENT ──────────────────────────────────────────────────────────────
+    Equipment:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - model
+        - ipAddress
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [router, switch, olt, onu, access_point, server, other]
+        model:
+          type: string
+        brand:
+          type: ["string", "null"]
+        ipAddress:
+          type: string
+        macAddress:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [online, offline, maintenance, unknown]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    EquipmentInput:
+      type: object
+      required: [name, type, model, ipAddress]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [router, switch, olt, onu, access_point, server, other]
+        model:
+          type: string
+        brand:
+          type: string
+        ipAddress:
+          type: string
+        macAddress:
+          type: string
+        location:
+          type: string
+        status:
+          type: string
+          enum: [online, offline, maintenance, unknown]
+        notes:
+          type: string
+
+    EquipmentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [router, switch, olt, onu, access_point, server, other]
+        model:
+          type: string
+        brand:
+          type: ["string", "null"]
+        ipAddress:
+          type: string
+        macAddress:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [online, offline, maintenance, unknown]
+        notes:
+          type: ["string", "null"]
+
+    # ── IP POOLS ───────────────────────────────────────────────────────────────
+    IpPool:
+      type: object
+      required:
+        - id
+        - name
+        - network
+        - gateway
+        - subnetMask
+        - totalIps
+        - usedIps
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        network:
+          type: string
+          description: CIDR notation e.g. 192.168.1.0/24
+        gateway:
+          type: string
+        subnetMask:
+          type: string
+        dns1:
+          type: ["string", "null"]
+        dns2:
+          type: ["string", "null"]
+        totalIps:
+          type: integer
+        usedIps:
+          type: integer
+        description:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    IpPoolInput:
+      type: object
+      required: [name, network, gateway, subnetMask]
+      properties:
+        name:
+          type: string
+        network:
+          type: string
+        gateway:
+          type: string
+        subnetMask:
+          type: string
+        dns1:
+          type: string
+        dns2:
+          type: string
+        description:
+          type: string
+
+    IpPoolUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        gateway:
+          type: string
+        subnetMask:
+          type: string
+        dns1:
+          type: ["string", "null"]
+        dns2:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+
+    # ── SETTINGS ───────────────────────────────────────────────────────────────
+    Settings:
+      type: object
+      properties:
+        companyName:
+          type: ["string", "null"]
+        companyAddress:
+          type: ["string", "null"]
+        companyPhone:
+          type: ["string", "null"]
+        companyEmail:
+          type: ["string", "null"]
+        timezone:
+          type: ["string", "null"]
+        currency:
+          type: ["string", "null"]
+        invoicePrefix:
+          type: ["string", "null"]
+        invoiceDueDays:
+          type: ["string", "null"]
+        lateFeePercent:
+          type: ["string", "null"]
+        autoSuspendDays:
+          type: ["string", "null"]
+        gracePeriodDays:
+          type: ["string", "null"]
+        defaultRouterType:
+          type: ["string", "null"]
+        ntpServer:
+          type: ["string", "null"]
+        radiusServer:
+          type: ["string", "null"]
+        radiusSecret:
+          type: ["string", "null"]
+        smsProvider:
+          type: ["string", "null"]
+        smsApiKey:
+          type: ["string", "null"]
+        smsSenderId:
+          type: ["string", "null"]
+        telegramBotToken:
+          type: ["string", "null"]
+        telegramChatId:
+          type: ["string", "null"]
+        smtpHost:
+          type: ["string", "null"]
+        smtpPort:
+          type: ["string", "null"]
+        smtpUser:
+          type: ["string", "null"]
+        smtpPass:
+          type: ["string", "null"]
+        smtpFrom:
+          type: ["string", "null"]
+        mpesaConsumerKey:
+          type: ["string", "null"]
+        mpesaConsumerSecret:
+          type: ["string", "null"]
+        mpesaShortcode:
+          type: ["string", "null"]
+        mpesaPasskey:
+          type: ["string", "null"]
+        mpesaEnv:
+          type: ["string", "null"]
+        mpesaCallbackUrl:
+          type: ["string", "null"]
+        mpesaAllowedIps:
+          type: ["string", "null"]
+        auditLogRetentionDays:
+          type: ["string", "null"]
+
+    SettingsInput:
+      type: object
+      properties:
+        companyName:
+          type: string
+        companyAddress:
+          type: string
+        companyPhone:
+          type: string
+        companyEmail:
+          type: string
+        timezone:
+          type: string
+        currency:
+          type: string
+        invoicePrefix:
+          type: string
+        invoiceDueDays:
+          type: string
+        lateFeePercent:
+          type: string
+        autoSuspendDays:
+          type: string
+        gracePeriodDays:
+          type: string
+        defaultRouterType:
+          type: string
+        ntpServer:
+          type: string
+        radiusServer:
+          type: string
+        radiusSecret:
+          type: string
+        smsProvider:
+          type: string
+        smsApiKey:
+          type: string
+        smsSenderId:
+          type: string
+        telegramBotToken:
+          type: string
+        telegramChatId:
+          type: string
+        smtpHost:
+          type: string
+        smtpPort:
+          type: string
+        smtpUser:
+          type: string
+        smtpPass:
+          type: string
+        smtpFrom:
+          type: string
+        mpesaConsumerKey:
+          type: string
+        mpesaConsumerSecret:
+          type: string
+        mpesaShortcode:
+          type: string
+        mpesaPasskey:
+          type: string
+        mpesaEnv:
+          type: string
+        mpesaCallbackUrl:
+          type: string
+        mpesaAllowedIps:
+          type: string
+        auditLogRetentionDays:
+          type: string
+
+    # ── ROUTERS ────────────────────────────────────────────────────────────────
+    RouterDevice:
+      type: object
+      required: [id, name, routerType, ipAddress, username, enabled, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        routerType:
+          type: string
+          enum: [routeros, juniper, edgerouter]
+        ipAddress:
+          type: string
+        port:
+          type: ["integer", "null"]
+        username:
+          type: string
+        password:
+          type: string
+        description:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        apiSsl:
+          type: ["boolean", "null"]
+        sshPort:
+          type: ["integer", "null"]
+        netconfPort:
+          type: ["integer", "null"]
+        enabled:
+          type: boolean
+        lastSeen:
+          type: ["string", "null"]
+        radiusSecret:
+          type: ["string", "null"]
+        radiusPort:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    RouterDeviceInput:
+      type: object
+      required: [name, routerType, ipAddress, username, password]
+      properties:
+        name:
+          type: string
+        routerType:
+          type: string
+          enum: [routeros, juniper, edgerouter]
+        ipAddress:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        password:
+          type: string
+        description:
+          type: string
+        location:
+          type: string
+        apiSsl:
+          type: boolean
+        sshPort:
+          type: integer
+        netconfPort:
+          type: integer
+        enabled:
+          type: boolean
+        radiusSecret:
+          type: string
+        radiusPort:
+          type: integer
+
+    RouterStatus:
+      type: object
+      required: [id, name, routerType, ipAddress, enabled, reachable]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        routerType:
+          type: string
+          enum: [routeros, juniper, edgerouter]
+        ipAddress:
+          type: string
+        port:
+          type: ["integer", "null"]
+        location:
+          type: ["string", "null"]
+        enabled:
+          type: boolean
+        reachable:
+          type: boolean
+        latencyMs:
+          type: ["integer", "null"]
+        lastSeen:
+          type: ["string", "null"]
+        checkedAt:
+          type: string
+
+    RouterDeviceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        routerType:
+          type: string
+          enum: [routeros, juniper, edgerouter]
+        ipAddress:
+          type: string
+        port:
+          type: ["integer", "null"]
+        username:
+          type: string
+        password:
+          type: string
+        description:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        apiSsl:
+          type: ["boolean", "null"]
+        sshPort:
+          type: ["integer", "null"]
+        netconfPort:
+          type: ["integer", "null"]
+        enabled:
+          type: boolean
+        radiusSecret:
+          type: ["string", "null"]
+        radiusPort:
+          type: ["integer", "null"]
+
+    RosLiveData:
+      type: object
+      required: [routerId, fetchedAt]
+      properties:
+        routerId:
+          type: integer
+        fetchedAt:
+          type: string
+        error:
+          type: ["string", "null"]
+        identity:
+          type: object
+          additionalProperties: true
+        resources:
+          type: object
+          additionalProperties: true
+        interfaces:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        pppoeActive:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        dhcpLeases:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        ipAddresses:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        queues:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        logs:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        wirelessClients:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        bgpPeers:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        ospfNeighbors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    UsageSnapshotBatch:
+      type: object
+      required: [snapshots]
+      properties:
+        snapshots:
+          type: array
+          items:
+            type: object
+            required: [subscriptionId, bytesIn, bytesOut]
+            properties:
+              subscriptionId:
+                type: integer
+              bytesIn:
+                type: number
+              bytesOut:
+                type: number
+
+    CustomerSession:
+      type: object
+      required: [subscriptionId, status, sessionType, uptimeSeconds, bytesIn, bytesOut, bytesInFormatted, bytesOutFormatted]
+      properties:
+        subscriptionId:
+          type: integer
+        planName:
+          type: string
+          nullable: true
+        routerName:
+          type: string
+          nullable: true
+        pppoeUsername:
+          type: string
+          nullable: true
+        pppoePassword:
+          type: string
+          nullable: true
+        ipAddress:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [online, offline, no_router]
+        uptimeSeconds:
+          type: number
+        uptimeRaw:
+          type: string
+          nullable: true
+        bytesIn:
+          type: number
+        bytesOut:
+          type: number
+        bytesInFormatted:
+          type: string
+        bytesOutFormatted:
+          type: string
+        callerMac:
+          type: string
+          nullable: true
+        sessionType:
+          type: string
+          enum: [pppoe, hotspot, none]
+        routerError:
+          type: string
+          nullable: true
+
+    UsageSnapshot:
+      type: object
+      required: [id, subscriptionId, bytesIn, bytesOut, recordedAt]
+      properties:
+        id:
+          type: integer
+        subscriptionId:
+          type: integer
+        bytesIn:
+          type: number
+        bytesOut:
+          type: number
+        recordedAt:
+          type: string
+          format: date-time
+
+    StaffUser:
+      type: object
+      required: [id, email, name, role, active, createdAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, billing, support, technician]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        lastActiveAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateUserInput:
+      type: object
+      required: [name, email, password, role]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        role:
+          type: string
+          enum: [admin, billing, support, technician]
+        notifyMethod:
+          type: string
+          enum: [none, sms, email, both]
+          default: none
+        notifyPhone:
+          type: string
+
+    UpdateUserInput:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [admin, billing, support, technician]
+        active:
+          type: boolean
+
+    RadiusSession:
+      type: object
+      required: [id, username, nasIp, sessionId, bytesIn, bytesOut, sessionTimeSecs, active]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        nasIp:
+          type: string
+        sessionId:
+          type: string
+        startTime:
+          type: string
+          nullable: true
+        stopTime:
+          type: string
+          nullable: true
+        updateTime:
+          type: string
+          nullable: true
+        sessionTimeSecs:
+          type: integer
+        bytesIn:
+          type: integer
+        bytesOut:
+          type: integer
+        framedIp:
+          type: string
+          nullable: true
+        callingStation:
+          type: string
+          nullable: true
+        calledStation:
+          type: string
+          nullable: true
+        terminateCause:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+
+    VpnConfig:
+      type: object
+      required: [id, customerId, commonName, issuedAt, connected, vpnAvailable]
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        commonName:
+          type: string
+        issuedAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        revokedBy:
+          type: string
+          nullable: true
+        connected:
+          type: boolean
+        remoteIp:
+          type: string
+          nullable: true
+          description: Current client IP from OpenVPN status log (null if not connected)
+        vpnAvailable:
+          type: boolean
+
+    VpnConfigList:
+      type: object
+      required: [vpnAvailable, configs]
+      properties:
+        vpnAvailable:
+          type: boolean
+        configs:
+          type: array
+          items:
+            $ref: "#/components/schemas/VpnConfig"
+
+    VpnConfigWithFile:
+      allOf:
+        - $ref: "#/components/schemas/VpnConfig"
+        - type: object
+          required: [ovpnConfig]
+          properties:
+            ovpnConfig:
+              type: string
+              description: Full .ovpn file content
+
+    RadiusSyncResult:
+      type: object
+      required: [ok, synced, skipped]
+      properties:
+        ok:
+          type: boolean
+        synced:
+          type: integer
+        skipped:
+          type: integer
+
+    AuditLog:
+      type: object
+      required: [id, userId, action, entityType, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        userEmail:
+          type: string
+          nullable: true
+        action:
+          type: string
+          enum: [create, update, delete]
+        entityType:
+          type: string
+        entityId:
+          type: integer
+          nullable: true
+        diff:
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    AuditPurgeLog:
+      type: object
+      required: [id, purgedAt, deletedCount, triggeredBy]
+      properties:
+        id:
+          type: integer
+        purgedAt:
+          type: string
+          format: date-time
+        deletedCount:
+          type: integer
+        triggeredBy:
+          type: string
+
+    BlockedIp:
+      type: object
+      required: [id, ip, blockedAt, expiresAt, attemptCount, reason]
+      properties:
+        id:
+          type: integer
+        ip:
+          type: string
+        blockedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        attemptCount:
+          type: integer
+        reason:
+          type: string
+
+    SecurityEvent:
+      type: object
+      required: [id, eventType, callerIp, endpoint, method, reason, createdAt]
+      properties:
+        id:
+          type: integer
+        eventType:
+          type: string
+        callerIp:
+          type: string
+        endpoint:
+          type: string
+        method:
+          type: string
+        reason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    SecurityEventsSummary:
+      type: object
+      required: [blockedLast24h, threshold, totalCount]
+      properties:
+        blockedLast24h:
+          type: integer
+          description: Number of blocked callback attempts in the last 24 hours
+        threshold:
+          type: integer
+          description: Alert threshold — show warning badge when blockedLast24h exceeds this
+        totalCount:
+          type: integer
+          description: Total number of security events stored in the log
+
+    ClearSecurityEventsResult:
+      type: object
+      required: [deletedCount]
+      properties:
+        deletedCount:
+          type: integer
+          description: Number of records that were deleted

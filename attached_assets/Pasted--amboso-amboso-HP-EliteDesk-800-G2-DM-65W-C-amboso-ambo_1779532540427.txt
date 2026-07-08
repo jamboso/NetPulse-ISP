@@ -1,0 +1,64 @@
+
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ ^C
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo tail -60 /var/log/netpulse/install.log
+ WARN  GET https://registry.npmjs.org/@better-auth/core/-/core-1.6.11.tgz error (ERR_SOCKET_TIMEOUT). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@types/node/-/node-25.6.2.tgz error (ERR_SOCKET_TIMEOUT). Will retry in 10 seconds. 2 retries left.
+Progress: resolved 637, reused 0, downloaded 232, added 232
+Progress: resolved 637, reused 0, downloaded 244, added 244
+Progress: resolved 637, reused 0, downloaded 260, added 260
+Progress: resolved 637, reused 0, downloaded 270, added 270
+Progress: resolved 637, reused 0, downloaded 275, added 275
+Progress: resolved 637, reused 0, downloaded 280, added 280
+Progress: resolved 637, reused 0, downloaded 285, added 285
+Progress: resolved 637, reused 0, downloaded 290, added 290
+Progress: resolved 637, reused 0, downloaded 296, added 296
+Progress: resolved 637, reused 0, downloaded 306, added 306
+Progress: resolved 637, reused 0, downloaded 313, added 313
+Progress: resolved 637, reused 0, downloaded 317, added 317
+Progress: resolved 637, reused 0, downloaded 336, added 336
+Progress: resolved 637, reused 0, downloaded 352, added 351
+Progress: resolved 637, reused 0, downloaded 364, added 364
+Progress: resolved 637, reused 0, downloaded 381, added 381
+Progress: resolved 637, reused 0, downloaded 396, added 396
+Progress: resolved 637, reused 0, downloaded 413, added 413
+Progress: resolved 637, reused 0, downloaded 419, added 418
+Progress: resolved 637, reused 0, downloaded 420, added 420
+Progress: resolved 637, reused 0, downloaded 421, added 421
+Progress: resolved 637, reused 0, downloaded 426, added 426
+Progress: resolved 637, reused 0, downloaded 430, added 430
+Progress: resolved 637, reused 0, downloaded 433, added 433
+Progress: resolved 637, reused 0, downloaded 441, added 441
+Progress: resolved 637, reused 0, downloaded 446, added 446
+Progress: resolved 637, reused 0, downloaded 455, added 455
+Progress: resolved 637, reused 0, downloaded 460, added 460
+Progress: resolved 637, reused 0, downloaded 469, added 469
+Progress: resolved 637, reused 0, downloaded 476, added 476
+Progress: resolved 637, reused 0, downloaded 483, added 483
+Progress: resolved 637, reused 0, downloaded 494, added 494
+Progress: resolved 637, reused 0, downloaded 501, added 501
+Progress: resolved 637, reused 0, downloaded 506, added 506
+Progress: resolved 637, reused 0, downloaded 507, added 507
+Progress: resolved 637, reused 0, downloaded 513, added 513
+Progress: resolved 637, reused 0, downloaded 517, added 516
+Progress: resolved 637, reused 0, downloaded 518, added 518
+Progress: resolved 637, reused 0, downloaded 520, added 520
+ WARN  Tarball download average speed 26 KiB/s (size 31 KiB) is below 50 KiB/s: https://registry.npmjs.org/@orval/mock/-/mock-8.9.1.tgz (GET)
+Progress: resolved 637, reused 0, downloaded 526, added 526
+Progress: resolved 637, reused 0, downloaded 527, added 527
+ ETIMEDOUT  request to https://registry.npmjs.org/@better-fetch/fetch/-/fetch-1.1.21.tgz failed, reason:
+
+FetchError: request to https://registry.npmjs.org/@better-fetch/fetch/-/fetch-1.1.21.tgz failed, reason:
+    at ClientRequest.<anonymous> (/usr/lib/node_modules/pnpm/dist/pnpm.cjs:42057:18)
+    at ClientRequest.emit (node:events:509:28)
+    at emitErrorEvent (node:_http_client:109:11)
+    at TLSSocket.socketErrorListener (node:_http_client:593:5)
+    at TLSSocket.emit (node:events:521:24)
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+
+╔══ INSTALLATION FAILED ══════════════════════════════
+║  Unexpected error on line 380. Last command: NETPULSE_INSTALL=1 pnpm install --no-frozen-lockfile
+║  Full log: /var/log/netpulse/install.log
+╚════════════════════════════════════════════════════
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

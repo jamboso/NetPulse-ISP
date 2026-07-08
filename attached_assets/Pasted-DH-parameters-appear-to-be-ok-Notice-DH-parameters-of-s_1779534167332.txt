@@ -1,0 +1,75 @@
+DH parameters appear to be ok.
+
+Notice
+------
+
+DH parameters of size 2048 created at:
+* /etc/openvpn/easy-rsa/pki/dh.pem
+
+  ✓  PKI initialised
+Using Easy-RSA 'vars' configuration:
+* /etc/openvpn/easy-rsa/vars
+
+Using SSL:
+* openssl OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024)
+Using configuration from /etc/openvpn/easy-rsa/pki/openssl-easyrsa.cnf
+
+Notice
+------
+An updated CRL has been created:
+* /etc/openvpn/easy-rsa/pki/crl.pem
+
+  ✓  OpenVPN server running (UDP 1194)
+  ✓  /usr/local/bin/netpulse-vpn-issue
+  ✓  /usr/local/bin/netpulse-vpn-revoke
+  ✓  sudoers rule for VPN helpers
+  ✓  Firewall configured (22, 80, 443 + 1194/udp (OpenVPN) + 1812-1813/udp (RADIUS))
+  →  Waiting for app to start...
+
+╔══════════════════════════════════════════════════════════╗
+║            NetPulse Installation Complete! ✓             ║
+╠══════════════════════════════════════════════════════════╣
+║  Status: ● STARTING (allow 30 more seconds)               ║
+╠══════════════════════════════════════════════════════════╣
+║                                                          ║
+║  → Open your browser:                                     ║
+║    http://192.168.10.8                           ║
+║                                                          ║
+║  → First-time setup (runs once):                          ║
+║    http://192.168.10.8/setup                      ║
+║    Create admin account + enter company details           ║
+║                                                          ║
+╠══════════════════════════════════════════════════════════╣
+║  Auth configuration (better-auth, self-hosted):           ║
+║    BETTER_AUTH_SECRET auto-generated in .env             ║
+║    Update BETTER_AUTH_URL once you have a domain:        ║
+║    1. Edit /opt/netpulse/.env                               ║
+║       Set BETTER_AUTH_URL=https://yourdomain.com         ║
+║    2. Run: bash /opt/netpulse/deploy/update.sh              ║
+║                                                          ║
+╠══════════════════════════════════════════════════════════╣
+║  Services:                                                ║
+║    netpulse (PM2)    online                        ║
+║    nginx             active                           ║
+║    postgresql        active                           ║
+║    freeradius        activating
+unknown                           ║
+║    openvpn@server    active                           ║
+╠══════════════════════════════════════════════════════════╣
+║  Useful commands:                                         ║
+║    pm2 status              — app process status            ║
+║    pm2 logs netpulse       — live logs                     ║
+║    bash /opt/netpulse/deploy/update.sh  — update              ║
+║    cat /var/log/netpulse/install.log           — full install log              ║
+║                                                          ║
+║  Next: add HTTPS with Let's Encrypt (certbot):             ║
+║    apt install certbot python3-certbot-nginx               ║
+║    certbot --nginx -d 192.168.10.8               ║
+╚══════════════════════════════════════════════════════════╝
+
+  Total install time: 102s · Log: /var/log/netpulse/install.log
+
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ ^C
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

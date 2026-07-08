@@ -1,0 +1,98 @@
+
+
+  ███╗   ██╗███████╗████████╗██████╗ ██╗   ██╗██╗     ███████╗███████╗
+  ████╗  ██║██╔════╝╚══██╔══╝██╔══██╗██║   ██║██║     ██╔════╝██╔════╝
+  ██╔██╗ ██║█████╗     ██║   ██████╔╝██║   ██║██║     ███████╗█████╗
+  ██║╚██╗██║██╔══╝     ██║   ██╔═══╝ ██║   ██║██║     ╚════██║██╔══╝
+  ██║ ╚████║███████╗   ██║   ██║      ╚████╔╝ ███████╗███████║███████╗
+  ╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝       ╚═══╝  ╚══════╝╚══════╝╚══════╝
+
+  ISP Management System — Production Installer
+  Log: /var/log/netpulse/install.log
+
+  ● This script installs everything automatically.
+  ● No external API keys needed — auth runs on your server.
+
+
+┌─────────────────────────────────────────────────────
+│ [1/9] Pre-flight checks  (1s elapsed)
+└─────────────────────────────────────────────────────
+  →  OS: Ubuntu 24.04.4 LTS
+  ✓  Ubuntu 24.04 supported
+  ✓  7821MB RAM available
+  ✓  418GB disk space free
+  ✓  Internet connectivity confirmed
+  ⚠  Existing NetPulse installation detected at /opt/netpulse
+  →  Running upgrade mode instead of fresh install...
+
+  Upgrade existing installation? [Y/n]: y
+
+  Optional modules (can be added later by re-running this script)
+
+  Install FreeRADIUS? (PPPoE/802.1X auth for MikroTik routers) [y/N]: y
+  ✓  FreeRADIUS — will install
+  Install OpenVPN? (VPN cert management for customers) [y/N]: y
+  ✓  OpenVPN — will install
+
+
+┌─────────────────────────────────────────────────────
+│ [2/11] Installing system packages  (13s elapsed)
+└─────────────────────────────────────────────────────
+  →  Updating package lists...
+  →  Installing: git, nginx, postgresql, openssl, curl, ufw...
+  ✓  Core system packages installed
+  →  Installing FreeRADIUS...
+  ✓  FreeRADIUS installed
+  →  Installing OpenVPN + easy-rsa...
+  ✓  OpenVPN + easy-rsa installed
+
+┌─────────────────────────────────────────────────────
+│ [3/11] Installing Node.js 24  (18s elapsed)
+└─────────────────────────────────────────────────────
+  ✓  Node.js v24.15.0 already installed
+  ✓  pnpm 11.2.2 ready
+  ✓  PM2 7.0.1 ready
+
+┌─────────────────────────────────────────────────────
+│ [4/11] Setting up PostgreSQL database  (18s elapsed)
+└─────────────────────────────────────────────────────
+  →  DB user 'netpulse' already exists
+  →  Database 'netpulse' already exists
+  →  Applying FreeRADIUS schema to database...
+  ⚠  FreeRADIUS schema import had warnings (may be harmless):
+psql: error: /etc/freeradius/3.0/mods-config/sql/main/postgresql/schema.sql: Permission denied
+  ✓  FreeRADIUS schema applied (with warnings — check log)
+NOTICE:  relation "radnas" already exists, skipping
+  ✓  radnas table ready
+  ✓  PostgreSQL ready → netpulse
+
+┌─────────────────────────────────────────────────────
+│ [5/11] Deploying application code  (20s elapsed)
+└─────────────────────────────────────────────────────
+  →  Pulling latest changes...
+From https://github.com/jamboso/NetPulse-ISP
+ * branch            main       -> FETCH_HEAD
+   2efba87..b155296  main       -> origin/main
+Updating 2efba87..b155296
+Fast-forward
+ deploy/setup-ubuntu.sh | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+┌─────────────────────────────────────────────────────
+│ [6/11] Writing environment configuration  (22s elapsed)
+└─────────────────────────────────────────────────────
+  →  .env already exists — preserving existing configuration
+
+┌─────────────────────────────────────────────────────
+│ [7/11] Building application  (22s elapsed)
+└─────────────────────────────────────────────────────
+  →  Installing Node.js dependencies (this takes ~1-2 minutes)...
+. preinstall: Use pnpm instead
+. preinstall: Failed
+[ELIFECYCLE] Command failed with exit code 1.
+
+╔══ INSTALLATION FAILED ══════════════════════════════
+║  Unexpected error on line 374. Last command: tail -3
+║  Full log: /var/log/netpulse/install.log
+╚════════════════════════════════════════════════════
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

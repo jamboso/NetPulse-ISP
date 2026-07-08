@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck-and-build:
+    name: Typecheck & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Test
+        run: pnpm run test
+
+      - name: Test coverage
+        run: pnpm --filter @workspace/api-server run test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: artifacts/api-server/coverage/
+          retention-days: 30
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: artifacts/api-server/coverage/lcov.info
+          flags: api-server
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Build API server
+        run: pnpm --filter @workspace/api-server run build
+        env:
+          NODE_ENV: production
+
+      - name: Build ISP portal
+        run: pnpm --filter @workspace/isp-portal run build
+        env:
+          NODE_ENV: production
+          PORT: "19580"
+          BASE_PATH: "/"
+
+      - name: Build mockup sandbox
+        run: pnpm --filter @workspace/mockup-sandbox run build
+        env:
+          NODE_ENV: production
+          PORT: "8081"
+          BASE_PATH: "/__mockup"
+
+      - name: Notify Slack on CI failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not configured — skipping Slack notification."
+            echo "Add SLACK_WEBHOOK_URL to GitHub repository secrets to enable Slack alerts."
+            exit 0
+          fi
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "text": ":red_circle: *CI failed* on `${{ github.repository }}`",
+              "attachments": [{
+                "color": "danger",
+                "fields": [
+                  { "title": "Branch", "value": "${{ github.ref_name }}", "short": true },
+                  { "title": "Triggered by", "value": "${{ github.actor }}", "short": true },
+                  { "title": "Commit", "value": "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>" , "short": false },
+                  { "title": "Run", "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>", "short": false }
+                ]
+              }]
+            }'
+          echo "Slack notification sent."
+
+      - name: Notify email on CI failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        continue-on-error: true
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: GitHub Actions <${{ secrets.SMTP_USERNAME }}>
+          subject: "[${{ github.repository }}] CI failed on ${{ github.ref_name }}"
+          body: |
+            The CI workflow failed for ${{ github.repository }}.
+
+            Branch:      ${{ github.ref_name }}
+            Triggered by: ${{ github.actor }}
+            Commit:      ${{ github.sha }}
+            Run URL:     ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Please check the run above for details.

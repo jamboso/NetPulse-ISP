@@ -27,6 +27,9 @@ async function buildAll() {
     // Examples of unbundleable packages:
     // - uses native modules and loads them dynamically (e.g. sharp)
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
+    alias: {
+      "zod/v4": createRequire(import.meta.url).resolve("zod/v4"),
+    },
     external: [
       "*.node",
       "sharp",

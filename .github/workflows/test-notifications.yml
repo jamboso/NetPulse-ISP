@@ -1,0 +1,96 @@
+name: Test Notifications
+
+# Manually trigger this workflow from the GitHub Actions UI to verify that
+# Slack and email failure alerts are wired up correctly.  It intentionally
+# fails a step so the on-failure notification steps run, letting you confirm
+# the secrets (SLACK_WEBHOOK_URL, SMTP_*, NOTIFICATION_EMAIL) are all valid
+# before a real incident depends on them.
+#
+# How to run:
+#   1. Go to Actions → "Test Notifications" → "Run workflow"
+#   2. Check the Slack channel and inbox for the test alert
+#   3. If both arrive, the integration is confirmed working
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Which notification channel to test"
+        required: false
+        default: "both"
+        type: choice
+        options:
+          - both
+          - slack
+          - email
+
+jobs:
+  trigger-notifications:
+    name: Intentional Failure — Notification Smoke-Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Announce test run
+        run: |
+          echo "========================================="
+          echo "  Notification smoke-test started"
+          echo "  Channel target: ${{ inputs.channel }}"
+          echo "  This step will intentionally fail below"
+          echo "========================================="
+
+      - name: Intentional failure (triggers on-failure notifications)
+        run: |
+          echo "Simulating a CI/deployment failure..."
+          exit 1
+
+      # ── Slack ──────────────────────────────────────────────────────────────
+      - name: Notify Slack on failure
+        if: failure() && (inputs.channel == 'both' || inputs.channel == 'slack')
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not configured — skipping Slack notification."
+            echo "Add SLACK_WEBHOOK_URL to GitHub repository secrets to enable Slack alerts."
+            exit 0
+          fi
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "text": ":test_tube: *Notification smoke-test* — this is a deliberate test alert from `${{ github.repository }}`",
+              "attachments": [{
+                "color": "warning",
+                "fields": [
+                  { "title": "Workflow", "value": "Test Notifications (smoke-test)", "short": true },
+                  { "title": "Triggered by", "value": "${{ github.actor }}", "short": true },
+                  { "title": "Run", "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>", "short": false },
+                  { "title": "Note", "value": "If you see this, Slack alerts are wired correctly. No real failure occurred.", "short": false }
+                ]
+              }]
+            }'
+          echo "Slack notification sent — check your configured Slack channel."
+
+      # ── Email ──────────────────────────────────────────────────────────────
+      - name: Notify email on failure
+        if: failure() && (inputs.channel == 'both' || inputs.channel == 'email')
+        uses: dawidd6/action-send-mail@v3
+        continue-on-error: true
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: GitHub Actions <${{ secrets.SMTP_USERNAME }}>
+          subject: "[${{ github.repository }}] Notification smoke-test — deliberate test alert"
+          body: |
+            This is a deliberate smoke-test of the failure notification pipeline
+            for ${{ github.repository }}.
+
+            If you received this email, the SMTP secrets and NOTIFICATION_EMAIL
+            are all configured correctly and email alerts will fire on real failures.
+
+            Triggered by: ${{ github.actor }}
+            Run URL:      ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            No real CI or deployment failure occurred.

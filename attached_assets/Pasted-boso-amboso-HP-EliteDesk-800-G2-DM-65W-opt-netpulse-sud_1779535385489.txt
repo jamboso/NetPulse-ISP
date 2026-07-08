@@ -1,0 +1,39 @@
+boso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$ sudo chown -R amboso:amboso /opt/netpulseo /opt/netpulse
+sudo git fetch origin && sudo git reset --hard origin/main
+pnpm --filter @workspace/api-server run build
+pm2 restart netpulse --update-env
+sleep 3 && curl -s http://localhost:8080/api/healthz
+remote: Enumerating objects: 7, done.
+remote: Counting objects: 100% (7/7), done.
+remote: Compressing objects: 100% (4/4), done.
+remote: Total 4 (delta 3), reused 0 (delta 0), pack-reused 0 (from 0)
+Unpacking objects: 100% (4/4), 821 bytes | 410.00 KiB/s, done.
+From https://github.com/jamboso/NetPulse-ISP
+   88cf62e..d27c820  main       -> origin/main
+HEAD is now at d27c820 fix: chown app dir to real user; pm2 runs as real user not root
+
+> @workspace/api-server@0.0.0 build /opt/netpulse/artifacts/api-server
+> node ./build.mjs
+
+
+  dist/index.mjs                       4.8mb ⚠️
+  dist/pino-worker.mjs               153.4kb
+  dist/pino-file.mjs                 142.0kb
+  dist/pino-pretty.mjs               114.6kb
+  dist/thread-stream-worker.mjs        7.3kb
+  dist/index.mjs.map                   8.8mb
+  dist/pino-worker.mjs.map           256.9kb
+  dist/pino-file.mjs.map             229.0kb
+  dist/pino-pretty.mjs.map           204.0kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+
+⚡ Done in 440ms
+[PM2] Applying action restartProcessId on app [netpulse](ids: [ 1 ])
+[PM2] [netpulse](1) ✓
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 1  │ netpulse    │ default     │ 0.0.0   │ fork    │ 33203    │ 0s     │ 93   │ online    │ 0%       │ 14.8mb   │ amboso   │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+{"status":"ok"}amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$

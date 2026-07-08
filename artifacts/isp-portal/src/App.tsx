@@ -1,4 +1,5 @@
 import { useEffect, useState, Component, type ReactNode } from "react";
+import { ThemeProvider } from "./lib/theme";
 import { Switch, Route, useLocation, Router as WouterRouter } from "wouter";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 
@@ -166,11 +167,13 @@ function AppRouter() {
 
 export default function App() {
   return (
-    <WouterRouter base={basePath}>
-      <QueryClientProvider client={queryClient}>
-        <AppRouter />
-        <Toaster />
-      </QueryClientProvider>
-    </WouterRouter>
+    <ThemeProvider>
+      <WouterRouter base={basePath}>
+        <QueryClientProvider client={queryClient}>
+          <AppRouter />
+          <Toaster />
+        </QueryClientProvider>
+      </WouterRouter>
+    </ThemeProvider>
   );
 }

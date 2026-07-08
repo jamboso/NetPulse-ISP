@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Building2, CreditCard, Network, Bell, Smartphone, Save, CheckCircle2, AlertCircle, MessageSquare, Send, Loader2, Shield, RefreshCw, Link2, UserCircle } from "lucide-react";
+import { Building2, CreditCard, Network, Bell, Smartphone, Save, CheckCircle2, AlertCircle, MessageSquare, Send, Loader2, Shield, RefreshCw, Link2, UserCircle, Palette } from "lucide-react";
+import { useTheme, THEMES } from "@/lib/theme";
 import { InfrastructureTab } from "./infrastructure-tab";
 import { UpdatesTab } from "./updates-tab";
 import { SectionCard } from "@/components/SectionCard";
@@ -186,6 +187,83 @@ function RadiusResyncButton() {
   );
 }
 
+function AppearanceTab() {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-card border border-border rounded-lg p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Palette className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">Theme</h3>
+        </div>
+        <p className="text-xs text-muted-foreground mb-5">
+          Choose the colour scheme for the portal. Changes apply immediately and are saved to this browser.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {THEMES.map((t) => {
+            const isActive = theme === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTheme(t.id)}
+                className="relative rounded-lg border-2 text-left transition-all overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                style={{
+                  borderColor: isActive ? "hsl(var(--primary))" : "hsl(var(--border))",
+                  boxShadow: isActive ? "0 0 0 1px hsl(var(--primary) / 0.3)" : "none",
+                }}
+              >
+                {/* Mini preview */}
+                <div className="flex h-20 overflow-hidden rounded-t-md">
+                  {/* Sidebar strip */}
+                  <div
+                    className="w-10 h-full flex flex-col gap-1 p-1.5"
+                    style={{ background: t.preview.sidebar, borderRight: `1px solid ${t.preview.accent}22` }}
+                  >
+                    <div className="w-4 h-1.5 rounded-sm" style={{ background: t.preview.accent }} />
+                    {[...Array(4)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="w-full h-1 rounded-sm opacity-40"
+                        style={{ background: i === 0 ? t.preview.accent : "#888" }}
+                      />
+                    ))}
+                  </div>
+                  {/* Main area */}
+                  <div className="flex-1 p-1.5 flex flex-col gap-1" style={{ background: t.preview.bg }}>
+                    <div className="w-10 h-1.5 rounded-sm opacity-70" style={{ background: t.preview.accent }} />
+                    <div className="grid grid-cols-2 gap-1 mt-0.5">
+                      {[...Array(4)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="h-5 rounded-sm opacity-60"
+                          style={{ background: i === 0 ? `${t.preview.accent}30` : "#88888818" }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-2.5 bg-card border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">{t.label}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{t.description}</p>
+                    </div>
+                    {isActive && (
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-primary" />
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Settings() {
   const { data: serverSettings, isLoading } = useGetSettings();
   const updateMutation = useUpdateSettings();
@@ -271,6 +349,9 @@ export default function Settings() {
 
       <Tabs defaultValue="general" className="w-full">
         <TabsList className="bg-gray-100 flex-wrap h-auto gap-1 p-1">
+            <TabsTrigger value="appearance" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Palette className="w-3.5 h-3.5" /> Appearance
+          </TabsTrigger>
           <TabsTrigger value="account" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <UserCircle className="w-3.5 h-3.5" /> Account
           </TabsTrigger>
@@ -299,6 +380,11 @@ export default function Settings() {
             <RefreshCw className="w-3.5 h-3.5" /> Updates
           </TabsTrigger>
         </TabsList>
+
+        {/* ── APPEARANCE ──────────────────────────────────────────────────── */}
+        <TabsContent value="appearance" className="mt-5">
+          <AppearanceTab />
+        </TabsContent>
 
         {/* ── ACCOUNT ─────────────────────────────────────────────────────── */}
         <TabsContent value="account" className="mt-5 space-y-4">

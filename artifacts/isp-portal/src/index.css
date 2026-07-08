@@ -67,7 +67,8 @@
 }
 
 @layer base {
-  :root {
+  /* ── THEME: Current (Baseline) ─────────────────────────────────── */
+  :root, [data-theme="current"] {
     --background: 210 40% 98%;
     --foreground: 222 47% 11%;
     --border: 214 32% 91%;
@@ -106,6 +107,123 @@
     --app-font-serif: Georgia, serif;
     --app-font-mono: Menlo, monospace;
     --radius: 0.25rem;
+  }
+
+  /* ── THEME: Daylight ───────────────────────────────────────────── */
+  [data-theme="daylight"] {
+    --background: 0 0% 100%;
+    --foreground: 215 25% 15%;
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 221 83% 53%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+    --card-border: 214 20% 88%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+    --popover-border: 214 20% 88%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 213 27% 94%;
+    --secondary-foreground: 215 25% 15%;
+    --muted: 213 27% 94%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 213 27% 94%;
+    --accent-foreground: 215 25% 15%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --sidebar: 213 27% 95%;
+    --sidebar-foreground: 215 25% 15%;
+    --sidebar-border: 214 20% 86%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 213 27% 88%;
+    --sidebar-accent-foreground: 215 25% 15%;
+    --sidebar-ring: 221 83% 53%;
+    --app-sidebar-logo-bg: 221 83% 53%;
+    --app-sidebar-logo-text: 0 0% 100%;
+    --app-nav-active-bg: 221 83% 53%;
+    --app-nav-active-text: 0 0% 100%;
+    --app-topbar-bg: 0 0% 100%;
+    --app-topbar-border: 214 20% 88%;
+  }
+
+  /* ── THEME: Night Ops ───────────────────────────────────────────── */
+  [data-theme="night-ops"] {
+    --background: 222 84% 2%;
+    --foreground: 210 40% 96%;
+    --border: 215 28% 14%;
+    --input: 215 28% 14%;
+    --ring: 186 100% 53%;
+    --card: 222 47% 6%;
+    --card-foreground: 210 40% 96%;
+    --card-border: 215 28% 14%;
+    --popover: 222 47% 6%;
+    --popover-foreground: 210 40% 96%;
+    --popover-border: 215 28% 14%;
+    --primary: 186 100% 42%;
+    --primary-foreground: 222 84% 4%;
+    --secondary: 215 28% 10%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 215 28% 10%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 215 28% 10%;
+    --accent-foreground: 186 100% 70%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --sidebar: 0 0% 0%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-border: 215 28% 12%;
+    --sidebar-primary: 186 100% 42%;
+    --sidebar-primary-foreground: 222 84% 4%;
+    --sidebar-accent: 222 47% 8%;
+    --sidebar-accent-foreground: 186 100% 70%;
+    --sidebar-ring: 186 100% 42%;
+    --app-sidebar-logo-bg: 186 100% 42%;
+    --app-sidebar-logo-text: 222 84% 4%;
+    --app-nav-active-bg: 186 60% 8%;
+    --app-nav-active-text: 186 100% 65%;
+    --app-topbar-bg: 222 84% 2%;
+    --app-topbar-border: 215 28% 14%;
+  }
+
+  /* ── THEME: Terracotta ──────────────────────────────────────────── */
+  [data-theme="terracotta"] {
+    --background: 30 71% 97%;
+    --foreground: 20 40% 12%;
+    --border: 25 30% 86%;
+    --input: 25 30% 86%;
+    --ring: 21 90% 45%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 40% 12%;
+    --card-border: 25 30% 86%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 40% 12%;
+    --popover-border: 25 30% 86%;
+    --primary: 21 90% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 40% 92%;
+    --secondary-foreground: 20 40% 12%;
+    --muted: 30 40% 92%;
+    --muted-foreground: 20 15% 48%;
+    --accent: 30 40% 92%;
+    --accent-foreground: 20 40% 12%;
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --sidebar: 30 50% 97%;
+    --sidebar-foreground: 20 40% 12%;
+    --sidebar-border: 25 30% 86%;
+    --sidebar-primary: 21 90% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 50% 90%;
+    --sidebar-accent-foreground: 20 40% 12%;
+    --sidebar-ring: 21 90% 45%;
+    --app-sidebar-logo-bg: 21 90% 45%;
+    --app-sidebar-logo-text: 0 0% 100%;
+    --app-nav-active-bg: 21 90% 45%;
+    --app-nav-active-text: 0 0% 100%;
+    --app-topbar-bg: 0 0% 100%;
+    --app-topbar-border: 25 30% 86%;
   }
 
   .dark {

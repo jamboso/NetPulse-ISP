@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { routersTable } from "@workspace/db";
+import { routersTable, settingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router = Router();
@@ -68,19 +68,58 @@ async function upsertRos(
   return rosReq(ip, ssl, user, pass, "PUT", path, { ...match, ...body });
 }
 
+// Resolves the RADIUS server/secret to configure on a given router: prefers the
+// router's own NAS secret (set on the router record, also used for its radnas entry)
+// and falls back to the global RADIUS settings configured in Settings → Network.
+async function getRadiusConfig(r: typeof routersTable.$inferSelect): Promise<{
+  server: string; secret: string; authPort: number; acctPort: number;
+} | null> {
+  const rows = await db
+    .select()
+    .from(settingsTable)
+    .where(eq(settingsTable.key, "radiusServer"));
+  const server = rows[0]?.value ?? null;
+  if (!server) return null;
+
+  const secret = r.radiusSecret ?? undefined;
+  let globalSecret: string | undefined;
+  if (!secret) {
+    const secretRows = await db
+      .select()
+      .from(settingsTable)
+      .where(eq(settingsTable.key, "radiusSecret"));
+    globalSecret = secretRows[0]?.value ?? undefined;
+  }
+  const resolvedSecret = secret ?? globalSecret;
+  if (!resolvedSecret) return null;
+
+  const authPort = r.radiusPort ?? 1812;
+  return { server, secret: resolvedSecret, authPort, acctPort: authPort + 1 };
+}
+
 // ── GET /api/routers/:id/ros/pppoe/status ─────────────────────────────────────
 router.get("/routers/:id/ros/pppoe/status", async (req, res) => {
   const r = await getRouter(parseInt(req.params.id!));
   if (!r) { res.status(404).json({ error: "Router not found" }); return; }
   const { ipAddress: ip, apiSsl: ssl, username: user, password: pass } = r;
   try {
-    const [servers, profiles, pools, activeCount] = await Promise.all([
+    const [servers, profiles, pools, activeCount, radiusEntries, aaa] = await Promise.all([
       rosReq(ip, ssl ?? false, user, pass, "GET", "/interface/pppoe-server/server"),
       rosReq(ip, ssl ?? false, user, pass, "GET", "/ppp/profile"),
       rosReq(ip, ssl ?? false, user, pass, "GET", "/ip/pool"),
       rosReq(ip, ssl ?? false, user, pass, "GET", "/ppp/active").then(d => (Array.isArray(d) ? d.length : 0)),
+      rosReq(ip, ssl ?? false, user, pass, "GET", "/radius").catch(() => []),
+      rosReq(ip, ssl ?? false, user, pass, "GET", "/ppp/aaa").catch(() => null),
     ]);
-    res.json({ servers, profiles, pools, activeSessionCount: activeCount });
+    const radiusConfig = await getRadiusConfig(r);
+    res.json({
+      servers, profiles, pools, activeSessionCount: activeCount,
+      radius: {
+        appConfigured: !!radiusConfig,
+        entries: Array.isArray(radiusEntries) ? radiusEntries : [],
+        aaaUseRadius: (aaa as any)?.["use-radius"] === "yes",
+      },
+    });
   } catch (err: any) {
     res.status(502).json({ error: err.message });
   }
@@ -143,6 +182,7 @@ router.post("/routers/:id/ros/pppoe/setup", async (req, res) => {
     dnsServers = "8.8.8.8,1.1.1.1",
     profiles = [] as Array<{ name: string; downloadKbps: number; uploadKbps: number; sessionLimit?: string }>,
     mtu = 1480,
+    enableRadius = false,
   } = req.body as {
     interface: string;
     poolName?: string;
@@ -152,6 +192,7 @@ router.post("/routers/:id/ros/pppoe/setup", async (req, res) => {
     dnsServers?: string;
     profiles?: Array<{ name: string; downloadKbps: number; uploadKbps: number; sessionLimit?: string }>;
     mtu?: number;
+    enableRadius?: boolean;
   };
 
   if (!iface) { res.status(400).json({ error: "interface is required" }); return; }
@@ -208,6 +249,32 @@ router.post("/routers/:id/ros/pppoe/setup", async (req, res) => {
       disabled: "no",
     })
   );
+
+  // 5. Configure RADIUS authentication (optional — uses Settings → Network config)
+  if (enableRadius) {
+    const radius = await getRadiusConfig(r);
+    if (!radius) {
+      errors.push("✗ Configure RADIUS: RADIUS server/secret not set. Configure it in Settings → Network first.");
+    } else {
+      await tryStep("Add RADIUS server", () =>
+        upsertRos(ip, ssl ?? false, user, pass, "/radius", {
+          address: radius.server,
+          service: "ppp",
+        }, {
+          secret: radius.secret,
+          "authentication-port": String(radius.authPort),
+          "accounting-port": String(radius.acctPort),
+          disabled: "no",
+        })
+      );
+      await tryStep("Enable RADIUS for PPPoE (AAA)", () =>
+        rosReq(ip, ssl ?? false, user, pass, "PATCH", "/ppp/aaa", {
+          "use-radius": "yes",
+          accounting: "yes",
+        })
+      );
+    }
+  }
 
   res.json({ success: errors.length === 0, steps, errors });
 });

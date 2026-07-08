@@ -52,6 +52,7 @@ export default function PPPoESetup() {
     interface: "", poolName: "pppoe-pool", poolRange: "10.10.0.1-10.10.15.254",
     serviceName: "pppoe-server", localAddress: "10.10.0.1",
     dnsServers: "8.8.8.8,1.1.1.1",
+    enableRadius: false,
   });
   const [setupRunning, setSetupRunning] = useState(false);
   const [setupResult, setSetupResult] = useState<{ steps: string[]; errors: string[]; success: boolean } | null>(null);
@@ -87,6 +88,9 @@ export default function PPPoESetup() {
       if (Array.isArray(ifList) && ifList.length > 0 && !setupForm.interface) {
         const eth = ifList.find((i: AnyRecord) => i.type === "ether");
         if (eth) setSetupForm(f => ({ ...f, interface: eth.name }));
+      }
+      if (st?.radius?.appConfigured && !st?.radius?.aaaUseRadius) {
+        setSetupForm(f => ({ ...f, enableRadius: true }));
       }
     } catch (e: any) {
       setStatusErr(e.message);
@@ -276,6 +280,23 @@ export default function PPPoESetup() {
                     <Input className="mt-1" value={setupForm.dnsServers} onChange={e => setSetupForm(f => ({ ...f, dnsServers: e.target.value }))} />
                   </div>
                 </div>
+                <label className="flex items-start gap-2.5 rounded-lg border border-gray-200 bg-gray-50 p-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                    checked={setupForm.enableRadius}
+                    onChange={e => setSetupForm(f => ({ ...f, enableRadius: e.target.checked }))}
+                  />
+                  <span className="text-sm">
+                    <span className="font-medium text-gray-800">Also configure RADIUS authentication</span>
+                    <span className="block text-xs text-gray-500 mt-0.5">
+                      Adds this app&apos;s RADIUS server to the router and enables PPP AAA (use-radius + accounting).
+                      {status?.radius && !status.radius.appConfigured && (
+                        <span className="text-amber-600"> RADIUS server/secret isn&apos;t configured yet — set it in Settings → Network first.</span>
+                      )}
+                    </span>
+                  </span>
+                </label>
                 <Button onClick={handleSetup} disabled={setupRunning || !setupForm.interface}
                   className="w-full bg-orange-600 hover:bg-orange-700 text-white gap-2 mt-2">
                   {setupRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
@@ -323,6 +344,37 @@ export default function PPPoESetup() {
                 </div>
               )}
 
+              {/* RADIUS status */}
+              {status?.radius && (
+                <div className="bg-white rounded-xl border border-gray-200 p-5">
+                  <h4 className="font-semibold text-sm text-gray-900 mb-3">RADIUS Authentication</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <span className="text-gray-700">App RADIUS server configured</span>
+                      <Badge variant="outline" className={`text-xs ${status.radius.appConfigured ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+                        {status.radius.appConfigured ? "yes" : "not set"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <span className="text-gray-700">Router PPP AAA use-radius</span>
+                      <Badge variant="outline" className={`text-xs ${status.radius.aaaUseRadius ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+                        {status.radius.aaaUseRadius ? "enabled" : "disabled"}
+                      </Badge>
+                    </div>
+                    {Array.isArray(status.radius.entries) && status.radius.entries.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        {status.radius.entries.map((e: AnyRecord, i: number) => (
+                          <div key={i} className="flex items-center justify-between text-xs p-2 bg-gray-50 rounded-lg font-mono">
+                            <span>{e.address} ({e.service})</span>
+                            <span className="text-gray-400">auth:{e["authentication-port"]} acct:{e["accounting-port"]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                 <div className="flex gap-2">
                   <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
@@ -333,6 +385,9 @@ export default function PPPoESetup() {
                       <li>Speed profiles: 2Mbps, 5Mbps, 10Mbps, Unlimited</li>
                       <li>PPPoE server with CHAP/MSCHAP2 authentication</li>
                       <li>One-session-per-host enforcement</li>
+                      {setupForm.enableRadius && (
+                        <li>RADIUS server entry &amp; PPP AAA (use-radius + accounting) enabled</li>
+                      )}
                     </ul>
                   </div>
                 </div>

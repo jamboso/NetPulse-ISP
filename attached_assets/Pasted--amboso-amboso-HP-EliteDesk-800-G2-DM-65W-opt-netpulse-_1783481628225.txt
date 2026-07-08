@@ -1,0 +1,26 @@
+
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$ sudo pm2 restart netpulse && sudo pm2 logs netpulse --lines 5 --nostream 2>/dev/null
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [netpulse](ids: [ 0 ])
+[PM2] [netpulse](0) ✓
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 3156     │ 0s     │ 5    │ online    │ 0%       │ 14.8mb   │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[TAILING] Tailing last 5 lines for [netpulse] process (change the value with --lines option)
+/var/log/netpulse/error-0.log last 5 lines:
+0|netpulse | 2026-07-08 06:12:05:   }
+0|netpulse | 2026-07-08 06:12:05: }
+0|netpulse | 2026-07-08 06:15:55: 2026-07-08T03:15:55.286Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-07-08 06:15:56: 2026-07-08T03:15:56.320Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-07-08 06:15:57: 2026-07-08T03:15:57.168Z ERROR [Better Auth]: Invalid password
+
+/var/log/netpulse/out-0.log last 5 lines:
+0|netpulse | ompleted"}
+0|netpulse | 2026-07-08 06:33:20: {"level":30,"time":1783481600146,"pid":3124,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":23,"method":"GET","url":"/api/routers/4/ros/traffic"},"res":{"statusCode":200},"responseTime":309,"msg":"request completed"}
+0|netpulse | 2026-07-08 06:33:25: {"level":30,"time":1783481605244,"pid":3124,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":24,"method":"GET","url":"/api/routers/4/ros/traffic"},"res":{"statusCode":200},"responseTime":297,"msg":"request completed"}
+0|netpulse | 2026-07-08 06:33:29: {"level":30,"time":1783481609888,"pid":3124,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":25,"method":"GET","url":"/api/routers/status"},"res":{"statusCode":200},"responseTime":114,"msg":"request completed"}
+0|netpulse | 2026-07-08 06:33:30: {"level":30,"time":1783481610106,"pid":3124,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":26,"method":"GET","url":"/api/routers/4/ros/traffic"},"res":{"statusCode":200},"responseTime":280,"msg":"request completed"}
+
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$

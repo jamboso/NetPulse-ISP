@@ -1,0 +1,39 @@
+░░ Subject: Unit failed
+░░ The unit freeradius.service has entered the 'failed' state with result 'exit-code'.
+░░ Subject: A start job for unit freeradius.service has failed
+░░ A start job for unit freeradius.service has finished with a failure.
+░░ The job identifier is 33300 and the job result is failed.
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo -u postgres psql -d netpulse -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO netpulse; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO netpulse;"
+
+sudo systemctl restart freeradius && sudo systemctl status freeradius
+GRANT
+GRANT
+● freeradius.service - FreeRADIUS multi-protocol policy server
+     Loaded: loaded (/usr/lib/systemd/system/freeradius.service; enabled; preset: enabled)
+    Drop-In: /etc/systemd/system/freeradius.service.d
+             └─override.conf
+     Active: active (running) since Wed 2026-07-08 05:25:52 EAT; 15ms ago
+       Docs: man:radiusd(8)
+             man:radiusd.conf(5)
+             http://wiki.freeradius.org/
+             http://networkradius.com/doc/
+    Process: 13075 ExecStartPre=/usr/sbin/freeradius $FREERADIUS_OPTIONS -Cx -lstdout (code=exited, status=0/SUCCESS)
+   Main PID: 13078 (freeradius)
+     Status: "Processing requests"
+      Tasks: 6 (limit: 9014)
+     Memory: 43.6M (max: 2.0G available: 1.9G peak: 43.6M)
+        CPU: 257ms
+     CGroup: /system.slice/freeradius.service
+             └─13078 /usr/sbin/freeradius -f
+
+Jul 08 05:25:52 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[13075]: Compiling Post-Auth-Type Challenge for attr Post-Auth-Type
+Jul 08 05:25:52 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[13075]: Compiling Post-Auth-Type Client-Lost for attr Post-Auth-Type
+Jul 08 05:25:52 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[13075]: Compiling Auth-Type PAP for attr Auth-Type
+Jul 08 05:25:52 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[13075]: Compiling Auth-Type CHAP for attr Auth-Type
+Jul 08 05:25:52 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[13075]: Compiling Auth-Type MS-CHAP for attr Auth-Type
+Jul 08 05:25:52 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[13075]:  # Skipping contents of 'if' as it is always 'false' -- /etc/freeradius/3.0/sites-enabl>
+Jul 08 05:25:52 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[13075]: Compiling Post-Auth-Type REJECT for attr Post-Auth-Type
+Jul 08 05:25:52 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[13075]: radiusd: #### Skipping IP addresses and Ports ####
+Jul 08 05:25:52 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[13075]: Configuration appears to be OK
+Jul 08 05:25:52 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started freeradius.service - FreeRADIUS multi-protocol policy server.
+lines 1-28/28 (END)

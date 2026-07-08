@@ -44,7 +44,9 @@ fi
 
 # ── 2. Install / update dependencies ──────────────────────────────────────
 info "Installing dependencies..."
-pnpm install --frozen-lockfile 2>&1 | tail -3
+# CI=true prevents pnpm from prompting for TTY confirmation when it needs
+# to remove/recreate node_modules (which fails in the detached SSE context).
+CI=true pnpm install --frozen-lockfile 2>&1 | tail -3
 ok "Dependencies up to date"
 
 # ── 3. Build libs ──────────────────────────────────────────────────────────

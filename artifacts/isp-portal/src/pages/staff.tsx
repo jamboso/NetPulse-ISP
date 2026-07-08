@@ -527,9 +527,9 @@ export default function StaffPage() {
 
       {/* Invite dialog */}
       <Dialog open={inviteOpen} onOpenChange={(o) => { setInviteOpen(o); if (!o) resetInviteForm(); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
           <DialogHeader><DialogTitle>Invite Staff Member</DialogTitle></DialogHeader>
-          <form onSubmit={handleInviteSubmit} className="space-y-4 pt-2">
+          <form id="invite-staff-form" onSubmit={handleInviteSubmit} className="space-y-4 pt-2 overflow-y-auto flex-1 pr-1 -mr-1">
             <div className="space-y-1">
               <Label htmlFor="inv-name">Full Name</Label>
               <Input id="inv-name" placeholder="Jane Doe" value={newName} onChange={e => setNewName(e.target.value)} required />
@@ -591,13 +591,13 @@ export default function StaffPage() {
             {formError && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{formError}</p>
             )}
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? "Creating…" : "Create Account"}
-              </Button>
-            </DialogFooter>
           </form>
+          <DialogFooter className="pt-2 border-t border-gray-100 mt-2">
+            <Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
+            <Button type="submit" form="invite-staff-form" disabled={createMutation.isPending}>
+              {createMutation.isPending ? "Creating…" : "Create Account"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

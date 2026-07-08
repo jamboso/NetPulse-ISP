@@ -1,0 +1,36 @@
+rocess: 12148 ExecStartPre=/usr/sbin/freeradius $FREERADIUS_OPTIONS -Cx -lstdout (code=exited, status=1/FAILURE)
+        CPU: 113ms
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo journalctl -xeu freeradius.service | grep -E 'rlm_sql|FATAL|ERROR|error|fail|relation|table' | tail -15
+
+Jul 08 05:22:21 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[12189]: rlm_sql (sql) in generate_sql_clients: query is SELECT id,nasname,shortname,type,secret FROM nas
+Jul 08 05:22:21 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[12189]: rlm_sql (sql): 0 of 0 connections in use.  You  may need to increase "spare"
+Jul 08 05:22:21 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[12189]: rlm_sql (sql): Opening additional connection (0), 1 of 1 pending slots used
+Jul 08 05:22:21 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[12189]: rlm_sql (sql): Reserved connection (0)
+Jul 08 05:22:21 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[12189]: rlm_sql_postgresql: Status: PGRES_FATAL_ERROR
+Jul 08 05:22:21 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[12189]: rlm_sql_postgresql: 42P01: UNDEFINED TABLE
+Jul 08 05:22:21 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[12189]: rlm_sql (sql): rlm_sql_postgresql: ERROR:  relation "nas" does not exist
+Jul 08 05:22:21 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[12189]: rlm_sql (sql): rlm_sql_postgresql: LINE 1: SELECT id,nasname,shortname,type,secret FROM nas
+Jul 08 05:22:21 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[12189]: rlm_sql (sql): rlm_sql_postgresql:                                                      ^
+Jul 08 05:22:21 amboso-HP-EliteDesk-800-G2-DM-65W freeradius[12189]: /etc/freeradius/3.0/mods-enabled/sql[1]: Instantiation failed for module "sql"
+░░ Subject: Unit failed
+░░ The unit freeradius.service has entered the 'failed' state with result 'exit-code'.
+░░ Subject: A start job for unit freeradius.service has failed
+░░ A start job for unit freeradius.service has finished with a failure.
+░░ The job identifier is 30200 and the job result is failed.
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ # 1. Check the schema file is there
+ls /etc/freeradius/3.0/mods-config/sql/main/postgresql/schema.sql
+
+# 2. Import it (as the netpulse user who owns the DB)
+sudo -u postgres psql -d netpulse -f /etc/freeradius/3.0/mods-config/sql/main/postgresql/schema.sql
+
+# 3. Confirm the nas table now exists
+sudo -u postgres psql -d netpulse -c "\dt nas"
+
+# 4. Restart FreeRADIUS
+sudo systemctl restart freeradius && sudo systemctl status freeradius
+ls: cannot access '/etc/freeradius/3.0/mods-config/sql/main/postgresql/schema.sql': Permission denied
+psql: error: /etc/freeradius/3.0/mods-config/sql/main/postgresql/schema.sql: Permission denied
+Did not find any relation named "nas".
+Job for freeradius.service failed because the control process exited with error code.
+See "systemctl status freeradius.service" and "journalctl -xeu freeradius.service" for details.
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

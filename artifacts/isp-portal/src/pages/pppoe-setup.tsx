@@ -52,7 +52,6 @@ export default function PPPoESetup() {
     interface: "", poolName: "pppoe-pool", poolRange: "10.10.0.1-10.10.15.254",
     serviceName: "pppoe-server", localAddress: "10.10.0.1",
     dnsServers: "8.8.8.8,1.1.1.1",
-    enableRadius: false,
   });
   const [setupRunning, setSetupRunning] = useState(false);
   const [setupResult, setSetupResult] = useState<{ steps: string[]; errors: string[]; success: boolean } | null>(null);
@@ -88,9 +87,6 @@ export default function PPPoESetup() {
       if (Array.isArray(ifList) && ifList.length > 0 && !setupForm.interface) {
         const eth = ifList.find((i: AnyRecord) => i.type === "ether");
         if (eth) setSetupForm(f => ({ ...f, interface: eth.name }));
-      }
-      if (st?.radius?.appConfigured && !st?.radius?.aaaUseRadius) {
-        setSetupForm(f => ({ ...f, enableRadius: true }));
       }
     } catch (e: any) {
       setStatusErr(e.message);
@@ -280,23 +276,14 @@ export default function PPPoESetup() {
                     <Input className="mt-1" value={setupForm.dnsServers} onChange={e => setSetupForm(f => ({ ...f, dnsServers: e.target.value }))} />
                   </div>
                 </div>
-                <label className="flex items-start gap-2.5 rounded-lg border border-gray-200 bg-gray-50 p-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                    checked={setupForm.enableRadius}
-                    onChange={e => setSetupForm(f => ({ ...f, enableRadius: e.target.checked }))}
-                  />
-                  <span className="text-sm">
-                    <span className="font-medium text-gray-800">Also configure RADIUS authentication</span>
-                    <span className="block text-xs text-gray-500 mt-0.5">
-                      Adds this app&apos;s RADIUS server to the router and enables PPP AAA (use-radius + accounting).
-                      {status?.radius && !status.radius.appConfigured && (
-                        <span className="text-amber-600"> RADIUS server/secret isn&apos;t configured yet — set it in Settings → Network first.</span>
-                      )}
-                    </span>
+                <div className="flex items-start gap-2.5 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <Info className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                  <span className="text-xs text-gray-500">
+                    {status?.radius?.appConfigured
+                      ? "RADIUS authentication is configured in Settings → Network and will be enabled on this router automatically."
+                      : <>RADIUS authentication isn&apos;t configured yet. Set a RADIUS Server &amp; Secret in Settings → Network to have it enabled on the router automatically during setup.</>}
                   </span>
-                </label>
+                </div>
                 <Button onClick={handleSetup} disabled={setupRunning || !setupForm.interface}
                   className="w-full bg-orange-600 hover:bg-orange-700 text-white gap-2 mt-2">
                   {setupRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
@@ -385,7 +372,7 @@ export default function PPPoESetup() {
                       <li>Speed profiles: 2Mbps, 5Mbps, 10Mbps, Unlimited</li>
                       <li>PPPoE server with CHAP/MSCHAP2 authentication</li>
                       <li>One-session-per-host enforcement</li>
-                      {setupForm.enableRadius && (
+                      {status?.radius?.appConfigured && (
                         <li>RADIUS server entry &amp; PPP AAA (use-radius + accounting) enabled</li>
                       )}
                     </ul>

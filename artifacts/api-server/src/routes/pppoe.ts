@@ -182,7 +182,6 @@ router.post("/routers/:id/ros/pppoe/setup", async (req, res) => {
     dnsServers = "8.8.8.8,1.1.1.1",
     profiles = [] as Array<{ name: string; downloadKbps: number; uploadKbps: number; sessionLimit?: string }>,
     mtu = 1480,
-    enableRadius = false,
   } = req.body as {
     interface: string;
     poolName?: string;
@@ -192,7 +191,6 @@ router.post("/routers/:id/ros/pppoe/setup", async (req, res) => {
     dnsServers?: string;
     profiles?: Array<{ name: string; downloadKbps: number; uploadKbps: number; sessionLimit?: string }>;
     mtu?: number;
-    enableRadius?: boolean;
   };
 
   if (!iface) { res.status(400).json({ error: "interface is required" }); return; }
@@ -250,30 +248,30 @@ router.post("/routers/:id/ros/pppoe/setup", async (req, res) => {
     })
   );
 
-  // 5. Configure RADIUS authentication (optional — uses Settings → Network config)
-  if (enableRadius) {
-    const radius = await getRadiusConfig(r);
-    if (!radius) {
-      errors.push("✗ Configure RADIUS: RADIUS server/secret not set. Configure it in Settings → Network first.");
-    } else {
-      await tryStep("Add RADIUS server", () =>
-        upsertRos(ip, ssl ?? false, user, pass, "/radius", {
-          address: radius.server,
-          service: "ppp",
-        }, {
-          secret: radius.secret,
-          "authentication-port": String(radius.authPort),
-          "accounting-port": String(radius.acctPort),
-          disabled: "no",
-        })
-      );
-      await tryStep("Enable RADIUS for PPPoE (AAA)", () =>
-        rosReq(ip, ssl ?? false, user, pass, "PATCH", "/ppp/aaa", {
-          "use-radius": "yes",
-          accounting: "yes",
-        })
-      );
-    }
+  // 5. Configure RADIUS authentication automatically, if a RADIUS server/secret
+  //    is already set up in Settings → Network. No opt-in required — this keeps
+  //    the router's auth in sync with the app's RADIUS config whenever it exists.
+  const radius = await getRadiusConfig(r);
+  if (radius) {
+    await tryStep("Add RADIUS server", () =>
+      upsertRos(ip, ssl ?? false, user, pass, "/radius", {
+        address: radius.server,
+        service: "ppp",
+      }, {
+        secret: radius.secret,
+        "authentication-port": String(radius.authPort),
+        "accounting-port": String(radius.acctPort),
+        disabled: "no",
+      })
+    );
+    await tryStep("Enable RADIUS for PPPoE (AAA)", () =>
+      rosReq(ip, ssl ?? false, user, pass, "PATCH", "/ppp/aaa", {
+        "use-radius": "yes",
+        accounting: "yes",
+      })
+    );
+  } else {
+    steps.push("○ RADIUS not configured in Settings → Network — skipped (router auth left on local secrets)");
   }
 
   res.json({ success: errors.length === 0, steps, errors });

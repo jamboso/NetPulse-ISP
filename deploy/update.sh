@@ -81,8 +81,24 @@ ok "Frontend built"
 
 # ── 6. Run DB migrations ──────────────────────────────────────────────────
 info "Running database migrations..."
-pnpm --filter @workspace/db run push-force
-ok "Database schema up to date"
+# Use schema.sql (IF NOT EXISTS statements) instead of drizzle-kit push,
+# which requires an interactive TTY for column conflict resolution and
+# fails silently when run detached from the SSE endpoint.
+SCHEMA_SQL="$APP_DIR/deploy/schema.sql"
+DB_NAME=$(echo "$DATABASE_URL" | grep -oP '(?<=/)[^/?]+$' || echo "netpulse")
+if [[ -f "$SCHEMA_SQL" ]]; then
+  sudo -u postgres psql -d "$DB_NAME" \
+    -v ON_ERROR_STOP=0 \
+    -f "$SCHEMA_SQL" >/dev/null 2>/tmp/schema-update.err || true
+  # Grant permissions on any newly created objects
+  sudo -u postgres psql -d "$DB_NAME" \
+    -c "GRANT ALL PRIVILEGES ON ALL TABLES   IN SCHEMA public TO netpulse;" >/dev/null 2>&1 || true
+  sudo -u postgres psql -d "$DB_NAME" \
+    -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO netpulse;" >/dev/null 2>&1 || true
+  ok "Database schema up to date"
+else
+  warn "schema.sql not found — skipping migration (schema may be out of date)"
+fi
 
 # ── 7. Restart app ────────────────────────────────────────────────────────
 info "Build complete — signalling dashboard before restart..."

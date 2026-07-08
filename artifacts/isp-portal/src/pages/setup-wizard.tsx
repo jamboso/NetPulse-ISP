@@ -95,7 +95,7 @@ export default function SetupWizard() {
       if (form.adminPassword.length < 8) return false;
       if (form.adminPassword !== form.adminPasswordConfirm) return false;
     }
-    if (step === 4) {
+    if (step === 2) {
       if (!form.companyName) return false;
     }
     return true;
@@ -118,7 +118,11 @@ export default function SetupWizard() {
         email: form.adminEmail,
         password: form.adminPassword,
       });
-      if (signInRes.error) throw new Error("Account created but sign-in failed. Go to /sign-in.");
+      if (signInRes.error) {
+        // Account was created — just redirect to sign-in
+        window.location.href = "/sign-in";
+        return;
+      }
 
       setStep(5); // done
     } catch (e) {

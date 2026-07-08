@@ -44,9 +44,22 @@ fi
 
 # ── 2. Install / update dependencies ──────────────────────────────────────
 info "Installing dependencies..."
-# CI=true prevents pnpm from prompting for TTY confirmation when it needs
-# to remove/recreate node_modules (which fails in the detached SSE context).
-CI=true pnpm install --frozen-lockfile 2>&1 | tail -3
+# Configure pnpm for slow/unreliable connections
+pnpm config set fetch-retries 5         --location project 2>/dev/null || true
+pnpm config set fetch-retry-mintimeout 30000  --location project 2>/dev/null || true
+pnpm config set fetch-retry-maxtimeout 300000 --location project 2>/dev/null || true
+pnpm config set fetch-timeout 300000    --location project 2>/dev/null || true
+pnpm config set network-concurrency 4   --location project 2>/dev/null || true
+# CI=true skips the TTY confirmation for node_modules removal (no terminal in SSE).
+# NETPULSE_INSTALL=1 skips the preinstall guard. Retry up to 3 times.
+for _attempt in 1 2 3; do
+  CI=true NETPULSE_INSTALL=1 pnpm install --no-frozen-lockfile 2>&1 | tail -5 && break
+  if [[ "$_attempt" -eq 3 ]]; then
+    die "pnpm install failed after 3 attempts. Check your internet connection."
+  fi
+  warn "pnpm install attempt $_attempt failed — retrying in 15s..."
+  sleep 15
+done
 ok "Dependencies up to date"
 
 # ── 3. Build libs ──────────────────────────────────────────────────────────

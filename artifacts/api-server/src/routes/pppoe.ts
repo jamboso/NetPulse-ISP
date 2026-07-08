@@ -49,6 +49,25 @@ async function getRouter(id: number) {
   return r;
 }
 
+// Create-or-update a RouterOS object matched by one or more query params (e.g. name,
+// or service-name+interface). RouterOS REST `PUT` always creates a *new* object, so
+// re-running setup against a router that already has the object would otherwise fail
+// with "already exists" errors. This looks the object up first and PATCHes it if found.
+async function upsertRos(
+  ip: string, ssl: boolean, user: string, pass: string,
+  path: string, match: Record<string, string>, body: Record<string, unknown>
+): Promise<unknown> {
+  const query = Object.entries(match)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join("&");
+  const existing = await rosReq(ip, ssl, user, pass, "GET", `${path}?${query}`);
+  const id = Array.isArray(existing) && existing.length > 0 ? existing[0][".id"] : undefined;
+  if (id) {
+    return rosReq(ip, ssl, user, pass, "PATCH", `${path}/${id}`, body);
+  }
+  return rosReq(ip, ssl, user, pass, "PUT", path, { ...match, ...body });
+}
+
 // ── GET /api/routers/:id/ros/pppoe/status ─────────────────────────────────────
 router.get("/routers/:id/ros/pppoe/status", async (req, res) => {
   const r = await getRouter(parseInt(req.params.id!));
@@ -146,15 +165,14 @@ router.post("/routers/:id/ros/pppoe/setup", async (req, res) => {
     catch (e: any) { errors.push(`✗ ${label}: ${e.message}`); }
   }
 
-  // 1. Create IP pool
+  // 1. Create (or update) IP pool
   await tryStep("Create IP pool", () =>
-    rosReq(ip, ssl ?? false, user, pass, "PUT", "/ip/pool", {
-      name: poolName,
+    upsertRos(ip, ssl ?? false, user, pass, "/ip/pool", { name: poolName }, {
       ranges: poolRange,
     })
   );
 
-  // 2. Create speed-tier profiles
+  // 2. Create (or update) speed-tier profiles
   const defaultProfiles = profiles.length > 0 ? profiles : [
     { name: "plan-2mbps", downloadKbps: 2048, uploadKbps: 1024 },
     { name: "plan-5mbps", downloadKbps: 5120, uploadKbps: 2048 },
@@ -167,22 +185,22 @@ router.post("/routers/:id/ros/pppoe/setup", async (req, res) => {
       ? `${p.uploadKbps}k/${p.downloadKbps}k`
       : "";
     await tryStep(`Create profile: ${p.name}`, () =>
-      rosReq(ip, ssl ?? false, user, pass, "PUT", "/ppp/profile", {
-        name: p.name,
+      upsertRos(ip, ssl ?? false, user, pass, "/ppp/profile", { name: p.name }, {
         "local-address": localAddress,
         "remote-address": poolName,
         "rate-limit": rateLimit,
         "session-timeout": p.sessionLimit ?? "0",
-        dns: dnsServers.split(",").map(s => s.trim()).join(","),
+        "dns-server": dnsServers.split(",").map(s => s.trim()).join(","),
       })
     );
   }
 
-  // 4. Create PPPoE server
+  // 4. Create (or update) PPPoE server
   await tryStep("Create PPPoE server", () =>
-    rosReq(ip, ssl ?? false, user, pass, "PUT", "/interface/pppoe-server/server", {
+    upsertRos(ip, ssl ?? false, user, pass, "/interface/pppoe-server/server", {
       interface: iface,
       "service-name": serviceName,
+    }, {
       "max-mtu": String(mtu),
       "max-mru": String(mtu),
       authentication: "pap,chap,mschap1,mschap2",
@@ -238,8 +256,7 @@ router.post("/routers/:id/ros/pppoe/profiles", async (req, res) => {
   if (!name) { res.status(400).json({ error: "name required" }); return; }
   const rateLimit = downloadKbps > 0 ? `${uploadKbps ?? Math.ceil(downloadKbps / 2)}k/${downloadKbps}k` : "";
   try {
-    const result = await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "PUT", "/ppp/profile", {
-      name,
+    const result = await upsertRos(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "/ppp/profile", { name }, {
       "rate-limit": rateLimit,
       ...(poolName ? { "remote-address": poolName } : {}),
       ...(localAddress ? { "local-address": localAddress } : {}),

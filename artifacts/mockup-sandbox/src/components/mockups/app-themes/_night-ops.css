@@ -1,0 +1,57 @@
+.night-ops {
+  --night-bg: #020617; /* slate-950 */
+  --night-sidebar: #000000;
+  --night-accent: #22d3ee; /* cyan-400 */
+  --night-accent-glow: 0 0 10px rgba(34, 211, 238, 0.4);
+  --night-text: #f8fafc;
+  --night-muted: #94a3b8;
+  --night-border: #1e293b;
+  --font-noc: 'Oxanium', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+.night-ops {
+  background-color: var(--night-bg);
+  color: var(--night-text);
+  font-family: var(--font-noc);
+}
+
+.night-ops .font-mono {
+  font-family: var(--font-mono);
+}
+
+.night-ops .glow-cyan {
+  box-shadow: var(--night-accent-glow);
+}
+
+.night-ops .border-accent {
+  border-color: var(--night-accent);
+}
+
+.night-ops .text-accent {
+  color: var(--night-accent);
+}
+
+.night-ops .bg-accent-subtle {
+  background-color: rgba(34, 211, 238, 0.1);
+}
+
+.night-ops .metric-card {
+  background-color: #0f172a; /* slate-900 */
+  border: 1px solid var(--night-border);
+  transition: all 0.2s ease;
+}
+
+.night-ops .metric-card:hover {
+  border-color: var(--night-accent);
+  box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
+}
+
+/* Tighter spacing overrides */
+.night-ops .dashboard-container {
+  padding: 1.5rem;
+}
+
+.night-ops .grid-gap {
+  gap: 0.75rem;
+}

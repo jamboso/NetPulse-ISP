@@ -1,0 +1,40 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+
+.daylight-root {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  --daylight-sidebar: #f8fafc;
+  --daylight-sidebar-border: #e2e8f0;
+  --daylight-accent: #3b82f6;
+  --daylight-accent-soft: #eff6ff;
+  --daylight-text-main: #1e293b;
+  --daylight-text-muted: #64748b;
+  --daylight-bg: #ffffff;
+  --daylight-card-border: #f1f5f9;
+}
+
+.daylight-root .sidebar-item-active {
+  background-color: var(--daylight-accent-soft);
+  color: var(--daylight-accent);
+  font-weight: 600;
+}
+
+.daylight-root .sidebar-item {
+  color: var(--daylight-text-muted);
+  transition: all 0.2s ease;
+}
+
+.daylight-root .sidebar-item:hover {
+  background-color: #f1f5f9;
+  color: var(--daylight-text-main);
+}
+
+.daylight-root .stat-card {
+  background: #ffffff;
+  border: 1px solid var(--daylight-card-border);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02);
+  border-radius: 12px;
+}
+
+.daylight-root .activity-item:hover {
+  background-color: #fafafa;
+}

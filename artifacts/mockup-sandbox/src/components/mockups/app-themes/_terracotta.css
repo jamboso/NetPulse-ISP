@@ -1,0 +1,26 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap");
+
+.terracotta-root {
+  --background: 40 40% 98%; /* Warm cream */
+  --foreground: 20 20% 15%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 20% 15%;
+  --primary: 25 75% 45%; /* Terracotta */
+  --primary-foreground: 40 40% 98%;
+  --muted: 40 30% 95%;
+  --muted-foreground: 20 10% 45%;
+  --accent: 35 90% 96%; /* Warm amber tint */
+  --accent-foreground: 25 75% 45%;
+  --sidebar: 25 15% 94%; /* Warm neutral light sidebar */
+  --sidebar-foreground: 20 20% 20%;
+  --sidebar-primary: 25 75% 45%;
+  --sidebar-accent: 35 90% 92%;
+  --radius: 1rem;
+  
+  font-family: 'Outfit', sans-serif;
+}
+
+.terracotta-root .card-shadow {
+  shadow-color: rgba(139, 69, 19, 0.05);
+  box-shadow: 0 10px 25px -5px rgba(139, 69, 19, 0.1), 0 8px 10px -6px rgba(139, 69, 19, 0.05);
+}

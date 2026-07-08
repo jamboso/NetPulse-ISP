@@ -1,0 +1,41 @@
+
+   │     To update, run: pnpm add -g pnpm     │
+   │                                          │
+   ╰──────────────────────────────────────────╯
+
+✔ The modules directories will be removed and reinstalled from scratch. Proceed? (Y/n) · true
+Recreating /opt/netpulse/node_modules
+Lockfile is up to date, resolution step is skipped
+Packages: +694
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Downloading react-icons@5.6.0: 22.42 MB/22.42 MB, done
+ WARN  Tarball download average speed 24 KiB/s (size 56 KiB) is below 50 KiB/s: https://registry.npmjs.org/@scalar/openapi-types/-/openapi-types-0.8.0.tgz (GET)
+ WARN  Tarball download average speed 4 KiB/s (size 4 KiB) is below 50 KiB/s: https://registry.npmjs.org/find-up/-/find-up-8.0.0.tgz (GET)
+ WARN  Tarball download average speed 31 KiB/s (size 31 KiB) is below 50 KiB/s: https://registry.npmjs.org/@orval/mock/-/mock-8.9.1.tgz (GET)
+ WARN  Tarball download average speed 37 KiB/s (size 47 KiB) is below 50 KiB/s: https://registry.npmjs.org/@scalar/json-magic/-/json-magic-0.12.12.tgz (GET)
+ WARN  Tarball download average speed 7 KiB/s (size 58 KiB) is below 50 KiB/s: https://registry.npmjs.org/orval/-/orval-8.9.1.tgz (GET)
+Progress: resolved 694, reused 0, downloaded 694, added 694, done
+node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild: Running postinstall script, done in 67ms
+
+dependencies:
++ @opentelemetry/semantic-conventions 1.41.1
++ @types/pdfkit 0.17.6
++ better-auth 1.6.11
++ pdfkit 0.18.0
+
+devDependencies:
++ prettier 3.8.3
++ typescript 5.9.3
+
+. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; [ "$NETPULSE_INSTALL" = "1" ] && exit 0; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use …
+└─ Done in 16ms
+Done in 38.4s using pnpm v10.26.1
+
+> @workspace/db@0.0.0 push /opt/netpulse/lib/db
+> drizzle-kit push --config ./drizzle.config.ts
+
+Reading config file '/opt/netpulse/lib/db/drizzle.config.ts'
+DATABASE_URL, ensure the database is provisioned
+/opt/netpulse/lib/db:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/db@0.0.0 push: `drizzle-kit push --config ./drizzle.config.ts`
+Exit status 1

@@ -23,14 +23,16 @@ Parameters: N=16384, r=16, p=1, dklen=64
 python3 -c "
 import hashlib, os, subprocess
 password = b'NewPassword'
-salt = os.urandom(16)
-h = hashlib.scrypt(password, salt=salt, n=16384, r=16, p=1, dklen=64, maxmem=67108864)
-pw_hash = salt.hex() + ':' + h.hex()
+salt_hex = os.urandom(16).hex()
+h = hashlib.scrypt(password, salt=salt_hex.encode('utf-8'), n=16384, r=16, p=1, dklen=64, maxmem=67108864)
+pw_hash = salt_hex + ':' + h.hex()
 sql = \"UPDATE accounts SET password='\" + pw_hash + \"' WHERE user_id IN (SELECT id FROM users WHERE email='user@example.com') AND provider_id='credential';\"
 r = subprocess.run(['sudo','-u','postgres','psql','-d','netpulse','-c',sql], capture_output=True, text=True)
 print(r.stdout or r.stderr)
 "
 ```
+
+**CRITICAL:** the salt must be hashed as its **hex-string bytes** (`salt_hex.encode('utf-8')`), NOT the raw random bytes. `@better-auth/utils` generates the salt via `randomBytes(16).toString("hex")` and feeds that 32-char hex *string* straight into Node's `crypto.scrypt` as the salt (Node encodes strings as utf8). Using `os.urandom(16)` raw bytes as the scrypt salt (while still storing the hex form) produces a hash that looks valid, updates the row (`UPDATE 1`), but never verifies — a previous version of this doc had this bug and caused a real production lockout.
 
 **Why:** Ubuntu 24.04 OpenSSL limits scrypt memory without `maxmem`. Always pass `maxmem=67108864` (64MB).
 

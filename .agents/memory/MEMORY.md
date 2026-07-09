@@ -5,3 +5,4 @@
 - [Secret updates need a full Repl restart](secret-update-needs-restart.md) — updating a secret's value doesn't refresh already-running shells; container must be restarted
 - [Bash tool git-lock false positive](bash-tool-git-lock-false-positive.md) — bash tool blocks any git command that transiently creates a `.git/*.lock` file, even safe ones like `fetch`/`remote set-url`; use code_execution instead
 - [NetPulse settings allowlist gap](netpulse-settings-allowlist-gap.md) — `radiusPort` isn't in api-server's SETTINGS_KEYS, so it silently can't be saved via PATCH /api/settings
+- [Prod DB schema drift causes silent-looking data loss](prod-schema-drift-500.md) — dev schema pushes don't reach production DB until Publish; missing columns 500 on prod, easily mistaken for "data disappeared"

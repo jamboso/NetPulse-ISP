@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useBulkSelect } from "@/hooks/useBulkSelect";
 import { BulkActionBar } from "@/components/BulkActionBar";
-import { Plus, Search, MoreHorizontal, Mail, Phone, MapPin, Pencil, Trash2, UserX, UserCheck, LocateFixed, Eye, EyeOff, Copy, Check, RefreshCw, Wifi } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Mail, Phone, MapPin, Pencil, Trash2, UserX, UserCheck, LocateFixed, Eye, EyeOff, Copy, Check, RefreshCw, Wifi, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -282,7 +282,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function Customers() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const { data: customersData, isLoading } = useListCustomers({ search, limit: 50 });
+  const { data: customersData, isLoading, isError, error, refetch } = useListCustomers({ search, limit: 50 });
   const deleteMutation = useDeleteCustomer();
   const { canManageCustomers, canDeleteCustomers } = useCurrentUser();
 
@@ -397,7 +397,18 @@ export default function Customers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? Array.from({ length: 5 }).map((_, i) => (
+              {isError ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center text-red-500">
+                    <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-60" />
+                    <p className="text-sm font-medium">Couldn't load customers</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{(error as any)?.message ?? "Request failed. Your data is safe — this is a connection issue, not data loss."}</p>
+                    <Button variant="link" size="sm" className="mt-1 text-blue-600" onClick={() => refetch()}>
+                      Retry
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ) : isLoading ? Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   {[40, 300, 180, 80, 100, 40].map((w, j) => (
                     <TableCell key={j}><Skeleton className={`h-8 ${j === 0 ? "w-4" : j === 5 ? "w-8 ml-auto" : "w-full"}`} /></TableCell>

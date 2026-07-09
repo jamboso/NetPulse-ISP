@@ -10,7 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useBulkSelect } from "@/hooks/useBulkSelect";
 import { BulkActionBar } from "@/components/BulkActionBar";
-import { Plus, Filter, Pencil, Trash2, Wifi, Copy, Check, KeyRound, UserX, XCircle, ClipboardList } from "lucide-react";
+import { Plus, Filter, Pencil, Trash2, Wifi, Copy, Check, KeyRound, UserX, XCircle, ClipboardList, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -193,7 +193,7 @@ export default function Subscriptions() {
   const { canManageBilling, canDeleteBillingRecords } = useCurrentUser();
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
-  const { data: subscriptionsData, isLoading } = useListSubscriptions(statusFilter ? { status: statusFilter } : undefined);
+  const { data: subscriptionsData, isLoading, isError, error, refetch } = useListSubscriptions(statusFilter ? { status: statusFilter } : undefined);
   const deleteMutation = useDeleteSubscription();
   const updateMutation = useUpdateSubscription();
   const [dialog, setDialog] = useState<{ open: boolean; id?: number; initial?: SubForm }>({ open: false });
@@ -302,7 +302,18 @@ export default function Subscriptions() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? Array.from({ length: 5 }).map((_, i) => (
+              {isError ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-32 text-center text-red-500">
+                    <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-60" />
+                    <p className="text-sm font-medium">Couldn't load subscriptions</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{(error as any)?.message ?? "Request failed. Your data is safe — this is a connection issue, not data loss."}</p>
+                    <Button variant="link" size="sm" className="mt-1 text-blue-600" onClick={() => refetch()}>
+                      Retry
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ) : isLoading ? Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>{Array.from({ length: 8 }).map((__, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
               )) : subs.length > 0 ? (
                 subs.map((sub: any) => (

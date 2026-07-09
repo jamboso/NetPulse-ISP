@@ -1026,7 +1026,7 @@ function IpPoolDialog({
 export default function Network() {
   const { data: equipmentData, isLoading: loadingEquipment } = useListEquipment();
   const { data: ipPoolsData, isLoading: loadingIpPools } = useListIpPools();
-  const { data: routersData, isLoading: loadingRouters } = useListRouters();
+  const { data: routersData, isLoading: loadingRouters, isError: isRoutersError, error: routersError, refetch: refetchRouters } = useListRouters();
 
   const deleteEquipment = useDeleteEquipment();
   const deletePool = useDeleteIpPool();
@@ -1210,7 +1210,18 @@ export default function Network() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loadingRouters ? (
+                {isRoutersError ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-32 text-center text-red-500">
+                      <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-60" />
+                      <p className="text-sm font-medium">Couldn't load routers</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{(routersError as any)?.message ?? "Request failed. Your data is safe — this is a connection issue, not data loss."}</p>
+                      <Button variant="link" size="sm" className="mt-1 text-blue-600" onClick={() => refetchRouters()}>
+                        Retry
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : loadingRouters ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <TableRow key={i}>
                       {Array.from({ length: 7 }).map((__, j) => (

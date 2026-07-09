@@ -1,0 +1,33 @@
+
+cat /opt/netpulse/.env 2>/dev/null | grep -i DATABASE_URLsudo cat /proc/6983/environ | tr '\0' '\n' | grep -i DATABASE_URL
+
+find /opt/netpulse -maxdepth 2 -iname '.env*'
+
+cat /opt/netpulse/.env 2>/dev/null | grep -i DATABASE_URL
+cat: /proc/6983/environ: No such file or directory
+/opt/netpulse/deploy/.env.example
+/opt/netpulse/.env
+grep: cat: No such file or directory
+grep: /proc/6983/environ: No such file or directory
+/opt/netpulse/deploy/.env.example
+/opt/netpulse/.env
+DATABASE_URL=postgresql://netpulse:9b92b307915f6e18d449df809652e43ebce94746cf424909@localhost:5432/netpulse
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo cat /proc/6983/environ | tr '\0' '\n' | grep -i DATABASE_URL
+
+cat: /proc/6983/environ: No such file or directory
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ find /opt/netpulse -maxdepth 2 -iname '.env*'
+
+/opt/netpulse/deploy/.env.example
+/opt/netpulse/.env
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ cat /opt/netpulse/.env 2>/dev/null | grep -i DATABASE_URL
+
+DATABASE_URL=postgresql://netpulse:9b92b307915f6e18d449df809652e43ebce94746cf424909@localhost:5432/netpulse
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ cd /opt/netpulse/artifacts/api-server set -a; source /opt/netpulse/.env; set +a node -e " const { hashPassword, verifyPassword } = require('better-auth/crypto'); const { Client } = require('pg'); (async () => { const email = 'jamesbunoro@gmail.com'; const newPassword = 'NewPass123!'; const hash = await hashPassword(newPassword); console.log('generated hash:', hash); const client = new Client({ connectionString: process.env.DATABASE_URL }); await client.connect(); const userRes = await client.query('SELECT id FROM users WHERE email = $1', [email]); const userId = userRes.rows[0].id; await client.query("UPDATE accounts SET password = $1 WHERE user_id = $2 AND provider_id = 'credential'", [hash, userId]); const check = await client.query("SELECT password FROM accounts WHERE user_id = $1", [userId]); const ok = await verifyPassword({ hash: check.rows[0].password, password: newPassword }); console.log('round-trip verify result:', ok); await client.end(); })(); "
+-bash: !': event not found
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

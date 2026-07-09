@@ -12,6 +12,10 @@ CREATE TABLE "customers" (
         CONSTRAINT "customers_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "pppoe_username" text;
+--> statement-breakpoint
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "pppoe_password" text;
+--> statement-breakpoint
 CREATE TABLE "plans" (
         "id" serial PRIMARY KEY NOT NULL,
         "name" text NOT NULL,
@@ -145,6 +149,27 @@ CREATE TABLE "routers" (
         "radius_port" integer DEFAULT 1812,
         "created_at" timestamp DEFAULT now() NOT NULL
 );
+--> statement-breakpoint
+ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "provision_token" text;
+--> statement-breakpoint
+ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "provision_status" text DEFAULT 'pending' NOT NULL;
+--> statement-breakpoint
+ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "mac_address" text;
+--> statement-breakpoint
+ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "ros_version" text;
+--> statement-breakpoint
+ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "vpn_connected" boolean DEFAULT false NOT NULL;
+--> statement-breakpoint
+ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "last_callback_at" timestamp;
+--> statement-breakpoint
+ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "vpn_ip" text;
+--> statement-breakpoint
+ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "bridge_ports" text DEFAULT '["ether2"]';
+--> statement-breakpoint
+DO $$ BEGIN
+        ALTER TABLE "routers" ADD CONSTRAINT "routers_provision_token_unique" UNIQUE("provision_token");
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 --> statement-breakpoint
 CREATE TABLE "hotspot_packages" (
         "id" serial PRIMARY KEY NOT NULL,

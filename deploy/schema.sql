@@ -166,6 +166,8 @@ ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "vpn_ip" text;
 --> statement-breakpoint
 ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "bridge_ports" text DEFAULT '["ether2"]';
 --> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "phone" text;
+--> statement-breakpoint
 DO $$ BEGIN
         ALTER TABLE "routers" ADD CONSTRAINT "routers_provision_token_unique" UNIQUE("provision_token");
 EXCEPTION WHEN duplicate_object THEN NULL;
@@ -338,6 +340,7 @@ CREATE TABLE "users" (
         "image" text,
         "role" text DEFAULT 'admin' NOT NULL,
         "active" boolean DEFAULT true NOT NULL,
+        "phone" text,
         "created_at" timestamp DEFAULT now() NOT NULL,
         "updated_at" timestamp DEFAULT now() NOT NULL,
         CONSTRAINT "users_email_unique" UNIQUE("email")

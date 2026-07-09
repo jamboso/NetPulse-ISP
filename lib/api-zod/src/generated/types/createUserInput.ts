@@ -11,6 +11,7 @@ import type { CreateUserInputRole } from './createUserInputRole';
 export interface CreateUserInput {
   name: string;
   email: string;
+  phone?: string;
   /** @minLength 8 */
   password: string;
   role: CreateUserInputRole;

@@ -11,6 +11,7 @@ export interface StaffUser {
   id: string;
   email: string;
   name: string;
+  phone?: string | null;
   role: StaffUserRole;
   active: boolean;
   createdAt: Date;

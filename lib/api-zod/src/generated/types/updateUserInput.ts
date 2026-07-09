@@ -10,4 +10,5 @@ import type { UpdateUserInputRole } from './updateUserInputRole';
 export interface UpdateUserInput {
   role?: UpdateUserInputRole;
   active?: boolean;
+  phone?: string | null;
 }

@@ -125,6 +125,7 @@ export const ListUsersResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
   "name": zod.string(),
+  "phone": zod.string().nullish(),
   "role": zod.enum(['admin', 'billing', 'support', 'technician']),
   "active": zod.boolean(),
   "createdAt": zod.coerce.date(),
@@ -143,6 +144,7 @@ export const createUserBodyNotifyMethodDefault = `none`;
 export const CreateUserBody = zod.object({
   "name": zod.string(),
   "email": zod.string().email(),
+  "phone": zod.string().optional(),
   "password": zod.string().min(createUserBodyPasswordMin),
   "role": zod.enum(['admin', 'billing', 'support', 'technician']),
   "notifyMethod": zod.enum(['none', 'sms', 'email', 'both']).default(createUserBodyNotifyMethodDefault),
@@ -177,17 +179,85 @@ export const UpdateUserParams = zod.object({
 
 export const UpdateUserBody = zod.object({
   "role": zod.enum(['admin', 'billing', 'support', 'technician']).optional(),
-  "active": zod.boolean().optional()
+  "active": zod.boolean().optional(),
+  "phone": zod.string().nullish()
 })
 
 export const UpdateUserResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
   "name": zod.string(),
+  "phone": zod.string().nullish(),
   "role": zod.enum(['admin', 'billing', 'support', 'technician']),
   "active": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "lastActiveAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Update the current user's own phone number (used for SMS password reset)
+ */
+export const UpdateOwnPhoneBody = zod.object({
+  "phone": zod.string().nullable()
+})
+
+export const UpdateOwnPhoneResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "name": zod.string(),
+  "phone": zod.string().nullish(),
+  "role": zod.enum(['admin', 'billing', 'support', 'technician']),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "lastActiveAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Check which reset methods (email/SMS) are available for an account
+ */
+export const GetPasswordResetMethodsBody = zod.object({
+  "email": zod.string().email()
+})
+
+export const GetPasswordResetMethodsResponse = zod.object({
+  "hasEmail": zod.boolean(),
+  "hasSms": zod.boolean(),
+  "maskedPhone": zod.string().nullish()
+})
+
+
+/**
+ * @summary Request a password reset via email link or SMS code
+ */
+export const RequestPasswordResetCodeBody = zod.object({
+  "email": zod.string().email(),
+  "method": zod.enum(['email', 'sms'])
+})
+
+export const RequestPasswordResetCodeResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Verify an SMS reset code and set a new password
+ */
+export const verifySmsResetCodeBodyNewPasswordMin = 8;
+
+
+
+export const VerifySmsResetCodeBody = zod.object({
+  "email": zod.string().email(),
+  "code": zod.string(),
+  "newPassword": zod.string().min(verifySmsResetCodeBodyNewPasswordMin)
+})
+
+export const VerifySmsResetCodeResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
 })
 
 

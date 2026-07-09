@@ -38,6 +38,7 @@ import blockedIpsRouter from "./blocked-ips";
 import trafficRouter from "./traffic";
 import provisionRouter from "./provision";
 import openaiRouter from "./openai";
+import passwordResetRouter from "./password-reset";
 
 const router: IRouter = Router();
 
@@ -54,6 +55,9 @@ router.use(mpesaPublicRouter);
 
 // Hotspot portal API — public (captive portal for WiFi customers)
 router.use(hotspotPortalRouter);
+
+// Password reset — public (used by unauthenticated users on the sign-in page)
+router.use(passwordResetRouter);
 
 // All routes below require a valid session
 router.use(requireAuth);

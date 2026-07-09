@@ -15,6 +15,7 @@ const VALID_ROLES = ["admin", "billing", "support", "technician"] as const;
 const createUserSchema = z.object({
   name:           z.string().min(1),
   email:          z.string().email(),
+  phone:          z.string().optional(),
   password:       z.string().min(8),
   role:           z.enum(VALID_ROLES),
   notifyMethod:   z.enum(["none", "sms", "email", "both"]).optional().default("none"),
@@ -24,6 +25,11 @@ const createUserSchema = z.object({
 const updateUserSchema = z.object({
   role:   z.enum(VALID_ROLES).optional(),
   active: z.boolean().optional(),
+  phone:  z.string().nullable().optional(),
+});
+
+const updateOwnPhoneSchema = z.object({
+  phone: z.string().nullable(),
 });
 
 const router = Router();
@@ -45,6 +51,7 @@ router.get("/users", requireRole("admin"), async (req, res) => {
       id: usersTable.id,
       email: usersTable.email,
       name: usersTable.name,
+      phone: usersTable.phone,
       role: usersTable.role,
       active: usersTable.active,
       createdAt: usersTable.createdAt,
@@ -68,7 +75,7 @@ router.get("/users", requireRole("admin"), async (req, res) => {
 });
 
 router.post("/users", requireRole("admin"), validateBody(createUserSchema), async (req, res) => {
-  const { name, email, password, role, notifyMethod = "none", notifyPhone } = req.body as z.infer<typeof createUserSchema>;
+  const { name, email, phone, password, role, notifyMethod = "none", notifyPhone } = req.body as z.infer<typeof createUserSchema>;
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (existing.length > 0) {
@@ -91,12 +98,13 @@ router.post("/users", requireRole("admin"), validateBody(createUserSchema), asyn
 
   const [updated] = await db
     .update(usersTable)
-    .set({ role, updatedAt: new Date() })
+    .set({ role, phone: phone?.trim() || null, updatedAt: new Date() })
     .where(eq(usersTable.id, signUpResult.user.id))
     .returning({
       id: usersTable.id,
       email: usersTable.email,
       name: usersTable.name,
+      phone: usersTable.phone,
       role: usersTable.role,
       active: usersTable.active,
       createdAt: usersTable.createdAt,
@@ -236,7 +244,7 @@ router.post("/users/welcome-email-preview/send", requireRole("admin"), async (re
 
 router.patch("/users/:id", requireRole("admin"), validateBody(updateUserSchema), async (req, res) => {
   const { id } = req.params as { id: string };
-  const { role, active } = req.body as z.infer<typeof updateUserSchema>;
+  const { role, active, phone } = req.body as z.infer<typeof updateUserSchema>;
 
   if (id === req.user!.id) {
     res.status(400).json({ error: "You cannot modify your own account through this endpoint" });
@@ -252,6 +260,7 @@ router.patch("/users/:id", requireRole("admin"), validateBody(updateUserSchema),
   const updates: Partial<typeof usersTable.$inferInsert> = { updatedAt: new Date() };
   if (role !== undefined) updates.role = role;
   if (active !== undefined) updates.active = active;
+  if (phone !== undefined) updates.phone = phone?.trim() || null;
 
   const [updated] = await db
     .update(usersTable)
@@ -261,6 +270,7 @@ router.patch("/users/:id", requireRole("admin"), validateBody(updateUserSchema),
       id: usersTable.id,
       email: usersTable.email,
       name: usersTable.name,
+      phone: usersTable.phone,
       role: usersTable.role,
       active: usersTable.active,
       createdAt: usersTable.createdAt,
@@ -274,6 +284,36 @@ router.patch("/users/:id", requireRole("admin"), validateBody(updateUserSchema),
     entityId: null,
     diff: { before: existing, after: updated },
   });
+
+  res.json(updated);
+});
+
+// ── Self-service phone number update (any authenticated user, own account only) ─
+// Needed so a staff member can set the phone number that SMS password-reset codes
+// will be sent to. Not role-gated — every user must be able to secure their own
+// account's reset options.
+router.patch("/users/me/phone", validateBody(updateOwnPhoneSchema), async (req, res) => {
+  const { phone } = req.body as z.infer<typeof updateOwnPhoneSchema>;
+  const userId = req.user!.id;
+
+  const [updated] = await db
+    .update(usersTable)
+    .set({ phone: phone?.trim() || null, updatedAt: new Date() })
+    .where(eq(usersTable.id, userId))
+    .returning({
+      id: usersTable.id,
+      email: usersTable.email,
+      name: usersTable.name,
+      phone: usersTable.phone,
+      role: usersTable.role,
+      active: usersTable.active,
+      createdAt: usersTable.createdAt,
+    });
+
+  if (!updated) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
 
   res.json(updated);
 });

@@ -67,6 +67,11 @@ import type {
   OpenaiError,
   OpenaiMessage,
   OpenaiMessageInput,
+  PasswordResetGenericResponse,
+  PasswordResetMethods,
+  PasswordResetMethodsInput,
+  PasswordResetRequestInput,
+  PasswordResetVerifySmsInput,
   Payment,
   PaymentInput,
   Plan,
@@ -95,6 +100,7 @@ import type {
   TicketReplyInput,
   TicketUpdate,
   UnblockIp200,
+  UpdateOwnPhoneInput,
   UpdateUserInput,
   UsageSnapshotBatch,
   VpnConfig,
@@ -1007,6 +1013,290 @@ export const useUpdateUser = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdateUserMutationOptions(options));
+    }
+
+export const getUpdateOwnPhoneUrl = () => {
+
+
+
+
+  return `/api/users/me/phone`
+}
+
+/**
+ * @summary Update the current user's own phone number (used for SMS password reset)
+ */
+export const updateOwnPhone = async (updateOwnPhoneInput: UpdateOwnPhoneInput, options?: RequestInit): Promise<StaffUser> => {
+
+  return customFetch<StaffUser>(getUpdateOwnPhoneUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateOwnPhoneInput,)
+  }
+);}
+
+
+
+
+export const getUpdateOwnPhoneMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOwnPhone>>, TError,{data: BodyType<UpdateOwnPhoneInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOwnPhone>>, TError,{data: BodyType<UpdateOwnPhoneInput>}, TContext> => {
+
+const mutationKey = ['updateOwnPhone'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOwnPhone>>, {data: BodyType<UpdateOwnPhoneInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateOwnPhone(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOwnPhoneMutationResult = NonNullable<Awaited<ReturnType<typeof updateOwnPhone>>>
+    export type UpdateOwnPhoneMutationBody = BodyType<UpdateOwnPhoneInput>
+    export type UpdateOwnPhoneMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update the current user's own phone number (used for SMS password reset)
+ */
+export const useUpdateOwnPhone = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOwnPhone>>, TError,{data: BodyType<UpdateOwnPhoneInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateOwnPhone>>,
+        TError,
+        {data: BodyType<UpdateOwnPhoneInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateOwnPhoneMutationOptions(options));
+    }
+
+export const getGetPasswordResetMethodsUrl = () => {
+
+
+
+
+  return `/api/password-reset/methods`
+}
+
+/**
+ * @summary Check which reset methods (email/SMS) are available for an account
+ */
+export const getPasswordResetMethods = async (passwordResetMethodsInput: PasswordResetMethodsInput, options?: RequestInit): Promise<PasswordResetMethods> => {
+
+  return customFetch<PasswordResetMethods>(getGetPasswordResetMethodsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      passwordResetMethodsInput,)
+  }
+);}
+
+
+
+
+export const getGetPasswordResetMethodsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getPasswordResetMethods>>, TError,{data: BodyType<PasswordResetMethodsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof getPasswordResetMethods>>, TError,{data: BodyType<PasswordResetMethodsInput>}, TContext> => {
+
+const mutationKey = ['getPasswordResetMethods'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof getPasswordResetMethods>>, {data: BodyType<PasswordResetMethodsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  getPasswordResetMethods(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GetPasswordResetMethodsMutationResult = NonNullable<Awaited<ReturnType<typeof getPasswordResetMethods>>>
+    export type GetPasswordResetMethodsMutationBody = BodyType<PasswordResetMethodsInput>
+    export type GetPasswordResetMethodsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Check which reset methods (email/SMS) are available for an account
+ */
+export const useGetPasswordResetMethods = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getPasswordResetMethods>>, TError,{data: BodyType<PasswordResetMethodsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof getPasswordResetMethods>>,
+        TError,
+        {data: BodyType<PasswordResetMethodsInput>},
+        TContext
+      > => {
+      return useMutation(getGetPasswordResetMethodsMutationOptions(options));
+    }
+
+export const getRequestPasswordResetCodeUrl = () => {
+
+
+
+
+  return `/api/password-reset/request`
+}
+
+/**
+ * @summary Request a password reset via email link or SMS code
+ */
+export const requestPasswordResetCode = async (passwordResetRequestInput: PasswordResetRequestInput, options?: RequestInit): Promise<PasswordResetGenericResponse> => {
+
+  return customFetch<PasswordResetGenericResponse>(getRequestPasswordResetCodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      passwordResetRequestInput,)
+  }
+);}
+
+
+
+
+export const getRequestPasswordResetCodeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestPasswordResetCode>>, TError,{data: BodyType<PasswordResetRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestPasswordResetCode>>, TError,{data: BodyType<PasswordResetRequestInput>}, TContext> => {
+
+const mutationKey = ['requestPasswordResetCode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestPasswordResetCode>>, {data: BodyType<PasswordResetRequestInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestPasswordResetCode(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestPasswordResetCodeMutationResult = NonNullable<Awaited<ReturnType<typeof requestPasswordResetCode>>>
+    export type RequestPasswordResetCodeMutationBody = BodyType<PasswordResetRequestInput>
+    export type RequestPasswordResetCodeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Request a password reset via email link or SMS code
+ */
+export const useRequestPasswordResetCode = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestPasswordResetCode>>, TError,{data: BodyType<PasswordResetRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestPasswordResetCode>>,
+        TError,
+        {data: BodyType<PasswordResetRequestInput>},
+        TContext
+      > => {
+      return useMutation(getRequestPasswordResetCodeMutationOptions(options));
+    }
+
+export const getVerifySmsResetCodeUrl = () => {
+
+
+
+
+  return `/api/password-reset/verify-sms`
+}
+
+/**
+ * @summary Verify an SMS reset code and set a new password
+ */
+export const verifySmsResetCode = async (passwordResetVerifySmsInput: PasswordResetVerifySmsInput, options?: RequestInit): Promise<PasswordResetGenericResponse> => {
+
+  return customFetch<PasswordResetGenericResponse>(getVerifySmsResetCodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      passwordResetVerifySmsInput,)
+  }
+);}
+
+
+
+
+export const getVerifySmsResetCodeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifySmsResetCode>>, TError,{data: BodyType<PasswordResetVerifySmsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifySmsResetCode>>, TError,{data: BodyType<PasswordResetVerifySmsInput>}, TContext> => {
+
+const mutationKey = ['verifySmsResetCode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifySmsResetCode>>, {data: BodyType<PasswordResetVerifySmsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  verifySmsResetCode(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifySmsResetCodeMutationResult = NonNullable<Awaited<ReturnType<typeof verifySmsResetCode>>>
+    export type VerifySmsResetCodeMutationBody = BodyType<PasswordResetVerifySmsInput>
+    export type VerifySmsResetCodeMutationError = ErrorType<void>
+
+    /**
+ * @summary Verify an SMS reset code and set a new password
+ */
+export const useVerifySmsResetCode = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifySmsResetCode>>, TError,{data: BodyType<PasswordResetVerifySmsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifySmsResetCode>>,
+        TError,
+        {data: BodyType<PasswordResetVerifySmsInput>},
+        TContext
+      > => {
+      return useMutation(getVerifySmsResetCodeMutationOptions(options));
     }
 
 export const getListAuditLogsUrl = (params?: ListAuditLogsParams,) => {

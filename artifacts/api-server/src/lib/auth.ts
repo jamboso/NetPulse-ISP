@@ -60,6 +60,7 @@ export const auth = betterAuth({
     additionalFields: {
       role:   { type: "string",  defaultValue: "admin",  required: false },
       active: { type: "boolean", defaultValue: true,     required: false },
+      phone:  { type: "string",  required: false },
     },
   },
   session: {

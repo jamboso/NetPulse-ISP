@@ -297,6 +297,85 @@ paths:
         "404":
           description: User not found
 
+  /users/me/phone:
+    patch:
+      operationId: updateOwnPhone
+      tags: [users]
+      summary: Update the current user's own phone number (used for SMS password reset)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOwnPhoneInput"
+      responses:
+        "200":
+          description: Updated staff user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffUser"
+
+  # ── PASSWORD RESET (public, used from the sign-in page) ──────────────────────
+  /password-reset/methods:
+    post:
+      operationId: getPasswordResetMethods
+      tags: [password-reset]
+      summary: Check which reset methods (email/SMS) are available for an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetMethodsInput"
+      responses:
+        "200":
+          description: Available reset methods
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasswordResetMethods"
+
+  /password-reset/request:
+    post:
+      operationId: requestPasswordResetCode
+      tags: [password-reset]
+      summary: Request a password reset via email link or SMS code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetRequestInput"
+      responses:
+        "200":
+          description: Generic confirmation (never reveals account existence)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasswordResetGenericResponse"
+
+  /password-reset/verify-sms:
+    post:
+      operationId: verifySmsResetCode
+      tags: [password-reset]
+      summary: Verify an SMS reset code and set a new password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetVerifySmsInput"
+      responses:
+        "200":
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasswordResetGenericResponse"
+        "400":
+          description: Invalid or expired code
+
   # ── AUDIT LOGS ───────────────────────────────────────────────────────────────
   /audit-logs:
     get:
@@ -3053,6 +3132,9 @@ components:
           type: string
         name:
           type: string
+        phone:
+          type: string
+          nullable: true
         role:
           type: string
           enum: [admin, billing, support, technician]
@@ -3075,6 +3157,8 @@ components:
         email:
           type: string
           format: email
+        phone:
+          type: string
         password:
           type: string
           minLength: 8
@@ -3096,6 +3180,70 @@ components:
           enum: [admin, billing, support, technician]
         active:
           type: boolean
+        phone:
+          type: string
+          nullable: true
+
+    UpdateOwnPhoneInput:
+      type: object
+      required: [phone]
+      properties:
+        phone:
+          type: string
+          nullable: true
+
+    PasswordResetMethodsInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    PasswordResetMethods:
+      type: object
+      required: [hasEmail, hasSms]
+      properties:
+        hasEmail:
+          type: boolean
+        hasSms:
+          type: boolean
+        maskedPhone:
+          type: string
+          nullable: true
+
+    PasswordResetRequestInput:
+      type: object
+      required: [email, method]
+      properties:
+        email:
+          type: string
+          format: email
+        method:
+          type: string
+          enum: [email, sms]
+
+    PasswordResetVerifySmsInput:
+      type: object
+      required: [email, code, newPassword]
+      properties:
+        email:
+          type: string
+          format: email
+        code:
+          type: string
+        newPassword:
+          type: string
+          minLength: 8
+
+    PasswordResetGenericResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
 
     RadiusSession:
       type: object

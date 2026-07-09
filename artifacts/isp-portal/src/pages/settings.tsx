@@ -17,6 +17,7 @@ import { UpdatesTab } from "./updates-tab";
 import { AiAssistantTab } from "./ai-assistant-tab";
 import { SectionCard } from "@/components/SectionCard";
 import { ChangePasswordSection } from "@/components/ChangePasswordSection";
+import { PhoneNumberSection } from "@/components/PhoneNumberSection";
 import { RouterLoginSyncSection } from "@/components/RouterLoginSyncSection";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
@@ -396,6 +397,7 @@ export default function Settings() {
 
         {/* ── ACCOUNT ─────────────────────────────────────────────────────── */}
         <TabsContent value="account" className="mt-5 space-y-4">
+          <PhoneNumberSection />
           <ChangePasswordSection />
           <RouterLoginSyncSection />
         </TabsContent>

@@ -1132,6 +1132,7 @@ export interface StaffUser {
   id: string;
   email: string;
   name: string;
+  phone?: string | null;
   role: StaffUserRole;
   active: boolean;
   createdAt: string;
@@ -1161,6 +1162,7 @@ export const CreateUserInputNotifyMethod = {
 export interface CreateUserInput {
   name: string;
   email: string;
+  phone?: string;
   /** @minLength 8 */
   password: string;
   role: CreateUserInputRole;
@@ -1181,6 +1183,46 @@ export const UpdateUserInputRole = {
 export interface UpdateUserInput {
   role?: UpdateUserInputRole;
   active?: boolean;
+  phone?: string | null;
+}
+
+export interface UpdateOwnPhoneInput {
+  phone: string | null;
+}
+
+export interface PasswordResetMethodsInput {
+  email: string;
+}
+
+export interface PasswordResetMethods {
+  hasEmail: boolean;
+  hasSms: boolean;
+  maskedPhone?: string | null;
+}
+
+export type PasswordResetRequestInputMethod = typeof PasswordResetRequestInputMethod[keyof typeof PasswordResetRequestInputMethod];
+
+
+export const PasswordResetRequestInputMethod = {
+  email: 'email',
+  sms: 'sms',
+} as const;
+
+export interface PasswordResetRequestInput {
+  email: string;
+  method: PasswordResetRequestInputMethod;
+}
+
+export interface PasswordResetVerifySmsInput {
+  email: string;
+  code: string;
+  /** @minLength 8 */
+  newPassword: string;
+}
+
+export interface PasswordResetGenericResponse {
+  success: boolean;
+  message: string;
 }
 
 export interface RadiusSession {

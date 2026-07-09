@@ -256,8 +256,10 @@ export default function StaffPage() {
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<Role>("support");
+  const [newAccountPhone, setNewAccountPhone] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [notifyMethod, setNotifyMethod] = useState<"none" | "sms" | "email" | "both">("none");
+  const [editPhone, setEditPhone] = useState("");
 
   const previewQuery = useGetWelcomeEmailPreview({
     query: { queryKey: getGetWelcomeEmailPreviewQueryKey(), enabled: previewOpen, staleTime: 30_000 },
@@ -328,7 +330,7 @@ export default function StaffPage() {
 
   function resetInviteForm() {
     setNewName(""); setNewEmail(""); setNewPassword(""); setNewRole("support");
-    setNewPhone(""); setNotifyMethod("none"); setFormError("");
+    setNewAccountPhone(""); setNewPhone(""); setNotifyMethod("none"); setFormError("");
   }
 
   function handleInviteOpen() { resetInviteForm(); setInviteOpen(true); }
@@ -344,20 +346,24 @@ export default function StaffPage() {
       data: {
         name: newName, email: newEmail, password: newPassword, role: newRole,
         notifyMethod,
+        ...(newAccountPhone.trim() ? { phone: newAccountPhone.trim() } : {}),
         ...(newPhone.trim() ? { notifyPhone: newPhone.trim() } : {}),
       },
     });
   }
 
   function handleEditOpen(user: StaffUser) {
-    setFormError(""); setEditRole(user.role as Role); setEditUser(user);
+    setFormError(""); setEditRole(user.role as Role); setEditPhone(user.phone ?? ""); setEditUser(user);
   }
 
   function handleEditSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!editUser) return;
     setFormError("");
-    updateMutation.mutate({ id: editUser.id, data: { role: editRole } });
+    updateMutation.mutate({
+      id: editUser.id,
+      data: { role: editRole, phone: editPhone.trim() || null },
+    });
   }
 
   function handleToggleActive(user: StaffUser) {
@@ -543,6 +549,11 @@ export default function StaffPage() {
               <Input id="inv-password" type="password" placeholder="Min 8 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)} minLength={8} required />
             </div>
             <div className="space-y-1">
+              <Label htmlFor="inv-account-phone">Phone Number</Label>
+              <Input id="inv-account-phone" type="tel" placeholder="e.g. 0712345678" value={newAccountPhone} onChange={e => setNewAccountPhone(e.target.value)} />
+              <p className="text-xs text-gray-400">Used for SMS password reset codes. Optional.</p>
+            </div>
+            <div className="space-y-1">
               <Label htmlFor="inv-role">Role</Label>
               <Select value={newRole} onValueChange={v => setNewRole(v as Role)}>
                 <SelectTrigger id="inv-role"><SelectValue /></SelectTrigger>
@@ -619,6 +630,11 @@ export default function StaffPage() {
                   </SelectContent>
                 </Select>
                 <RoleInlineSummary role={editRole} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-phone">Phone Number</Label>
+                <Input id="edit-phone" type="tel" placeholder="e.g. 0712345678" value={editPhone} onChange={e => setEditPhone(e.target.value)} />
+                <p className="text-xs text-gray-400">Used for SMS password reset codes.</p>
               </div>
               {formError && (
                 <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{formError}</p>

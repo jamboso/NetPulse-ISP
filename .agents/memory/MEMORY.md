@@ -6,3 +6,4 @@
 - [Bash tool git-lock false positive](bash-tool-git-lock-false-positive.md) — bash tool blocks any git command that transiently creates a `.git/*.lock` file, even safe ones like `fetch`/`remote set-url`; use code_execution instead
 - [NetPulse settings allowlist gap](netpulse-settings-allowlist-gap.md) — `radiusPort` isn't in api-server's SETTINGS_KEYS, so it silently can't be saved via PATCH /api/settings
 - [Prod DB schema drift causes silent-looking data loss](prod-schema-drift-500.md) — dev schema pushes don't reach production DB until Publish; missing columns 500 on prod, easily mistaken for "data disappeared"
+- [better-auth password hashing helper](better-auth-hash-password-helper.md) — import `hashPassword`/`verifyPassword` from `better-auth/crypto` for any in-app password write instead of reimplementing scrypt

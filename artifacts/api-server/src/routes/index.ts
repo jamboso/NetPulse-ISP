@@ -37,6 +37,7 @@ import securityEventsRouter from "./security-events";
 import blockedIpsRouter from "./blocked-ips";
 import trafficRouter from "./traffic";
 import provisionRouter from "./provision";
+import openaiRouter from "./openai";
 
 const router: IRouter = Router();
 
@@ -91,5 +92,6 @@ router.use(vpnRouter);
 router.use(securityEventsRouter);
 router.use(blockedIpsRouter);
 router.use(trafficRouter);
+router.use(openaiRouter);
 
 export default router;

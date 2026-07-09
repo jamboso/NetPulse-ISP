@@ -10,13 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Building2, CreditCard, Network, Bell, Smartphone, Save, CheckCircle2, AlertCircle, MessageSquare, Send, Loader2, Shield, RefreshCw, Link2, UserCircle, Palette } from "lucide-react";
+import { Building2, CreditCard, Network, Bell, Smartphone, Save, CheckCircle2, AlertCircle, MessageSquare, Send, Loader2, Shield, RefreshCw, Link2, UserCircle, Palette, Sparkles } from "lucide-react";
 import { useTheme, THEMES } from "@/lib/theme";
 import { InfrastructureTab } from "./infrastructure-tab";
 import { UpdatesTab } from "./updates-tab";
+import { AiAssistantTab } from "./ai-assistant-tab";
 import { SectionCard } from "@/components/SectionCard";
 import { ChangePasswordSection } from "@/components/ChangePasswordSection";
 import { RouterLoginSyncSection } from "@/components/RouterLoginSyncSection";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 type SettingsData = Record<string, string | null>;
 
@@ -265,6 +267,7 @@ function AppearanceTab() {
 }
 
 export default function Settings() {
+  const { isAdmin } = useCurrentUser();
   const { data: serverSettings, isLoading } = useGetSettings();
   const updateMutation = useUpdateSettings();
   const queryClient = useQueryClient();
@@ -379,6 +382,11 @@ export default function Settings() {
           <TabsTrigger value="updates" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <RefreshCw className="w-3.5 h-3.5" /> Updates
           </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="ai-assistant" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <Sparkles className="w-3.5 h-3.5" /> AI Assistant
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* ── APPEARANCE ──────────────────────────────────────────────────── */}
@@ -650,6 +658,13 @@ export default function Settings() {
         <TabsContent value="updates" className="mt-5">
           <UpdatesTab />
         </TabsContent>
+
+        {/* ── AI ASSISTANT ────────────────────────────────────────────────── */}
+        {isAdmin && (
+          <TabsContent value="ai-assistant" className="mt-5">
+            <AiAssistantTab />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

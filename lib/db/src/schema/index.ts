@@ -24,3 +24,5 @@ export * from "./vpnConfigs";
 export * from "./securityEvents";
 export * from "./blockedIps";
 export * from "./dnsObservations";
+export * from "./conversations";
+export * from "./messages";

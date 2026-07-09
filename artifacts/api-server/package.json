@@ -15,6 +15,7 @@
     "@opentelemetry/semantic-conventions": "^1.41.1",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
+    "@workspace/integrations-openai-ai-server": "workspace:*",
     "better-auth": "catalog:",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

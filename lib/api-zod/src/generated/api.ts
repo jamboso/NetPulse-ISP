@@ -9,6 +9,111 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary List all diagnostics chat conversations (admin only)
+ */
+export const ListOpenaiConversationsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListOpenaiConversationsResponse = zod.array(ListOpenaiConversationsResponseItem)
+
+
+/**
+ * @summary Create a new diagnostics chat conversation (admin only)
+ */
+export const CreateOpenaiConversationBody = zod.object({
+  "title": zod.string()
+})
+
+
+/**
+ * @summary Get conversation with messages (admin only)
+ */
+export const GetOpenaiConversationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetOpenaiConversationResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "messages": zod.array(zod.object({
+  "id": zod.number(),
+  "conversationId": zod.number(),
+  "role": zod.enum(['user', 'assistant', 'system']),
+  "content": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Delete a conversation (admin only)
+ */
+export const DeleteOpenaiConversationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary List messages in a conversation (admin only)
+ */
+export const ListOpenaiMessagesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListOpenaiMessagesResponseItem = zod.object({
+  "id": zod.number(),
+  "conversationId": zod.number(),
+  "role": zod.enum(['user', 'assistant', 'system']),
+  "content": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListOpenaiMessagesResponse = zod.array(ListOpenaiMessagesResponseItem)
+
+
+/**
+ * @summary Send a diagnostics question and receive a streaming text response (admin only)
+ */
+export const SendOpenaiMessageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SendOpenaiMessageBody = zod.object({
+  "content": zod.string()
+})
+
+
+/**
+ * @summary Get a live system health snapshot (admin only)
+ */
+export const GetDiagnosticsSnapshotResponse = zod.object({
+  "generatedAt": zod.coerce.date(),
+  "database": zod.object({
+  "connected": zod.boolean(),
+  "error": zod.string().optional()
+}),
+  "schemaDrift": zod.object({
+  "hasDrift": zod.boolean(),
+  "missingColumns": zod.array(zod.string())
+}),
+  "routers": zod.object({
+  "total": zod.number(),
+  "online": zod.number(),
+  "offline": zod.number()
+}),
+  "version": zod.object({
+  "commit": zod.string(),
+  "branch": zod.string(),
+  "updateAvailable": zod.boolean()
+}),
+  "openTickets": zod.number().optional(),
+  "failedPaymentsLast7Days": zod.number().optional()
+})
+
+
+/**
  * @summary List all staff user accounts (admin only)
  */
 export const ListUsersQueryParams = zod.object({

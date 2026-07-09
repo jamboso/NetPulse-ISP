@@ -33,6 +33,80 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface OpenaiConversation {
+  id: number;
+  title: string;
+  createdAt: string;
+}
+
+export interface OpenaiConversationInput {
+  title: string;
+}
+
+export type OpenaiMessageRole = typeof OpenaiMessageRole[keyof typeof OpenaiMessageRole];
+
+
+export const OpenaiMessageRole = {
+  user: 'user',
+  assistant: 'assistant',
+  system: 'system',
+} as const;
+
+export interface OpenaiMessage {
+  id: number;
+  conversationId: number;
+  role: OpenaiMessageRole;
+  content: string;
+  createdAt: string;
+}
+
+export interface OpenaiConversationWithMessages {
+  id: number;
+  title: string;
+  createdAt: string;
+  messages: OpenaiMessage[];
+}
+
+export interface OpenaiMessageInput {
+  content: string;
+}
+
+export interface OpenaiError {
+  error: string;
+}
+
+export type DiagnosticsSnapshotDatabase = {
+  connected: boolean;
+  error?: string;
+};
+
+export type DiagnosticsSnapshotSchemaDrift = {
+  hasDrift: boolean;
+  missingColumns: string[];
+};
+
+export type DiagnosticsSnapshotRouters = {
+  total: number;
+  online: number;
+  offline: number;
+};
+
+export type DiagnosticsSnapshotVersion = {
+  commit: string;
+  branch: string;
+  updateAvailable: boolean;
+};
+
+export interface DiagnosticsSnapshot {
+  generatedAt: string;
+  database: DiagnosticsSnapshotDatabase;
+  schemaDrift: DiagnosticsSnapshotSchemaDrift;
+  routers: DiagnosticsSnapshotRouters;
+  version: DiagnosticsSnapshotVersion;
+  openTickets?: number;
+  failedPaymentsLast7Days?: number;
+}
+
 export interface DashboardSummary {
   totalCustomers: number;
   activeSubscriptions: number;

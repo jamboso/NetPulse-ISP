@@ -7,3 +7,5 @@
 - [NetPulse settings allowlist gap](netpulse-settings-allowlist-gap.md) — `radiusPort` isn't in api-server's SETTINGS_KEYS, so it silently can't be saved via PATCH /api/settings
 - [Prod DB schema drift causes silent-looking data loss](prod-schema-drift-500.md) — dev schema pushes don't reach production DB until Publish; missing columns 500 on prod, easily mistaken for "data disappeared"
 - [better-auth password hashing helper](better-auth-hash-password-helper.md) — import `hashPassword`/`verifyPassword` from `better-auth/crypto` for any in-app password write instead of reimplementing scrypt
+- [Self-hosted AI client import crash](self-hosted-ai-client-import-crash.md) — module-scope throws on missing AI_INTEGRATIONS_OPENAI_* env vars crash-loop the whole server on self-hosted installs; must be lazy, and check for duplicate copies
+- [PM2 sudo dual-daemon](pm2-sudo-dual-daemon.md) — pm2 daemons are per-user; mixing sudo/non-sudo invocations creates two competing processes fighting over the same port

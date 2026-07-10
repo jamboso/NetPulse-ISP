@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Plus, Clock, Ban, PlayCircle, ShieldCheck } from "lucide-react";
+import { Building2, Plus, Clock, Ban, PlayCircle, ShieldCheck, LogIn } from "lucide-react";
+import { authClient } from "@/lib/authClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +28,7 @@ interface Company {
   accessUntil: string | null;
   exempt: boolean;
   createdAt: string;
+  adminUserId: string | null;
 }
 
 async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -120,6 +122,22 @@ export default function Companies() {
     onError: (err: Error) => toast({ title: "Failed to extend access", description: err.message, variant: "destructive" }),
   });
 
+  const loginAsMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await authClient.$fetch("/impersonate-user", {
+        method: "POST",
+        body: { userId },
+      });
+      if (error) throw new Error(error.message ?? "Failed to log in as this account");
+    },
+    onSuccess: () => {
+      // Full reload so every cached query (session, company-scoped data) is
+      // refetched under the impersonated account instead of stale owner data.
+      window.location.href = "/";
+    },
+    onError: (err: Error) => toast({ title: "Could not log in as company", description: err.message, variant: "destructive" }),
+  });
+
   const companies = data?.data ?? [];
 
   return (
@@ -179,6 +197,15 @@ export default function Companies() {
                       )}
                       <Button size="sm" variant="outline" onClick={() => exemptMutation.mutate({ id: c.id, exempt: !c.exempt })}>
                         <ShieldCheck className="w-3.5 h-3.5 mr-1" /> {c.exempt ? "Unexempt" : "Exempt"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!c.adminUserId || loginAsMutation.isPending}
+                        title={!c.adminUserId ? "No admin user found for this company" : "Log in as this company's admin"}
+                        onClick={() => loginAsMutation.mutate(c.adminUserId!)}
+                      >
+                        <LogIn className="w-3.5 h-3.5 mr-1" /> Login As
                       </Button>
                     </TableCell>
                   </TableRow>

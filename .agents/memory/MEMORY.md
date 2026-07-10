@@ -13,3 +13,4 @@
 - [Multi-tenant company scoping](multi-tenant-company-scoping.md) — companyId app-level isolation pattern, owner bypass, and suspended/expired access enforcement for the ISP reseller SaaS
 - [Monitoring route missing company scope](monitoring-route-missing-company-scope.md) — aggregate/dashboard endpoints must be individually audited for companyId filtering; middleware doesn't auto-scope queries
 - [Express blanket middleware route leak](express-blanket-middleware-route-leak.md) — unscoped `router.use(requireRole(...))` in a sub-router blocks every request reaching it, not just its own routes; scope per-route instead
+- [Better-auth custom impersonation](better-auth-custom-impersonation.md) — "login as" built via a tiny custom plugin instead of the official admin plugin, to avoid schema/role-system collisions

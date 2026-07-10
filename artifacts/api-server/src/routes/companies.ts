@@ -69,7 +69,16 @@ function genTempPassword(): string {
 
 router.get("/companies", ownerOnly, async (_req, res) => {
   const companies = await db.select().from(companiesTable).where(ne(companiesTable.id, 1)).orderBy(companiesTable.createdAt);
-  res.json({ data: companies });
+
+  const admins = await db
+    .select({ id: usersTable.id, companyId: usersTable.companyId })
+    .from(usersTable)
+    .where(eq(usersTable.role, "admin"));
+  const adminByCompany = new Map(admins.map(a => [a.companyId, a.id]));
+
+  res.json({
+    data: companies.map(c => ({ ...c, adminUserId: adminByCompany.get(c.id) ?? null })),
+  });
 });
 
 router.get("/companies/:id", ownerOnly, async (req, res) => {

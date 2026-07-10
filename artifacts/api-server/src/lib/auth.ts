@@ -5,6 +5,7 @@ import { db, usersTable, sessionsTable, accountsTable, verificationsTable, setti
 import nodemailer from "nodemailer";
 import { syncStaffUserRadius } from "./radiusSync";
 import { logger } from "./logger";
+import { impersonatePlugin } from "./impersonatePlugin";
 
 async function loadSmtpSettings(): Promise<Record<string, string>> {
   const rows = await db.select().from(settingsTable);
@@ -84,6 +85,7 @@ export const auth = betterAuth({
     // breaks every environment where the domain isn't known at build time.
     disableCSRFCheck: true,
   },
+  plugins: [impersonatePlugin()],
   hooks: {
     // Mirror plaintext staff/admin passwords into FreeRADIUS's radcheck table
     // whenever they pass through the app, so RouterOS RADIUS admin-login

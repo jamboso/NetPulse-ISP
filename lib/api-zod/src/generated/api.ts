@@ -1619,6 +1619,52 @@ export const UpdateSettingsResponse = zod.object({
 
 
 /**
+ * @summary Get the caller's company M-Pesa paybill credentials
+ */
+export const GetCompanyMpesaSettingsResponse = zod.object({
+  "companyId": zod.number().optional(),
+  "consumerKey": zod.string().nullish(),
+  "consumerSecret": zod.string().nullish(),
+  "shortcode": zod.string().nullish(),
+  "passkey": zod.string().nullish(),
+  "paybillNumber": zod.string().nullish(),
+  "env": zod.enum(['sandbox', 'production']).optional(),
+  "callbackUrl": zod.string().nullish(),
+  "allowedIps": zod.string().nullish(),
+  "webhookSecret": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update the caller's company M-Pesa paybill credentials
+ */
+export const UpdateCompanyMpesaSettingsBody = zod.object({
+  "consumerKey": zod.string().nullish(),
+  "consumerSecret": zod.string().nullish(),
+  "shortcode": zod.string().nullish(),
+  "passkey": zod.string().nullish(),
+  "paybillNumber": zod.string().nullish(),
+  "env": zod.enum(['sandbox', 'production']).optional(),
+  "callbackUrl": zod.string().nullish(),
+  "allowedIps": zod.string().nullish(),
+  "webhookSecret": zod.string().nullish()
+})
+
+export const UpdateCompanyMpesaSettingsResponse = zod.object({
+  "companyId": zod.number().optional(),
+  "consumerKey": zod.string().nullish(),
+  "consumerSecret": zod.string().nullish(),
+  "shortcode": zod.string().nullish(),
+  "passkey": zod.string().nullish(),
+  "paybillNumber": zod.string().nullish(),
+  "env": zod.enum(['sandbox', 'production']).optional(),
+  "callbackUrl": zod.string().nullish(),
+  "allowedIps": zod.string().nullish(),
+  "webhookSecret": zod.string().nullish()
+})
+
+
+/**
  * @summary Live reachability status for all routers (TCP probe)
  */
 export const GetRoutersStatusResponseItem = zod.object({

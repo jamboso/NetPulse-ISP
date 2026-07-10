@@ -643,3 +643,27 @@ ALTER TABLE "ip_pools" ADD COLUMN IF NOT EXISTS "company_id" integer NOT NULL DE
 ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "company_id" integer NOT NULL DEFAULT 1;
 --> statement-breakpoint
 ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "company_id" integer;
+--> statement-breakpoint
+
+-- ── Per-company M-Pesa Daraja credentials ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS "company_mpesa_configs" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "company_id" integer NOT NULL,
+        "consumer_key" text,
+        "consumer_secret" text,
+        "shortcode" text,
+        "passkey" text,
+        "paybill_number" text,
+        "env" text DEFAULT 'sandbox' NOT NULL,
+        "callback_url" text,
+        "allowed_ips" text,
+        "webhook_secret" text,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL,
+        CONSTRAINT "company_mpesa_configs_company_id_unique" UNIQUE("company_id")
+);
+--> statement-breakpoint
+DO $$ BEGIN
+        ALTER TABLE "company_mpesa_configs" ADD CONSTRAINT "company_mpesa_configs_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
-import { db, settingsTable, securityEventsTable, blockedIpsTable } from "@workspace/db";
+import { db, securityEventsTable, blockedIpsTable } from "@workspace/db";
 import { eq, gte, and, gt } from "drizzle-orm";
 import { sql } from "drizzle-orm";
+import { resolveMpesaConfig } from "../lib/mpesaConfig.js";
 
 /**
  * Number of blocked attempts within the rolling window before an IP is auto-blocked.
@@ -103,30 +104,21 @@ function parseCidrList(raw: string): ParsedCidr[] {
  *
  * Returns the wildcard sentinel "*" if bypass is configured at any level.
  */
-async function fetchAllowList(): Promise<ParsedCidr[] | "*"> {
-  // 1. DB lookup — changes take effect on next request without restart
+async function fetchAllowList(companyId: number): Promise<ParsedCidr[] | "*"> {
+  // 1. Per-company config / legacy global settings / env — resolved together
+  //    so each tenant's own paybill can carry its own allowlist.
   try {
-    const rows = await db
-      .select()
-      .from(settingsTable)
-      .where(eq(settingsTable.key, "mpesaAllowedIps"));
-    const dbValue = rows[0]?.value?.trim();
-    if (dbValue && dbValue.length > 0) {
-      if (dbValue === "*") return "*";
-      return parseCidrList(dbValue);
+    const config = await resolveMpesaConfig(companyId);
+    const value = config.allowedIps?.trim();
+    if (value && value.length > 0) {
+      if (value === "*") return "*";
+      return parseCidrList(value);
     }
   } catch {
-    // DB unavailable — fall through to env var
+    // fall through to default
   }
 
-  // 2. Environment variable fallback
-  const envValue = process.env["MPESA_ALLOWED_IPS"];
-  if (envValue) {
-    if (envValue === "*") return "*";
-    return parseCidrList(envValue);
-  }
-
-  // 3. Default Safaricom published ranges
+  // 2. Default Safaricom published ranges
   return DEFAULT_SAFARICOM_CIDRS.map((cidr) => parseCidr(cidr));
 }
 
@@ -265,7 +257,7 @@ export async function requireSafaricomIp(
     return;
   }
 
-  const allowList = await fetchAllowList();
+  const allowList = await fetchAllowList(req.mpesaCompanyId ?? 1);
 
   if (allowList === "*") {
     next();

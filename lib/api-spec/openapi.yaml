@@ -1552,6 +1552,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/Settings"
 
+  /settings/mpesa:
+    get:
+      operationId: getCompanyMpesaSettings
+      tags: [settings]
+      summary: Get the caller's company M-Pesa paybill credentials
+      responses:
+        "200":
+          description: Company M-Pesa config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyMpesaConfig"
+    patch:
+      operationId: updateCompanyMpesaSettings
+      tags: [settings]
+      summary: Update the caller's company M-Pesa paybill credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyMpesaConfigInput"
+      responses:
+        "200":
+          description: Updated company M-Pesa config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyMpesaConfig"
+
   # ── ROUTERS ───────────────────────────────────────────────────────────────────
   /routers/status:
     get:
@@ -2843,6 +2873,54 @@ components:
           type: string
         auditLogRetentionDays:
           type: string
+
+    CompanyMpesaConfig:
+      type: object
+      properties:
+        companyId:
+          type: integer
+        consumerKey:
+          type: ["string", "null"]
+        consumerSecret:
+          type: ["string", "null"]
+        shortcode:
+          type: ["string", "null"]
+        passkey:
+          type: ["string", "null"]
+        paybillNumber:
+          type: ["string", "null"]
+        env:
+          type: string
+          enum: [sandbox, production]
+        callbackUrl:
+          type: ["string", "null"]
+        allowedIps:
+          type: ["string", "null"]
+        webhookSecret:
+          type: ["string", "null"]
+
+    CompanyMpesaConfigInput:
+      type: object
+      properties:
+        consumerKey:
+          type: ["string", "null"]
+        consumerSecret:
+          type: ["string", "null"]
+        shortcode:
+          type: ["string", "null"]
+        passkey:
+          type: ["string", "null"]
+        paybillNumber:
+          type: ["string", "null"]
+        env:
+          type: string
+          enum: [sandbox, production]
+        callbackUrl:
+          type: ["string", "null"]
+        allowedIps:
+          type: ["string", "null"]
+        webhookSecret:
+          type: ["string", "null"]
 
     # ── ROUTERS ────────────────────────────────────────────────────────────────
     RouterDevice:

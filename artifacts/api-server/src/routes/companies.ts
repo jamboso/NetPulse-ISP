@@ -6,6 +6,7 @@ import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
 import { auth } from "../lib/auth";
 import { writeAuditLog } from "../lib/audit";
+import { getCompanyMpesaConfigRow, upsertCompanyMpesaConfig } from "../lib/mpesaConfig";
 
 const router = Router();
 
@@ -253,6 +254,47 @@ router.post("/companies/:id/extend", ownerOnly, validateBody(extendSchema), asyn
     userId: req.user!.id, userEmail: req.user!.email,
     action: "update", entityType: "company", entityId: id,
     diff: { after: { accessUntil: extended } },
+  });
+
+  res.json(updated);
+});
+
+const mpesaConfigSchema = z.object({
+  consumerKey: z.string().optional().nullable(),
+  consumerSecret: z.string().optional().nullable(),
+  shortcode: z.string().optional().nullable(),
+  passkey: z.string().optional().nullable(),
+  paybillNumber: z.string().optional().nullable(),
+  env: z.enum(["sandbox", "production"]).optional(),
+  callbackUrl: z.string().optional().nullable(),
+  allowedIps: z.string().optional().nullable(),
+  webhookSecret: z.string().optional().nullable(),
+});
+
+// Owner-only: view or edit any company's M-Pesa paybill credentials from the
+// Companies dashboard (e.g. to help a client finish setup or debug a stuck
+// integration). Company admins manage their own via /api/settings/mpesa.
+router.get("/companies/:id/mpesa", ownerOnly, async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
+  const [company] = await db.select().from(companiesTable).where(eq(companiesTable.id, id));
+  if (!company) { res.status(404).json({ error: "Not found" }); return; }
+  const config = await getCompanyMpesaConfigRow(id);
+  res.json(config ?? { companyId: id, env: "sandbox" });
+});
+
+router.patch("/companies/:id/mpesa", ownerOnly, validateBody(mpesaConfigSchema), async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
+  const [company] = await db.select().from(companiesTable).where(eq(companiesTable.id, id));
+  if (!company) { res.status(404).json({ error: "Not found" }); return; }
+
+  const body = req.body as z.infer<typeof mpesaConfigSchema>;
+  const updated = await upsertCompanyMpesaConfig(id, body);
+
+  void writeAuditLog({
+    companyId: id,
+    userId: req.user!.id, userEmail: req.user!.email,
+    action: "update", entityType: "company_mpesa_config", entityId: id,
+    diff: { after: { shortcode: body.shortcode, env: body.env } },
   });
 
   res.json(updated);

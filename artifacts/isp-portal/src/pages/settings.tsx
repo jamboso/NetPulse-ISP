@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useGetSettings, useUpdateSettings, useSendTestEmail, useGetMpesaIpAllowlist } from "@workspace/api-client-react";
+import { useGetSettings, useUpdateSettings, useSendTestEmail, useGetMpesaIpAllowlist, useGetCompanyMpesaSettings, useUpdateCompanyMpesaSettings } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -575,82 +575,8 @@ export default function Settings() {
         </TabsContent>
 
         {/* ── M-PESA ──────────────────────────────────────────────────────── */}
-        <TabsContent value="mpesa" className="mt-5 space-y-4">
-          <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-4 py-2.5">
-            <Smartphone className="w-4 h-4 shrink-0" />
-            <span>Get credentials at <a href="https://developer.safaricom.co.ke/MyApps" target="_blank" rel="noreferrer" className="underline font-medium">developer.safaricom.co.ke</a>. Save settings, then register URLs.</span>
-          </div>
-
-          <SectionCard icon={Smartphone} title="Daraja API Credentials">
-            <SelectField
-              label="Environment"
-              name="mpesaEnv"
-              value={f("mpesaEnv")}
-              onChange={set}
-              hint="Use Sandbox for testing, Live for production"
-              options={[
-                { value: "sandbox", label: "Sandbox (Testing)" },
-                { value: "live", label: "Live (Production)" },
-              ]}
-            />
-            <SettingField label="Consumer Key" name="mpesaConsumerKey" value={f("mpesaConsumerKey")} onChange={set} secret placeholder="Your Daraja consumer key" />
-            <SettingField label="Consumer Secret" name="mpesaConsumerSecret" value={f("mpesaConsumerSecret")} onChange={set} secret placeholder="Your Daraja consumer secret" />
-            <SettingField label="Business Shortcode" name="mpesaShortcode" value={f("mpesaShortcode")} onChange={set} placeholder="174379 (sandbox)" hint="PayBill or Till number" />
-            <SettingField label="Passkey" name="mpesaPasskey" value={f("mpesaPasskey")} onChange={set} secret placeholder="STK Push passkey from Daraja" />
-            <SettingField label="Callback URL" name="mpesaCallbackUrl" value={f("mpesaCallbackUrl")} onChange={set} placeholder="https://yourdomain.com/api/mpesa/callback" hint="Must be HTTPS and publicly reachable" />
-          </SectionCard>
-
-          <RegisterUrlsCard />
-
-          <SectionCard icon={Shield} title="M-Pesa Security">
-            <SettingField
-              label="Webhook Secret"
-              name="mpesaWebhookSecret"
-              value={f("mpesaWebhookSecret")}
-              onChange={set}
-              secret
-              placeholder="Shared secret sent in X-Mpesa-Webhook-Secret header"
-              hint="Safaricom must include this value in the X-Mpesa-Webhook-Secret header on every callback. Leave blank to skip this check. Overrides the MPESA_WEBHOOK_SECRET env var — no redeploy needed to rotate."
-            />
-            <div className="grid grid-cols-12 gap-3 items-start py-3 border-b border-gray-100">
-              <div className="col-span-4">
-                <Label className="text-sm font-medium text-gray-700">Allowed IP Ranges</Label>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  One CIDR or IP per line (or comma-separated). Leave blank to use Safaricom's
-                  published defaults. Set to <code className="bg-gray-100 px-1 rounded">*</code> to
-                  disable IP checking (sandbox only).
-                </p>
-              </div>
-              <div className="col-span-8">
-                <Textarea
-                  rows={6}
-                  placeholder={"196.201.214.0/24\n196.201.216.0/24\n196.201.213.0/24"}
-                  value={(f("mpesaAllowedIps") ?? "").replace(/,/g, "\n")}
-                  onChange={(e) =>
-                    set(
-                      "mpesaAllowedIps",
-                      e.target.value
-                        .split(/[\n,]+/)
-                        .map((s) => s.trim())
-                        .filter(Boolean)
-                        .join(",")
-                    )
-                  }
-                  className="text-sm font-mono resize-none"
-                />
-                <EffectiveAllowlist />
-              </div>
-            </div>
-            <div className="py-2 text-xs text-gray-400">
-              Changes take effect on the next callback — no server restart required.
-            </div>
-          </SectionCard>
-
-          <SectionCard icon={Smartphone} title="M-Pesa Status">
-            <div className="py-3">
-              <MpesaStatus />
-            </div>
-          </SectionCard>
+        <TabsContent value="mpesa" className="mt-5">
+          <MpesaTab />
         </TabsContent>
         {/* ── INFRASTRUCTURE ──────────────────────────────────────────────── */}
         <TabsContent value="infrastructure" className="mt-5">
@@ -939,10 +865,185 @@ function SmsTab({ f, set }: { f: (k: string) => string; set: (k: string, v: stri
   );
 }
 
+function MpesaTab() {
+  const { data: config, isLoading } = useGetCompanyMpesaSettings();
+  const updateMutation = useUpdateCompanyMpesaSettings();
+  const queryClient = useQueryClient();
+
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  useEffect(() => {
+    if (config) {
+      setForm({
+        env: config.env ?? "sandbox",
+        consumerKey: config.consumerKey ?? "",
+        consumerSecret: config.consumerSecret ?? "",
+        shortcode: config.shortcode ?? "",
+        passkey: config.passkey ?? "",
+        callbackUrl: config.callbackUrl ?? "",
+        webhookSecret: config.webhookSecret ?? "",
+        allowedIps: config.allowedIps ?? "",
+      });
+    }
+  }, [config]);
+
+  const set = (name: string, val: string) => {
+    setForm((prev) => ({ ...prev, [name]: val }));
+    setDirty(true);
+    setSaved(false);
+  };
+  const f = (name: string) => form[name] ?? "";
+
+  const handleSave = async () => {
+    setSaveError("");
+    try {
+      await updateMutation.mutateAsync({
+        data: {
+          env: (f("env") as "sandbox" | "production") || "sandbox",
+          consumerKey: f("consumerKey") || null,
+          consumerSecret: f("consumerSecret") || null,
+          shortcode: f("shortcode") || null,
+          passkey: f("passkey") || null,
+          callbackUrl: f("callbackUrl") || null,
+          webhookSecret: f("webhookSecret") || null,
+          allowedIps: f("allowedIps") || null,
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: ["/api/settings/mpesa"] });
+      setSaved(true);
+      setDirty(false);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setSaveError("Failed to save M-Pesa settings. Please try again.");
+    }
+  };
+
+  if (isLoading) {
+    return <Skeleton className="h-96 w-full" />;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-4 py-2.5">
+        <Smartphone className="w-4 h-4 shrink-0" />
+        <span>Get credentials at <a href="https://developer.safaricom.co.ke/MyApps" target="_blank" rel="noreferrer" className="underline font-medium">developer.safaricom.co.ke</a>. Each company keeps its own paybill and Daraja credentials. Save, then register URLs.</span>
+      </div>
+
+      <div className="flex justify-end gap-3">
+        {saved && (
+          <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+            <CheckCircle2 className="w-4 h-4" /> Saved
+          </span>
+        )}
+        {saveError && (
+          <span className="flex items-center gap-1.5 text-sm text-red-600">
+            <AlertCircle className="w-4 h-4" /> {saveError}
+          </span>
+        )}
+        <Button
+          onClick={handleSave}
+          disabled={!dirty || updateMutation.isPending}
+          className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+          size="sm"
+        >
+          <Save className="w-4 h-4" />
+          {updateMutation.isPending ? "Saving…" : "Save M-Pesa Settings"}
+        </Button>
+      </div>
+
+      <SectionCard icon={Smartphone} title="Daraja API Credentials">
+        <SelectField
+          label="Environment"
+          name="env"
+          value={f("env")}
+          onChange={set}
+          hint="Use Sandbox for testing, Production for live"
+          options={[
+            { value: "sandbox", label: "Sandbox (Testing)" },
+            { value: "production", label: "Live (Production)" },
+          ]}
+        />
+        <SettingField label="Consumer Key" name="consumerKey" value={f("consumerKey")} onChange={set} secret placeholder="Your Daraja consumer key" />
+        <SettingField label="Consumer Secret" name="consumerSecret" value={f("consumerSecret")} onChange={set} secret placeholder="Your Daraja consumer secret" />
+        <SettingField label="Business Shortcode" name="shortcode" value={f("shortcode")} onChange={set} placeholder="174379 (sandbox)" hint="PayBill or Till number" />
+        <SettingField label="Passkey" name="passkey" value={f("passkey")} onChange={set} secret placeholder="STK Push passkey from Daraja" />
+        <SettingField label="Callback URL" name="callbackUrl" value={f("callbackUrl")} onChange={set} placeholder="Leave blank to use the default company-scoped URL" hint="Must be HTTPS and publicly reachable. Leave blank to use the auto-generated company-scoped callback." />
+      </SectionCard>
+
+      <RegisterUrlsCard />
+
+      <SectionCard icon={Shield} title="M-Pesa Security">
+        <SettingField
+          label="Webhook Secret"
+          name="webhookSecret"
+          value={f("webhookSecret")}
+          onChange={set}
+          secret
+          placeholder="Shared secret sent in X-Mpesa-Webhook-Secret header"
+          hint="Safaricom must include this value in the X-Mpesa-Webhook-Secret header on every callback. Leave blank to skip this check."
+        />
+        <div className="grid grid-cols-12 gap-3 items-start py-3 border-b border-gray-100">
+          <div className="col-span-4">
+            <Label className="text-sm font-medium text-gray-700">Allowed IP Ranges</Label>
+            <p className="text-xs text-gray-400 mt-0.5">
+              One CIDR or IP per line (or comma-separated). Leave blank to use Safaricom's
+              published defaults. Set to <code className="bg-gray-100 px-1 rounded">*</code> to
+              disable IP checking (sandbox only).
+            </p>
+          </div>
+          <div className="col-span-8">
+            <Textarea
+              rows={6}
+              placeholder={"196.201.214.0/24\n196.201.216.0/24\n196.201.213.0/24"}
+              value={(f("allowedIps") ?? "").replace(/,/g, "\n")}
+              onChange={(e) =>
+                set(
+                  "allowedIps",
+                  e.target.value
+                    .split(/[\n,]+/)
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                    .join(",")
+                )
+              }
+              className="text-sm font-mono resize-none"
+            />
+            <EffectiveAllowlist />
+          </div>
+        </div>
+        <div className="py-2 text-xs text-gray-400">
+          Changes take effect on the next callback — no server restart required.
+        </div>
+      </SectionCard>
+
+      <SectionCard icon={Smartphone} title="M-Pesa Status">
+        <div className="py-3">
+          <MpesaStatus />
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
 function RegisterUrlsCard() {
+  const [companyUsername, setCompanyUsername] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/mpesa/status", { credentials: "include" })
+      .then((r) => r.json())
+      .then((s: { callbackUrl?: string | null }) => {
+        const match = s.callbackUrl?.match(/\/mpesa\/callback\/([^/?#]+)/);
+        setCompanyUsername(match?.[1] ?? null);
+      })
+      .catch(() => null);
+  }, []);
+
   const origin = window.location.origin;
-  const confirmationUrl = `${origin}/api/mpesa/c2b/confirmation`;
-  const validationUrl = `${origin}/api/mpesa/c2b/validation`;
+  const suffix = companyUsername ? `/${companyUsername}` : "";
+  const confirmationUrl = `${origin}/api/mpesa/c2b/confirmation${suffix}`;
+  const validationUrl = `${origin}/api/mpesa/c2b/validation${suffix}`;
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);

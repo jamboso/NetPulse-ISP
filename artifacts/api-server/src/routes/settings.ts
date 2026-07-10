@@ -2,8 +2,12 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { settingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
+import { validateBody } from "../middlewares/validateBody";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 import { sendTestEmail } from "../lib/mailer";
+import { getCompanyMpesaConfigRow, upsertCompanyMpesaConfig } from "../lib/mpesaConfig";
 
 const DEFAULT_SAFARICOM_CIDRS = [
   "196.201.214.0/24",
@@ -139,5 +143,46 @@ router.patch("/settings", requireRole("owner"), async (req, res) => {
   const updated = await loadSettings();
   res.json(updated);
 });
+
+const companyMpesaSchema = z.object({
+  consumerKey: z.string().optional().nullable(),
+  consumerSecret: z.string().optional().nullable(),
+  shortcode: z.string().optional().nullable(),
+  passkey: z.string().optional().nullable(),
+  paybillNumber: z.string().optional().nullable(),
+  env: z.enum(["sandbox", "production"]).optional(),
+  callbackUrl: z.string().optional().nullable(),
+  allowedIps: z.string().optional().nullable(),
+  webhookSecret: z.string().optional().nullable(),
+});
+
+// Company-scoped M-Pesa credentials, for the ISP's own Settings > M-Pesa tab.
+// Distinct from the owner-only /companies/:id/mpesa (platform tenant admin).
+// The platform owner (companyId 1) keeps using this same endpoint, which
+// resolveCompanyScope leaves unscoped (req.companyId === null) for them —
+// so we fall back to company 1 explicitly for that case.
+router.get(
+  "/settings/mpesa",
+  requireRole("admin", "owner"),
+  resolveCompanyScope,
+  async (req, res) => {
+    const companyId = req.companyId ?? 1;
+    const config = await getCompanyMpesaConfigRow(companyId);
+    res.json(config ?? { companyId, env: "sandbox" });
+  },
+);
+
+router.patch(
+  "/settings/mpesa",
+  requireRole("admin", "owner"),
+  resolveCompanyScope,
+  validateBody(companyMpesaSchema),
+  async (req, res) => {
+    const companyId = req.companyId ?? 1;
+    const body = req.body as z.infer<typeof companyMpesaSchema>;
+    const updated = await upsertCompanyMpesaConfig(companyId, body);
+    res.json(updated);
+  },
+);
 
 export default router;

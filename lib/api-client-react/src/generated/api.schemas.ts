@@ -898,6 +898,63 @@ export interface SettingsInput {
   auditLogRetentionDays?: string;
 }
 
+export type CompanyMpesaConfigEnv = typeof CompanyMpesaConfigEnv[keyof typeof CompanyMpesaConfigEnv];
+
+
+export const CompanyMpesaConfigEnv = {
+  sandbox: 'sandbox',
+  production: 'production',
+} as const;
+
+export interface CompanyMpesaConfig {
+  companyId?: number;
+  /** @nullable */
+  consumerKey?: string | null;
+  /** @nullable */
+  consumerSecret?: string | null;
+  /** @nullable */
+  shortcode?: string | null;
+  /** @nullable */
+  passkey?: string | null;
+  /** @nullable */
+  paybillNumber?: string | null;
+  env?: CompanyMpesaConfigEnv;
+  /** @nullable */
+  callbackUrl?: string | null;
+  /** @nullable */
+  allowedIps?: string | null;
+  /** @nullable */
+  webhookSecret?: string | null;
+}
+
+export type CompanyMpesaConfigInputEnv = typeof CompanyMpesaConfigInputEnv[keyof typeof CompanyMpesaConfigInputEnv];
+
+
+export const CompanyMpesaConfigInputEnv = {
+  sandbox: 'sandbox',
+  production: 'production',
+} as const;
+
+export interface CompanyMpesaConfigInput {
+  /** @nullable */
+  consumerKey?: string | null;
+  /** @nullable */
+  consumerSecret?: string | null;
+  /** @nullable */
+  shortcode?: string | null;
+  /** @nullable */
+  passkey?: string | null;
+  /** @nullable */
+  paybillNumber?: string | null;
+  env?: CompanyMpesaConfigInputEnv;
+  /** @nullable */
+  callbackUrl?: string | null;
+  /** @nullable */
+  allowedIps?: string | null;
+  /** @nullable */
+  webhookSecret?: string | null;
+}
+
 export type RouterDeviceRouterType = typeof RouterDeviceRouterType[keyof typeof RouterDeviceRouterType];
 
 

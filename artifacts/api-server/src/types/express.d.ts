@@ -5,6 +5,7 @@ declare global {
     interface Request {
       user?: User;
       companyId?: number | null;
+      mpesaCompanyId?: number;
     }
   }
 }

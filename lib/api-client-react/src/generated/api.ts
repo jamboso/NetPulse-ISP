@@ -24,6 +24,8 @@ import type {
   BreakdownItem,
   ClearSecurityEventsParams,
   ClearSecurityEventsResult,
+  CompanyMpesaConfig,
+  CompanyMpesaConfigInput,
   CreateUserInput,
   Customer,
   CustomerInput,
@@ -5785,6 +5787,154 @@ export const useUpdateSettings = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateSettingsMutationOptions(options));
+    }
+
+export const getGetCompanyMpesaSettingsUrl = () => {
+
+
+
+
+  return `/api/settings/mpesa`
+}
+
+/**
+ * @summary Get the caller's company M-Pesa paybill credentials
+ */
+export const getCompanyMpesaSettings = async ( options?: RequestInit): Promise<CompanyMpesaConfig> => {
+
+  return customFetch<CompanyMpesaConfig>(getGetCompanyMpesaSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCompanyMpesaSettingsQueryKey = () => {
+    return [
+    `/api/settings/mpesa`
+    ] as const;
+    }
+
+
+export const getGetCompanyMpesaSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getCompanyMpesaSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCompanyMpesaSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCompanyMpesaSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCompanyMpesaSettings>>> = ({ signal }) => getCompanyMpesaSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCompanyMpesaSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCompanyMpesaSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getCompanyMpesaSettings>>>
+export type GetCompanyMpesaSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the caller's company M-Pesa paybill credentials
+ */
+
+export function useGetCompanyMpesaSettings<TData = Awaited<ReturnType<typeof getCompanyMpesaSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCompanyMpesaSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCompanyMpesaSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateCompanyMpesaSettingsUrl = () => {
+
+
+
+
+  return `/api/settings/mpesa`
+}
+
+/**
+ * @summary Update the caller's company M-Pesa paybill credentials
+ */
+export const updateCompanyMpesaSettings = async (companyMpesaConfigInput: CompanyMpesaConfigInput, options?: RequestInit): Promise<CompanyMpesaConfig> => {
+
+  return customFetch<CompanyMpesaConfig>(getUpdateCompanyMpesaSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      companyMpesaConfigInput,)
+  }
+);}
+
+
+
+
+export const getUpdateCompanyMpesaSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCompanyMpesaSettings>>, TError,{data: BodyType<CompanyMpesaConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCompanyMpesaSettings>>, TError,{data: BodyType<CompanyMpesaConfigInput>}, TContext> => {
+
+const mutationKey = ['updateCompanyMpesaSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCompanyMpesaSettings>>, {data: BodyType<CompanyMpesaConfigInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateCompanyMpesaSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCompanyMpesaSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateCompanyMpesaSettings>>>
+    export type UpdateCompanyMpesaSettingsMutationBody = BodyType<CompanyMpesaConfigInput>
+    export type UpdateCompanyMpesaSettingsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update the caller's company M-Pesa paybill credentials
+ */
+export const useUpdateCompanyMpesaSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCompanyMpesaSettings>>, TError,{data: BodyType<CompanyMpesaConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCompanyMpesaSettings>>,
+        TError,
+        {data: BodyType<CompanyMpesaConfigInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCompanyMpesaSettingsMutationOptions(options));
     }
 
 export const getGetRoutersStatusUrl = () => {

@@ -13,7 +13,8 @@ export type AuditEntityType =
   | "user"
   | "equipment"
   | "ip_pool"
-  | "company";
+  | "company"
+  | "company_mpesa_config";
 
 interface AuditParams {
   companyId?: number | null;

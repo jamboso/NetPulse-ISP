@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { getSettings } from "../lib/sms.js";
+import { resolveMpesaConfig } from "../lib/mpesaConfig.js";
 
 /**
  * Express middleware that validates an M-Pesa webhook shared secret.
@@ -28,8 +28,8 @@ export async function requireMpesaWebhookSecret(
   let expected: string | undefined;
 
   try {
-    const s = await getSettings();
-    expected = s["mpesaWebhookSecret"] || process.env["MPESA_WEBHOOK_SECRET"];
+    const config = await resolveMpesaConfig(req.mpesaCompanyId ?? 1);
+    expected = config.webhookSecret;
   } catch {
     expected = process.env["MPESA_WEBHOOK_SECRET"];
   }

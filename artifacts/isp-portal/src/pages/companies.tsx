@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Plus, Clock, Ban, PlayCircle, ShieldCheck, LogIn } from "lucide-react";
+import { Building2, Plus, Clock, Ban, PlayCircle, ShieldCheck, LogIn, Smartphone, Save } from "lucide-react";
 import { authClient } from "@/lib/authClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,19 @@ interface Company {
   adminUserId: string | null;
 }
 
+interface CompanyMpesaConfig {
+  companyId: number;
+  consumerKey?: string | null;
+  consumerSecret?: string | null;
+  shortcode?: string | null;
+  passkey?: string | null;
+  paybillNumber?: string | null;
+  env?: "sandbox" | "production";
+  callbackUrl?: string | null;
+  allowedIps?: string | null;
+  webhookSecret?: string | null;
+}
+
 async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     credentials: "include",
@@ -58,6 +71,7 @@ export default function Companies() {
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [extendTarget, setExtendTarget] = useState<Company | null>(null);
+  const [mpesaTarget, setMpesaTarget] = useState<Company | null>(null);
   const [form, setForm] = useState({ name: "", ownerEmail: "", ownerPhone: "" });
   const [extendForm, setExtendForm] = useState({ amount: "1", unit: "months" });
 
@@ -207,6 +221,9 @@ export default function Companies() {
                       >
                         <LogIn className="w-3.5 h-3.5 mr-1" /> Login As
                       </Button>
+                      <Button size="sm" variant="outline" onClick={() => setMpesaTarget(c)}>
+                        <Smartphone className="w-3.5 h-3.5 mr-1" /> M-Pesa
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -274,6 +291,103 @@ export default function Companies() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MpesaConfigDialog company={mpesaTarget} onClose={() => setMpesaTarget(null)} />
     </div>
+  );
+}
+
+function MpesaConfigDialog({ company, onClose }: { company: Company | null; onClose: () => void }) {
+  const { toast } = useToast();
+  const [form, setForm] = useState<Record<string, string>>({});
+
+  const { data: config, isLoading } = useQuery({
+    queryKey: ["company-mpesa", company?.id],
+    queryFn: () => apiJson<CompanyMpesaConfig>(`/api/companies/${company!.id}/mpesa`),
+    enabled: !!company,
+  });
+
+  const set = (name: string, val: string) => setForm((prev) => ({ ...prev, [name]: val }));
+  const f = (name: string) => (name in form ? form[name] : (config?.[name as keyof CompanyMpesaConfig] as string | null | undefined) ?? "");
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      apiJson(`/api/companies/${company!.id}/mpesa`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          env: (f("env") as "sandbox" | "production") || "sandbox",
+          consumerKey: f("consumerKey") || null,
+          consumerSecret: f("consumerSecret") || null,
+          shortcode: f("shortcode") || null,
+          passkey: f("passkey") || null,
+          callbackUrl: f("callbackUrl") || null,
+          webhookSecret: f("webhookSecret") || null,
+          allowedIps: f("allowedIps") || null,
+        }),
+      }),
+    onSuccess: () => {
+      toast({ title: "M-Pesa settings saved", description: `Updated credentials for ${company?.name}` });
+      setForm({});
+      onClose();
+    },
+    onError: (err: Error) => toast({ title: "Failed to save M-Pesa settings", description: err.message, variant: "destructive" }),
+  });
+
+  return (
+    <Dialog open={!!company} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>M-Pesa Config — {company?.name}</DialogTitle></DialogHeader>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        ) : (
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+            <div>
+              <Label>Environment</Label>
+              <Select value={f("env") || "sandbox"} onValueChange={(v) => set("env", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sandbox">Sandbox (Testing)</SelectItem>
+                  <SelectItem value="production">Live (Production)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Consumer Key</Label>
+              <Input value={f("consumerKey")} onChange={(e) => set("consumerKey", e.target.value)} placeholder="Daraja consumer key" />
+            </div>
+            <div>
+              <Label>Consumer Secret</Label>
+              <Input type="password" value={f("consumerSecret")} onChange={(e) => set("consumerSecret", e.target.value)} placeholder="Daraja consumer secret" />
+            </div>
+            <div>
+              <Label>Business Shortcode</Label>
+              <Input value={f("shortcode")} onChange={(e) => set("shortcode", e.target.value)} placeholder="PayBill or Till number" />
+            </div>
+            <div>
+              <Label>Passkey</Label>
+              <Input type="password" value={f("passkey")} onChange={(e) => set("passkey", e.target.value)} placeholder="STK Push passkey" />
+            </div>
+            <div>
+              <Label>Callback URL (optional)</Label>
+              <Input value={f("callbackUrl")} onChange={(e) => set("callbackUrl", e.target.value)} placeholder={`Defaults to .../api/mpesa/callback/${company?.username ?? ""}`} />
+            </div>
+            <div>
+              <Label>Webhook Secret</Label>
+              <Input type="password" value={f("webhookSecret")} onChange={(e) => set("webhookSecret", e.target.value)} placeholder="X-Mpesa-Webhook-Secret value" />
+            </div>
+            <div>
+              <Label>Allowed IPs (optional)</Label>
+              <Input value={f("allowedIps")} onChange={(e) => set("allowedIps", e.target.value)} placeholder="Comma-separated CIDRs, or * to disable" />
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button disabled={isLoading || saveMutation.isPending} onClick={() => saveMutation.mutate()}>
+            <Save className="w-4 h-4 mr-1" /> Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

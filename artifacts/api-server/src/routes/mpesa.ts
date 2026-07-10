@@ -1,11 +1,47 @@
+import type { Request, Response, NextFunction } from "express";
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { db } from "@workspace/db";
 import { paymentsTable, invoicesTable, customersTable, hotspotVouchersTable, hotspotPackagesTable, routersTable } from "@workspace/db";
 import { eq, ilike, and } from "drizzle-orm";
-import { getSettings } from "../lib/sms.js";
 import { requireSafaricomIp } from "../middlewares/requireSafaricomIp.js";
 import { requireMpesaWebhookSecret } from "../middlewares/requireMpesaWebhookSecret.js";
+import { resolveMpesaConfig, getCompanyByUsername, getCompanyById } from "../lib/mpesaConfig.js";
+
+const LEGACY_DEFAULT_COMPANY_ID = 1;
+
+/** Builds the company-scoped callback URL to fall back to when none is saved explicitly. */
+async function defaultCallbackUrl(req: Request, companyId: number): Promise<string | undefined> {
+  const host = req.get("host");
+  if (!host) return undefined;
+  const proto = req.protocol === "http" && req.get("x-forwarded-proto") ? req.get("x-forwarded-proto") : req.protocol;
+  const company = await getCompanyById(companyId);
+  if (!company) return undefined;
+  return `${proto}://${host}/api/mpesa/callback/${company.username}`;
+}
+
+/**
+ * Resolves which company a public (unauthenticated) M-Pesa callback belongs
+ * to. Company-scoped routes carry `:companyUsername` in the path (registered
+ * with Safaricom per-tenant); the legacy unscoped paths default to company 1
+ * so existing single-tenant/self-hosted registrations keep working.
+ */
+async function resolveCallbackCompany(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const usernameParam = req.params["companyUsername"];
+  const username = Array.isArray(usernameParam) ? usernameParam[0] : usernameParam;
+  if (!username) {
+    req.mpesaCompanyId = LEGACY_DEFAULT_COMPANY_ID;
+    next();
+    return;
+  }
+  const company = await getCompanyByUsername(username);
+  if (!company) {
+    res.status(404).json({ error: "Unknown company" });
+    return;
+  }
+  req.mpesaCompanyId = company.id;
+  next();
+}
 
 // ── Public router ─────────────────────────────────────────────────────────────
 // These endpoints are called directly by Safaricom and must remain unauthenticated.
@@ -83,15 +119,13 @@ mpesaProtectedRouter.post("/mpesa/stk-push", stkPushLimiter, async (req, res) =>
     return;
   }
 
-  const consumerKey = process.env.MPESA_CONSUMER_KEY;
-  const consumerSecret = process.env.MPESA_CONSUMER_SECRET;
-  const shortcode = process.env.MPESA_SHORTCODE;
-  const passkey = process.env.MPESA_PASSKEY;
-  const callbackUrl = process.env.MPESA_CALLBACK_URL;
-  const environment = process.env.MPESA_ENV ?? "sandbox";
+  const config = await resolveMpesaConfig(req.companyId ?? LEGACY_DEFAULT_COMPANY_ID);
+  const { consumerKey, consumerSecret, shortcode, passkey } = config;
+  const callbackUrl = config.callbackUrl ?? (await defaultCallbackUrl(req, config.companyId));
+  const environment = config.env;
 
   if (!consumerKey || !consumerSecret || !shortcode || !passkey || !callbackUrl) {
-    res.status(503).json({ error: "M-Pesa is not configured on this server" });
+    res.status(503).json({ error: "M-Pesa is not configured for your account. Set it up under Settings → M-Pesa." });
     return;
   }
 
@@ -177,18 +211,16 @@ mpesaProtectedRouter.post("/mpesa/register-urls", registerUrlsLimiter, async (re
     return;
   }
 
-  const s = await getSettings();
-  const consumerKey = s["mpesaConsumerKey"] || process.env.MPESA_CONSUMER_KEY;
-  const consumerSecret = s["mpesaConsumerSecret"] || process.env.MPESA_CONSUMER_SECRET;
-  const shortcode = s["mpesaShortcode"] || process.env.MPESA_SHORTCODE;
-  const environment = s["mpesaEnv"] || process.env.MPESA_ENV || "sandbox";
+  const config = await resolveMpesaConfig(req.companyId ?? LEGACY_DEFAULT_COMPANY_ID);
+  const { consumerKey, consumerSecret, shortcode } = config;
+  const environment = config.env;
 
   if (!consumerKey || !consumerSecret || !shortcode) {
     res.status(503).json({ error: "M-Pesa credentials are not configured. Save your settings first." });
     return;
   }
 
-  const baseUrl = environment === "live"
+  const baseUrl = environment === "live" || environment === "production"
     ? "https://api.safaricom.co.ke"
     : "https://sandbox.safaricom.co.ke";
 
@@ -242,35 +274,26 @@ mpesaProtectedRouter.post("/mpesa/register-urls", registerUrlsLimiter, async (re
  * Requires auth — staff only.
  */
 mpesaProtectedRouter.get("/mpesa/status", async (req, res) => {
+  const companyId = req.companyId ?? LEGACY_DEFAULT_COMPANY_ID;
   try {
-    const s = await getSettings();
-    const consumerKey = s["mpesaConsumerKey"] || process.env.MPESA_CONSUMER_KEY;
-    const consumerSecret = s["mpesaConsumerSecret"] || process.env.MPESA_CONSUMER_SECRET;
-    const shortcode = s["mpesaShortcode"] || process.env.MPESA_SHORTCODE;
-    const passkey = s["mpesaPasskey"] || process.env.MPESA_PASSKEY;
-    const callbackUrl = s["mpesaCallbackUrl"] || process.env.MPESA_CALLBACK_URL;
-    const environment = s["mpesaEnv"] || process.env.MPESA_ENV || "sandbox";
-    const webhookSecret = s["mpesaWebhookSecret"] || process.env.MPESA_WEBHOOK_SECRET;
+    const config = await resolveMpesaConfig(companyId);
+    const callbackUrl = config.callbackUrl ?? (await defaultCallbackUrl(req, companyId));
 
     res.json({
-      configured: !!(consumerKey && consumerSecret && shortcode && passkey && callbackUrl),
-      environment,
-      shortcode: shortcode ?? null,
-      webhookSecretConfigured: !!webhookSecret,
+      configured: !!(config.consumerKey && config.consumerSecret && config.shortcode && config.passkey && callbackUrl),
+      environment: config.env,
+      shortcode: config.shortcode ?? null,
+      callbackUrl: callbackUrl ?? null,
+      webhookSecretConfigured: !!config.webhookSecret,
     });
   } catch (err) {
     req.log.error({ err }, "Failed to read M-Pesa status");
     res.json({
-      configured: !!(
-        process.env.MPESA_CONSUMER_KEY &&
-        process.env.MPESA_CONSUMER_SECRET &&
-        process.env.MPESA_SHORTCODE &&
-        process.env.MPESA_PASSKEY &&
-        process.env.MPESA_CALLBACK_URL
-      ),
-      environment: process.env.MPESA_ENV ?? "sandbox",
-      shortcode: process.env.MPESA_SHORTCODE ?? null,
-      webhookSecretConfigured: !!process.env.MPESA_WEBHOOK_SECRET,
+      configured: false,
+      environment: "sandbox",
+      shortcode: null,
+      callbackUrl: null,
+      webhookSecretConfigured: false,
     });
   }
 });
@@ -280,7 +303,7 @@ mpesaProtectedRouter.get("/mpesa/status", async (req, res) => {
  * Receives Safaricom STK Push result callback.
  * Public — Safaricom calls this directly, no session available.
  */
-mpesaPublicRouter.post("/mpesa/callback", requireSafaricomIp, requireMpesaWebhookSecret, async (req, res) => {
+async function handleStkCallback(req: Request, res: Response): Promise<void> {
   const body = req.body as {
     Body?: {
       stkCallback?: {
@@ -294,6 +317,8 @@ mpesaPublicRouter.post("/mpesa/callback", requireSafaricomIp, requireMpesaWebhoo
       };
     };
   };
+
+  const fallbackCompanyId = req.mpesaCompanyId ?? LEGACY_DEFAULT_COMPANY_ID;
 
   const cb = body?.Body?.stkCallback;
   if (!cb) {
@@ -396,7 +421,7 @@ mpesaPublicRouter.post("/mpesa/callback", requireSafaricomIp, requireMpesaWebhoo
       .insert(paymentsTable)
       .values({
         customerId: customer?.id ?? null,
-        companyId: customer?.companyId ?? 1,
+        companyId: customer?.companyId ?? fallbackCompanyId,
         invoiceId: null,
         amount: String(amount),
         method: "mpesa",
@@ -431,23 +456,43 @@ mpesaPublicRouter.post("/mpesa/callback", requireSafaricomIp, requireMpesaWebhoo
   }
 
   res.json({ ResultCode: 0, ResultDesc: "Accepted" });
-});
+}
+
+// Legacy unscoped path defaults to company 1; company-scoped path is keyed by
+// the company's `username` slug and registered per-tenant with Safaricom.
+mpesaPublicRouter.post("/mpesa/callback", requireSafaricomIp, requireMpesaWebhookSecret, handleStkCallback);
+mpesaPublicRouter.post(
+  "/mpesa/callback/:companyUsername",
+  resolveCallbackCompany,
+  requireSafaricomIp,
+  requireMpesaWebhookSecret,
+  handleStkCallback,
+);
 
 /*
  * POST /api/mpesa/c2b/validation
  * C2B validation URL — Safaricom calls this to validate before processing.
  * Public — Safaricom calls this directly.
  */
-mpesaPublicRouter.post("/mpesa/c2b/validation", requireSafaricomIp, requireMpesaWebhookSecret, (_req, res) => {
+function handleC2bValidation(_req: Request, res: Response): void {
   res.json({ ResultCode: "0", ResultDesc: "Accepted" });
-});
+}
+mpesaPublicRouter.post("/mpesa/c2b/validation", requireSafaricomIp, requireMpesaWebhookSecret, handleC2bValidation);
+mpesaPublicRouter.post(
+  "/mpesa/c2b/validation/:companyUsername",
+  resolveCallbackCompany,
+  requireSafaricomIp,
+  requireMpesaWebhookSecret,
+  handleC2bValidation,
+);
 
 /*
  * POST /api/mpesa/c2b/confirmation
  * C2B confirmation URL — Safaricom confirms a successful payment.
  * Public — Safaricom calls this directly.
  */
-mpesaPublicRouter.post("/mpesa/c2b/confirmation", requireSafaricomIp, requireMpesaWebhookSecret, async (req, res) => {
+async function handleC2bConfirmation(req: Request, res: Response): Promise<void> {
+  const fallbackCompanyId = req.mpesaCompanyId ?? LEGACY_DEFAULT_COMPANY_ID;
   const body = req.body as {
     TransID?: string;
     TransAmount?: string;
@@ -470,7 +515,7 @@ mpesaPublicRouter.post("/mpesa/c2b/confirmation", requireSafaricomIp, requireMpe
 
     await db.insert(paymentsTable).values({
       customerId: customer?.id ?? null,
-      companyId: customer?.companyId ?? 1,
+      companyId: customer?.companyId ?? fallbackCompanyId,
       invoiceId: null,
       amount: String(amount),
       method: "mpesa",
@@ -485,7 +530,15 @@ mpesaPublicRouter.post("/mpesa/c2b/confirmation", requireSafaricomIp, requireMpe
   }
 
   res.json({ ResultCode: "0", ResultDesc: "Accepted" });
-});
+}
+mpesaPublicRouter.post("/mpesa/c2b/confirmation", requireSafaricomIp, requireMpesaWebhookSecret, handleC2bConfirmation);
+mpesaPublicRouter.post(
+  "/mpesa/c2b/confirmation/:companyUsername",
+  resolveCallbackCompany,
+  requireSafaricomIp,
+  requireMpesaWebhookSecret,
+  handleC2bConfirmation,
+);
 
 /*
  * GET /api/mpesa/transactions

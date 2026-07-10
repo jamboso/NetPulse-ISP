@@ -7,8 +7,6 @@ import { getDiagnosticsSnapshot, formatSnapshotForPrompt } from "../../lib/diagn
 
 const router: IRouter = Router();
 
-router.use(requireRole("admin"));
-
 const SYSTEM_PROMPT_PREFIX = `You are the NetPulse ISP Manager diagnostics assistant. You help the admin
 understand the current health of their self-hosted ISP management system (customers, billing,
 support tickets, routers, IP pools, VPN). You are given a live diagnostics snapshot below —
@@ -22,26 +20,26 @@ Current diagnostics snapshot:
 `;
 
 // ── GET /openai/diagnostics-snapshot ─────────────────────────────────────────
-router.get("/openai/diagnostics-snapshot", async (req, res) => {
+router.get("/openai/diagnostics-snapshot", requireRole("admin"), async (req, res) => {
   const snapshot = await getDiagnosticsSnapshot();
   res.json(snapshot);
 });
 
 // ── GET /openai/conversations ─────────────────────────────────────────────────
-router.get("/openai/conversations", async (req, res) => {
+router.get("/openai/conversations", requireRole("admin"), async (req, res) => {
   const rows = await db.select().from(conversations).orderBy(asc(conversations.id));
   res.json(rows);
 });
 
 // ── POST /openai/conversations ────────────────────────────────────────────────
-router.post("/openai/conversations", async (req, res) => {
+router.post("/openai/conversations", requireRole("admin"), async (req, res) => {
   const title = typeof req.body?.title === "string" && req.body.title.trim() ? req.body.title.trim() : "New conversation";
   const [row] = await db.insert(conversations).values({ title }).returning();
   res.status(201).json(row);
 });
 
 // ── GET /openai/conversations/:id ─────────────────────────────────────────────
-router.get("/openai/conversations/:id", async (req, res) => {
+router.get("/openai/conversations/:id", requireRole("admin"), async (req, res) => {
   const id = Number(req.params.id);
   const [conversation] = await db.select().from(conversations).where(eq(conversations.id, id));
   if (!conversation) {
@@ -53,7 +51,7 @@ router.get("/openai/conversations/:id", async (req, res) => {
 });
 
 // ── DELETE /openai/conversations/:id ──────────────────────────────────────────
-router.delete("/openai/conversations/:id", async (req, res) => {
+router.delete("/openai/conversations/:id", requireRole("admin"), async (req, res) => {
   const id = Number(req.params.id);
   const deleted = await db.delete(conversations).where(eq(conversations.id, id)).returning();
   if (deleted.length === 0) {
@@ -64,14 +62,14 @@ router.delete("/openai/conversations/:id", async (req, res) => {
 });
 
 // ── GET /openai/conversations/:id/messages ────────────────────────────────────
-router.get("/openai/conversations/:id/messages", async (req, res) => {
+router.get("/openai/conversations/:id/messages", requireRole("admin"), async (req, res) => {
   const id = Number(req.params.id);
   const rows = await db.select().from(messages).where(eq(messages.conversationId, id)).orderBy(asc(messages.id));
   res.json(rows);
 });
 
 // ── POST /openai/conversations/:id/messages — SSE streaming chat ─────────────
-router.post("/openai/conversations/:id/messages", async (req, res) => {
+router.post("/openai/conversations/:id/messages", requireRole("admin"), async (req, res) => {
   const id = Number(req.params.id);
   const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
 

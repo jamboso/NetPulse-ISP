@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { invoicesTable, customersTable } from "@workspace/db";
+import { invoicesTable, customersTable, subscriptionsTable } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
@@ -76,6 +76,23 @@ router.post("/invoices", requireRole("admin", "billing"), validateBody(createInv
   const body = req.body;
   const tax = body.tax ?? 0;
   const total = Number(body.amount) + Number(tax);
+
+  const [customer] = await db.select({ id: customersTable.id }).from(customersTable).where(
+    req.companyId != null
+      ? and(eq(customersTable.id, body.customerId), eq(customersTable.companyId, req.companyId))
+      : eq(customersTable.id, body.customerId),
+  );
+  if (!customer) { res.status(400).json({ error: "Invalid customerId" }); return; }
+
+  if (body.subscriptionId != null) {
+    const [subscription] = await db.select({ id: subscriptionsTable.id }).from(subscriptionsTable).where(
+      req.companyId != null
+        ? and(eq(subscriptionsTable.id, body.subscriptionId), eq(subscriptionsTable.companyId, req.companyId))
+        : eq(subscriptionsTable.id, body.subscriptionId),
+    );
+    if (!subscription) { res.status(400).json({ error: "Invalid subscriptionId" }); return; }
+  }
+
   const [inv] = await db.insert(invoicesTable).values({
     companyId: req.companyId!,
     customerId: body.customerId,

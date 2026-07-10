@@ -77,6 +77,14 @@ router.get("/tickets", async (req, res) => {
 
 router.post("/tickets", requireRole("admin", "billing", "support"), validateBody(createTicketSchema), async (req, res) => {
   const body = req.body;
+
+  const [customer] = await db.select({ id: customersTable.id }).from(customersTable).where(
+    req.companyId != null
+      ? and(eq(customersTable.id, body.customerId), eq(customersTable.companyId, req.companyId))
+      : eq(customersTable.id, body.customerId),
+  );
+  if (!customer) { res.status(400).json({ error: "Invalid customerId" }); return; }
+
   const [ticket] = await db.insert(ticketsTable).values({
     companyId: req.companyId!,
     customerId: body.customerId,

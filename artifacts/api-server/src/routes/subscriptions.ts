@@ -237,9 +237,25 @@ router.post("/subscriptions", requireRole("admin", "billing"), validateBody(crea
 
   // Get customer + plan for PPPoE provisioning
   const [[customer], [plan]] = await Promise.all([
-    db.select().from(customersTable).where(eq(customersTable.id, body.customerId)),
-    db.select().from(plansTable).where(eq(plansTable.id, body.planId)),
+    db.select().from(customersTable).where(
+      req.companyId != null
+        ? and(eq(customersTable.id, body.customerId), eq(customersTable.companyId, req.companyId))
+        : eq(customersTable.id, body.customerId),
+    ),
+    db.select().from(plansTable).where(
+      req.companyId != null
+        ? and(eq(plansTable.id, body.planId), eq(plansTable.companyId, req.companyId))
+        : eq(plansTable.id, body.planId),
+    ),
   ]);
+
+  if (!customer) { res.status(400).json({ error: "Invalid customerId" }); return; }
+  if (!plan) { res.status(400).json({ error: "Invalid planId" }); return; }
+
+  if (body.routerId != null) {
+    const [router_] = await db.select({ id: routersTable.id }).from(routersTable).where(eq(routersTable.id, body.routerId));
+    if (!router_) { res.status(400).json({ error: "Invalid routerId" }); return; }
+  }
 
   const status = body.status ?? "active";
   const shouldProvision = status === "active" && body.routerId != null && customer;

@@ -54,6 +54,25 @@ router.get("/payments", async (req, res) => {
 
 router.post("/payments", requireRole("admin", "billing"), validateBody(createPaymentSchema), async (req, res) => {
   const body = req.body;
+
+  if (body.customerId != null) {
+    const [customer] = await db.select({ id: customersTable.id }).from(customersTable).where(
+      req.companyId != null
+        ? and(eq(customersTable.id, body.customerId), eq(customersTable.companyId, req.companyId))
+        : eq(customersTable.id, body.customerId),
+    );
+    if (!customer) { res.status(400).json({ error: "Invalid customerId" }); return; }
+  }
+
+  if (body.invoiceId != null) {
+    const [invoice] = await db.select({ id: invoicesTable.id }).from(invoicesTable).where(
+      req.companyId != null
+        ? and(eq(invoicesTable.id, body.invoiceId), eq(invoicesTable.companyId, req.companyId))
+        : eq(invoicesTable.id, body.invoiceId),
+    );
+    if (!invoice) { res.status(400).json({ error: "Invalid invoiceId" }); return; }
+  }
+
   const [payment] = await db.insert(paymentsTable).values({
     companyId: req.companyId!,
     customerId: body.customerId,
@@ -67,7 +86,11 @@ router.post("/payments", requireRole("admin", "billing"), validateBody(createPay
 
   if (payment!.status === "completed" && payment!.invoiceId != null) {
     await db.update(invoicesTable).set({ status: "paid", paidAt: new Date().toISOString() })
-      .where(eq(invoicesTable.id, payment!.invoiceId));
+      .where(
+        req.companyId != null
+          ? and(eq(invoicesTable.id, payment!.invoiceId), eq(invoicesTable.companyId, req.companyId))
+          : eq(invoicesTable.id, payment!.invoiceId),
+      );
   }
 
   void writeAuditLog({

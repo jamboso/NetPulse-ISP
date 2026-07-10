@@ -6,6 +6,7 @@ import { startRouterMonitor } from "./lib/routerMonitor";
 import { startAuditLogPurgeScheduler } from "./lib/auditLogPurge";
 import { startAuditExportScheduler } from "./lib/auditExportScheduler";
 import { startDnsPoller } from "./lib/dnsPoller";
+import { ensureCompanyBackfill } from "./lib/companyBackfill";
 
 const rawPort = process.env["PORT"];
 
@@ -21,17 +22,23 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+ensureCompanyBackfill()
+  .catch((err) => {
+    logger.error({ err }, "Company backfill failed — continuing startup");
+  })
+  .finally(() => {
+    app.listen(port, (err) => {
+      if (err) {
+        logger.error({ err }, "Error listening on port");
+        process.exit(1);
+      }
 
-  logger.info({ port }, "Server listening");
-  startSessionPoller();
-  startSmsScheduler();
-  startRouterMonitor();
-  startAuditLogPurgeScheduler();
-  startAuditExportScheduler();
-  startDnsPoller();
-});
+      logger.info({ port }, "Server listening");
+      startSessionPoller();
+      startSmsScheduler();
+      startRouterMonitor();
+      startAuditLogPurgeScheduler();
+      startAuditExportScheduler();
+      startDnsPoller();
+    });
+  });

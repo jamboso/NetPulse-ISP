@@ -93,19 +93,30 @@ router.post("/companies", validateBody(createCompanySchema), async (req, res) =>
     accessUntil:  null,
   }).returning();
 
-  const signUpResult = await auth.api.signUpEmail({
-    body: { name: body.name, email: body.ownerEmail, password: tempPassword },
-  });
+  let signUpResult;
+  try {
+    signUpResult = await auth.api.signUpEmail({
+      body: { name: body.name, email: body.ownerEmail, password: tempPassword },
+    });
 
-  if (!signUpResult?.user) {
+    if (!signUpResult?.user) {
+      throw new Error("signUpEmail returned no user");
+    }
+
+    await db.update(usersTable)
+      .set({ role: "admin", companyId: company!.id, phone: body.ownerPhone ?? null, updatedAt: new Date() })
+      .where(eq(usersTable.id, signUpResult.user.id));
+  } catch (err) {
+    // Roll back so we never strand a user without a companyId (which would
+    // permanently 403 them via resolveCompanyScope) or a company without an admin.
+    if (signUpResult?.user) {
+      await db.delete(usersTable).where(eq(usersTable.id, signUpResult.user.id));
+    }
     await db.delete(companiesTable).where(eq(companiesTable.id, company!.id));
+    req.log.error({ err }, "Failed to finish company admin account setup, rolled back");
     res.status(500).json({ error: "Failed to create company admin account" });
     return;
   }
-
-  await db.update(usersTable)
-    .set({ role: "admin", companyId: company!.id, phone: body.ownerPhone ?? null, updatedAt: new Date() })
-    .where(eq(usersTable.id, signUpResult.user.id));
 
   void writeAuditLog({
     companyId:  company!.id,

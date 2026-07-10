@@ -582,4 +582,64 @@ CREATE TABLE "messages" (
         "created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "messages" ADD CONSTRAINT "messages_conversation_id_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversations"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "messages" ADD CONSTRAINT "messages_conversation_id_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+
+-- ── Multi-tenant SaaS conversion ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "companies" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "name" text NOT NULL,
+        "username" text NOT NULL,
+        "owner_email" text NOT NULL,
+        "owner_phone" text,
+        "access_status" text DEFAULT 'active' NOT NULL,
+        "exempt" boolean DEFAULT false NOT NULL,
+        "access_until" timestamp,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL,
+        CONSTRAINT "companies_username_unique" UNIQUE("username")
+);
+--> statement-breakpoint
+INSERT INTO "companies" ("id", "name", "username", "owner_email", "access_status", "exempt")
+        VALUES (1, 'Default Company', 'DEFAULT', 'owner@localhost', 'active', true)
+        ON CONFLICT (id) DO NOTHING;
+--> statement-breakpoint
+SELECT setval('companies_id_seq', GREATEST((SELECT MAX(id) FROM companies), 1));
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "company_renewals" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "company_id" integer NOT NULL,
+        "provider" text NOT NULL,
+        "external_ref" text NOT NULL,
+        "months" integer NOT NULL,
+        "amount" numeric NOT NULL,
+        "status" text DEFAULT 'pending' NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "completed_at" timestamp
+);
+--> statement-breakpoint
+DO $$ BEGIN
+        ALTER TABLE "company_renewals" ADD CONSTRAINT "company_renewals_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "company_id" integer;
+--> statement-breakpoint
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "company_id" integer NOT NULL DEFAULT 1;
+--> statement-breakpoint
+ALTER TABLE "plans" ADD COLUMN IF NOT EXISTS "company_id" integer NOT NULL DEFAULT 1;
+--> statement-breakpoint
+ALTER TABLE "subscriptions" ADD COLUMN IF NOT EXISTS "company_id" integer NOT NULL DEFAULT 1;
+--> statement-breakpoint
+ALTER TABLE "invoices" ADD COLUMN IF NOT EXISTS "company_id" integer NOT NULL DEFAULT 1;
+--> statement-breakpoint
+ALTER TABLE "payments" ADD COLUMN IF NOT EXISTS "company_id" integer NOT NULL DEFAULT 1;
+--> statement-breakpoint
+ALTER TABLE "tickets" ADD COLUMN IF NOT EXISTS "company_id" integer NOT NULL DEFAULT 1;
+--> statement-breakpoint
+ALTER TABLE "equipment" ADD COLUMN IF NOT EXISTS "company_id" integer NOT NULL DEFAULT 1;
+--> statement-breakpoint
+ALTER TABLE "ip_pools" ADD COLUMN IF NOT EXISTS "company_id" integer NOT NULL DEFAULT 1;
+--> statement-breakpoint
+ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "company_id" integer NOT NULL DEFAULT 1;
+--> statement-breakpoint
+ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "company_id" integer;

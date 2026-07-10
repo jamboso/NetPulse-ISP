@@ -16,8 +16,10 @@ import {
   sessionLogsTable, routersTable, splittersTable,
 } from "@workspace/db";
 import { eq, isNotNull, isNull, and } from "drizzle-orm";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 
 const router = Router();
+router.use(resolveCompanyScope);
 
 // ── MAC vendor lookup (reuse the cache from mac-vendor route) ─────────────────
 const vendorCache = new Map<string, string>();
@@ -38,7 +40,8 @@ async function getVendor(mac: string | null): Promise<string | null> {
 
 // ── Network Map overview ──────────────────────────────────────────────────────
 
-router.get("/network-map", async (_req, res) => {
+router.get("/network-map", async (req, res) => {
+  const companyId = req.companyId;
   // Customers with coords
   const customers = await db
     .select({
@@ -51,7 +54,11 @@ router.get("/network-map", async (_req, res) => {
       longitude: customersTable.longitude,
     })
     .from(customersTable)
-    .where(and(isNotNull(customersTable.latitude), isNotNull(customersTable.longitude)));
+    .where(and(
+      isNotNull(customersTable.latitude),
+      isNotNull(customersTable.longitude),
+      companyId != null ? eq(customersTable.companyId, companyId) : undefined,
+    ));
 
   if (customers.length === 0) {
     const splitters = await db.select().from(splittersTable);
@@ -222,7 +229,11 @@ router.patch("/customers/:id/location", async (req, res) => {
   const { latitude, longitude } = req.body as { latitude?: number; longitude?: number };
   const [row] = await db.update(customersTable)
     .set({ latitude: latitude ?? null, longitude: longitude ?? null })
-    .where(eq(customersTable.id, id))
+    .where(
+      req.companyId != null
+        ? and(eq(customersTable.id, id), eq(customersTable.companyId, req.companyId))
+        : eq(customersTable.id, id),
+    )
     .returning();
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(row);

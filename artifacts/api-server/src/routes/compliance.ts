@@ -4,8 +4,10 @@ import {
   sessionLogsTable, customersTable, subscriptionsTable, plansTable,
 } from "@workspace/db";
 import { eq, and, gte, lte, desc, isNull } from "drizzle-orm";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 
 const router = Router();
+router.use(resolveCompanyScope);
 
 // ── GET /api/compliance/report ────────────────────────────────────────────────
 // Full subscriber compliance report for a given customer & date range.
@@ -17,7 +19,11 @@ router.get("/compliance/report", async (req, res) => {
 
   if (!customerId) { res.status(400).json({ error: "customerId required" }); return; }
 
-  const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, customerId));
+  const [customer] = await db.select().from(customersTable).where(
+    req.companyId != null
+      ? and(eq(customersTable.id, customerId), eq(customersTable.companyId, req.companyId))
+      : eq(customersTable.id, customerId),
+  );
   if (!customer) { res.status(404).json({ error: "Customer not found" }); return; }
 
   const subs = await db
@@ -72,6 +78,7 @@ router.get("/compliance/sessions", async (req, res) => {
     .where(and(
       gte(sessionLogsTable.sessionStart, from),
       lte(sessionLogsTable.sessionStart, to),
+      req.companyId != null ? eq(customersTable.companyId, req.companyId) : undefined,
     ))
     .orderBy(desc(sessionLogsTable.sessionStart))
     .limit(500);
@@ -89,6 +96,12 @@ router.get("/compliance/sessions", async (req, res) => {
 
 router.post("/customers/:id/sessions/log", async (req, res) => {
   const customerId = parseInt(req.params.id!);
+  const [customer] = await db.select({ id: customersTable.id }).from(customersTable).where(
+    req.companyId != null
+      ? and(eq(customersTable.id, customerId), eq(customersTable.companyId, req.companyId))
+      : eq(customersTable.id, customerId),
+  );
+  if (!customer) { res.status(404).json({ error: "Customer not found" }); return; }
   const { sessions } = req.body as {
     sessions: Array<{
       subscriptionId: number;

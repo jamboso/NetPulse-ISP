@@ -19,8 +19,10 @@ import {
 } from "@workspace/db";
 import { eq, desc, and, gte, lte, isNotNull, inArray } from "drizzle-orm";
 import { getSettings, sendSms, renderTemplate, logSms } from "../lib/sms";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 
 const router = Router();
+router.use(resolveCompanyScope);
 
 // ── Templates ─────────────────────────────────────────────────────────────────
 
@@ -78,7 +80,11 @@ router.post("/sms/preview", async (req, res) => {
       .from(customersTable)
       .leftJoin(subscriptionsTable, and(eq(subscriptionsTable.customerId, customerId), eq(subscriptionsTable.status, "active")))
       .leftJoin(plansTable, eq(subscriptionsTable.planId, plansTable.id))
-      .where(eq(customersTable.id, customerId))
+      .where(
+        req.companyId != null
+          ? and(eq(customersTable.id, customerId), eq(customersTable.companyId, req.companyId))
+          : eq(customersTable.id, customerId),
+      )
       .limit(1);
     if (rows[0]) {
       const { c, s, p } = rows[0];
@@ -138,6 +144,7 @@ router.post("/sms/bulk", async (req, res) => {
 
   // Apply filter
   const conditions = [isNotNull(customersTable.phone)];
+  if (req.companyId != null) conditions.push(eq(customersTable.companyId, req.companyId));
   if (customerIds?.length) conditions.push(inArray(customersTable.id, customerIds));
   if (filter === "active")      conditions.push(eq(subscriptionsTable.status, "active"));
   if (filter === "suspended")   conditions.push(eq(subscriptionsTable.status, "suspended"));
@@ -202,6 +209,7 @@ router.get("/sms/logs", async (req, res) => {
     .select({ log: smsLogsTable, customer: customersTable })
     .from(smsLogsTable)
     .leftJoin(customersTable, eq(smsLogsTable.customerId, customersTable.id))
+    .where(req.companyId != null ? eq(customersTable.companyId, req.companyId) : undefined)
     .orderBy(desc(smsLogsTable.createdAt))
     .limit(limit);
   res.json(rows.map(r => ({ ...r.log, customerName: r.customer?.name ?? null })));

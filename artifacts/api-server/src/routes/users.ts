@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db, usersTable, sessionsTable } from "@workspace/db";
-import { eq, ilike, or, max } from "drizzle-orm";
+import { eq, ilike, or, and, max } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 import { auth } from "../lib/auth";
 import { writeAuditLog } from "../lib/audit";
 import { getSettings, sendSms, normalisePhone } from "../lib/sms.js";
@@ -33,6 +34,7 @@ const updateOwnPhoneSchema = z.object({
 });
 
 const router = Router();
+router.use(resolveCompanyScope);
 
 router.get("/users", requireRole("admin"), async (req, res) => {
   const { search } = req.query as Record<string, string>;
@@ -61,14 +63,14 @@ router.get("/users", requireRole("admin"), async (req, res) => {
     .leftJoin(lastActiveSub, eq(lastActiveSub.userId, usersTable.id))
     .$dynamic();
 
-  if (search) {
-    query = query.where(
-      or(
-        ilike(usersTable.name, `%${search}%`),
-        ilike(usersTable.email, `%${search}%`),
-      ),
-    );
-  }
+  const companyFilter = req.companyId != null ? eq(usersTable.companyId, req.companyId) : undefined;
+  const searchFilter = search
+    ? or(ilike(usersTable.name, `%${search}%`), ilike(usersTable.email, `%${search}%`))
+    : undefined;
+  const combinedFilter = companyFilter && searchFilter
+    ? and(companyFilter, searchFilter)
+    : (companyFilter ?? searchFilter);
+  if (combinedFilter) query = query.where(combinedFilter);
 
   const data = await query.orderBy(usersTable.createdAt);
   res.json({ data });
@@ -98,7 +100,7 @@ router.post("/users", requireRole("admin"), validateBody(createUserSchema), asyn
 
   const [updated] = await db
     .update(usersTable)
-    .set({ role, phone: phone?.trim() || null, updatedAt: new Date() })
+    .set({ role, phone: phone?.trim() || null, companyId: req.companyId, updatedAt: new Date() })
     .where(eq(usersTable.id, signUpResult.user.id))
     .returning({
       id: usersTable.id,
@@ -251,7 +253,11 @@ router.patch("/users/:id", requireRole("admin"), validateBody(updateUserSchema),
     return;
   }
 
-  const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  const [existing] = await db.select().from(usersTable).where(
+    req.companyId != null
+      ? and(eq(usersTable.id, id), eq(usersTable.companyId, req.companyId))
+      : eq(usersTable.id, id),
+  );
   if (!existing) {
     res.status(404).json({ error: "User not found" });
     return;
@@ -265,7 +271,11 @@ router.patch("/users/:id", requireRole("admin"), validateBody(updateUserSchema),
   const [updated] = await db
     .update(usersTable)
     .set(updates)
-    .where(eq(usersTable.id, id))
+    .where(
+      req.companyId != null
+        ? and(eq(usersTable.id, id), eq(usersTable.companyId, req.companyId))
+        : eq(usersTable.id, id),
+    )
     .returning({
       id: usersTable.id,
       email: usersTable.email,

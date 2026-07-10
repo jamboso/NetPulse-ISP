@@ -3,8 +3,10 @@ import { db, auditLogsTable } from "@workspace/db";
 import { paymentsTable, subscriptionsTable, plansTable, customersTable } from "@workspace/db";
 import { eq, gte, and, sql, desc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole.js";
+import { resolveCompanyScope } from "../middlewares/companyScope.js";
 
 const router = Router();
+router.use(resolveCompanyScope);
 
 /*
  * GET /api/sales/summary
@@ -18,50 +20,57 @@ router.get("/sales/summary", requireRole("admin", "billing"), async (req, res) =
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
 
+    const companyId = req.companyId;
+    const companyClause = (col: any) => (companyId != null ? eq(col, companyId) : undefined);
+    const andDefined = (...clauses: (ReturnType<typeof eq> | undefined)[]) => and(...clauses.filter((c): c is NonNullable<typeof c> => c !== undefined));
+
     const [revThisMonth] = await db
       .select({ total: sql<string>`coalesce(sum(amount), 0)` })
       .from(paymentsTable)
-      .where(and(eq(paymentsTable.status, "completed"), gte(paymentsTable.createdAt, startOfMonth)));
+      .where(andDefined(eq(paymentsTable.status, "completed"), gte(paymentsTable.createdAt, startOfMonth), companyClause(paymentsTable.companyId)));
 
     const [revLastMonth] = await db
       .select({ total: sql<string>`coalesce(sum(amount), 0)` })
       .from(paymentsTable)
       .where(
-        and(
+        andDefined(
           eq(paymentsTable.status, "completed"),
           gte(paymentsTable.createdAt, startOfLastMonth),
-          sql`${paymentsTable.createdAt} <= ${endOfLastMonth}`,
+          sql`${paymentsTable.createdAt} <= ${endOfLastMonth}` as any,
+          companyClause(paymentsTable.companyId),
         ),
       );
 
     const [subsThisMonth] = await db
       .select({ count: sql<string>`count(*)` })
       .from(subscriptionsTable)
-      .where(gte(subscriptionsTable.createdAt, startOfMonth));
+      .where(andDefined(gte(subscriptionsTable.createdAt, startOfMonth), companyClause(subscriptionsTable.companyId)));
 
     const [subsLastMonth] = await db
       .select({ count: sql<string>`count(*)` })
       .from(subscriptionsTable)
       .where(
-        and(
+        andDefined(
           gte(subscriptionsTable.createdAt, startOfLastMonth),
-          sql`${subscriptionsTable.createdAt} <= ${endOfLastMonth}`,
+          sql`${subscriptionsTable.createdAt} <= ${endOfLastMonth}` as any,
+          companyClause(subscriptionsTable.companyId),
         ),
       );
 
     const [activeSubs] = await db
       .select({ count: sql<string>`count(*)` })
       .from(subscriptionsTable)
-      .where(eq(subscriptionsTable.status, "active"));
+      .where(andDefined(eq(subscriptionsTable.status, "active"), companyClause(subscriptionsTable.companyId)));
 
     const [totalCustomers] = await db
       .select({ count: sql<string>`count(*)` })
-      .from(customersTable);
+      .from(customersTable)
+      .where(companyClause(customersTable.companyId));
 
     const [allTimeRev] = await db
       .select({ total: sql<string>`coalesce(sum(amount), 0)` })
       .from(paymentsTable)
-      .where(eq(paymentsTable.status, "completed"));
+      .where(andDefined(eq(paymentsTable.status, "completed"), companyClause(paymentsTable.companyId)));
 
     res.json({
       revenueThisMonth: Number(revThisMonth?.total ?? 0),
@@ -84,6 +93,7 @@ router.get("/sales/summary", requireRole("admin", "billing"), async (req, res) =
  */
 router.get("/sales/trends", requireRole("admin", "billing"), async (req, res) => {
   const period = (req.query["period"] as string) || "30d";
+  const companyId = req.companyId;
 
   try {
     let points: { date: string; revenue: number; newSubs: number }[] = [];
@@ -99,8 +109,8 @@ router.get("/sales/trends", requireRole("admin", "billing"), async (req, res) =>
           date_trunc('month', now()),
           '1 month'
         ) AS gs
-        LEFT JOIN payments p ON date_trunc('month', p.created_at) = gs
-        LEFT JOIN subscriptions s ON date_trunc('month', s.created_at) = gs
+        LEFT JOIN payments p ON date_trunc('month', p.created_at) = gs ${companyId != null ? sql`AND p.company_id = ${companyId}` : sql``}
+        LEFT JOIN subscriptions s ON date_trunc('month', s.created_at) = gs ${companyId != null ? sql`AND s.company_id = ${companyId}` : sql``}
         GROUP BY month
         ORDER BY month
       `);
@@ -121,8 +131,8 @@ router.get("/sales/trends", requireRole("admin", "billing"), async (req, res) =>
           now()::date,
           '1 day'
         ) AS gs
-        LEFT JOIN payments p ON p.created_at::date = gs::date
-        LEFT JOIN subscriptions s ON s.created_at::date = gs::date
+        LEFT JOIN payments p ON p.created_at::date = gs::date ${companyId != null ? sql`AND p.company_id = ${companyId}` : sql``}
+        LEFT JOIN subscriptions s ON s.created_at::date = gs::date ${companyId != null ? sql`AND s.company_id = ${companyId}` : sql``}
         GROUP BY day
         ORDER BY day
       `);
@@ -146,6 +156,7 @@ router.get("/sales/trends", requireRole("admin", "billing"), async (req, res) =>
  */
 router.get("/sales/by-plan", requireRole("admin", "billing"), async (req, res) => {
   try {
+    const companyId = req.companyId;
     const rows = await db
       .select({
         planId: plansTable.id,
@@ -157,7 +168,7 @@ router.get("/sales/by-plan", requireRole("admin", "billing"), async (req, res) =
       })
       .from(plansTable)
       .leftJoin(subscriptionsTable, eq(subscriptionsTable.planId, plansTable.id))
-      .where(eq(plansTable.isActive, true))
+      .where(companyId != null ? and(eq(plansTable.isActive, true), eq(plansTable.companyId, companyId)) : eq(plansTable.isActive, true))
       .groupBy(plansTable.id)
       .orderBy(desc(sql`count(s.id)`));
 
@@ -185,20 +196,23 @@ router.get("/sales/by-plan", requireRole("admin", "billing"), async (req, res) =
 router.get("/sales/staff-activity", requireRole("admin", "billing"), async (req, res) => {
   const days = Math.min(Number(req.query["days"] ?? 30), 365);
   const since = new Date(Date.now() - days * 86400_000);
+  const companyId = req.companyId;
 
   try {
     const rows = await db.execute(sql`
       SELECT
-        user_email,
-        entity_type,
-        action,
+        al.user_email,
+        al.entity_type,
+        al.action,
         count(*) AS count
-      FROM audit_logs
-      WHERE created_at >= ${since}
-        AND action = 'create'
-        AND entity_type IN ('customer', 'subscription', 'payment')
-      GROUP BY user_email, entity_type, action
-      ORDER BY user_email, entity_type
+      FROM audit_logs al
+      ${companyId != null ? sql`JOIN users u ON u.email = al.user_email` : sql``}
+      WHERE al.created_at >= ${since}
+        AND al.action = 'create'
+        AND al.entity_type IN ('customer', 'subscription', 'payment')
+        ${companyId != null ? sql`AND u.company_id = ${companyId}` : sql``}
+      GROUP BY al.user_email, al.entity_type, al.action
+      ORDER BY al.user_email, al.entity_type
     `);
 
     type Row = { user_email: string; entity_type: string; count: string };

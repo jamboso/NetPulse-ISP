@@ -1,13 +1,16 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { radacctTable, subscriptionsTable } from "@workspace/db";
-import { eq, inArray, desc } from "drizzle-orm";
+import { eq, inArray, desc, and } from "drizzle-orm";
 import { syncAllSubscriptions, syncStaffUserRadius } from "../lib/radiusSync";
 import { requireRole } from "../middlewares/requireRole";
 import { getRouter, getRadiusConfig, upsertRos, rosReq } from "./pppoe";
 import { auth } from "../lib/auth";
+import { resolveCompanyScope } from "../middlewares/companyScope";
+import { customersTable, db as db2 } from "@workspace/db";
 
 const router = Router();
+router.use(resolveCompanyScope);
 
 // ── POST /api/routers/:id/ros/radius/admin-login ──────────────────────────────
 // Configures the MikroTik router so staff/admin logins (Winbox, SSH, web,
@@ -90,6 +93,13 @@ router.post("/radius/staff-login/sync", async (req, res) => {
 
 router.get("/customers/:id/radius-sessions", async (req, res) => {
   const customerId = parseInt(req.params["id"] as string);
+
+  const [customer] = await db2.select({ id: customersTable.id }).from(customersTable).where(
+    req.companyId != null
+      ? and(eq(customersTable.id, customerId), eq(customersTable.companyId, req.companyId))
+      : eq(customersTable.id, customerId),
+  );
+  if (!customer) { res.status(404).json({ error: "Customer not found" }); return; }
 
   const subs = await db
     .select({ id: subscriptionsTable.id, pppoeUsername: subscriptionsTable.pppoeUsername })

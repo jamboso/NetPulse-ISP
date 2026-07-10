@@ -1,0 +1,213 @@
+name: Deployment Simulation
+
+# Simulates a fresh clone + self-hosted install (the same steps a bare
+# Ubuntu server runs via deploy/update.sh) so clone/build/migrate/boot
+# errors are caught in CI — with clear annotations — before they ever
+# reach a real deployment.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  shellcheck-deploy-scripts:
+    name: Lint deploy scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck on deploy/*.sh
+        run: |
+          echo "## ShellCheck results" >> "$GITHUB_STEP_SUMMARY"
+          fail=0
+          for f in deploy/*.sh; do
+            echo "Checking $f"
+            if ! shellcheck -S warning "$f"; then
+              echo "::error file=$f::ShellCheck found issues in $f"
+              echo "- ❌ \`$f\`" >> "$GITHUB_STEP_SUMMARY"
+              fail=1
+            else
+              echo "- ✅ \`$f\`" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          exit $fail
+
+  fresh-deploy-simulation:
+    name: Simulate fresh clone + deploy
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: netpulse
+          POSTGRES_PASSWORD: netpulse_ci_password
+          POSTGRES_DB: netpulse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://netpulse:netpulse_ci_password@localhost:5432/netpulse
+      SESSION_SECRET: ci-simulation-session-secret
+      BETTER_AUTH_SECRET: ci-simulation-better-auth-secret
+      BETTER_AUTH_URL: http://localhost:8080
+      PORT: 8080
+      NODE_ENV: production
+
+    steps:
+      # ── 1. Fresh clone (mirrors deploy/setup-ubuntu.sh step 5) ─────────
+      - name: Checkout (fresh clone, no cache)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # ── 2. Install deps (mirrors update.sh step 2) ──────────────────────
+      - name: Install dependencies
+        run: |
+          echo "::group::pnpm install"
+          CI=true NETPULSE_INSTALL=1 pnpm install --no-frozen-lockfile
+          echo "::endgroup::"
+
+      # ── 3. Build libs (mirrors update.sh step 3) ────────────────────────
+      - name: Build shared libraries
+        run: |
+          echo "::group::typecheck:libs"
+          pnpm run typecheck:libs
+          echo "::endgroup::"
+
+      # ── 4. Build API server (mirrors update.sh step 4) ──────────────────
+      - name: Build API server
+        run: |
+          echo "::group::build api-server"
+          pnpm --filter @workspace/api-server run build
+          echo "::endgroup::"
+
+      # ── 5. Build frontend (mirrors update.sh step 5) ────────────────────
+      - name: Build frontend
+        run: |
+          echo "::group::build isp-portal"
+          PORT=3000 BASE_PATH=/ NODE_ENV=production \
+            pnpm --filter @workspace/isp-portal run build
+          echo "::endgroup::"
+
+      # ── 6. Apply schema (mirrors update.sh step 6) ──────────────────────
+      - name: Apply database schema
+        run: |
+          echo "::group::schema.sql"
+          PGPASSWORD=netpulse_ci_password psql \
+            -h localhost -U netpulse -d netpulse \
+            -v ON_ERROR_STOP=1 \
+            -f deploy/schema.sql
+          echo "::endgroup::"
+
+      # ── 7. Boot the built server exactly as PM2 would ───────────────────
+      - name: Boot API server
+        run: |
+          echo "::group::boot"
+          FRONTEND_DIST_PATH="$PWD/artifacts/isp-portal/dist/public" \
+            node --enable-source-maps artifacts/api-server/dist/index.mjs \
+            > server.log 2>&1 &
+          echo $! > server.pid
+          echo "::endgroup::"
+
+      # ── 8. Health check (mirrors update.sh's post-restart check) ───────
+      - name: Wait for health check
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fsS "http://localhost:8080/api/healthz" -o /dev/null; then
+              echo "Health check passed on attempt $i"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Health check never succeeded — see 'Show server log on failure' step below."
+          exit 1
+
+      - name: Show server log on failure
+        if: failure()
+        run: |
+          echo "## Server boot log" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat server.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "(no server.log produced)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat server.log 2>/dev/null || true
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill "$(cat server.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload server log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-simulation-server-log
+          path: server.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Notify Slack on failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not configured — skipping Slack notification."
+            exit 0
+          fi
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "text": ":red_circle: *Deployment simulation failed* on `${{ github.repository }}` — a fresh clone/build/deploy would break right now.",
+              "attachments": [{
+                "color": "danger",
+                "fields": [
+                  { "title": "Branch", "value": "${{ github.ref_name }}", "short": true },
+                  { "title": "Commit", "value": "${{ github.sha }}", "short": true },
+                  { "title": "Run", "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>", "short": false }
+                ]
+              }]
+            }'
+
+      - name: Notify email on failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        continue-on-error: true
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: GitHub Actions <${{ secrets.SMTP_USERNAME }}>
+          subject: "[${{ github.repository }}] Deployment simulation failed"
+          body: |
+            A fresh clone + deploy simulation failed for ${{ github.repository }}.
+            This means a real self-hosted install/update would break right now.
+
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Check the "deploy-simulation-server-log" artifact and job summary for details.

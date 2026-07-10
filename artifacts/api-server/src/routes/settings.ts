@@ -94,12 +94,12 @@ async function loadSettings(): Promise<Record<string, string | null>> {
   return result;
 }
 
-router.get("/settings/mpesa-ip-allowlist", requireRole("admin"), async (_req, res) => {
+router.get("/settings/mpesa-ip-allowlist", requireRole("owner"), async (_req, res) => {
   const result = await resolveEffectiveAllowlist();
   res.json(result);
 });
 
-router.post("/settings/test-email", requireRole("admin"), async (req, res) => {
+router.post("/settings/test-email", requireRole("owner"), async (req, res) => {
   const toEmail = req.user!.email ?? "";
   const toName  = req.user!.name ?? "Admin";
 
@@ -112,12 +112,12 @@ router.post("/settings/test-email", requireRole("admin"), async (req, res) => {
   res.status(result.success ? 200 : 502).json(result);
 });
 
-router.get("/settings", requireRole("admin"), async (_req, res) => {
+router.get("/settings", requireRole("owner"), async (_req, res) => {
   const settings = await loadSettings();
   res.json(settings);
 });
 
-router.patch("/settings", requireRole("admin"), async (req, res) => {
+router.patch("/settings", requireRole("owner"), async (req, res) => {
   const body = req.body as Partial<Record<SettingsKey, string>>;
 
   for (const [key, value] of Object.entries(body)) {

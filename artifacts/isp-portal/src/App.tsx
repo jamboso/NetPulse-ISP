@@ -35,6 +35,8 @@ import MpesaTransactions from "./pages/mpesa-transactions";
 import Staff from "./pages/staff";
 import Sales from "./pages/sales";
 import AuditLogs from "./pages/audit-logs";
+import Companies from "./pages/companies";
+import Suspended from "./pages/suspended";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -131,7 +133,7 @@ function ProtectedRoutes() {
             <Route path="/network/routers/:id">{() => <RoleRoute component={RouterOSDashboard} roles={["admin", "technician"]} />}</Route>
             <Route path="/network/routers/:id/pppoe">{() => <RoleRoute component={PPPoESetup} roles={["admin", "technician"]} />}</Route>
             <Route path="/network/routers/:id/hotspot">{() => <RoleRoute component={HotspotManager} roles={["admin", "technician"]} />}</Route>
-            <Route path="/settings">{() => <RoleRoute component={Settings} roles={["admin"]} />}</Route>
+            <Route path="/settings">{() => <RoleRoute component={Settings} roles={["owner"]} />}</Route>
             <Route path="/staff">{() => <RoleRoute component={Staff} roles={["admin"]} />}</Route>
             <Route path="/audit-logs">{() => <RoleRoute component={AuditLogs} roles={["admin"]} />}</Route>
             <Route path="/sales">{() => <RoleRoute component={Sales} roles={["admin", "billing"]} />}</Route>
@@ -139,6 +141,7 @@ function ProtectedRoutes() {
             <Route path="/sms">{() => <RoleRoute component={SmsManager} roles={["admin"]} />}</Route>
             <Route path="/monitoring">{() => <RoleRoute component={Monitoring} roles={["admin", "technician"]} />}</Route>
             <Route path="/map">{() => <RoleRoute component={NetworkMap} roles={["admin", "technician"]} />}</Route>
+            <Route path="/companies">{() => <RoleRoute component={Companies} roles={["owner"]} />}</Route>
             <Route>
               <div className="p-8 text-center text-gray-500">Page not found.</div>
             </Route>
@@ -156,6 +159,7 @@ function AppRouter() {
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/setup" component={SetupWizard} />
       <Route path="/hotspot/:routerId" component={CaptivePortal} />
+      <Route path="/suspended" component={Suspended} />
       <Route>
         <AuthGuard>
           <ProtectedRoutes />

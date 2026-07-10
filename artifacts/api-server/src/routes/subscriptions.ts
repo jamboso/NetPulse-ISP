@@ -338,6 +338,15 @@ router.patch("/subscriptions/:id", requireRole("admin", "billing"), validateBody
   const [existing] = await db.select().from(subscriptionsTable).where(scopedSubWhere(req, id));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
+  if (body.planId !== undefined && req.companyId != null) {
+    const [plan] = await db.select({ id: plansTable.id }).from(plansTable)
+      .where(and(eq(plansTable.id, body.planId), eq(plansTable.companyId, req.companyId)));
+    if (!plan) { res.status(404).json({ error: "Plan not found" }); return; }
+  }
+  // NOTE: routersTable has no companyId column yet (network equipment is not
+  // currently tenant-scoped) — router ownership cannot be cross-checked here.
+  // Tracked as a known follow-up; see routers schema.
+
   const update: Record<string, unknown> = {};
   if (body.planId !== undefined) update.planId = body.planId;
   if (body.routerId !== undefined) update.routerId = body.routerId;

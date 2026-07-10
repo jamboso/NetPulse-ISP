@@ -1,12 +1,13 @@
 import { useSession } from "@/lib/authClient";
 
-export type UserRole = "admin" | "billing" | "support" | "technician";
+export type UserRole = "owner" | "admin" | "billing" | "support" | "technician";
 
 export interface CurrentUser {
   id?: string;
   name?: string;
   email?: string;
   role: UserRole;
+  isOwner: boolean;
   isAdmin: boolean;
   isBilling: boolean;
   isSupport: boolean;
@@ -30,6 +31,7 @@ export function useCurrentUser(): CurrentUser {
     name:  raw?.name,
     email: raw?.email,
     role,
+    isOwner:      role === "owner",
     isAdmin:      role === "admin",
     isBilling:    role === "billing",
     isSupport:    role === "support",

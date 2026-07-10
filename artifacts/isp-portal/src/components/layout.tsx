@@ -19,6 +19,7 @@ import {
   UserCog,
   TrendingUp,
   ClipboardList,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ interface LayoutProps {
 }
 
 const ROLE_LABELS: Record<string, string> = {
+  owner:      "Owner",
   admin:      "Admin",
   billing:    "Billing",
   support:    "Support",
@@ -36,6 +38,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const ROLE_COLORS: Record<string, string> = {
+  owner:      "bg-slate-900 text-white",
   admin:      "bg-blue-600 text-white",
   billing:    "bg-emerald-600 text-white",
   support:    "bg-orange-500 text-white",
@@ -44,10 +47,11 @@ const ROLE_COLORS: Record<string, string> = {
 
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
-  const { name, email, role, isAdmin, canManageBilling, canManageCustomers, canManageTickets, canManageNetwork } = useCurrentUser();
+  const { name, email, role, isOwner, isAdmin, canManageBilling, canManageCustomers, canManageTickets, canManageNetwork } = useCurrentUser();
 
   const navItems = [
-    { name: "Dashboard",     href: "/",             icon: LayoutDashboard, show: true },
+    { name: "Dashboard",     href: "/",             icon: LayoutDashboard, show: !isOwner },
+    { name: "Companies",     href: "/companies",    icon: Building2,       show: isOwner },
     { name: "Customers",     href: "/customers",    icon: Users,           show: canManageCustomers },
     { name: "Service Plans", href: "/plans",        icon: Package,         show: canManageBilling },
     { name: "Subscriptions", href: "/subscriptions",icon: CreditCard,      show: canManageBilling },
@@ -61,7 +65,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: "Monitoring",    href: "/monitoring",   icon: MonitorDot,      show: canManageNetwork },
     { name: "Compliance",    href: "/compliance",   icon: Shield,          show: isAdmin },
     { name: "SMS Manager",   href: "/sms",          icon: MessageSquare,   show: isAdmin },
-    { name: "Settings",      href: "/settings",     icon: SettingsIcon,    show: isAdmin },
+    { name: "Settings",      href: "/settings",     icon: SettingsIcon,    show: isOwner },
     { name: "Staff",         href: "/staff",        icon: UserCog,         show: isAdmin },
     { name: "Audit Log",     href: "/audit-logs",   icon: ClipboardList,   show: isAdmin },
   ].filter(item => item.show);

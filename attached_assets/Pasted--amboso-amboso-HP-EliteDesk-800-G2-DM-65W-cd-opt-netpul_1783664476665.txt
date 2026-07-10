@@ -1,0 +1,63 @@
+
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ cd /opt/netpulse && sudo bash deploy/update.sh && pm2 status
+
+NetPulse Update — 2026-07-10 09:17:52
+──────────────────────────────────────────
+  →  Pulling latest code from origin/main...
+From https://github.com/jamboso/NetPulse-ISP
+   506a3a2..5f60337  main       -> origin/main
+HEAD is now at 5f60337 Improve AI integration error handling for unprovisioned environments
+  ✓  Updated 506a3a2 → 5f60337
+  →  Installing dependencies...
+Already up to date
+
+. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; [ "$NETPULSE_INSTALL" = "1" ] && exit 0; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+. preinstall: Done
+Done in 1.9s using pnpm v10.26.1
+  ✓  Dependencies up to date
+  →  Building shared libraries...
+> workspace@0.0.0 typecheck:libs /opt/netpulse
+> tsc --build
+
+  ✓  Libraries built
+  →  Building API server...
+  dist/pino-file.mjs.map             229.0kb
+  dist/pino-pretty.mjs.map           204.0kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+
+⚡ Done in 445ms
+  ✓  API server built
+  →  Building frontend...
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 6.50s
+  ✓  Frontend built
+  →  Running database migrations...
+  ✓  Database schema up to date
+  →  Build complete — signalling dashboard before restart...
+NETPULSE_RESTART_NOW
+  →  Restarting PM2 process...
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [netpulse](ids: [ 0 ])
+[PM2] [netpulse](0) ✓
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 90399    │ 0s     │ 6818 │ online    │ 0%       │ 11.9mb   │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+  ✓  App restarted
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+  ✓  nginx reloaded
+  ✓  App is healthy ✓
+
+✓ Update complete in 24s
+  pm2 logs netpulse  to watch live logs
+
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 86242    │ 28m    │ 71   │ online    │ 0%       │ 65.7mb   │ amboso   │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴─────────

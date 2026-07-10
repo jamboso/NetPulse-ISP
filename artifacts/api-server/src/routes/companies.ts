@@ -108,6 +108,7 @@ router.post("/companies", validateBody(createCompanySchema), async (req, res) =>
     .where(eq(usersTable.id, signUpResult.user.id));
 
   void writeAuditLog({
+    companyId:  company!.id,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "create",
@@ -134,6 +135,7 @@ router.patch("/companies/:id", validateBody(updateCompanySchema), async (req, re
   const [updated] = await db.update(companiesTable).set(update).where(eq(companiesTable.id, id)).returning();
 
   void writeAuditLog({
+    companyId:  id,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "update",
@@ -154,6 +156,7 @@ router.post("/companies/:id/suspend", async (req, res) => {
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
 
   void writeAuditLog({
+    companyId: id,
     userId: req.user!.id, userEmail: req.user!.email,
     action: "update", entityType: "company", entityId: id,
     diff: { after: { accessStatus: "suspended" } },
@@ -171,6 +174,7 @@ router.post("/companies/:id/activate", async (req, res) => {
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
 
   void writeAuditLog({
+    companyId: id,
     userId: req.user!.id, userEmail: req.user!.email,
     action: "update", entityType: "company", entityId: id,
     diff: { after: { accessStatus: "active" } },
@@ -189,6 +193,7 @@ router.post("/companies/:id/exempt", validateBody(z.object({ exempt: z.boolean()
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
 
   void writeAuditLog({
+    companyId: id,
     userId: req.user!.id, userEmail: req.user!.email,
     action: "update", entityType: "company", entityId: id,
     diff: { after: { exempt } },
@@ -216,6 +221,7 @@ router.post("/companies/:id/extend", validateBody(extendSchema), async (req, res
     .returning();
 
   void writeAuditLog({
+    companyId: id,
     userId: req.user!.id, userEmail: req.user!.email,
     action: "update", entityType: "company", entityId: id,
     diff: { after: { accessUntil: extended } },

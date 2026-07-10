@@ -16,6 +16,7 @@ export type AuditEntityType =
   | "company";
 
 interface AuditParams {
+  companyId?: number | null;
   userId: string;
   userEmail?: string | null;
   action: AuditAction;
@@ -27,6 +28,7 @@ interface AuditParams {
 export async function writeAuditLog(params: AuditParams): Promise<void> {
   try {
     await db.insert(auditLogsTable).values({
+      companyId:  params.companyId ?? null,
       userId:     params.userId,
       userEmail:  params.userEmail ?? null,
       action:     params.action,

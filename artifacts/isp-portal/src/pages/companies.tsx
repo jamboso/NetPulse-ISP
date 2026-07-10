@@ -42,6 +42,15 @@ async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
 
 const COMPANIES_KEY = ["companies"];
 
+function daysRemainingLabel(c: Company): string {
+  if (c.exempt) return "—";
+  if (!c.accessUntil) return "—";
+  const diffMs = new Date(c.accessUntil).getTime() - Date.now();
+  if (diffMs <= 0) return c.accessStatus === "suspended" ? "Expired" : "Expiring";
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return `${days} day${days !== 1 ? "s" : ""}`;
+}
+
 export default function Companies() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -137,6 +146,7 @@ export default function Companies() {
                   <TableHead>Owner Email</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Access Until</TableHead>
+                  <TableHead>Days Remaining</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -153,6 +163,7 @@ export default function Companies() {
                       </div>
                     </TableCell>
                     <TableCell>{c.accessUntil ? new Date(c.accessUntil).toLocaleString() : "—"}</TableCell>
+                    <TableCell>{daysRemainingLabel(c)}</TableCell>
                     <TableCell className="text-right space-x-1">
                       <Button size="sm" variant="outline" onClick={() => setExtendTarget(c)}>
                         <Clock className="w-3.5 h-3.5 mr-1" /> Extend
@@ -173,7 +184,7 @@ export default function Companies() {
                   </TableRow>
                 ))}
                 {companies.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No companies yet.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No companies yet.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

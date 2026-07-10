@@ -113,6 +113,7 @@ router.post("/users", requireRole("admin"), validateBody(createUserSchema), asyn
     });
 
   void writeAuditLog({
+    companyId: req.companyId,
     userId: req.user!.id,
     userEmail: req.user!.email,
     action: "create",
@@ -287,6 +288,7 @@ router.patch("/users/:id", requireRole("admin"), validateBody(updateUserSchema),
     });
 
   void writeAuditLog({
+    companyId: req.companyId,
     userId: req.user!.id,
     userEmail: req.user!.email,
     action: "update",

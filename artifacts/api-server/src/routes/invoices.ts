@@ -106,6 +106,7 @@ router.post("/invoices", requireRole("admin", "billing"), validateBody(createInv
   }).returning();
 
   void writeAuditLog({
+    companyId:  req.companyId,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "create",
@@ -150,6 +151,7 @@ router.patch("/invoices/:id", requireRole("admin", "billing"), validateBody(upda
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
 
   void writeAuditLog({
+    companyId:  req.companyId,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "update",
@@ -169,6 +171,7 @@ router.delete("/invoices/:id", requireRole("admin"), async (req, res) => {
   await db.delete(invoicesTable).where(scopedInvoiceWhere(req, id));
 
   void writeAuditLog({
+    companyId:  req.companyId,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "delete",

@@ -63,6 +63,7 @@ router.post("/equipment", requireRole("admin", "technician"), validateBody(creat
   }).returning();
 
   void writeAuditLog({
+    companyId:  req.companyId,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "create",
@@ -98,6 +99,7 @@ router.patch("/equipment/:id", requireRole("admin", "technician"), validateBody(
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
 
   void writeAuditLog({
+    companyId:  req.companyId,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "update",
@@ -114,6 +116,7 @@ router.delete("/equipment/:id", requireRole("admin"), async (req, res) => {
   await db.delete(equipmentTable).where(scopedEquipmentWhere(req, id));
 
   void writeAuditLog({
+    companyId:  req.companyId,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "delete",

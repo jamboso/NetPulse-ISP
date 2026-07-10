@@ -94,6 +94,7 @@ router.post("/payments", requireRole("admin", "billing"), validateBody(createPay
   }
 
   void writeAuditLog({
+    companyId:  req.companyId,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "create",

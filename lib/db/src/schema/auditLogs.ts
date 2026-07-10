@@ -2,6 +2,11 @@ import { pgTable, serial, integer, text, jsonb, timestamp, index } from "drizzle
 
 export const auditLogsTable = pgTable("audit_logs", {
   id:         serial("id").primaryKey(),
+  // Nullable: owner-level actions (e.g. managing companies themselves) are
+  // not scoped to any single tenant. Every tenant-scoped action (customers,
+  // invoices, subscriptions, etc) must set this so audit history stays
+  // isolated per company.
+  companyId:  integer("company_id"),
   userId:     text("user_id").notNull(),
   userEmail:  text("user_email"),
   action:     text("action").notNull(),

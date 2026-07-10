@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const routersTable = pgTable("routers", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().default(1),
   name: text("name").notNull(),
   routerType: text("router_type").notNull().default("routeros"),
   ipAddress: text("ip_address").notNull(),
@@ -37,6 +38,6 @@ export const routersTable = pgTable("routers", {
   bridgePorts: text("bridge_ports").default('["ether2"]'),
 });
 
-export const insertRouterSchema = createInsertSchema(routersTable).omit({ id: true, createdAt: true, lastSeen: true });
+export const insertRouterSchema = createInsertSchema(routersTable).omit({ id: true, createdAt: true, lastSeen: true, companyId: true });
 export type InsertRouter = z.infer<typeof insertRouterSchema>;
 export type RouterDevice = typeof routersTable.$inferSelect;

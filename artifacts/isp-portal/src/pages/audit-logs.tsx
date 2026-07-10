@@ -11,6 +11,7 @@ import {
   getGetSettingsQueryKey,
 } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import type { AuditLog, ListAuditLogsParams } from "@workspace/api-client-react";
 import {
   ClipboardList,
@@ -398,7 +399,10 @@ export default function AuditLogs() {
     setRetentionInput("");
   }
 
-  const { data: purgeHistoryData, isLoading: purgeHistoryLoading } = useGetAuditPurgeHistory();
+  const { isOwner } = useCurrentUser();
+  const { data: purgeHistoryData, isLoading: purgeHistoryLoading } = useGetAuditPurgeHistory({
+    query: { queryKey: getGetAuditPurgeHistoryQueryKey(), enabled: isOwner },
+  });
   const purgeMutation = usePurgeAuditLogs({
     mutation: {
       onSuccess: (data) => {
@@ -645,16 +649,18 @@ export default function AuditLogs() {
               )}
             </div>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="flex-shrink-0 gap-2 text-red-600 border-red-200 hover:bg-red-50"
-            onClick={() => setPurgeConfirmOpen(true)}
-            disabled={purgeMutation.isPending}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            {purgeMutation.isPending ? "Purging…" : "Purge Now"}
-          </Button>
+          {isOwner && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-shrink-0 gap-2 text-red-600 border-red-200 hover:bg-red-50"
+              onClick={() => setPurgeConfirmOpen(true)}
+              disabled={purgeMutation.isPending}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {purgeMutation.isPending ? "Purging…" : "Purge Now"}
+            </Button>
+          )}
 
           <Dialog open={purgeConfirmOpen} onOpenChange={setPurgeConfirmOpen}>
             <DialogContent className="max-w-md">

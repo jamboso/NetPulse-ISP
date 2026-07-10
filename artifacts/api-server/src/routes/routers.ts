@@ -2,12 +2,20 @@ import { Router } from "express";
 import * as net from "net";
 import { randomUUID } from "crypto";
 import { db, routersTable, routerVpnCertsTable, vpnConfigTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { upsertRadnas, removeRadnas } from "../lib/radiusSync";
 import { generateClientCert } from "../lib/certGen";
 import type { RouterVpnCert } from "@workspace/db";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 
 const router = Router();
+router.use(resolveCompanyScope);
+
+function scopedRouterWhere(req: import("express").Request, id: number) {
+  return req.companyId != null
+    ? and(eq(routersTable.id, id), eq(routersTable.companyId, req.companyId))
+    : eq(routersTable.id, id);
+}
 
 // ── TCP probe ─────────────────────────────────────────────────────────────────
 
@@ -89,19 +97,25 @@ async function autoProvision(routerId: number, routerName: string, log: { info: 
 
 // ── Server-side cache for /routers/status (15s TTL) ──────────────────────────
 
-let statusCache: { data: unknown; expiresAt: number } | null = null;
+let statusCache: Record<string | number, { data: unknown; expiresAt: number }> = {};
 const STATUS_TTL_MS = 15_000;
 
-router.get("/routers/status", async (_req, res) => {
+router.get("/routers/status", async (req, res) => {
   const now = Date.now();
 
-  if (statusCache && now < statusCache.expiresAt) {
+  // Status is per-tenant, so we can't safely reuse a global cache across
+  // companies. Key the cache by companyId (owner/null scope gets its own
+  // bucket too).
+  const cacheKey = req.companyId ?? "owner";
+  if (statusCache?.[cacheKey] && now < statusCache[cacheKey]!.expiresAt) {
     res.setHeader("Cache-Control", "public, max-age=15");
-    res.json(statusCache.data);
+    res.json(statusCache[cacheKey]!.data);
     return;
   }
 
-  const rows = await db.select().from(routersTable).orderBy(routersTable.name);
+  const rows = req.companyId != null
+    ? await db.select().from(routersTable).where(eq(routersTable.companyId, req.companyId)).orderBy(routersTable.name)
+    : await db.select().from(routersTable).orderBy(routersTable.name);
   const checkedAt = new Date().toISOString();
 
   const results = await Promise.all(
@@ -145,25 +159,33 @@ router.get("/routers/status", async (_req, res) => {
     })
   );
 
-  statusCache = { data: results, expiresAt: now + STATUS_TTL_MS };
+  statusCache[cacheKey] = { data: results, expiresAt: now + STATUS_TTL_MS };
   res.setHeader("Cache-Control", "public, max-age=15");
   res.json(results);
 });
 
-router.get("/routers", async (_req, res) => {
-  const rows = await db.select().from(routersTable).orderBy(routersTable.createdAt);
+router.get("/routers", async (req, res) => {
+  const rows = req.companyId != null
+    ? await db.select().from(routersTable).where(eq(routersTable.companyId, req.companyId)).orderBy(routersTable.createdAt)
+    : await db.select().from(routersTable).orderBy(routersTable.createdAt);
   res.setHeader("Cache-Control", "public, max-age=10");
   res.json(rows);
 });
 
 router.post("/routers", async (req, res) => {
-  statusCache = null;
+  statusCache = {};
   const body = req.body;
+
+  if (req.companyId == null) {
+    res.status(403).json({ error: "Forbidden: no company scope for this account" });
+    return;
+  }
 
   // Generate a unique provision token for zero-touch provisioning
   const provisionToken = randomUUID();
 
   const [created] = await db.insert(routersTable).values({
+    companyId: req.companyId,
     name: body.name,
     routerType: body.routerType ?? "routeros",
     ipAddress: body.ipAddress,
@@ -196,7 +218,7 @@ router.post("/routers", async (req, res) => {
 
 router.get("/routers/:id", async (req, res) => {
   const id = parseInt(req.params.id!);
-  const [row] = await db.select().from(routersTable).where(eq(routersTable.id, id));
+  const [row] = await db.select().from(routersTable).where(scopedRouterWhere(req, id));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(row);
 });
@@ -216,7 +238,7 @@ router.get("/routers/:id/provision-info", async (req, res) => {
     vpnConnected: routersTable.vpnConnected,
     vpnIp: routersTable.vpnIp,
     lastCallbackAt: routersTable.lastCallbackAt,
-  }).from(routersTable).where(eq(routersTable.id, id));
+  }).from(routersTable).where(scopedRouterWhere(req, id));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(row);
 });
@@ -224,9 +246,9 @@ router.get("/routers/:id/provision-info", async (req, res) => {
 // ── POST /api/routers/:id/reprovision ────────────────────────────────────────
 // Regenerate provision token + VPN cert (admin action)
 router.post("/routers/:id/reprovision", async (req, res) => {
-  statusCache = null;
+  statusCache = {};
   const id = parseInt(req.params.id!);
-  const [row] = await db.select().from(routersTable).where(eq(routersTable.id, id));
+  const [row] = await db.select().from(routersTable).where(scopedRouterWhere(req, id));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
 
   const newToken = randomUUID();
@@ -236,7 +258,7 @@ router.post("/routers/:id/reprovision", async (req, res) => {
     vpnConnected: false,
     lastCallbackAt: null,
     bridgePorts: '["ether2"]',
-  }).where(eq(routersTable.id, id));
+  }).where(scopedRouterWhere(req, id));
 
   void autoProvision(id, row.name, req.log);
   res.json({ success: true, provisionToken: newToken });
@@ -258,7 +280,7 @@ function parseBridgePorts(raw: string | null | undefined): string[] {
 router.get("/routers/:id/bridge-ports", async (req, res) => {
   const id = parseInt(req.params.id!);
   const [row] = await db.select({ bridgePorts: routersTable.bridgePorts })
-    .from(routersTable).where(eq(routersTable.id, id));
+    .from(routersTable).where(scopedRouterWhere(req, id));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ports: parseBridgePorts(row.bridgePorts) });
 });
@@ -271,7 +293,7 @@ router.post("/routers/:id/bridge-ports", async (req, res) => {
     return;
   }
   const [row] = await db.select({ bridgePorts: routersTable.bridgePorts })
-    .from(routersTable).where(eq(routersTable.id, id));
+    .from(routersTable).where(scopedRouterWhere(req, id));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   const ports = parseBridgePorts(row.bridgePorts);
   if (ports.includes(portName)) {
@@ -279,7 +301,7 @@ router.post("/routers/:id/bridge-ports", async (req, res) => {
     return;
   }
   ports.push(portName);
-  await db.update(routersTable).set({ bridgePorts: JSON.stringify(ports) }).where(eq(routersTable.id, id));
+  await db.update(routersTable).set({ bridgePorts: JSON.stringify(ports) }).where(scopedRouterWhere(req, id));
   const command = `/interface bridge port add interface=${portName} bridge=NETPULSE comment="netpulse-lan"`;
   res.json({ ports, command });
 });
@@ -288,16 +310,16 @@ router.delete("/routers/:id/bridge-ports/:portName", async (req, res) => {
   const id = parseInt(req.params.id!);
   const portName = req.params.portName!;
   const [row] = await db.select({ bridgePorts: routersTable.bridgePorts })
-    .from(routersTable).where(eq(routersTable.id, id));
+    .from(routersTable).where(scopedRouterWhere(req, id));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   const ports = parseBridgePorts(row.bridgePorts).filter(p => p !== portName);
-  await db.update(routersTable).set({ bridgePorts: JSON.stringify(ports) }).where(eq(routersTable.id, id));
+  await db.update(routersTable).set({ bridgePorts: JSON.stringify(ports) }).where(scopedRouterWhere(req, id));
   const command = `/interface bridge port remove [find bridge="NETPULSE" and interface="${portName}"]`;
   res.json({ ports, command });
 });
 
 router.patch("/routers/:id", async (req, res) => {
-  statusCache = null;
+  statusCache = {};
   const id = parseInt(req.params.id!);
   const body = req.body;
   const update: Record<string, unknown> = {};
@@ -309,7 +331,7 @@ router.patch("/routers/:id", async (req, res) => {
   for (const f of fields) {
     if (body[f] !== undefined) update[f] = body[f];
   }
-  const [updated] = await db.update(routersTable).set(update).where(eq(routersTable.id, id)).returning();
+  const [updated] = await db.update(routersTable).set(update).where(scopedRouterWhere(req, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   if (updated.radiusSecret) {
     void upsertRadnas({ ipAddress: updated.ipAddress, name: updated.name, radiusSecret: updated.radiusSecret, radiusPort: updated.radiusPort });
@@ -320,12 +342,13 @@ router.patch("/routers/:id", async (req, res) => {
 });
 
 router.delete("/routers/:id", async (req, res) => {
-  statusCache = null;
+  statusCache = {};
   const id = parseInt(req.params.id!);
   const [existing] = await db.select({ ipAddress: routersTable.ipAddress, radiusSecret: routersTable.radiusSecret })
-    .from(routersTable).where(eq(routersTable.id, id));
-  await db.delete(routersTable).where(eq(routersTable.id, id));
-  if (existing?.radiusSecret) void removeRadnas(existing.ipAddress);
+    .from(routersTable).where(scopedRouterWhere(req, id));
+  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+  await db.delete(routersTable).where(scopedRouterWhere(req, id));
+  if (existing.radiusSecret) void removeRadnas(existing.ipAddress);
   res.status(204).send();
 });
 

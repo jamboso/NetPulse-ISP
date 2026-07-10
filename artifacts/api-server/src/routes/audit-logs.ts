@@ -1,10 +1,25 @@
 import { Router } from "express";
 import { db, auditLogsTable, auditPurgeLogTable } from "@workspace/db";
-import { eq, and, gte, lte, desc, ilike } from "drizzle-orm";
+import { eq, and, gte, lte, desc, ilike, isNull, or } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { purgeAuditLogs } from "../lib/auditLogPurge";
+import { resolveCompanyScope } from "../middlewares/companyScope";
+import type { Request } from "express";
 
 const router = Router();
+router.use(resolveCompanyScope);
+
+// Company admins only ever see their own tenant's history (plus untagged
+// legacy/global rows, e.g. entries written before companyId existed). The
+// owner sees everything unless they explicitly narrow with ?companyId=.
+function companyAuditCondition(req: Request) {
+  if (req.user!.role === "owner") {
+    return req.companyId != null ? eq(auditLogsTable.companyId, req.companyId) : undefined;
+  }
+  return req.companyId != null
+    ? or(eq(auditLogsTable.companyId, req.companyId), isNull(auditLogsTable.companyId))
+    : undefined;
+}
 
 function buildAuditConditions(query: Record<string, string>) {
   const { entityType, entityId, userId, userEmail, action, from, to } = query;
@@ -56,6 +71,8 @@ router.get("/audit-logs", requireRole("admin"), async (req, res) => {
   const offset = (pageNum - 1) * limitNum;
 
   const conditions = buildAuditConditions(filters);
+  const scope = companyAuditCondition(req);
+  if (scope) conditions.push(scope);
   let query = db.select().from(auditLogsTable).orderBy(desc(auditLogsTable.createdAt)).$dynamic();
   if (conditions.length > 0) {
     query = query.where(conditions.length === 1 ? conditions[0]! : and(...conditions));
@@ -67,6 +84,8 @@ router.get("/audit-logs", requireRole("admin"), async (req, res) => {
 
 router.get("/audit-logs/export.csv", requireRole("admin"), async (req, res) => {
   const conditions = buildAuditConditions(req.query as Record<string, string>);
+  const scope = companyAuditCondition(req);
+  if (scope) conditions.push(scope);
   let query = db.select().from(auditLogsTable).orderBy(desc(auditLogsTable.createdAt)).$dynamic();
   if (conditions.length > 0) {
     query = query.where(conditions.length === 1 ? conditions[0]! : and(...conditions));
@@ -96,7 +115,10 @@ router.get("/audit-logs/export.csv", requireRole("admin"), async (req, res) => {
   res.end();
 });
 
-router.get("/audit-logs/purge-history", requireRole("admin"), async (req, res) => {
+// Purge operates globally across all tenants' audit history, so it is
+// owner-only — a company admin must never be able to wipe another
+// tenant's (or their own tenant's shared/global) audit trail.
+router.get("/audit-logs/purge-history", requireRole("owner"), async (req, res) => {
   const rows = await db
     .select()
     .from(auditPurgeLogTable)
@@ -105,7 +127,7 @@ router.get("/audit-logs/purge-history", requireRole("admin"), async (req, res) =
   res.json({ data: rows });
 });
 
-router.post("/audit-logs/purge", requireRole("admin"), async (req, res) => {
+router.post("/audit-logs/purge", requireRole("owner"), async (req, res) => {
   const deleted = await purgeAuditLogs("manual");
   res.json({ deleted });
 });

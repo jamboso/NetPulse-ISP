@@ -304,6 +304,7 @@ router.post("/subscriptions", requireRole("admin", "billing"), validateBody(crea
   }
 
   void writeAuditLog({
+    companyId:  req.companyId,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "create",
@@ -423,6 +424,7 @@ router.patch("/subscriptions/:id", requireRole("admin", "billing"), validateBody
   const [updated] = await db.update(subscriptionsTable).set(update).where(scopedSubWhere(req, id)).returning();
 
   void writeAuditLog({
+    companyId:  req.companyId,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "update",
@@ -458,6 +460,7 @@ router.delete("/subscriptions/:id", requireRole("admin"), async (req, res) => {
   await db.delete(subscriptionsTable).where(scopedSubWhere(req, id));
 
   void writeAuditLog({
+    companyId:  req.companyId,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "delete",

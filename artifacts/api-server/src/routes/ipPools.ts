@@ -63,6 +63,7 @@ router.post("/ip-pools", requireRole("admin", "technician"), validateBody(create
   }).returning();
 
   void writeAuditLog({
+    companyId:  req.companyId,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "create",
@@ -95,6 +96,7 @@ router.patch("/ip-pools/:id", requireRole("admin", "technician"), validateBody(u
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
 
   void writeAuditLog({
+    companyId:  req.companyId,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "update",
@@ -111,6 +113,7 @@ router.delete("/ip-pools/:id", requireRole("admin"), async (req, res) => {
   await db.delete(ipPoolsTable).where(scopedIpPoolWhere(req, id));
 
   void writeAuditLog({
+    companyId:  req.companyId,
     userId:     req.user!.id,
     userEmail:  req.user!.email,
     action:     "delete",

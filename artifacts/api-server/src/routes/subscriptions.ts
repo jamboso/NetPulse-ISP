@@ -253,7 +253,11 @@ router.post("/subscriptions", requireRole("admin", "billing"), validateBody(crea
   if (!plan) { res.status(400).json({ error: "Invalid planId" }); return; }
 
   if (body.routerId != null) {
-    const [router_] = await db.select({ id: routersTable.id }).from(routersTable).where(eq(routersTable.id, body.routerId));
+    const [router_] = await db.select({ id: routersTable.id }).from(routersTable).where(
+      req.companyId != null
+        ? and(eq(routersTable.id, body.routerId), eq(routersTable.companyId, req.companyId))
+        : eq(routersTable.id, body.routerId),
+    );
     if (!router_) { res.status(400).json({ error: "Invalid routerId" }); return; }
   }
 
@@ -344,9 +348,11 @@ router.patch("/subscriptions/:id", requireRole("admin", "billing"), validateBody
       .where(and(eq(plansTable.id, body.planId), eq(plansTable.companyId, req.companyId)));
     if (!plan) { res.status(404).json({ error: "Plan not found" }); return; }
   }
-  // NOTE: routersTable has no companyId column yet (network equipment is not
-  // currently tenant-scoped) — router ownership cannot be cross-checked here.
-  // Tracked as a known follow-up; see routers schema.
+  if (body.routerId != null && req.companyId != null) {
+    const [router_] = await db.select({ id: routersTable.id }).from(routersTable)
+      .where(and(eq(routersTable.id, body.routerId), eq(routersTable.companyId, req.companyId)));
+    if (!router_) { res.status(400).json({ error: "Invalid routerId" }); return; }
+  }
 
   const update: Record<string, unknown> = {};
   if (body.planId !== undefined) update.planId = body.planId;

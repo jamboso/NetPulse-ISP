@@ -5,6 +5,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 import { writeAuditLog } from "../lib/audit";
 import {
   syncSubscriptionCreate,
@@ -37,6 +38,13 @@ const updateSubscriptionSchema = z.object({
 });
 
 const router = Router();
+router.use(resolveCompanyScope);
+
+function scopedSubWhere(req: import("express").Request, id: number) {
+  return req.companyId != null
+    ? and(eq(subscriptionsTable.id, id), eq(subscriptionsTable.companyId, req.companyId))
+    : eq(subscriptionsTable.id, id);
+}
 
 // ── RouterOS helper ───────────────────────────────────────────────────────────
 
@@ -201,6 +209,7 @@ router.get("/subscriptions", async (req, res) => {
   const { customerId, status } = req.query as Record<string, string>;
 
   const conditions = [];
+  if (req.companyId != null) conditions.push(eq(subscriptionsTable.companyId, req.companyId));
   if (customerId) conditions.push(eq(subscriptionsTable.customerId, parseInt(customerId)));
   if (status) conditions.push(eq(subscriptionsTable.status, status));
 
@@ -247,6 +256,7 @@ router.post("/subscriptions", requireRole("admin", "billing"), validateBody(crea
     : null;
 
   const [sub] = await db.insert(subscriptionsTable).values({
+    companyId: req.companyId!,
     customerId: body.customerId,
     planId: body.planId,
     routerId: body.routerId ?? null,
@@ -296,7 +306,7 @@ router.get("/subscriptions/:id", async (req, res) => {
     .from(subscriptionsTable)
     .leftJoin(customersTable, eq(subscriptionsTable.customerId, customersTable.id))
     .leftJoin(plansTable, eq(subscriptionsTable.planId, plansTable.id))
-    .where(eq(subscriptionsTable.id, id));
+    .where(scopedSubWhere(req, id));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(formatSub(row.subscriptions, row.customers, row.plans));
 });
@@ -309,7 +319,7 @@ router.patch("/subscriptions/:id", requireRole("admin", "billing"), validateBody
   };
 
   // Load current subscription
-  const [existing] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, id));
+  const [existing] = await db.select().from(subscriptionsTable).where(scopedSubWhere(req, id));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
   const update: Record<string, unknown> = {};
@@ -385,7 +395,7 @@ router.patch("/subscriptions/:id", requireRole("admin", "billing"), validateBody
     }
   }
 
-  const [updated] = await db.update(subscriptionsTable).set(update).where(eq(subscriptionsTable.id, id)).returning();
+  const [updated] = await db.update(subscriptionsTable).set(update).where(scopedSubWhere(req, id)).returning();
 
   void writeAuditLog({
     userId:     req.user!.id,
@@ -401,7 +411,7 @@ router.patch("/subscriptions/:id", requireRole("admin", "billing"), validateBody
 
 router.delete("/subscriptions/:id", requireRole("admin"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
-  const [existing] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, id));
+  const [existing] = await db.select().from(subscriptionsTable).where(scopedSubWhere(req, id));
 
   if (!existing) { res.status(404).json({ error: "Subscription not found" }); return; }
 
@@ -420,7 +430,7 @@ router.delete("/subscriptions/:id", requireRole("admin"), async (req, res) => {
     await db.delete(invoicesTable).where(inArray(invoicesTable.id, invoiceIds));
   }
 
-  await db.delete(subscriptionsTable).where(eq(subscriptionsTable.id, id));
+  await db.delete(subscriptionsTable).where(scopedSubWhere(req, id));
 
   void writeAuditLog({
     userId:     req.user!.id,

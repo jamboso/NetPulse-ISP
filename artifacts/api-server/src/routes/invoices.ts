@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { invoicesTable, customersTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 import { writeAuditLog } from "../lib/audit";
 
 const INVOICE_STATUSES = ["draft", "sent", "paid", "overdue"] as const;
@@ -29,6 +30,13 @@ const updateInvoiceSchema = z.object({
 });
 
 const router = Router();
+router.use(resolveCompanyScope);
+
+function scopedInvoiceWhere(req: import("express").Request, id: number) {
+  return req.companyId != null
+    ? and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, req.companyId))
+    : eq(invoicesTable.id, id);
+}
 
 function fmt(inv: typeof invoicesTable.$inferSelect, customer?: typeof customersTable.$inferSelect | null) {
   return {
@@ -53,6 +61,7 @@ router.get("/invoices", async (req, res) => {
     .orderBy(invoicesTable.createdAt);
 
   const filtered = rows.filter(r => {
+    if (req.companyId != null && r.invoices.companyId !== req.companyId) return false;
     if (customerId && r.invoices.customerId !== parseInt(customerId)) return false;
     if (status && r.invoices.status !== status) return false;
     return true;
@@ -68,6 +77,7 @@ router.post("/invoices", requireRole("admin", "billing"), validateBody(createInv
   const tax = body.tax ?? 0;
   const total = Number(body.amount) + Number(tax);
   const [inv] = await db.insert(invoicesTable).values({
+    companyId: req.companyId!,
     customerId: body.customerId,
     subscriptionId: body.subscriptionId ?? null,
     amount: String(body.amount),
@@ -96,7 +106,7 @@ router.get("/invoices/:id", async (req, res) => {
     .select()
     .from(invoicesTable)
     .leftJoin(customersTable, eq(invoicesTable.customerId, customersTable.id))
-    .where(eq(invoicesTable.id, id));
+    .where(scopedInvoiceWhere(req, id));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(fmt(row.invoices, row.customers));
 });
@@ -105,7 +115,7 @@ router.patch("/invoices/:id", requireRole("admin", "billing"), validateBody(upda
   const id = parseInt(req.params["id"] as string);
   const body = req.body;
 
-  const [before] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, id));
+  const [before] = await db.select().from(invoicesTable).where(scopedInvoiceWhere(req, id));
   if (!before) { res.status(404).json({ error: "Not found" }); return; }
 
   const update: Record<string, unknown> = {};
@@ -119,7 +129,7 @@ router.patch("/invoices/:id", requireRole("admin", "billing"), validateBody(upda
   if (body.paidAt !== undefined) update.paidAt = body.paidAt;
   if (body.notes !== undefined) update.notes = body.notes;
 
-  const [updated] = await db.update(invoicesTable).set(update).where(eq(invoicesTable.id, id)).returning();
+  const [updated] = await db.update(invoicesTable).set(update).where(scopedInvoiceWhere(req, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
 
   void writeAuditLog({
@@ -137,9 +147,9 @@ router.patch("/invoices/:id", requireRole("admin", "billing"), validateBody(upda
 router.delete("/invoices/:id", requireRole("admin"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
 
-  const [before] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, id));
+  const [before] = await db.select().from(invoicesTable).where(scopedInvoiceWhere(req, id));
 
-  await db.delete(invoicesTable).where(eq(invoicesTable.id, id));
+  await db.delete(invoicesTable).where(scopedInvoiceWhere(req, id));
 
   void writeAuditLog({
     userId:     req.user!.id,

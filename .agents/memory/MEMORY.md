@@ -10,3 +10,4 @@
 - [Self-hosted AI client import crash](self-hosted-ai-client-import-crash.md) — module-scope throws on missing AI_INTEGRATIONS_OPENAI_* env vars crash-loop the whole server on self-hosted installs; must be lazy, and check for duplicate copies
 - [PM2 sudo dual-daemon](pm2-sudo-dual-daemon.md) — pm2 daemons are per-user; mixing sudo/non-sudo invocations creates two competing processes fighting over the same port
 - [Replit-to-GitHub push is manual](repo-github-sync.md) — checkpoints commit locally only; self-hosted deploys pull from GitHub, so unpushed fixes never reach them
+- [Multi-tenant company scoping](multi-tenant-company-scoping.md) — companyId app-level isolation pattern, owner bypass, and suspended/expired access enforcement for the ISP reseller SaaS

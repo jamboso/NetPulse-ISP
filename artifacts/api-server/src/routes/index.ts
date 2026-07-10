@@ -39,6 +39,7 @@ import trafficRouter from "./traffic";
 import provisionRouter from "./provision";
 import openaiRouter from "./openai";
 import passwordResetRouter from "./password-reset";
+import companiesRouter from "./companies";
 
 const router: IRouter = Router();
 
@@ -64,6 +65,9 @@ router.use(requireAuth);
 
 // M-Pesa staff actions (STK Push initiation, config status check) — auth required
 router.use(mpesaProtectedRouter);
+
+// Owner-only tenant (company) management
+router.use(companiesRouter);
 
 router.use(dashboardRouter);
 router.use(customersRouter);

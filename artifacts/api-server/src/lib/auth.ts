@@ -58,9 +58,10 @@ export const auth = betterAuth({
   },
   user: {
     additionalFields: {
-      role:   { type: "string",  defaultValue: "admin",  required: false },
-      active: { type: "boolean", defaultValue: true,     required: false },
-      phone:  { type: "string",  required: false },
+      role:      { type: "string",  defaultValue: "admin",  required: false },
+      active:    { type: "boolean", defaultValue: true,     required: false },
+      phone:     { type: "string",  required: false },
+      companyId: { type: "number",  required: false },
     },
   },
   session: {

@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { paymentsTable, customersTable, invoicesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 import { writeAuditLog } from "../lib/audit";
 
 const PAYMENT_METHODS = ["cash", "mpesa", "bank", "card"] as const;
@@ -21,6 +22,13 @@ const createPaymentSchema = z.object({
 });
 
 const router = Router();
+router.use(resolveCompanyScope);
+
+function scopedPaymentWhere(req: import("express").Request, id: number) {
+  return req.companyId != null
+    ? and(eq(paymentsTable.id, id), eq(paymentsTable.companyId, req.companyId))
+    : eq(paymentsTable.id, id);
+}
 
 function fmt(p: typeof paymentsTable.$inferSelect, customer?: typeof customersTable.$inferSelect | null) {
   return { ...p, amount: Number(p.amount), customer: customer ?? null };
@@ -35,6 +43,7 @@ router.get("/payments", async (req, res) => {
     .orderBy(paymentsTable.createdAt);
 
   const filtered = rows.filter(r => {
+    if (req.companyId != null && r.payments.companyId !== req.companyId) return false;
     if (customerId && r.payments.customerId !== parseInt(customerId)) return false;
     if (invoiceId && r.payments.invoiceId !== parseInt(invoiceId)) return false;
     return true;
@@ -46,6 +55,7 @@ router.get("/payments", async (req, res) => {
 router.post("/payments", requireRole("admin", "billing"), validateBody(createPaymentSchema), async (req, res) => {
   const body = req.body;
   const [payment] = await db.insert(paymentsTable).values({
+    companyId: req.companyId!,
     customerId: body.customerId,
     invoiceId: body.invoiceId,
     amount: String(body.amount),
@@ -78,7 +88,7 @@ router.get("/payments/:id", async (req, res) => {
     .select()
     .from(paymentsTable)
     .leftJoin(customersTable, eq(paymentsTable.customerId, customersTable.id))
-    .where(eq(paymentsTable.id, id));
+    .where(scopedPaymentWhere(req, id));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(fmt(row.payments, row.customers));
 });

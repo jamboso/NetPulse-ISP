@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { ipPoolsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 import { writeAuditLog } from "../lib/audit";
 
 const createIpPoolSchema = z.object({
@@ -27,9 +28,18 @@ const updateIpPoolSchema = z.object({
 });
 
 const router = Router();
+router.use(resolveCompanyScope);
 
-router.get("/ip-pools", async (_req, res) => {
-  const pools = await db.select().from(ipPoolsTable).orderBy(ipPoolsTable.createdAt);
+function scopedIpPoolWhere(req: import("express").Request, id: number) {
+  return req.companyId != null
+    ? and(eq(ipPoolsTable.id, id), eq(ipPoolsTable.companyId, req.companyId))
+    : eq(ipPoolsTable.id, id);
+}
+
+router.get("/ip-pools", async (req, res) => {
+  const pools = req.companyId != null
+    ? await db.select().from(ipPoolsTable).where(eq(ipPoolsTable.companyId, req.companyId)).orderBy(ipPoolsTable.createdAt)
+    : await db.select().from(ipPoolsTable).orderBy(ipPoolsTable.createdAt);
   res.json(pools);
 });
 
@@ -40,6 +50,7 @@ router.post("/ip-pools", requireRole("admin", "technician"), validateBody(create
   const totalIps = prefix <= 32 ? Math.pow(2, 32 - prefix) - 2 : 0;
 
   const [pool] = await db.insert(ipPoolsTable).values({
+    companyId: req.companyId!,
     name: body.name,
     network: body.network,
     gateway: body.gateway,
@@ -65,7 +76,7 @@ router.post("/ip-pools", requireRole("admin", "technician"), validateBody(create
 
 router.get("/ip-pools/:id", async (req, res) => {
   const id = parseInt(req.params["id"] as string);
-  const [pool] = await db.select().from(ipPoolsTable).where(eq(ipPoolsTable.id, id));
+  const [pool] = await db.select().from(ipPoolsTable).where(scopedIpPoolWhere(req, id));
   if (!pool) { res.status(404).json({ error: "Not found" }); return; }
   res.json(pool);
 });
@@ -80,7 +91,7 @@ router.patch("/ip-pools/:id", requireRole("admin", "technician"), validateBody(u
   if (body.dns1 !== undefined) update.dns1 = body.dns1;
   if (body.dns2 !== undefined) update.dns2 = body.dns2;
   if (body.description !== undefined) update.description = body.description;
-  const [updated] = await db.update(ipPoolsTable).set(update).where(eq(ipPoolsTable.id, id)).returning();
+  const [updated] = await db.update(ipPoolsTable).set(update).where(scopedIpPoolWhere(req, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
 
   void writeAuditLog({
@@ -97,7 +108,7 @@ router.patch("/ip-pools/:id", requireRole("admin", "technician"), validateBody(u
 
 router.delete("/ip-pools/:id", requireRole("admin"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
-  await db.delete(ipPoolsTable).where(eq(ipPoolsTable.id, id));
+  await db.delete(ipPoolsTable).where(scopedIpPoolWhere(req, id));
 
   void writeAuditLog({
     userId:     req.user!.id,

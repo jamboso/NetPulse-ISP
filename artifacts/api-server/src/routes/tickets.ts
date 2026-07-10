@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { ticketsTable, ticketRepliesTable, customersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { validateBody } from "../middlewares/validateBody";
 import { requireRole } from "../middlewares/requireRole";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 
 const TICKET_STATUSES = ["open", "in_progress", "resolved", "closed"] as const;
 const TICKET_PRIORITIES = ["low", "medium", "high", "urgent"] as const;
@@ -36,9 +37,16 @@ const createTicketReplySchema = z.object({
 });
 
 const router = Router();
+router.use(resolveCompanyScope);
 
 function fmtReply(r: typeof ticketRepliesTable.$inferSelect) {
   return { ...r, isStaff: r.isStaff === "true" };
+}
+
+function scopedTicketWhere(req: import("express").Request, id: number) {
+  return req.companyId != null
+    ? and(eq(ticketsTable.id, id), eq(ticketsTable.companyId, req.companyId))
+    : eq(ticketsTable.id, id);
 }
 
 router.get("/tickets", async (req, res) => {
@@ -54,6 +62,7 @@ router.get("/tickets", async (req, res) => {
     .orderBy(ticketsTable.createdAt);
 
   const filtered = rows.filter(r => {
+    if (req.companyId != null && r.tickets.companyId !== req.companyId) return false;
     if (customerId && r.tickets.customerId !== parseInt(customerId)) return false;
     if (status && r.tickets.status !== status) return false;
     if (priority && r.tickets.priority !== priority) return false;
@@ -69,6 +78,7 @@ router.get("/tickets", async (req, res) => {
 router.post("/tickets", requireRole("admin", "billing", "support"), validateBody(createTicketSchema), async (req, res) => {
   const body = req.body;
   const [ticket] = await db.insert(ticketsTable).values({
+    companyId: req.companyId!,
     customerId: body.customerId,
     subject: body.subject,
     description: body.description,
@@ -86,7 +96,7 @@ router.get("/tickets/:id", async (req, res) => {
     .select()
     .from(ticketsTable)
     .leftJoin(customersTable, eq(ticketsTable.customerId, customersTable.id))
-    .where(eq(ticketsTable.id, id));
+    .where(scopedTicketWhere(req, id));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ...row.tickets, customer: row.customers ?? null });
 });
@@ -105,14 +115,14 @@ router.patch("/tickets/:id", requireRole("admin", "billing", "support"), validat
   if (body.category !== undefined) update.category = body.category;
   if (body.assignedTo !== undefined) update.assignedTo = body.assignedTo;
   if (body.resolvedAt !== undefined) update.resolvedAt = body.resolvedAt;
-  const [updated] = await db.update(ticketsTable).set(update).where(eq(ticketsTable.id, id)).returning();
+  const [updated] = await db.update(ticketsTable).set(update).where(scopedTicketWhere(req, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(updated);
 });
 
 router.delete("/tickets/:id", requireRole("admin"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
-  const [existing] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(eq(ticketsTable.id, id));
+  const [existing] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(scopedTicketWhere(req, id));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
   await db.delete(ticketRepliesTable).where(eq(ticketRepliesTable.ticketId, id));
   await db.delete(ticketsTable).where(eq(ticketsTable.id, id));
@@ -121,6 +131,8 @@ router.delete("/tickets/:id", requireRole("admin"), async (req, res) => {
 
 router.post("/tickets/:id/reply", requireRole("admin", "billing", "support"), validateBody(createTicketReplySchema), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
+  const [ticketExists] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(scopedTicketWhere(req, id));
+  if (!ticketExists) { res.status(404).json({ error: "Not found" }); return; }
   const body = req.body;
   const [reply] = await db.insert(ticketRepliesTable).values({
     ticketId: id,
@@ -139,6 +151,8 @@ router.post("/tickets/:id/reply", requireRole("admin", "billing", "support"), va
 
 router.get("/tickets/:id/replies", async (req, res) => {
   const id = parseInt(req.params["id"] as string);
+  const [ticketExists] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(scopedTicketWhere(req, id));
+  if (!ticketExists) { res.status(404).json({ error: "Not found" }); return; }
   const replies = await db.select().from(ticketRepliesTable)
     .where(eq(ticketRepliesTable.ticketId, id))
     .orderBy(ticketRepliesTable.createdAt);

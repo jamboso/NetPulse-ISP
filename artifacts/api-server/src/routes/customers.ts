@@ -5,6 +5,7 @@ import { eq, ilike, or, sql, inArray, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 import { writeAuditLog } from "../lib/audit";
 import { getSettings, sendSms } from "../lib/sms.js";
 
@@ -37,6 +38,7 @@ async function upsertRadcheck(username: string, password: string): Promise<void>
 }
 
 const router = Router();
+router.use(resolveCompanyScope);
 
 router.get("/customers", async (req, res) => {
   const { search, status, page = "1", limit = "20" } = req.query as Record<string, string>;
@@ -48,6 +50,7 @@ router.get("/customers", async (req, res) => {
   let countQuery = db.select({ count: sql<number>`count(*)` }).from(customersTable).$dynamic();
 
   const conditions = [];
+  if (req.companyId != null) conditions.push(eq(customersTable.companyId, req.companyId));
   if (search) {
     conditions.push(or(
       ilike(customersTable.name, `%${search}%`),
@@ -59,7 +62,7 @@ router.get("/customers", async (req, res) => {
   if (status) conditions.push(eq(customersTable.status, status));
 
   if (conditions.length > 0) {
-    const cond = conditions.length === 1 ? conditions[0]! : sql`${conditions[0]} AND ${conditions[1]}`;
+    const cond = and(...conditions)!;
     query = query.where(cond);
     countQuery = countQuery.where(cond);
   }
@@ -75,6 +78,7 @@ router.get("/customers", async (req, res) => {
 router.post("/customers", requireRole("admin", "billing", "support"), validateBody(createCustomerSchema), async (req, res) => {
   const body = req.body;
   const [customer] = await db.insert(customersTable).values({
+    companyId:     req.companyId!,
     name:          body.name,
     email:         body.email,
     phone:         body.phone,
@@ -103,9 +107,15 @@ router.post("/customers", requireRole("admin", "billing", "support"), validateBo
   res.status(201).json(customer);
 });
 
+function scopedCustomerWhere(req: import("express").Request, id: number) {
+  return req.companyId != null
+    ? and(eq(customersTable.id, id), eq(customersTable.companyId, req.companyId))
+    : eq(customersTable.id, id);
+}
+
 router.get("/customers/:id", async (req, res) => {
   const id = parseInt(req.params["id"] as string);
-  const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, id));
+  const [customer] = await db.select().from(customersTable).where(scopedCustomerWhere(req, id));
   if (!customer) { res.status(404).json({ error: "Not found" }); return; }
   res.json(customer);
 });
@@ -114,7 +124,7 @@ router.patch("/customers/:id", requireRole("admin", "billing", "support"), valid
   const id = parseInt(req.params["id"] as string);
   const body = req.body;
 
-  const [before] = await db.select().from(customersTable).where(eq(customersTable.id, id));
+  const [before] = await db.select().from(customersTable).where(scopedCustomerWhere(req, id));
   if (!before) { res.status(404).json({ error: "Not found" }); return; }
 
   const update: Record<string, unknown> = {};
@@ -129,7 +139,7 @@ router.patch("/customers/:id", requireRole("admin", "billing", "support"), valid
   if (body.pppoeUsername !== undefined) update.pppoeUsername = body.pppoeUsername ?? null;
   if (body.pppoePassword !== undefined) update.pppoePassword = body.pppoePassword ?? null;
 
-  const [updated] = await db.update(customersTable).set(update).where(eq(customersTable.id, id)).returning();
+  const [updated] = await db.update(customersTable).set(update).where(scopedCustomerWhere(req, id)).returning();
 
   if (body.pppoeUsername && body.pppoePassword) {
     void upsertRadcheck(body.pppoeUsername, body.pppoePassword);
@@ -163,7 +173,7 @@ router.post("/customers/:id/remind-technician", requireRole("admin", "support"),
     return;
   }
 
-  const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, id));
+  const [customer] = await db.select().from(customersTable).where(scopedCustomerWhere(req, id));
   if (!customer) {
     res.status(404).json({ error: "Customer not found" });
     return;
@@ -187,7 +197,8 @@ router.post("/customers/:id/remind-technician", requireRole("admin", "support"),
 router.delete("/customers/:id", requireRole("admin"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
 
-  const [before] = await db.select().from(customersTable).where(eq(customersTable.id, id));
+  const [before] = await db.select().from(customersTable).where(scopedCustomerWhere(req, id));
+  if (!before) { res.status(404).json({ error: "Not found" }); return; }
 
   // Cascade: ticket_replies → tickets → payments → invoices → subscriptions → customer
   const tickets = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(eq(ticketsTable.customerId, id));
@@ -205,7 +216,7 @@ router.delete("/customers/:id", requireRole("admin"), async (req, res) => {
   }
 
   await db.delete(subscriptionsTable).where(eq(subscriptionsTable.customerId, id));
-  await db.delete(customersTable).where(eq(customersTable.id, id));
+  await db.delete(customersTable).where(scopedCustomerWhere(req, id));
 
   void writeAuditLog({
     userId:     req.user!.id,

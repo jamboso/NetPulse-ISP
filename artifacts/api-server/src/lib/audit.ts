@@ -12,7 +12,8 @@ export type AuditEntityType =
   | "subscription"
   | "user"
   | "equipment"
-  | "ip_pool";
+  | "ip_pool"
+  | "company";
 
 interface AuditParams {
   userId: string;

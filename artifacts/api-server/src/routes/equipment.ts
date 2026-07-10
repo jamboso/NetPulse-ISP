@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { equipmentTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 import { writeAuditLog } from "../lib/audit";
 
 const EQUIPMENT_TYPES = ["router", "switch", "olt", "onu", "other"] as const;
@@ -25,10 +26,19 @@ const createEquipmentSchema = z.object({
 const updateEquipmentSchema = createEquipmentSchema.partial();
 
 const router = Router();
+router.use(resolveCompanyScope);
+
+function scopedEquipmentWhere(req: import("express").Request, id: number) {
+  return req.companyId != null
+    ? and(eq(equipmentTable.id, id), eq(equipmentTable.companyId, req.companyId))
+    : eq(equipmentTable.id, id);
+}
 
 router.get("/equipment", async (req, res) => {
   const { status, type } = req.query as Record<string, string>;
-  const rows = await db.select().from(equipmentTable).orderBy(equipmentTable.createdAt);
+  const rows = req.companyId != null
+    ? await db.select().from(equipmentTable).where(eq(equipmentTable.companyId, req.companyId)).orderBy(equipmentTable.createdAt)
+    : await db.select().from(equipmentTable).orderBy(equipmentTable.createdAt);
   const filtered = rows.filter(r => {
     if (status && r.status !== status) return false;
     if (type && r.type !== type) return false;
@@ -40,6 +50,7 @@ router.get("/equipment", async (req, res) => {
 router.post("/equipment", requireRole("admin", "technician"), validateBody(createEquipmentSchema), async (req, res) => {
   const body = req.body;
   const [eq_] = await db.insert(equipmentTable).values({
+    companyId: req.companyId!,
     name: body.name,
     type: body.type ?? "router",
     model: body.model,
@@ -65,7 +76,7 @@ router.post("/equipment", requireRole("admin", "technician"), validateBody(creat
 
 router.get("/equipment/:id", async (req, res) => {
   const id = parseInt(req.params["id"] as string);
-  const [item] = await db.select().from(equipmentTable).where(eq(equipmentTable.id, id));
+  const [item] = await db.select().from(equipmentTable).where(scopedEquipmentWhere(req, id));
   if (!item) { res.status(404).json({ error: "Not found" }); return; }
   res.json(item);
 });
@@ -83,7 +94,7 @@ router.patch("/equipment/:id", requireRole("admin", "technician"), validateBody(
   if (body.location !== undefined) update.location = body.location;
   if (body.status !== undefined) update.status = body.status;
   if (body.notes !== undefined) update.notes = body.notes;
-  const [updated] = await db.update(equipmentTable).set(update).where(eq(equipmentTable.id, id)).returning();
+  const [updated] = await db.update(equipmentTable).set(update).where(scopedEquipmentWhere(req, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
 
   void writeAuditLog({
@@ -100,7 +111,7 @@ router.patch("/equipment/:id", requireRole("admin", "technician"), validateBody(
 
 router.delete("/equipment/:id", requireRole("admin"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
-  await db.delete(equipmentTable).where(eq(equipmentTable.id, id));
+  await db.delete(equipmentTable).where(scopedEquipmentWhere(req, id));
 
   void writeAuditLog({
     userId:     req.user!.id,

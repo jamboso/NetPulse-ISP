@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const ipPoolsTable = pgTable("ip_pools", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().default(1),
   name: text("name").notNull(),
   network: text("network").notNull(),
   gateway: text("gateway").notNull(),

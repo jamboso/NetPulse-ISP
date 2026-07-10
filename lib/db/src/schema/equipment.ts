@@ -5,6 +5,7 @@ import { customersTable } from "./customers";
 
 export const equipmentTable = pgTable("equipment", {
   id:         serial("id").primaryKey(),
+  companyId:  integer("company_id").notNull().default(1),
   customerId: integer("customer_id").references(() => customersTable.id, { onDelete: "set null" }),
   name:       text("name").notNull(),
   type:       text("type").notNull().default("router"),

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 
 // Schema aligned with better-auth v1.x drizzle adapter requirements.
 // Custom fields (role, active) exposed via better-auth additionalFields.
@@ -12,6 +12,9 @@ export const usersTable = pgTable("users", {
   role:          text("role").notNull().default("admin"),
   active:        boolean("active").notNull().default(true),
   phone:         text("phone"),
+  // Null for the platform owner (role "owner"); every other staff account
+  // belongs to exactly one company and is scoped to that company's data.
+  companyId:     integer("company_id"),
   createdAt:     timestamp("created_at").defaultNow().notNull(),
   updatedAt:     timestamp("updated_at").defaultNow().notNull(),
 });

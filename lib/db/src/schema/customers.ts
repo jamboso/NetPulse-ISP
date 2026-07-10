@@ -1,9 +1,10 @@
-import { pgTable, serial, text, timestamp, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, doublePrecision, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const customersTable = pgTable("customers", {
   id:        serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().default(1),
   name:      text("name").notNull(),
   email:     text("email").notNull().unique(),
   phone:     text("phone").notNull(),

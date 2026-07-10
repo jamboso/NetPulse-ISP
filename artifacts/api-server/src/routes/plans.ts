@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { plansTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 import { syncPlanRadiusGroup } from "../lib/radiusSync";
 
 const BILLING_CYCLES = ["monthly", "quarterly", "annual"] as const;
@@ -23,15 +24,25 @@ const createPlanSchema = z.object({
 const updatePlanSchema = createPlanSchema.partial();
 
 const router = Router();
+router.use(resolveCompanyScope);
 
-router.get("/plans", async (_req, res) => {
-  const plans = await db.select().from(plansTable).orderBy(plansTable.createdAt);
+function scopedPlanWhere(req: import("express").Request, id: number) {
+  return req.companyId != null
+    ? and(eq(plansTable.id, id), eq(plansTable.companyId, req.companyId))
+    : eq(plansTable.id, id);
+}
+
+router.get("/plans", async (req, res) => {
+  const plans = req.companyId != null
+    ? await db.select().from(plansTable).where(eq(plansTable.companyId, req.companyId)).orderBy(plansTable.createdAt)
+    : await db.select().from(plansTable).orderBy(plansTable.createdAt);
   res.json(plans.map(p => ({ ...p, price: Number(p.price) })));
 });
 
 router.post("/plans", requireRole("admin"), validateBody(createPlanSchema), async (req, res) => {
   const body = req.body;
   const [plan] = await db.insert(plansTable).values({
+    companyId: req.companyId!,
     name: body.name,
     description: body.description ?? null,
     downloadSpeed: body.downloadSpeed,
@@ -47,7 +58,7 @@ router.post("/plans", requireRole("admin"), validateBody(createPlanSchema), asyn
 
 router.get("/plans/:id", async (req, res) => {
   const id = parseInt(req.params["id"] as string);
-  const [plan] = await db.select().from(plansTable).where(eq(plansTable.id, id));
+  const [plan] = await db.select().from(plansTable).where(scopedPlanWhere(req, id));
   if (!plan) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ...plan, price: Number(plan.price) });
 });
@@ -64,7 +75,7 @@ router.patch("/plans/:id", requireRole("admin"), validateBody(updatePlanSchema),
   if (body.billingCycle !== undefined) update.billingCycle = body.billingCycle;
   if (body.isActive !== undefined) update.isActive = body.isActive;
   if (body.rosProfileName !== undefined) update.rosProfileName = body.rosProfileName;
-  const [updated] = await db.update(plansTable).set(update).where(eq(plansTable.id, id)).returning();
+  const [updated] = await db.update(plansTable).set(update).where(scopedPlanWhere(req, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   void syncPlanRadiusGroup(updated);
   res.json({ ...updated, price: Number(updated.price) });
@@ -72,7 +83,7 @@ router.patch("/plans/:id", requireRole("admin"), validateBody(updatePlanSchema),
 
 router.delete("/plans/:id", requireRole("admin"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
-  await db.delete(plansTable).where(eq(plansTable.id, id));
+  await db.delete(plansTable).where(scopedPlanWhere(req, id));
   res.status(204).send();
 });
 

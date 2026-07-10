@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 import healthRouter from "./health";
 import dashboardRouter from "./dashboard";
 import customersRouter from "./customers";
@@ -11,6 +12,7 @@ import ticketsRouter from "./tickets";
 import equipmentRouter from "./equipment";
 import ipPoolsRouter from "./ipPools";
 import { mpesaPublicRouter, mpesaProtectedRouter } from "./mpesa";
+import { billingRouter, billingPublicRouter } from "./billing";
 import settingsRouter from "./settings";
 import routersRouter from "./routers";
 import rosRouter from "./ros";
@@ -53,6 +55,7 @@ router.use(provisionRouter);
 
 // M-Pesa callback endpoints are public (Safaricom calls them directly with no session)
 router.use(mpesaPublicRouter);
+router.use(billingPublicRouter);
 
 // Hotspot portal API — public (captive portal for WiFi customers)
 router.use(hotspotPortalRouter);
@@ -63,8 +66,19 @@ router.use(passwordResetRouter);
 // All routes below require a valid session
 router.use(requireAuth);
 
+// Resolve companyId + enforce access suspension for every authenticated
+// route below (deny-by-default). Owner requests are never suspended; they
+// only get an explicit companyId when passing ?companyId= for support/debug
+// purposes. Individual route files may still call resolveCompanyScope
+// themselves (idempotent) for explicitness, but this global pass ensures no
+// authenticated route can be reached by a suspended tenant by omission.
+router.use(resolveCompanyScope);
+
 // M-Pesa staff actions (STK Push initiation, config status check) — auth required
 router.use(mpesaProtectedRouter);
+
+// Company subscription renewal (M-Pesa STK Push initiation + Stripe checkout) — auth required
+router.use(billingRouter);
 
 // Owner-only tenant (company) management
 router.use(companiesRouter);

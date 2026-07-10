@@ -1,4 +1,5 @@
 export * from "./companies";
+export * from "./companyBilling";
 export * from "./customers";
 export * from "./plans";
 export * from "./subscriptions";

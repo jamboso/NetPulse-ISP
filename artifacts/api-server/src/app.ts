@@ -9,6 +9,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import path from "path";
 import { existsSync } from "fs";
+import { billingPublicRouter, stripeWebhookHandler } from "./routes/billing";
 
 const app: Express = express();
 
@@ -57,6 +58,12 @@ app.use(cors({ credentials: true, origin: true }));
 // better-auth handles its own body parsing internally
 // Mount BEFORE express.json so auth routes get raw body
 app.all("/api/auth/{*path}", toNodeHandler(auth));
+
+// Stripe webhook needs the raw request body to verify its signature, so it
+// must be mounted before express.json() parses the body.
+app.post("/api/billing/stripe/webhook", express.raw({ type: "application/json" }), (req, res) => {
+  void stripeWebhookHandler(req, res);
+});
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));

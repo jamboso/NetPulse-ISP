@@ -2,7 +2,7 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { db } from "@workspace/db";
 import { paymentsTable, invoicesTable, customersTable, hotspotVouchersTable, hotspotPackagesTable, routersTable } from "@workspace/db";
-import { eq, ilike } from "drizzle-orm";
+import { eq, ilike, and } from "drizzle-orm";
 import { getSettings } from "../lib/sms.js";
 import { requireSafaricomIp } from "../middlewares/requireSafaricomIp.js";
 import { requireMpesaWebhookSecret } from "../middlewares/requireMpesaWebhookSecret.js";
@@ -396,6 +396,7 @@ mpesaPublicRouter.post("/mpesa/callback", requireSafaricomIp, requireMpesaWebhoo
       .insert(paymentsTable)
       .values({
         customerId: customer?.id ?? null,
+        companyId: customer?.companyId ?? 1,
         invoiceId: null,
         amount: String(amount),
         method: "mpesa",
@@ -469,6 +470,7 @@ mpesaPublicRouter.post("/mpesa/c2b/confirmation", requireSafaricomIp, requireMpe
 
     await db.insert(paymentsTable).values({
       customerId: customer?.id ?? null,
+      companyId: customer?.companyId ?? 1,
       invoiceId: null,
       amount: String(amount),
       method: "mpesa",
@@ -494,6 +496,7 @@ mpesaPublicRouter.post("/mpesa/c2b/confirmation", requireSafaricomIp, requireMpe
 mpesaProtectedRouter.get("/mpesa/transactions", transactionsLimiter, async (req, res) => {
   try {
     const limit = Math.min(Number(req.query["limit"] ?? 200), 500);
+    const companyId = req.companyId;
     const rows = await db
       .select({
         id: paymentsTable.id,
@@ -509,7 +512,11 @@ mpesaProtectedRouter.get("/mpesa/transactions", transactionsLimiter, async (req,
       })
       .from(paymentsTable)
       .leftJoin(customersTable, eq(paymentsTable.customerId, customersTable.id))
-      .where(eq(paymentsTable.method, "mpesa"))
+      .where(
+        companyId != null
+          ? and(eq(paymentsTable.method, "mpesa"), eq(paymentsTable.companyId, companyId))
+          : eq(paymentsTable.method, "mpesa"),
+      )
       .orderBy(paymentsTable.createdAt)
       .limit(limit);
 

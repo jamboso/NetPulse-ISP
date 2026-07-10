@@ -1,0 +1,48 @@
+
+Last login: Thu Jul  9 21:46:00 2026 from 192.168.100.4
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ mkdir -p /tmp/reset && cat > /tmp/reset.js << 'EOF'
+const { hashPassword, verifyPassword } = require('better-auth/crypto');
+const { Client } = require('pg');
+
+(async () => {
+  const email = 'jamesbunoro@gmail.com';
+  const newPassword = 'NewPass123!';
+  const hash = await hashPassword(newPassword);
+  console.log('generated hash:', hash);
+
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+
+  const userRes = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+  if (userRes.rows.length !== 1) {
+    console.log('ABORT: expected 1 user, found', userRes.rows.length);
+    await client.end();
+    return;
+  }
+  const userId = userRes.rows[0].id;
+
+  await client.query(
+    "UPDATE accounts SET password = $1 WHERE user_id = $2 AND provider_id = 'creset +a && node /tmp/reset.jspi-server && set -a && source /opt/netpulse/.env &&
+node:internal/modules/cjs/loader:1479
+  throw err;
+  ^
+
+Error: Cannot find module 'better-auth/crypto'
+Require stack:
+- /tmp/reset.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1476:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1049:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1073:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1094:12)
+    at Module._load (node:internal/modules/cjs/loader:1262:25)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1576:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/tmp/reset.js:1:42)
+    at Module._compile (node:internal/modules/cjs/loader:1830:14) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/tmp/reset.js' ]
+}
+
+Node.js v24.15.0
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse/artifacts/api-server$

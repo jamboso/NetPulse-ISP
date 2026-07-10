@@ -1,0 +1,53 @@
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$ cd /opt/netpulse/artifacts/api-server && cat > ./reset.js << 'EOF'
+const { hashPassword, verifyPassword } = require('better-auth/crypto');
+const { Client } = require('pg');
+
+(async () => {
+  const email = 'jamesbunoro@gmail.com';
+  const newPassword = 'NewPass123!';
+  const hash = await hashPassword(newPassword);
+  console.log('generated hash:', hash);
+
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+
+  const userRes = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+  if (userRes.rows.length !== 1) {
+    console.log('ABORT: expected 1 user, found', userRes.rows.length);
+    await client.end();
+    return;
+  }
+  const userId = userRes.rows[0].id;
+
+  await client.query(
+    "UPDATE accounts SET password = $1 WHERE user_id = $2 AND provider_id = 'credential'",
+    [hash, userId]
+  );
+
+  const check = await client.query(
+    "SELECT password FROM accounts WHERE user_id = $1 AND provider_id = 'credential'",
+    [userId]
+  );
+  const ok = await verifyPassword({ hash: check.rows[0].password, password: newPassword });
+  console.log('round-trip verify result:', ok);
+
+  await client.end();
+})();
+EOF
+set -a && source /opt/netpulse/.env && set +a && node ./reset.js
+file:///opt/netpulse/artifacts/api-server/reset.js:1
+const { hashPassword, verifyPassword } = require('better-auth/crypto');
+                                         ^
+
+ReferenceError: require is not defined in ES module scope, you can use import instead
+This file is being treated as an ES module because it has a '.js' file extension and '/opt/netpulse/artifacts/api-server/package.json' contains "type": "module". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.
+    at file:///opt/netpulse/artifacts/api-server/reset.js:1:42
+    at ModuleJob.run (node:internal/modules/esm/module_job:437:25)
+    at async node:internal/modules/esm/loader:639:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.15.0
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse/artifacts/api-server$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse/artifacts/api-server$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse/artifacts/api-server$

@@ -50,9 +50,17 @@ router.post("/setup/wizard", async (req, res) => {
     // Check if any user already exists (safety guard)
     const existingUsers = await db.select().from(usersTable).limit(1);
     if (existingUsers.length === 0) {
-      await auth.api.signUpEmail({
+      const signUpResult = await auth.api.signUpEmail({
         body: { name: adminName, email: adminEmail, password: adminPassword },
       });
+      // The very first account created on a fresh install is the platform
+      // owner — they run the business hosting this app and manage all
+      // tenant "companies", not a company admin themselves.
+      if (signUpResult?.user) {
+        await db.update(usersTable)
+          .set({ role: "owner", updatedAt: new Date() })
+          .where(eq(usersTable.id, signUpResult.user.id));
+      }
       void syncStaffUserRadius(adminEmail, adminPassword).catch(() => {
         // Non-fatal — RADIUS may not be configured yet during first-run setup.
       });

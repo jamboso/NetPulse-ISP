@@ -10,16 +10,28 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import {
-  sessionLogsTable, customerCommunicationsTable, equipmentTable, paymentsTable,
+  sessionLogsTable, customerCommunicationsTable, equipmentTable, paymentsTable, customersTable,
 } from "@workspace/db";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 
 const router = Router();
+router.use(resolveCompanyScope);
+
+async function requireOwnedCustomer(req: import("express").Request, customerId: number): Promise<boolean> {
+  const [customer] = await db.select({ id: customersTable.id }).from(customersTable).where(
+    req.companyId != null
+      ? and(eq(customersTable.id, customerId), eq(customersTable.companyId, req.companyId))
+      : eq(customersTable.id, customerId),
+  );
+  return !!customer;
+}
 
 // ── GET /api/customers/:id/session-logs ──────────────────────────────────────
 
 router.get("/customers/:id/session-logs", async (req, res) => {
   const customerId = parseInt(req.params.id!);
+  if (!(await requireOwnedCustomer(req, customerId))) { res.status(404).json({ error: "Customer not found" }); return; }
   const limit = Math.min(parseInt(req.query.limit as string || "100"), 500);
   const from  = req.query.from ? new Date(req.query.from as string) : new Date(Date.now() - 90 * 86400_000);
   const to    = req.query.to   ? new Date(req.query.to   as string) : new Date();
@@ -42,6 +54,7 @@ router.get("/customers/:id/session-logs", async (req, res) => {
 
 router.get("/customers/:id/communications", async (req, res) => {
   const customerId = parseInt(req.params.id!);
+  if (!(await requireOwnedCustomer(req, customerId))) { res.status(404).json({ error: "Customer not found" }); return; }
   const limit = Math.min(parseInt(req.query.limit as string || "100"), 500);
 
   const rows = await db
@@ -58,6 +71,7 @@ router.get("/customers/:id/communications", async (req, res) => {
 
 router.post("/customers/:id/communications", async (req, res) => {
   const customerId = parseInt(req.params.id!);
+  if (!(await requireOwnedCustomer(req, customerId))) { res.status(404).json({ error: "Customer not found" }); return; }
   const { type = "note", direction = "outbound", subject, content, sentBy } = req.body as {
     type?: string; direction?: string; subject?: string; content: string; sentBy?: string;
   };
@@ -75,8 +89,12 @@ router.post("/customers/:id/communications", async (req, res) => {
 // ── DELETE /api/customers/:id/communications/:commId ──────────────────────────
 
 router.delete("/customers/:id/communications/:commId", async (req, res) => {
+  const customerId = parseInt(req.params.id!);
+  if (!(await requireOwnedCustomer(req, customerId))) { res.status(404).json({ error: "Customer not found" }); return; }
   const commId = parseInt(req.params.commId!);
-  await db.delete(customerCommunicationsTable).where(eq(customerCommunicationsTable.id, commId));
+  await db.delete(customerCommunicationsTable).where(
+    and(eq(customerCommunicationsTable.id, commId), eq(customerCommunicationsTable.customerId, customerId)),
+  );
   res.status(204).end();
 });
 
@@ -84,6 +102,7 @@ router.delete("/customers/:id/communications/:commId", async (req, res) => {
 
 router.get("/customers/:id/equipment", async (req, res) => {
   const customerId = parseInt(req.params.id!);
+  if (!(await requireOwnedCustomer(req, customerId))) { res.status(404).json({ error: "Customer not found" }); return; }
 
   const rows = await db
     .select()
@@ -98,6 +117,7 @@ router.get("/customers/:id/equipment", async (req, res) => {
 
 router.get("/customers/:id/payments", async (req, res) => {
   const customerId = parseInt(req.params.id!);
+  if (!(await requireOwnedCustomer(req, customerId))) { res.status(404).json({ error: "Customer not found" }); return; }
 
   const rows = await db
     .select()

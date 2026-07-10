@@ -5,8 +5,19 @@ import {
   usageSnapshotsTable,
 } from "@workspace/db";
 import { eq, desc, and, inArray } from "drizzle-orm";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 
 const router = Router();
+router.use(resolveCompanyScope);
+
+async function requireOwnedCustomer(req: import("express").Request, customerId: number): Promise<boolean> {
+  const [customer] = await db.select({ id: customersTable.id }).from(customersTable).where(
+    req.companyId != null
+      ? and(eq(customersTable.id, customerId), eq(customersTable.companyId, req.companyId))
+      : eq(customersTable.id, customerId),
+  );
+  return !!customer;
+}
 
 // ── RouterOS helper ───────────────────────────────────────────────────────────
 
@@ -90,9 +101,7 @@ interface SessionResult {
 router.get("/customers/:id/sessions", async (req, res) => {
   const customerId = parseInt(req.params.id!);
 
-  const [customer] = await db.select({ id: customersTable.id })
-    .from(customersTable).where(eq(customersTable.id, customerId));
-  if (!customer) { res.status(404).json({ error: "Customer not found" }); return; }
+  if (!(await requireOwnedCustomer(req, customerId))) { res.status(404).json({ error: "Customer not found" }); return; }
 
   const subs = await db
     .select({
@@ -272,6 +281,7 @@ router.get("/customers/:id/sessions", async (req, res) => {
 
 router.get("/customers/:id/usage-snapshots", async (req, res) => {
   const customerId = parseInt(req.params.id!);
+  if (!(await requireOwnedCustomer(req, customerId))) { res.status(404).json({ error: "Customer not found" }); return; }
 
   const subs = await db
     .select({ id: subscriptionsTable.id })
@@ -306,6 +316,7 @@ router.get("/customers/:id/usage-snapshots", async (req, res) => {
 
 router.post("/customers/:id/sessions/snapshot", async (req, res) => {
   const customerId = parseInt(req.params.id!);
+  if (!(await requireOwnedCustomer(req, customerId))) { res.status(404).json({ error: "Customer not found" }); return; }
   const { snapshots } = req.body as {
     snapshots: Array<{ subscriptionId: number; bytesIn: number; bytesOut: number }>;
   };

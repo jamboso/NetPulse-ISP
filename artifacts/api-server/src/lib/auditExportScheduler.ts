@@ -30,6 +30,32 @@ const FREQUENCY_HOURS: Record<string, number> = {
   monthly: 24 * 30,
 };
 
+type AuditExportScheduleSettings = {
+  exportScheduleEnabled?: string;
+  exportScheduleFrequency?: string;
+  exportScheduleLastSentAt?: string;
+};
+
+export function isAuditLogExportDue(
+  settings: AuditExportScheduleSettings,
+  now = Date.now(),
+): boolean {
+  const enabled = settings.exportScheduleEnabled;
+  if (enabled !== "1" && enabled !== "true") return false;
+
+  const frequency = (settings.exportScheduleFrequency ?? "weekly").toLowerCase();
+  const thresholdHours = FREQUENCY_HOURS[frequency] ?? FREQUENCY_HOURS["weekly"]!;
+  const lastSent = settings.exportScheduleLastSentAt ?? "";
+
+  if (!lastSent) return true;
+
+  const lastSentAt = new Date(lastSent).getTime();
+  if (Number.isNaN(lastSentAt)) return true;
+
+  const hoursSinceLast = (now - lastSentAt) / (1000 * 60 * 60);
+  return hoursSinceLast >= thresholdHours;
+}
+
 function escapeCsv(value: string): string {
   const FORMULA_CHARS = ["=", "+", "-", "@", "\t", "\r"];
   let safe = FORMULA_CHARS.some((c) => value.startsWith(c)) ? `'${value}` : value;
@@ -185,31 +211,20 @@ export async function sendAuditLogExport(
   return { lastSentAt };
 }
 
-async function runExportIfDue(): Promise<void> {
+export async function runAuditLogExportIfDue(): Promise<void> {
   const s = await getSettings();
-  const enabled = s["exportScheduleEnabled"];
-  if (enabled !== "1" && enabled !== "true") return;
-
-  const frequency = (s["exportScheduleFrequency"] ?? "weekly").toLowerCase();
-  const lastSent = s["exportScheduleLastSentAt"] ?? "";
-  const thresholdHours = FREQUENCY_HOURS[frequency] ?? FREQUENCY_HOURS["weekly"]!;
-
-  if (lastSent) {
-    const lastDate = new Date(lastSent);
-    const hoursSinceLast = (Date.now() - lastDate.getTime()) / (1000 * 60 * 60);
-    if (hoursSinceLast < thresholdHours) return;
-  }
+  if (!isAuditLogExportDue(s)) return;
 
   await sendAuditLogExport("scheduled");
 }
 
 export function startAuditExportScheduler(): void {
-  runExportIfDue().catch((err) =>
+  runAuditLogExportIfDue().catch((err) =>
     logger.warn({ err }, "Audit export scheduler: initial check failed"),
   );
 
   setInterval(() => {
-    runExportIfDue().catch((err) =>
+    runAuditLogExportIfDue().catch((err) =>
       logger.warn({ err }, "Audit export scheduler: scheduled check failed"),
     );
   }, CHECK_INTERVAL_MS);

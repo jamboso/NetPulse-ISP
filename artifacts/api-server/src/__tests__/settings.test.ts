@@ -331,6 +331,48 @@ describe("PATCH /api/settings", () => {
     });
   });
 
+  it("accepts and persists all scheduled audit export settings", async () => {
+    mockExec
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { key: "exportScheduleEnabled", value: "1" },
+        { key: "exportScheduleFrequency", value: "daily" },
+        { key: "exportScheduleEmail", value: "compliance@example.com" },
+      ]);
+
+    const res = await request(buildApp())
+      .patch("/api/settings")
+      .send({
+        exportScheduleEnabled: "1",
+        exportScheduleFrequency: "daily",
+        exportScheduleEmail: "compliance@example.com",
+      });
+
+    expect(res.status).toBe(200);
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "exportScheduleEnabled",
+      value: "1",
+    }));
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "exportScheduleFrequency",
+      value: "daily",
+    }));
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "exportScheduleEmail",
+      value: "compliance@example.com",
+    }));
+    expect(res.body).toMatchObject({
+      exportScheduleEnabled: "1",
+      exportScheduleFrequency: "daily",
+      exportScheduleEmail: "compliance@example.com",
+    });
+  });
+
   it("encrypts notification channel values before storing them", async () => {
     mockExec
       .mockResolvedValueOnce([])

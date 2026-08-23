@@ -489,7 +489,7 @@ function AdminWelcomeEmailTemplateSettings() {
 }
 
 function OwnerSettings() {
-  const { isAdmin } = useCurrentUser();
+  const { isAdmin, isOwner } = useCurrentUser();
   const { data: serverSettings, isLoading } = useGetSettings();
   const updateMutation = useUpdateSettings();
   const queryClient = useQueryClient();
@@ -611,9 +611,11 @@ function OwnerSettings() {
           <TabsTrigger value="infrastructure" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Shield className="w-3.5 h-3.5" /> Infrastructure
           </TabsTrigger>
-          <TabsTrigger value="updates" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            <RefreshCw className="w-3.5 h-3.5" /> Updates
-          </TabsTrigger>
+          {isOwner && (
+            <TabsTrigger value="updates" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <RefreshCw className="w-3.5 h-3.5" /> Updates
+            </TabsTrigger>
+          )}
           {isAdmin && (
             <TabsTrigger value="ai-assistant" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <Sparkles className="w-3.5 h-3.5" /> AI Assistant
@@ -869,9 +871,11 @@ function OwnerSettings() {
           <InfrastructureTab f={f} set={set} />
         </TabsContent>
 
-        <TabsContent value="updates" className="mt-5">
-          <UpdatesTab />
-        </TabsContent>
+        {isOwner && (
+          <TabsContent value="updates" className="mt-5">
+            <UpdatesTab />
+          </TabsContent>
+        )}
 
         {/* ── AI ASSISTANT ────────────────────────────────────────────────── */}
         {isAdmin && (

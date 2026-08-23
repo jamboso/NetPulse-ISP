@@ -1,25 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import express, { type Request, type Response, type NextFunction } from "express";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import express, { type NextFunction, type Request } from "express";
 import request from "supertest";
 
-const mockExecSync = vi.hoisted(() => vi.fn());
+const mockExecFileSync = vi.hoisted(() => vi.fn());
+const mockSpawn = vi.hoisted(() => vi.fn());
+const mockReadFileSync = vi.hoisted(() => vi.fn());
 
 vi.mock("child_process", () => ({
-  execSync: mockExecSync,
-  spawn: vi.fn(() => {
-    const child = {
-      stdout: { on: vi.fn() },
-      stderr: { on: vi.fn() },
-      on: vi.fn((event: string, cb: (code: number | null) => void) => {
-        if (event === "close") {
-          setImmediate(() => cb(0));
-        }
-      }),
-      kill: vi.fn(),
-      unref: vi.fn(),
-    };
-    return child;
-  }),
+  execFileSync: mockExecFileSync,
+  spawn: mockSpawn,
+}));
+vi.mock("fs", () => ({
+  readFileSync: mockReadFileSync,
 }));
 
 const { default: systemUpdateRouter } = await import("../routes/system-update.js");
@@ -35,20 +27,16 @@ type MockUser = {
   updatedAt: Date;
 };
 
-const adminUser: MockUser = {
-  id: "u1", email: "admin@test.com", name: "Admin", role: "admin",
+const ownerUser: MockUser = {
+  id: "owner-1", email: "owner@test.com", name: "Owner", role: "owner",
   active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date(),
 };
+const adminUser: MockUser = { ...ownerUser, id: "admin-1", role: "admin" };
 
-const billingUser: MockUser = {
-  id: "u2", email: "billing@test.com", name: "Billing", role: "billing",
-  active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date(),
-};
-
-function buildApp(user: MockUser = adminUser) {
+function buildApp(user: MockUser = ownerUser) {
   const app = express();
   app.use(express.json());
-  app.use((req: Request, _res: Response, next: NextFunction) => {
+  app.use((req: Request, _res, next: NextFunction) => {
     (req as Request & { user: MockUser }).user = user;
     next();
   });
@@ -56,103 +44,137 @@ function buildApp(user: MockUser = adminUser) {
   return app;
 }
 
+function mockGit(localCommit = "localcommit1111111111111111111111111111111", remoteCommit = localCommit) {
+  mockExecFileSync.mockImplementation((_command: string, args: string[]) => {
+    const joined = args.join(" ");
+    if (joined === "rev-parse HEAD") return localCommit;
+    if (joined === "branch --show-current") return "main";
+    if (joined === "config --get branch.main.remote") return "origin";
+    if (joined === "remote get-url origin") return "https://github.example/netpulse.git";
+    if (joined.startsWith("fetch --quiet origin")) return "";
+    if (joined === "rev-parse origin/main") return remoteCommit;
+    if (joined === "log -1 --format=%s") return "Safe updater";
+    if (joined === "log -1 --format=%ai") return "2026-08-23 10:00:00 +0000";
+    throw new Error(`Unexpected git command: ${joined}`);
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  mockReadFileSync.mockImplementation(() => {
+    throw new Error("status file does not exist");
+  });
+  process.env.NODE_ENV = "production";
+  delete process.env.NETPULSE_UPDATE_REMOTE;
+  delete process.env.NETPULSE_UPDATE_BRANCH;
+  mockSpawn.mockImplementation(() => {
+    const child = {
+      stdout: { on: vi.fn() },
+      stderr: { on: vi.fn() },
+      on: vi.fn((event: string, callback: (code: number | null) => void) => {
+        if (event === "close") setImmediate(() => callback(0));
+      }),
+      kill: vi.fn(),
+      unref: vi.fn(),
+    };
+    return child;
+  });
 });
 
-// ---------------------------------------------------------------------------
-// GET /system/version
-// ---------------------------------------------------------------------------
+afterEach(() => {
+  delete process.env.NODE_ENV;
+  delete process.env.NETPULSE_UPDATE_REMOTE;
+  delete process.env.NETPULSE_UPDATE_BRANCH;
+});
 
 describe("GET /system/version", () => {
-  it("returns version info with all expected fields", async () => {
-    mockExecSync
-      .mockReturnValueOnce("abc1234def5678901234567890123456789012345")
-      .mockReturnValueOnce("main")
-      .mockReturnValueOnce("feat: add dashboard route")
-      .mockReturnValueOnce("2026-05-23 10:00:00 +0000")
-      .mockReturnValueOnce("abc1234def5678901234567890123456789012345");
+  it("reports the fetched GitHub release without exposing the server path", async () => {
+    const local = "localcommit1111111111111111111111111111111";
+    const remote = "remotecommit2222222222222222222222222222222";
+    mockGit(local, remote);
 
-    const res = await request(buildApp()).get("/system/version");
+    const response = await request(buildApp()).get("/system/version");
 
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("version", "1.0.0");
-    expect(res.body).toHaveProperty("commit");
-    expect(res.body).toHaveProperty("commitFull");
-    expect(res.body).toHaveProperty("branch");
-    expect(res.body).toHaveProperty("commitMessage");
-    expect(res.body).toHaveProperty("updateAvailable");
-    expect(res.body).toHaveProperty("isProduction");
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      commit: "localco",
+      remoteCommit: "remotec",
+      remoteCommitFull: remote,
+      branch: "main",
+      remote: "origin",
+      updateAvailable: true,
+      retryAvailable: false,
+      isProduction: true,
+    });
+    expect(response.body.deployment).toBeNull();
+    expect(response.body).not.toHaveProperty("appDir");
   });
 
-  it("returns unknown when git commands fail", async () => {
-    mockExecSync.mockImplementation(() => { throw new Error("git not found"); });
-
-    const res = await request(buildApp()).get("/system/version");
-
-    expect(res.status).toBe(200);
-    expect(res.body.commit).toBe("unknown");
-  });
-
-  it("detects update available when remote and local commits differ", async () => {
-    mockExecSync
-      .mockReturnValueOnce("localcommit1111111111111111111111111111111")
-      .mockReturnValueOnce("main")
-      .mockReturnValueOnce("some commit message")
-      .mockReturnValueOnce("2026-01-01 00:00:00 +0000")
-      .mockReturnValueOnce("remotecommit2222222222222222222222222222222");
-
-    const res = await request(buildApp()).get("/system/version");
-
-    expect(res.status).toBe(200);
-    expect(res.body.updateAvailable).toBe(true);
-  });
-
-  it("detects no update when remote equals local commit", async () => {
-    const commit = "samecommit11111111111111111111111111111111";
-    mockExecSync
-      .mockReturnValueOnce(commit)
-      .mockReturnValueOnce("main")
-      .mockReturnValueOnce("no changes")
-      .mockReturnValueOnce("2026-01-01 00:00:00 +0000")
-      .mockReturnValueOnce(commit);
-
-    const res = await request(buildApp()).get("/system/version");
-
-    expect(res.status).toBe(200);
-    expect(res.body.updateAvailable).toBe(false);
-  });
-
-  it("returns null remoteCommit when remote is empty", async () => {
-    mockExecSync
-      .mockReturnValueOnce("localcommit1111111111111111111111111111111")
-      .mockReturnValueOnce("main")
-      .mockReturnValueOnce("some commit")
-      .mockReturnValueOnce("2026-01-01 00:00:00 +0000")
-      .mockReturnValueOnce("");
-
-    const res = await request(buildApp()).get("/system/version");
-
-    expect(res.status).toBe(200);
-    expect(res.body.remoteCommit).toBeNull();
-    expect(res.body.updateAvailable).toBe(false);
+  it("denies production release metadata to tenant admins", async () => {
+    mockGit();
+    const response = await request(buildApp(adminUser)).get("/system/version");
+    expect(response.status).toBe(403);
   });
 });
 
-// ---------------------------------------------------------------------------
-// POST /system/update
-// ---------------------------------------------------------------------------
-
 describe("POST /system/update", () => {
-  it("returns 403 for non-admin role", async () => {
-    const res = await request(buildApp(billingUser)).post("/system/update");
-
-    expect(res.status).toBe(403);
+  it("denies tenant admins", async () => {
+    const response = await request(buildApp(adminUser))
+      .post("/system/update")
+      .send({ targetCommit: "remote" });
+    expect(response.status).toBe(403);
   });
 
-  it("responds with event-stream content type for admin", async () => {
-    const res = await request(buildApp()).post("/system/update");
+  it("requires the checked release commit before starting an update", async () => {
+    mockGit("localcommit1111111111111111111111111111111", "remotecommit2222222222222222222222222222222");
 
-    expect(res.headers["content-type"]).toMatch(/text\/event-stream/);
+    const response = await request(buildApp())
+      .post("/system/update")
+      .send({ targetCommit: "different-release" });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toMatch(/check for updates again/i);
+    expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
+  it("allows an owner to retry a failed deployment of the current release", async () => {
+    const commit = "currentcommit1111111111111111111111111111111";
+    mockGit(commit, commit);
+    mockReadFileSync.mockReturnValue(JSON.stringify({
+      state: "failed",
+      phase: "verifying health",
+      targetCommit: commit,
+      pid: 999999,
+    }));
+
+    const response = await request(buildApp())
+      .post("/system/update")
+      .send({ targetCommit: commit });
+
+    expect(response.status).toBe(200);
+    expect(mockSpawn).toHaveBeenCalledOnce();
+  });
+
+  it("starts the updater with the owner-confirmed release and remote", async () => {
+    const remote = "remotecommit2222222222222222222222222222222";
+    mockGit("localcommit1111111111111111111111111111111", remote);
+
+    const response = await request(buildApp())
+      .post("/system/update")
+      .send({ targetCommit: remote });
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toMatch(/text\/event-stream/);
+    expect(mockSpawn).toHaveBeenCalledWith(
+      "bash",
+      ["/opt/netpulse/deploy/update.sh"],
+      expect.objectContaining({
+        env: expect.objectContaining({
+          NETPULSE_EXPECTED_COMMIT: remote,
+          NETPULSE_UPDATE_REMOTE: "origin",
+          NETPULSE_UPDATE_BRANCH: "main",
+        }),
+      }),
+    );
   });
 });

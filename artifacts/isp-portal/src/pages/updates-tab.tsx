@@ -2,6 +2,16 @@ import { useState, useEffect, useRef } from "react";
 import { GitBranch, RefreshCw, Download, CheckCircle2, AlertCircle, Loader2, Cpu, Clock, Hash, ArrowUpCircle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface VersionInfo {
   version: string;
@@ -12,8 +22,15 @@ interface VersionInfo {
   commitDate: string;
   updateAvailable: boolean;
   remoteCommit: string | null;
+  remoteCommitFull: string | null;
+  remote: string | null;
   isProduction: boolean;
-  appDir: string;
+  retryAvailable: boolean;
+  deployment: {
+    state: "running" | "success" | "failed";
+    phase: string;
+    targetCommit: string;
+  } | null;
 }
 
 function LogLine({ line }: { line: string }) {
@@ -42,6 +59,7 @@ export function UpdatesTab() {
   const [logs, setLogs]         = useState<string[]>([]);
   const [status, setStatus]     = useState<"idle" | "running" | "done" | "error">("idle");
   const [checking, setChecking] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
   const fetchVersion = async () => {
@@ -67,6 +85,7 @@ export function UpdatesTab() {
   }, [logs]);
 
   const runUpdate = async () => {
+    if (!version?.remoteCommitFull) return;
     setLogs([]);
     setStatus("running");
     setUpdating(true);
@@ -75,6 +94,8 @@ export function UpdatesTab() {
       const response = await fetch("/api/system/update", {
         method: "POST",
         credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetCommit: version.remoteCommitFull }),
       });
 
       if (!response.ok || !response.body) {
@@ -99,7 +120,13 @@ export function UpdatesTab() {
           }
           if (!dataLine) continue;
           const msg = JSON.parse(dataLine) as string;
-          if (eventType === "done") {
+          if (eventType === "restarting") {
+            setLogs((prev) => [...prev, msg]);
+            setStatus("running");
+            setUpdating(false);
+            window.setTimeout(() => window.location.reload(), 15_000);
+            return true;
+          } else if (eventType === "done") {
             setLogs((prev) => [...prev, msg]);
             setStatus("done");
             setUpdating(false);
@@ -147,10 +174,19 @@ export function UpdatesTab() {
         <div className="text-sm text-blue-700 space-y-1">
           <p className="font-medium">How updates work</p>
           <p>
-            Every change you make in Replit is automatically pushed to GitHub.
-            Click <strong>Update Now</strong> below to pull the latest code from GitHub
-            to this server, rebuild, run migrations, and restart — all in one click.
+            Only commits already pushed to the configured GitHub branch can be deployed.
+            Click <strong>Update Now</strong> to back up the server, pull the selected
+            release, build it, apply outstanding migrations, and restart.
           </p>
+          {version?.deployment && (
+            <p className={`text-xs ${
+              version.deployment.state === "failed" ? "text-red-600" :
+              version.deployment.state === "running" ? "text-amber-700" :
+              "text-emerald-700"
+            }`}>
+              Last deployment: {version.deployment.state} — {version.deployment.phase}
+            </p>
+          )}
         </div>
       </div>
 
@@ -257,19 +293,24 @@ export function UpdatesTab() {
 
         <div className="px-5 py-4 space-y-3">
           <p className="text-sm text-gray-500">
-            Pulls the latest code from <strong>GitHub → main</strong>, installs dependencies,
-            rebuilds the app, runs database migrations, and restarts the server.
+            Deploys the checked GitHub release after a database backup, then installs
+            dependencies, rebuilds the app, applies recorded migrations, and restarts
+            the server.
             Takes about <strong>3–5 minutes</strong>.
           </p>
 
           <Button
-            onClick={runUpdate}
-            disabled={updating}
+            onClick={() => setConfirmOpen(true)}
+            disabled={updating || !(version?.updateAvailable || version?.retryAvailable) || !version?.isProduction}
             className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
           >
             {updating
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Updating…</>
-              : <><Download className="w-4 h-4" /> Update Now</>}
+              : version?.retryAvailable
+                ? <><RefreshCw className="w-4 h-4" /> Retry failed deployment</>
+                : version?.updateAvailable
+                ? <><Download className="w-4 h-4" /> Update Now</>
+                : <><CheckCircle2 className="w-4 h-4" /> No update available</>}
           </Button>
         </div>
 
@@ -289,6 +330,32 @@ export function UpdatesTab() {
         )}
       </div>
 
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deploy this GitHub release?</AlertDialogTitle>
+            <AlertDialogDescription>
+              NetPulse will create a database backup, deploy commit{" "}
+              <span className="font-mono font-semibold text-gray-900">
+                {version?.remoteCommit ?? "unknown"}
+              </span>
+              , apply any outstanding recorded migrations, and restart the server.
+              This normally takes 3–5 minutes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={updating || !version?.remoteCommitFull}
+              onClick={() => void runUpdate()}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Deploy {version?.remoteCommit ?? "release"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* ── Manual fallback ───────────────────────────────────────────────── */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-3.5 bg-gray-50 border-b border-gray-200">
@@ -300,7 +367,7 @@ export function UpdatesTab() {
             If the button above fails, SSH into your server and run:
           </p>
           <pre className="bg-gray-950 text-green-300 text-xs rounded-lg px-4 py-3 font-mono overflow-x-auto">
-            sudo bash /opt/netpulse/deploy/update.sh
+            sudo -H bash /opt/netpulse/deploy/update.sh
           </pre>
         </div>
       </div>

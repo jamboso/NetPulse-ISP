@@ -12,6 +12,7 @@ CREATE TABLE "customers" (
         CONSTRAINT "customers_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
+--> statement-breakpoint
 ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "pppoe_username" text;
 --> statement-breakpoint
 ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "pppoe_password" text;
@@ -777,6 +778,21 @@ INSERT INTO "companies" ("id", "name", "username", "owner_email", "access_status
         ON CONFLICT (id) DO NOTHING;
 --> statement-breakpoint
 SELECT setval('companies_id_seq', GREATEST((SELECT MAX(id) FROM companies), 1));
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "staff_inactivity_digest_log" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "company_id" integer NOT NULL REFERENCES "companies"("id") ON DELETE CASCADE,
+        "digest_date" date NOT NULL,
+        "recipient_email" text NOT NULL,
+        "affected_count" integer NOT NULL,
+        "status" text DEFAULT 'pending' NOT NULL,
+        "processing_started_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "sent_at" timestamp with time zone,
+        "error" text
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "staff_inactivity_digest_company_date_idx"
+ON "staff_inactivity_digest_log" USING btree ("company_id","digest_date");
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "company_renewals" (
         "id" serial PRIMARY KEY NOT NULL,

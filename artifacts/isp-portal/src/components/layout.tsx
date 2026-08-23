@@ -65,7 +65,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: "Monitoring",    href: "/monitoring",   icon: MonitorDot,      show: canManageNetwork },
     { name: "Compliance",    href: "/compliance",   icon: Shield,          show: isAdmin },
     { name: "SMS Manager",   href: "/sms",          icon: MessageSquare,   show: isAdmin },
-    { name: "Settings",      href: "/settings",     icon: SettingsIcon,    show: isOwner },
+    { name: "Settings",      href: "/settings",     icon: SettingsIcon,    show: isOwner || isAdmin },
     { name: "Staff",         href: "/staff",        icon: UserCog,         show: isAdmin },
     { name: "Audit Log",     href: "/audit-logs",   icon: ClipboardList,   show: isAdmin },
   ].filter(item => item.show);

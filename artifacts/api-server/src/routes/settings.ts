@@ -68,6 +68,8 @@ const SETTINGS_KEYS = [
   "telegramBotToken", "telegramChatId",
   // SMTP
   "smtpHost", "smtpPort", "smtpUser", "smtpPass", "smtpFrom",
+  // Staff welcome email template
+  "emailSubject", "emailGreeting", "emailFooter",
   // M-Pesa
   "mpesaConsumerKey", "mpesaConsumerSecret", "mpesaShortcode",
   "mpesaPasskey", "mpesaEnv", "mpesaCallbackUrl",
@@ -92,10 +94,24 @@ const SETTINGS_KEYS = [
 
 type SettingsKey = (typeof SETTINGS_KEYS)[number];
 
+const WELCOME_EMAIL_TEMPLATE_KEYS = [
+  "emailSubject",
+  "emailGreeting",
+  "emailFooter",
+] as const;
+
+type WelcomeEmailTemplateKey = (typeof WELCOME_EMAIL_TEMPLATE_KEYS)[number];
+
 const settingsPatchSchema = z.record(
   z.string(),
   z.string().nullable(),
 );
+
+const welcomeEmailTemplatePatchSchema = z.object({
+  emailSubject: z.string().nullable().optional(),
+  emailGreeting: z.string().nullable().optional(),
+  emailFooter: z.string().nullable().optional(),
+}).strict();
 
 async function loadSettings(): Promise<Record<string, string | boolean | null>> {
   const rows = await db.select().from(settingsTable);
@@ -139,6 +155,46 @@ router.post("/settings/test-email", requireRole("owner"), async (req, res) => {
 
   const result = await sendTestEmail(toEmail, toName);
   res.status(result.success ? 200 : 502).json(result);
+});
+
+router.get("/settings/welcome-email-template", requireRole("admin"), async (_req, res) => {
+  const settings = await loadSettings();
+  const template = Object.fromEntries(
+    WELCOME_EMAIL_TEMPLATE_KEYS.map((key) => [key, settings[key] ?? null]),
+  ) as Record<WelcomeEmailTemplateKey, string | null>;
+  res.json(template);
+});
+
+router.patch("/settings/welcome-email-template", requireRole("admin"), async (req, res) => {
+  const parsed = welcomeEmailTemplatePatchSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Welcome email template values must be strings or null" });
+    return;
+  }
+
+  for (const key of WELCOME_EMAIL_TEMPLATE_KEYS) {
+    const value = parsed.data[key];
+    if (value === undefined) continue;
+
+    const existing = await db
+      .select()
+      .from(settingsTable)
+      .where(eq(settingsTable.key, key));
+    if (existing.length > 0) {
+      await db
+        .update(settingsTable)
+        .set({ value, updatedAt: new Date() })
+        .where(eq(settingsTable.key, key));
+    } else {
+      await db.insert(settingsTable).values({ key, value });
+    }
+  }
+
+  const settings = await loadSettings();
+  const template = Object.fromEntries(
+    WELCOME_EMAIL_TEMPLATE_KEYS.map((key) => [key, settings[key] ?? null]),
+  ) as Record<WelcomeEmailTemplateKey, string | null>;
+  res.json(template);
 });
 
 router.get("/settings", requireRole("owner"), async (_req, res) => {

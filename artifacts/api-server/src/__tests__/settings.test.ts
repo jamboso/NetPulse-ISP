@@ -116,6 +116,9 @@ describe("GET /api/settings", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("companyName", null);
     expect(res.body).toHaveProperty("timezone", null);
+    expect(res.body).toHaveProperty("emailSubject", null);
+    expect(res.body).toHaveProperty("emailGreeting", null);
+    expect(res.body).toHaveProperty("emailFooter", null);
   });
 
   it("redacts saved notification secrets and reports their configured state", async () => {
@@ -154,6 +157,73 @@ describe("GET /api/settings", () => {
 });
 
 // ---------------------------------------------------------------------------
+// GET/PATCH /api/settings/welcome-email-template
+// ---------------------------------------------------------------------------
+
+describe("welcome email template settings", () => {
+  it("lets an admin read only the welcome email template values", async () => {
+    mockExec.mockResolvedValueOnce([
+      { key: "companyName", value: "ACME ISP" },
+      { key: "emailSubject", value: "Welcome to {company}" },
+      { key: "emailGreeting", value: "Hello {name}" },
+      { key: "emailFooter", value: "The {company} Team" },
+    ]);
+
+    const res = await request(buildApp(buildUser("admin")))
+      .get("/api/settings/welcome-email-template");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      emailSubject: "Welcome to {company}",
+      emailGreeting: "Hello {name}",
+      emailFooter: "The {company} Team",
+    });
+  });
+
+  it("lets an admin save only the welcome email template values", async () => {
+    mockExec
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { key: "emailSubject", value: "Welcome to {company}" },
+        { key: "emailGreeting", value: "Hello {name}" },
+        { key: "emailFooter", value: "The {company} Team" },
+      ]);
+
+    const res = await request(buildApp(buildUser("admin")))
+      .patch("/api/settings/welcome-email-template")
+      .send({
+        emailSubject: "Welcome to {company}",
+        emailGreeting: "Hello {name}",
+        emailFooter: "The {company} Team",
+      });
+
+    expect(res.status).toBe(200);
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({ key: "emailSubject" }));
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({ key: "emailGreeting" }));
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({ key: "emailFooter" }));
+  });
+
+  it.each(["billing", "support", "technician"] as const)(
+    "keeps the template endpoint restricted for the %s role",
+    async (role) => {
+      const getResponse = await request(buildApp(buildUser(role)))
+        .get("/api/settings/welcome-email-template");
+      const patchResponse = await request(buildApp(buildUser(role)))
+        .patch("/api/settings/welcome-email-template")
+        .send({ emailSubject: "Not allowed" });
+
+      expect(getResponse.status).toBe(403);
+      expect(patchResponse.status).toBe(403);
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------
 // PATCH /api/settings
 // ---------------------------------------------------------------------------
 
@@ -183,6 +253,48 @@ describe("PATCH /api/settings", () => {
       .send({ timezone: "Africa/Nairobi" });
 
     expect(res.status).toBe(200);
+  });
+
+  it("persists welcome email template settings", async () => {
+    mockExec
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { key: "emailSubject", value: "Welcome to {company}" },
+        { key: "emailGreeting", value: "Hello {name}" },
+        { key: "emailFooter", value: "The {company} Team" },
+      ]);
+
+    const res = await request(buildApp())
+      .patch("/api/settings")
+      .send({
+        emailSubject: "Welcome to {company}",
+        emailGreeting: "Hello {name}",
+        emailFooter: "The {company} Team",
+      });
+
+    expect(res.status).toBe(200);
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "emailSubject",
+      value: "Welcome to {company}",
+    }));
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "emailGreeting",
+      value: "Hello {name}",
+    }));
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "emailFooter",
+      value: "The {company} Team",
+    }));
+    expect(res.body).toMatchObject({
+      emailSubject: "Welcome to {company}",
+      emailGreeting: "Hello {name}",
+      emailFooter: "The {company} Team",
+    });
   });
 
   it("encrypts notification channel values before storing them", async () => {

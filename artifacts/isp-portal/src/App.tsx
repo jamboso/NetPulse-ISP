@@ -133,7 +133,7 @@ function ProtectedRoutes() {
             <Route path="/network/routers/:id">{() => <RoleRoute component={RouterOSDashboard} roles={["admin", "technician"]} />}</Route>
             <Route path="/network/routers/:id/pppoe">{() => <RoleRoute component={PPPoESetup} roles={["admin", "technician"]} />}</Route>
             <Route path="/network/routers/:id/hotspot">{() => <RoleRoute component={HotspotManager} roles={["admin", "technician"]} />}</Route>
-            <Route path="/settings">{() => <RoleRoute component={Settings} roles={["owner"]} />}</Route>
+            <Route path="/settings">{() => <RoleRoute component={Settings} roles={["owner", "admin"]} />}</Route>
             <Route path="/staff">{() => <RoleRoute component={Staff} roles={["admin"]} />}</Route>
             <Route path="/audit-logs">{() => <RoleRoute component={AuditLogs} roles={["admin"]} />}</Route>
             <Route path="/sales">{() => <RoleRoute component={Sales} roles={["admin", "billing"]} />}</Route>

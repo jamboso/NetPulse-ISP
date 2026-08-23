@@ -273,7 +273,156 @@ function AppearanceTab() {
   );
 }
 
-export default function Settings() {
+function WelcomeEmailTemplateSection({
+  f,
+  set,
+}: {
+  f: (name: string) => string;
+  set: (name: string, value: string) => void;
+}) {
+  return (
+    <SectionCard icon={Bell} title="Welcome Email Template">
+      <p className="pb-3 text-xs text-gray-500">
+        Customize the invitation sent to new staff accounts. Use{" "}
+        <code className="rounded bg-gray-100 px-1 text-gray-700">{"{name}"}</code>,{" "}
+        <code className="rounded bg-gray-100 px-1 text-gray-700">{"{company}"}</code>,{" "}
+        <code className="rounded bg-gray-100 px-1 text-gray-700">{"{email}"}</code>,{" "}
+        <code className="rounded bg-gray-100 px-1 text-gray-700">{"{role}"}</code>, or{" "}
+        <code className="rounded bg-gray-100 px-1 text-gray-700">{"{appUrl}"}</code> to personalize it.
+      </p>
+      <SettingField
+        label="Subject"
+        name="emailSubject"
+        value={f("emailSubject")}
+        onChange={set}
+        placeholder="Welcome to {company} — Your Staff Account"
+        hint="Leave blank to use the default subject."
+      />
+      <SettingField
+        label="Greeting"
+        name="emailGreeting"
+        value={f("emailGreeting")}
+        onChange={set}
+        type="textarea"
+        placeholder="An administrator has created a staff account for you. Use the credentials below to sign in:"
+        hint="Shown after the recipient's name. Leave blank to use the default copy."
+      />
+      <SettingField
+        label="Custom Footer"
+        name="emailFooter"
+        value={f("emailFooter")}
+        onChange={set}
+        type="textarea"
+        placeholder="— The {company} Team"
+        hint="Optional sign-off shown below the sign-in button."
+      />
+    </SectionCard>
+  );
+}
+
+function AdminWelcomeEmailTemplateSettings() {
+  const [form, setForm] = useState<SettingsData>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/settings/welcome-email-template", { credentials: "include" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json() as SettingsData;
+        if (!cancelled) {
+          setForm({
+            emailSubject: data.emailSubject ?? "",
+            emailGreeting: data.emailGreeting ?? "",
+            emailFooter: data.emailFooter ?? "",
+          });
+        }
+      } catch {
+        if (!cancelled) setError("Failed to load the welcome email template.");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const set = (name: string, value: string) => {
+    setForm((current) => ({ ...current, [name]: value }));
+    setSaved(false);
+    setError("");
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/settings/welcome-email-template", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setError("Failed to save the welcome email template. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Settings</h1>
+          <p className="text-sm text-gray-500">Customize the welcome email sent to new staff.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {saved && (
+            <span className="flex items-center gap-1.5 text-sm font-medium text-green-600">
+              <CheckCircle2 className="h-4 w-4" /> Saved
+            </span>
+          )}
+          {error && (
+            <span className="flex items-center gap-1.5 text-sm text-red-600">
+              <AlertCircle className="h-4 w-4" /> {error}
+            </span>
+          )}
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
+          >
+            <Save className="h-4 w-4" />
+            {isSaving ? "Saving…" : "Save Changes"}
+          </Button>
+        </div>
+      </div>
+      <WelcomeEmailTemplateSection f={(name) => form[name] ?? ""} set={set} />
+    </div>
+  );
+}
+
+function OwnerSettings() {
   const { isAdmin } = useCurrentUser();
   const { data: serverSettings, isLoading } = useGetSettings();
   const updateMutation = useUpdateSettings();
@@ -554,6 +703,8 @@ export default function Settings() {
             </div>
           </SectionCard>
 
+          <WelcomeEmailTemplateSection f={f} set={set} />
+
           <SectionCard icon={Bell} title="Scheduled Audit Log Export">
             <ToggleRow
               label="Enable Scheduled Export"
@@ -618,6 +769,11 @@ export default function Settings() {
       </Tabs>
     </div>
   );
+}
+
+export default function Settings() {
+  const { isAdmin } = useCurrentUser();
+  return isAdmin ? <AdminWelcomeEmailTemplateSettings /> : <OwnerSettings />;
 }
 
 // ─── Provider metadata ────────────────────────────────────────────────────────

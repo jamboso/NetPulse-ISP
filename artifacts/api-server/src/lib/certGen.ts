@@ -367,6 +367,12 @@ ${certificateFetchBlock}
   :error "CA certificate import failed"
 }
 
+# Imported certificates remain in RouterOS's certificate store. Remove the
+# temporary plaintext copies, including the client private key, from Files.
+:do { /file remove [find name="netpulse-ca.pem"] } on-error={}
+:do { /file remove [find name="netpulse-client.pem"] } on-error={}
+:do { /file remove [find name="netpulse-client.key"] } on-error={}
+
 # ── 4/8  Create OpenVPN tunnel interface ──────────────────────────────────────
 :put "[4/8] Creating OpenVPN tunnel..."
 

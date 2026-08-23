@@ -12,6 +12,7 @@ export * from "./ipPools";
 export * from "./settings";
 export * from "./routers";
 export * from "./olts";
+export * from "./tr069";
 export * from "./hotspot";
 export * from "./usageSnapshots";
 export * from "./sessionLogs";

@@ -246,6 +246,62 @@ CREATE TABLE IF NOT EXISTS "olt_service_profiles" (
         "updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "olt_service_profiles" ADD COLUMN IF NOT EXISTS "tr069_inform_interval_seconds" integer;
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "tr069_acs_configs" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "company_id" integer NOT NULL,
+        "name" text DEFAULT 'GenieACS' NOT NULL,
+        "base_url" text NOT NULL,
+        "encrypted_nbi_credentials" text NOT NULL,
+        "enabled" boolean DEFAULT true NOT NULL,
+        "last_validated_at" timestamp with time zone,
+        "last_error" text,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "tr069_devices" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "company_id" integer NOT NULL,
+        "onu_id" integer NOT NULL,
+        "acs_config_id" integer NOT NULL,
+        "acs_device_id" text NOT NULL,
+        "data_model" text NOT NULL,
+        "status" text DEFAULT 'pending_inform' NOT NULL,
+        "device_authentication_configured" boolean DEFAULT false NOT NULL,
+        "device_authentication_verified_at" timestamp with time zone,
+        "data_model_verified_at" timestamp with time zone,
+        "last_inform_at" timestamp with time zone,
+        "last_managed_at" timestamp with time zone,
+        "last_refresh_at" timestamp with time zone,
+        "reported_parameters" jsonb DEFAULT '{}'::jsonb NOT NULL,
+        "last_error" text,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "tr069_commands" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "company_id" integer NOT NULL,
+        "tr069_device_id" integer NOT NULL,
+        "service_profile_id" integer,
+        "operation" text DEFAULT 'apply_service_profile' NOT NULL,
+        "parameters" jsonb DEFAULT '[]'::jsonb NOT NULL,
+        "status" text DEFAULT 'queued' NOT NULL,
+        "attempt_count" integer DEFAULT 0 NOT NULL,
+        "next_attempt_at" timestamp with time zone,
+        "acs_task_id" text,
+        "result" jsonb,
+        "error" text,
+        "recovery_guidance" text,
+        "requested_by" text NOT NULL,
+        "started_at" timestamp with time zone,
+        "completed_at" timestamp with time zone,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "olt_provisioning_jobs" (
         "id" serial PRIMARY KEY NOT NULL,
         "company_id" integer NOT NULL,
@@ -280,6 +336,15 @@ CREATE INDEX IF NOT EXISTS "olt_service_profiles_company_name_idx" ON "olt_servi
 CREATE INDEX IF NOT EXISTS "olt_jobs_company_created_idx" ON "olt_provisioning_jobs" ("company_id", "created_at");
 CREATE INDEX IF NOT EXISTS "olt_jobs_company_olt_idx" ON "olt_provisioning_jobs" ("company_id", "olt_id");
 CREATE INDEX IF NOT EXISTS "olt_jobs_company_onu_idx" ON "olt_provisioning_jobs" ("company_id", "onu_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "tr069_acs_configs_company_unique" ON "tr069_acs_configs" ("company_id");
+CREATE INDEX IF NOT EXISTS "tr069_acs_configs_company_idx" ON "tr069_acs_configs" ("company_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "tr069_devices_company_onu_unique" ON "tr069_devices" ("company_id", "onu_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "tr069_devices_config_acs_device_unique" ON "tr069_devices" ("acs_config_id", "acs_device_id");
+CREATE INDEX IF NOT EXISTS "tr069_devices_company_status_idx" ON "tr069_devices" ("company_id", "status");
+CREATE INDEX IF NOT EXISTS "tr069_devices_company_onu_idx" ON "tr069_devices" ("company_id", "onu_id");
+CREATE INDEX IF NOT EXISTS "tr069_commands_company_created_idx" ON "tr069_commands" ("company_id", "created_at");
+CREATE INDEX IF NOT EXISTS "tr069_commands_company_device_idx" ON "tr069_commands" ("company_id", "tr069_device_id");
+CREATE INDEX IF NOT EXISTS "tr069_commands_status_retry_idx" ON "tr069_commands" ("status", "next_attempt_at");
 --> statement-breakpoint
 CREATE TABLE "hotspot_packages" (
         "id" serial PRIMARY KEY NOT NULL,

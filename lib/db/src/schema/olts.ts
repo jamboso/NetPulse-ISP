@@ -83,6 +83,9 @@ export const oltServiceProfilesTable = pgTable("olt_service_profiles", {
   accessMode: text("access_mode").notNull(), // bridge | router | pppoe | dhcp
   downstreamKbps: integer("downstream_kbps"),
   upstreamKbps: integer("upstream_kbps"),
+  // This is intentionally the only cross-vendor TR-069 setting: both
+  // TR-098 and TR-181 standardize the ManagementServer periodic-inform path.
+  tr069InformIntervalSeconds: integer("tr069_inform_interval_seconds"),
   enabled: boolean("enabled").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

@@ -28,5 +28,11 @@ export interface OltServiceProfileUpdate {
      * @nullable
      */
   upstreamKbps?: number | null;
+  /**
+     * @minimum 60
+     * @maximum 86400
+     * @nullable
+     */
+  tr069InformIntervalSeconds?: number | null;
   enabled?: boolean;
 }

@@ -9,6 +9,7 @@ import { startStaffInactivityDigestScheduler } from "./lib/staffInactivityDigest
 import { startDnsPoller } from "./lib/dnsPoller";
 import { ensureCompanyBackfill } from "./lib/companyBackfill";
 import { migrateLegacyNotificationSettings } from "./lib/notificationSettingsMigration";
+import { startTr069CommandReconciler } from "./lib/tr069CommandReconciler";
 
 const rawPort = process.env["PORT"];
 
@@ -56,6 +57,7 @@ prepareStartup()
       startAuditExportScheduler();
       startStaffInactivityDigestScheduler();
       startDnsPoller();
+      startTr069CommandReconciler();
     });
   })
   .catch((err) => {

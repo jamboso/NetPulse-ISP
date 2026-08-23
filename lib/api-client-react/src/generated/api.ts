@@ -114,6 +114,12 @@ import type {
   TicketReply,
   TicketReplyInput,
   TicketUpdate,
+  Tr069AcsConfig,
+  Tr069AcsConfigInput,
+  Tr069Command,
+  Tr069CommandInput,
+  Tr069Device,
+  Tr069DeviceEnrollment,
   UnblockIp200,
   UpdateOwnPhoneInput,
   UpdateUserInput,
@@ -8037,5 +8043,590 @@ export const useApproveOltProvisioningJob = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getApproveOltProvisioningJobMutationOptions(options));
+    }
+
+export const getGetTr069AcsConfigUrl = () => {
+
+
+
+
+  return `/api/tr069/config`
+}
+
+/**
+ * @summary Get the active company’s ACS connector status without credentials
+ */
+export const getTr069AcsConfig = async ( options?: RequestInit): Promise<Tr069AcsConfig> => {
+
+  return customFetch<Tr069AcsConfig>(getGetTr069AcsConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTr069AcsConfigQueryKey = () => {
+    return [
+    `/api/tr069/config`
+    ] as const;
+    }
+
+
+export const getGetTr069AcsConfigQueryOptions = <TData = Awaited<ReturnType<typeof getTr069AcsConfig>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTr069AcsConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTr069AcsConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTr069AcsConfig>>> = ({ signal }) => getTr069AcsConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTr069AcsConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTr069AcsConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getTr069AcsConfig>>>
+export type GetTr069AcsConfigQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the active company’s ACS connector status without credentials
+ */
+
+export function useGetTr069AcsConfig<TData = Awaited<ReturnType<typeof getTr069AcsConfig>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTr069AcsConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTr069AcsConfigQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateTr069AcsConfigUrl = () => {
+
+
+
+
+  return `/api/tr069/config`
+}
+
+/**
+ * @summary Configure or rotate the encrypted GenieACS NBI connector
+ */
+export const updateTr069AcsConfig = async (tr069AcsConfigInput: Tr069AcsConfigInput, options?: RequestInit): Promise<Tr069AcsConfig> => {
+
+  return customFetch<Tr069AcsConfig>(getUpdateTr069AcsConfigUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      tr069AcsConfigInput,)
+  }
+);}
+
+
+
+
+export const getUpdateTr069AcsConfigMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTr069AcsConfig>>, TError,{data: BodyType<Tr069AcsConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTr069AcsConfig>>, TError,{data: BodyType<Tr069AcsConfigInput>}, TContext> => {
+
+const mutationKey = ['updateTr069AcsConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTr069AcsConfig>>, {data: BodyType<Tr069AcsConfigInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateTr069AcsConfig(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTr069AcsConfigMutationResult = NonNullable<Awaited<ReturnType<typeof updateTr069AcsConfig>>>
+    export type UpdateTr069AcsConfigMutationBody = BodyType<Tr069AcsConfigInput>
+    export type UpdateTr069AcsConfigMutationError = ErrorType<void>
+
+    /**
+ * @summary Configure or rotate the encrypted GenieACS NBI connector
+ */
+export const useUpdateTr069AcsConfig = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTr069AcsConfig>>, TError,{data: BodyType<Tr069AcsConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTr069AcsConfig>>,
+        TError,
+        {data: BodyType<Tr069AcsConfigInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateTr069AcsConfigMutationOptions(options));
+    }
+
+export const getListTr069DevicesUrl = () => {
+
+
+
+
+  return `/api/tr069/devices`
+}
+
+/**
+ * @summary List CPEs enrolled from the active company’s ONU inventory
+ */
+export const listTr069Devices = async ( options?: RequestInit): Promise<Tr069Device[]> => {
+
+  return customFetch<Tr069Device[]>(getListTr069DevicesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTr069DevicesQueryKey = () => {
+    return [
+    `/api/tr069/devices`
+    ] as const;
+    }
+
+
+export const getListTr069DevicesQueryOptions = <TData = Awaited<ReturnType<typeof listTr069Devices>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTr069Devices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTr069DevicesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTr069Devices>>> = ({ signal }) => listTr069Devices({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTr069Devices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTr069DevicesQueryResult = NonNullable<Awaited<ReturnType<typeof listTr069Devices>>>
+export type ListTr069DevicesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List CPEs enrolled from the active company’s ONU inventory
+ */
+
+export function useListTr069Devices<TData = Awaited<ReturnType<typeof listTr069Devices>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTr069Devices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTr069DevicesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getEnrollTr069OnuUrl = (onuId: number,) => {
+
+
+
+
+  return `/api/tr069/onus/${onuId}/device`
+}
+
+/**
+ * @summary Enable an ONU-backed CPE for externally managed TR-069
+ */
+export const enrollTr069Onu = async (onuId: number,
+    tr069DeviceEnrollment: Tr069DeviceEnrollment, options?: RequestInit): Promise<Tr069Device> => {
+
+  return customFetch<Tr069Device>(getEnrollTr069OnuUrl(onuId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      tr069DeviceEnrollment,)
+  }
+);}
+
+
+
+
+export const getEnrollTr069OnuMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enrollTr069Onu>>, TError,{onuId: number;data: BodyType<Tr069DeviceEnrollment>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof enrollTr069Onu>>, TError,{onuId: number;data: BodyType<Tr069DeviceEnrollment>}, TContext> => {
+
+const mutationKey = ['enrollTr069Onu'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enrollTr069Onu>>, {onuId: number;data: BodyType<Tr069DeviceEnrollment>}> = (props) => {
+          const {onuId,data} = props ?? {};
+
+          return  enrollTr069Onu(onuId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnrollTr069OnuMutationResult = NonNullable<Awaited<ReturnType<typeof enrollTr069Onu>>>
+    export type EnrollTr069OnuMutationBody = BodyType<Tr069DeviceEnrollment>
+    export type EnrollTr069OnuMutationError = ErrorType<void>
+
+    /**
+ * @summary Enable an ONU-backed CPE for externally managed TR-069
+ */
+export const useEnrollTr069Onu = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enrollTr069Onu>>, TError,{onuId: number;data: BodyType<Tr069DeviceEnrollment>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof enrollTr069Onu>>,
+        TError,
+        {onuId: number;data: BodyType<Tr069DeviceEnrollment>},
+        TContext
+      > => {
+      return useMutation(getEnrollTr069OnuMutationOptions(options));
+    }
+
+export const getRefreshTr069DeviceUrl = (id: number,) => {
+
+
+
+
+  return `/api/tr069/devices/${id}/refresh`
+}
+
+/**
+ * @summary Read current CPE state and supported data model from GenieACS
+ */
+export const refreshTr069Device = async (id: number, options?: RequestInit): Promise<Tr069Device> => {
+
+  return customFetch<Tr069Device>(getRefreshTr069DeviceUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRefreshTr069DeviceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshTr069Device>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshTr069Device>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['refreshTr069Device'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshTr069Device>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  refreshTr069Device(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshTr069DeviceMutationResult = NonNullable<Awaited<ReturnType<typeof refreshTr069Device>>>
+
+    export type RefreshTr069DeviceMutationError = ErrorType<void>
+
+    /**
+ * @summary Read current CPE state and supported data model from GenieACS
+ */
+export const useRefreshTr069Device = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshTr069Device>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof refreshTr069Device>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRefreshTr069DeviceMutationOptions(options));
+    }
+
+export const getListTr069CommandsUrl = () => {
+
+
+
+
+  return `/api/tr069/commands`
+}
+
+/**
+ * @summary List the active company’s auditable CPE command history
+ */
+export const listTr069Commands = async ( options?: RequestInit): Promise<Tr069Command[]> => {
+
+  return customFetch<Tr069Command[]>(getListTr069CommandsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTr069CommandsQueryKey = () => {
+    return [
+    `/api/tr069/commands`
+    ] as const;
+    }
+
+
+export const getListTr069CommandsQueryOptions = <TData = Awaited<ReturnType<typeof listTr069Commands>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTr069Commands>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTr069CommandsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTr069Commands>>> = ({ signal }) => listTr069Commands({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTr069Commands>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTr069CommandsQueryResult = NonNullable<Awaited<ReturnType<typeof listTr069Commands>>>
+export type ListTr069CommandsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the active company’s auditable CPE command history
+ */
+
+export function useListTr069Commands<TData = Awaited<ReturnType<typeof listTr069Commands>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTr069Commands>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTr069CommandsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateTr069CommandUrl = () => {
+
+
+
+
+  return `/api/tr069/commands`
+}
+
+/**
+ * @summary Translate a supported service profile into an ACS task
+ */
+export const createTr069Command = async (tr069CommandInput: Tr069CommandInput, options?: RequestInit): Promise<Tr069Command> => {
+
+  return customFetch<Tr069Command>(getCreateTr069CommandUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      tr069CommandInput,)
+  }
+);}
+
+
+
+
+export const getCreateTr069CommandMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTr069Command>>, TError,{data: BodyType<Tr069CommandInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTr069Command>>, TError,{data: BodyType<Tr069CommandInput>}, TContext> => {
+
+const mutationKey = ['createTr069Command'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTr069Command>>, {data: BodyType<Tr069CommandInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTr069Command(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTr069CommandMutationResult = NonNullable<Awaited<ReturnType<typeof createTr069Command>>>
+    export type CreateTr069CommandMutationBody = BodyType<Tr069CommandInput>
+    export type CreateTr069CommandMutationError = ErrorType<void>
+
+    /**
+ * @summary Translate a supported service profile into an ACS task
+ */
+export const useCreateTr069Command = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTr069Command>>, TError,{data: BodyType<Tr069CommandInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTr069Command>>,
+        TError,
+        {data: BodyType<Tr069CommandInput>},
+        TContext
+      > => {
+      return useMutation(getCreateTr069CommandMutationOptions(options));
+    }
+
+export const getRetryTr069CommandUrl = (id: number,) => {
+
+
+
+
+  return `/api/tr069/commands/${id}/retry`
+}
+
+/**
+ * @summary Retry a failed, offline, or queued TR-069 command
+ */
+export const retryTr069Command = async (id: number, options?: RequestInit): Promise<Tr069Command> => {
+
+  return customFetch<Tr069Command>(getRetryTr069CommandUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRetryTr069CommandMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryTr069Command>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryTr069Command>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['retryTr069Command'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryTr069Command>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  retryTr069Command(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryTr069CommandMutationResult = NonNullable<Awaited<ReturnType<typeof retryTr069Command>>>
+
+    export type RetryTr069CommandMutationError = ErrorType<void>
+
+    /**
+ * @summary Retry a failed, offline, or queued TR-069 command
+ */
+export const useRetryTr069Command = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryTr069Command>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryTr069Command>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRetryTr069CommandMutationOptions(options));
     }
 

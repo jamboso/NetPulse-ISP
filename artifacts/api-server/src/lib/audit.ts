@@ -23,7 +23,10 @@ export type AuditEntityType =
   | "olt"
   | "onu"
   | "olt_service_profile"
-  | "olt_provisioning_job";
+  | "olt_provisioning_job"
+  | "tr069_acs_config"
+  | "tr069_device"
+  | "tr069_command";
 
 interface AuditParams {
   companyId?: number | null;

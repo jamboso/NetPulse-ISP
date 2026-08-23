@@ -2078,6 +2078,143 @@ paths:
         "404": { description: Job not found }
         "409": { description: Job cannot be approved }
 
+  # ── TR-069 / CWMP ───────────────────────────────────────────────────────────
+  /tr069/config:
+    get:
+      operationId: getTr069AcsConfig
+      tags: [tr069]
+      summary: Get the active company’s ACS connector status without credentials
+      responses:
+        "200":
+          description: ACS connector status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tr069AcsConfig" }
+        "404": { description: ACS connector is not configured }
+    put:
+      operationId: updateTr069AcsConfig
+      tags: [tr069]
+      summary: Configure or rotate the encrypted GenieACS NBI connector
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Tr069AcsConfigInput" }
+      responses:
+        "200":
+          description: Saved ACS connector status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tr069AcsConfig" }
+        "400": { description: Invalid or non-HTTPS connector input }
+        "403": { description: Admin role required }
+
+  /tr069/devices:
+    get:
+      operationId: listTr069Devices
+      tags: [tr069]
+      summary: List CPEs enrolled from the active company’s ONU inventory
+      responses:
+        "200":
+          description: Enrolled TR-069 CPEs
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Tr069Device" }
+
+  /tr069/onus/{onuId}/device:
+    put:
+      operationId: enrollTr069Onu
+      tags: [tr069]
+      summary: Enable an ONU-backed CPE for externally managed TR-069
+      parameters:
+        - name: onuId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Tr069DeviceEnrollment" }
+      responses:
+        "200":
+          description: Enrolled CPE
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tr069Device" }
+        "400": { description: Invalid enrollment or missing secure ACS device authentication confirmation }
+        "404": { description: ONU or ACS connector not found }
+        "403": { description: Admin or technician role required }
+
+  /tr069/devices/{id}/refresh:
+    post:
+      operationId: refreshTr069Device
+      tags: [tr069]
+      summary: Read current CPE state and supported data model from GenieACS
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Refreshed CPE state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tr069Device" }
+        "404": { description: CPE not found }
+        "409": { description: Connector has not been configured or is disabled }
+        "502": { description: ACS could not be reached }
+
+  /tr069/commands:
+    get:
+      operationId: listTr069Commands
+      tags: [tr069]
+      summary: List the active company’s auditable CPE command history
+      responses:
+        "200":
+          description: TR-069 command history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Tr069Command" }
+    post:
+      operationId: createTr069Command
+      tags: [tr069]
+      summary: Translate a supported service profile into an ACS task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Tr069CommandInput" }
+      responses:
+        "201":
+          description: Queued or completed ACS command
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tr069Command" }
+        "400": { description: Invalid or cross-tenant ONU/profile reference }
+        "409": { description: CPE or connector is not ready for management }
+        "422": { description: Requested parameters are unsupported by this reported CPE data model }
+        "502": { description: ACS could not be reached }
+
+  /tr069/commands/{id}/retry:
+    post:
+      operationId: retryTr069Command
+      tags: [tr069]
+      summary: Retry a failed, offline, or queued TR-069 command
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Updated command attempt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tr069Command" }
+        "404": { description: Command not found }
+        "409": { description: Command cannot be retried in its current state }
+        "502": { description: ACS could not be reached }
+
 components:
   parameters:
     Id:
@@ -2234,6 +2371,11 @@ components:
         accessMode: { type: string, enum: [bridge, router, pppoe, dhcp] }
         downstreamKbps: { type: ["integer", "null"] }
         upstreamKbps: { type: ["integer", "null"] }
+        tr069InformIntervalSeconds:
+          type: ["integer", "null"]
+          minimum: 60
+          maximum: 86400
+          description: Optional standard CWMP periodic inform interval for verified TR-098/TR-181 CPEs.
         enabled: { type: boolean }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -2249,6 +2391,7 @@ components:
         accessMode: { type: string, enum: [bridge, router, pppoe, dhcp] }
         downstreamKbps: { type: ["integer", "null"], minimum: 1 }
         upstreamKbps: { type: ["integer", "null"], minimum: 1 }
+        tr069InformIntervalSeconds: { type: ["integer", "null"], minimum: 60, maximum: 86400 }
         enabled: { type: boolean, default: true }
 
     OltServiceProfileUpdate:
@@ -2261,6 +2404,7 @@ components:
         accessMode: { type: string, enum: [bridge, router, pppoe, dhcp] }
         downstreamKbps: { type: ["integer", "null"], minimum: 1 }
         upstreamKbps: { type: ["integer", "null"], minimum: 1 }
+        tr069InformIntervalSeconds: { type: ["integer", "null"], minimum: 60, maximum: 86400 }
         enabled: { type: boolean }
 
     OltProvisioningJob:
@@ -3887,6 +4031,119 @@ components:
           type: integer
         skipped:
           type: integer
+
+    Tr069AcsConfig:
+      type: object
+      required: [id, name, baseUrl, enabled, credentialsConfigured, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        baseUrl: { type: string, format: uri }
+        enabled: { type: boolean }
+        credentialsConfigured: { type: boolean }
+        lastValidatedAt: { type: [string, "null"], format: date-time }
+        lastError: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Tr069AcsConfigInput:
+      type: object
+      required: [name, baseUrl, nbiUsername, enabled]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        baseUrl:
+          type: string
+          format: uri
+          description: HTTPS URL of the externally managed GenieACS NBI endpoint.
+        nbiUsername: { type: string, minLength: 1, maxLength: 200 }
+        nbiPassword:
+          type: string
+          minLength: 12
+          writeOnly: true
+          description: Required for the first connector save. Leave empty on later edits to retain the existing encrypted password.
+        enabled: { type: boolean }
+
+    Tr069Device:
+      type: object
+      required: [id, onuId, acsConfigId, acsDeviceId, dataModel, status, deviceAuthenticationConfigured, reportedParameters, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        onuId: { type: integer }
+        acsConfigId: { type: integer }
+        acsDeviceId: { type: string }
+        dataModel:
+          type: string
+          enum: [tr-098, tr-181]
+        status:
+          type: string
+          enum: [pending_inform, online, offline, unknown, disabled]
+        deviceAuthenticationConfigured:
+          type: boolean
+          description: True only after NetPulse verifies the ACS device authentication marker. Credentials are never stored or returned by NetPulse.
+        deviceAuthenticationVerifiedAt: { type: [string, "null"], format: date-time }
+        dataModelVerifiedAt: { type: [string, "null"], format: date-time }
+        lastInformAt: { type: [string, "null"], format: date-time }
+        lastManagedAt: { type: [string, "null"], format: date-time }
+        lastRefreshAt: { type: [string, "null"], format: date-time }
+        reportedParameters:
+          type: object
+          additionalProperties: true
+          description: Safe, non-secret device model metadata reported by the ACS.
+        lastError: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Tr069DeviceEnrollment:
+      type: object
+      required: [acsDeviceId, dataModel]
+      properties:
+        acsDeviceId: { type: string, minLength: 1, maxLength: 300 }
+        dataModel:
+          type: string
+          enum: [tr-098, tr-181]
+
+    Tr069Parameter:
+      type: object
+      required: [name, value]
+      properties:
+        name: { type: string }
+        value: {}
+
+    Tr069Command:
+      type: object
+      required: [id, tr069DeviceId, operation, parameters, status, attemptCount, requestedBy, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        tr069DeviceId: { type: integer }
+        serviceProfileId: { type: [integer, "null"] }
+        operation: { type: string }
+        parameters:
+          type: array
+          items: { $ref: "#/components/schemas/Tr069Parameter" }
+        status:
+          type: string
+          enum: [queued, completed, waiting_for_inform, offline, failed, unsupported, retry_scheduled]
+        attemptCount: { type: integer }
+        nextAttemptAt: { type: [string, "null"], format: date-time }
+        acsTaskId: { type: [string, "null"] }
+        result: {}
+        error: { type: [string, "null"] }
+        recoveryGuidance: { type: [string, "null"] }
+        requestedBy: { type: string }
+        startedAt: { type: [string, "null"], format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Tr069CommandInput:
+      type: object
+      required: [onuId, serviceProfileId, applyImmediately]
+      properties:
+        onuId: { type: integer }
+        serviceProfileId: { type: integer }
+        applyImmediately:
+          type: boolean
+          description: Request a GenieACS connection request; false queues work for the next successful inform.
 
     AuditLog:
       type: object

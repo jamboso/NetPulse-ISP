@@ -18,6 +18,13 @@ export interface OltServiceProfile {
   downstreamKbps?: number | null;
   /** @nullable */
   upstreamKbps?: number | null;
+  /**
+     * Optional standard CWMP periodic inform interval for verified TR-098/TR-181 CPEs.
+     * @minimum 60
+     * @maximum 86400
+     * @nullable
+     */
+  tr069InformIntervalSeconds?: number | null;
   enabled: boolean;
   createdAt: Date;
   updatedAt: Date;

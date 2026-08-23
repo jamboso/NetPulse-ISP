@@ -23,3 +23,4 @@
 - [Better Auth password-change hooks](better-auth-password-change-hooks.md) — after hooks receive API errors via `body.code`; return a concrete Response to replace an endpoint’s status.
 - [Fiber access safety boundary](fiber-access-safety-boundary.md) — OLT inventory is a separate tenant domain; unverified adapters must remain read-only and dry-run only.
 - [HIOSO compatibility gate](hioso-compatibility-gate.md) — recognized HIOSO series never imply write support; only exact EPON model, firmware, and protocol profiles may enable MIB discovery.
+- [TR-069 ACS verification](tr069-acs-verification.md) — CPE management requires an ACS auth marker plus reported matching data model; staff confirmation alone is never enough.

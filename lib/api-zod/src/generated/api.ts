@@ -2173,6 +2173,11 @@ export const ListOnusResponse = zod.array(ListOnusResponseItem)
 /**
  * @summary List reusable OLT service profiles
  */
+export const listOltServiceProfilesResponseTr069InformIntervalSecondsMin = 60;
+export const listOltServiceProfilesResponseTr069InformIntervalSecondsMax = 86400;
+
+
+
 export const ListOltServiceProfilesResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
@@ -2181,6 +2186,7 @@ export const ListOltServiceProfilesResponseItem = zod.object({
   "accessMode": zod.enum(['bridge', 'router', 'pppoe', 'dhcp']),
   "downstreamKbps": zod.number().nullish(),
   "upstreamKbps": zod.number().nullish(),
+  "tr069InformIntervalSeconds": zod.number().min(listOltServiceProfilesResponseTr069InformIntervalSecondsMin).max(listOltServiceProfilesResponseTr069InformIntervalSecondsMax).nullish().describe('Optional standard CWMP periodic inform interval for verified TR-098\/TR-181 CPEs.'),
   "enabled": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -2196,6 +2202,9 @@ export const createOltServiceProfileBodyVlanIdMax = 4094;
 
 
 
+export const createOltServiceProfileBodyTr069InformIntervalSecondsMin = 60;
+export const createOltServiceProfileBodyTr069InformIntervalSecondsMax = 86400;
+
 export const createOltServiceProfileBodyEnabledDefault = true;
 
 export const CreateOltServiceProfileBody = zod.object({
@@ -2205,6 +2214,7 @@ export const CreateOltServiceProfileBody = zod.object({
   "accessMode": zod.enum(['bridge', 'router', 'pppoe', 'dhcp']),
   "downstreamKbps": zod.number().min(1).nullish(),
   "upstreamKbps": zod.number().min(1).nullish(),
+  "tr069InformIntervalSeconds": zod.number().min(createOltServiceProfileBodyTr069InformIntervalSecondsMin).max(createOltServiceProfileBodyTr069InformIntervalSecondsMax).nullish(),
   "enabled": zod.boolean().default(createOltServiceProfileBodyEnabledDefault)
 })
 
@@ -2221,6 +2231,9 @@ export const updateOltServiceProfileBodyVlanIdMax = 4094;
 
 
 
+export const updateOltServiceProfileBodyTr069InformIntervalSecondsMin = 60;
+export const updateOltServiceProfileBodyTr069InformIntervalSecondsMax = 86400;
+
 
 
 export const UpdateOltServiceProfileBody = zod.object({
@@ -2230,8 +2243,14 @@ export const UpdateOltServiceProfileBody = zod.object({
   "accessMode": zod.enum(['bridge', 'router', 'pppoe', 'dhcp']).optional(),
   "downstreamKbps": zod.number().min(1).nullish(),
   "upstreamKbps": zod.number().min(1).nullish(),
+  "tr069InformIntervalSeconds": zod.number().min(updateOltServiceProfileBodyTr069InformIntervalSecondsMin).max(updateOltServiceProfileBodyTr069InformIntervalSecondsMax).nullish(),
   "enabled": zod.boolean().optional()
 })
+
+export const updateOltServiceProfileResponseTr069InformIntervalSecondsMin = 60;
+export const updateOltServiceProfileResponseTr069InformIntervalSecondsMax = 86400;
+
+
 
 export const UpdateOltServiceProfileResponse = zod.object({
   "id": zod.number(),
@@ -2241,6 +2260,7 @@ export const UpdateOltServiceProfileResponse = zod.object({
   "accessMode": zod.enum(['bridge', 'router', 'pppoe', 'dhcp']),
   "downstreamKbps": zod.number().nullish(),
   "upstreamKbps": zod.number().nullish(),
+  "tr069InformIntervalSeconds": zod.number().min(updateOltServiceProfileResponseTr069InformIntervalSecondsMin).max(updateOltServiceProfileResponseTr069InformIntervalSecondsMax).nullish().describe('Optional standard CWMP periodic inform interval for verified TR-098\/TR-181 CPEs.'),
   "enabled": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -2317,6 +2337,210 @@ export const ApproveOltProvisioningJobResponse = zod.object({
   "startedAt": zod.coerce.date().nullish(),
   "completedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get the active company’s ACS connector status without credentials
+ */
+export const GetTr069AcsConfigResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "baseUrl": zod.string().url(),
+  "enabled": zod.boolean(),
+  "credentialsConfigured": zod.boolean(),
+  "lastValidatedAt": zod.coerce.date().nullish(),
+  "lastError": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Configure or rotate the encrypted GenieACS NBI connector
+ */
+export const updateTr069AcsConfigBodyNameMax = 80;
+
+export const updateTr069AcsConfigBodyNbiUsernameMax = 200;
+
+export const updateTr069AcsConfigBodyNbiPasswordMin = 12;
+
+
+
+export const UpdateTr069AcsConfigBody = zod.object({
+  "name": zod.string().min(1).max(updateTr069AcsConfigBodyNameMax),
+  "baseUrl": zod.string().url().describe('HTTPS URL of the externally managed GenieACS NBI endpoint.'),
+  "nbiUsername": zod.string().min(1).max(updateTr069AcsConfigBodyNbiUsernameMax),
+  "nbiPassword": zod.string().min(updateTr069AcsConfigBodyNbiPasswordMin).optional().describe('Required for the first connector save. Leave empty on later edits to retain the existing encrypted password.'),
+  "enabled": zod.boolean()
+})
+
+export const UpdateTr069AcsConfigResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "baseUrl": zod.string().url(),
+  "enabled": zod.boolean(),
+  "credentialsConfigured": zod.boolean(),
+  "lastValidatedAt": zod.coerce.date().nullish(),
+  "lastError": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List CPEs enrolled from the active company’s ONU inventory
+ */
+export const ListTr069DevicesResponseItem = zod.object({
+  "id": zod.number(),
+  "onuId": zod.number(),
+  "acsConfigId": zod.number(),
+  "acsDeviceId": zod.string(),
+  "dataModel": zod.enum(['tr-098', 'tr-181']),
+  "status": zod.enum(['pending_inform', 'online', 'offline', 'unknown', 'disabled']),
+  "deviceAuthenticationConfigured": zod.boolean().describe('True only after NetPulse verifies the ACS device authentication marker. Credentials are never stored or returned by NetPulse.'),
+  "deviceAuthenticationVerifiedAt": zod.coerce.date().nullish(),
+  "dataModelVerifiedAt": zod.coerce.date().nullish(),
+  "lastInformAt": zod.coerce.date().nullish(),
+  "lastManagedAt": zod.coerce.date().nullish(),
+  "lastRefreshAt": zod.coerce.date().nullish(),
+  "reportedParameters": zod.record(zod.string(), zod.unknown()).describe('Safe, non-secret device model metadata reported by the ACS.'),
+  "lastError": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListTr069DevicesResponse = zod.array(ListTr069DevicesResponseItem)
+
+
+/**
+ * @summary Enable an ONU-backed CPE for externally managed TR-069
+ */
+export const EnrollTr069OnuParams = zod.object({
+  "onuId": zod.coerce.number()
+})
+
+export const enrollTr069OnuBodyAcsDeviceIdMax = 300;
+
+
+
+export const EnrollTr069OnuBody = zod.object({
+  "acsDeviceId": zod.string().min(1).max(enrollTr069OnuBodyAcsDeviceIdMax),
+  "dataModel": zod.enum(['tr-098', 'tr-181'])
+})
+
+export const EnrollTr069OnuResponse = zod.object({
+  "id": zod.number(),
+  "onuId": zod.number(),
+  "acsConfigId": zod.number(),
+  "acsDeviceId": zod.string(),
+  "dataModel": zod.enum(['tr-098', 'tr-181']),
+  "status": zod.enum(['pending_inform', 'online', 'offline', 'unknown', 'disabled']),
+  "deviceAuthenticationConfigured": zod.boolean().describe('True only after NetPulse verifies the ACS device authentication marker. Credentials are never stored or returned by NetPulse.'),
+  "deviceAuthenticationVerifiedAt": zod.coerce.date().nullish(),
+  "dataModelVerifiedAt": zod.coerce.date().nullish(),
+  "lastInformAt": zod.coerce.date().nullish(),
+  "lastManagedAt": zod.coerce.date().nullish(),
+  "lastRefreshAt": zod.coerce.date().nullish(),
+  "reportedParameters": zod.record(zod.string(), zod.unknown()).describe('Safe, non-secret device model metadata reported by the ACS.'),
+  "lastError": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Read current CPE state and supported data model from GenieACS
+ */
+export const RefreshTr069DeviceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RefreshTr069DeviceResponse = zod.object({
+  "id": zod.number(),
+  "onuId": zod.number(),
+  "acsConfigId": zod.number(),
+  "acsDeviceId": zod.string(),
+  "dataModel": zod.enum(['tr-098', 'tr-181']),
+  "status": zod.enum(['pending_inform', 'online', 'offline', 'unknown', 'disabled']),
+  "deviceAuthenticationConfigured": zod.boolean().describe('True only after NetPulse verifies the ACS device authentication marker. Credentials are never stored or returned by NetPulse.'),
+  "deviceAuthenticationVerifiedAt": zod.coerce.date().nullish(),
+  "dataModelVerifiedAt": zod.coerce.date().nullish(),
+  "lastInformAt": zod.coerce.date().nullish(),
+  "lastManagedAt": zod.coerce.date().nullish(),
+  "lastRefreshAt": zod.coerce.date().nullish(),
+  "reportedParameters": zod.record(zod.string(), zod.unknown()).describe('Safe, non-secret device model metadata reported by the ACS.'),
+  "lastError": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List the active company’s auditable CPE command history
+ */
+export const ListTr069CommandsResponseItem = zod.object({
+  "id": zod.number(),
+  "tr069DeviceId": zod.number(),
+  "serviceProfileId": zod.number().nullish(),
+  "operation": zod.string(),
+  "parameters": zod.array(zod.object({
+  "name": zod.string(),
+  "value": zod.unknown()
+})),
+  "status": zod.enum(['queued', 'completed', 'waiting_for_inform', 'offline', 'failed', 'unsupported', 'retry_scheduled']),
+  "attemptCount": zod.number(),
+  "nextAttemptAt": zod.coerce.date().nullish(),
+  "acsTaskId": zod.string().nullish(),
+  "result": zod.unknown().optional(),
+  "error": zod.string().nullish(),
+  "recoveryGuidance": zod.string().nullish(),
+  "requestedBy": zod.string(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListTr069CommandsResponse = zod.array(ListTr069CommandsResponseItem)
+
+
+/**
+ * @summary Translate a supported service profile into an ACS task
+ */
+export const CreateTr069CommandBody = zod.object({
+  "onuId": zod.number(),
+  "serviceProfileId": zod.number(),
+  "applyImmediately": zod.boolean().describe('Request a GenieACS connection request; false queues work for the next successful inform.')
+})
+
+
+/**
+ * @summary Retry a failed, offline, or queued TR-069 command
+ */
+export const RetryTr069CommandParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RetryTr069CommandResponse = zod.object({
+  "id": zod.number(),
+  "tr069DeviceId": zod.number(),
+  "serviceProfileId": zod.number().nullish(),
+  "operation": zod.string(),
+  "parameters": zod.array(zod.object({
+  "name": zod.string(),
+  "value": zod.unknown()
+})),
+  "status": zod.enum(['queued', 'completed', 'waiting_for_inform', 'offline', 'failed', 'unsupported', 'retry_scheduled']),
+  "attemptCount": zod.number(),
+  "nextAttemptAt": zod.coerce.date().nullish(),
+  "acsTaskId": zod.string().nullish(),
+  "result": zod.unknown().optional(),
+  "error": zod.string().nullish(),
+  "recoveryGuidance": zod.string().nullish(),
+  "requestedBy": zod.string(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
 })
 
 

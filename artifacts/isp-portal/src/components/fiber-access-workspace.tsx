@@ -4,10 +4,15 @@ import {
   useDiscoverOltInventory, useListOltProvisioningJobs, useListOltServiceProfiles,
   useListOlts, useListOnus, useListOltCompatibilityProfiles, getListOltsQueryKey, getListOnusQueryKey,
   getListOltProvisioningJobsQueryKey, getListOltServiceProfilesQueryKey,
+  useGetTr069AcsConfig, useUpdateTr069AcsConfig,
+  useListTr069Devices, useEnrollTr069Onu, useRefreshTr069Device,
+  useListTr069Commands, useCreateTr069Command, useRetryTr069Command,
+  getGetTr069AcsConfigQueryKey, getListTr069DevicesQueryKey, getListTr069CommandsQueryKey,
   type OltInput, type OltServiceProfileInput,
+  type Tr069AcsConfigInput, type Tr069DeviceEnrollment, type Tr069CommandInput,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Activity, Box, Cable, CheckCircle2, Circle, Loader2, Plus, Radio, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
+import { Activity, Box, Cable, CheckCircle2, Circle, Loader2, Plus, Radio, RefreshCw, ShieldCheck, Trash2, Server, Settings2, Play, AlertCircle, Clock, Wifi, HardDrive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -16,6 +21,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 
 type OltForm = {
   name: string;
@@ -37,6 +44,7 @@ type ProfileForm = {
   accessMode: "bridge" | "router" | "pppoe" | "dhcp";
   downstreamKbps: string;
   upstreamKbps: string;
+  tr069InformIntervalSeconds: string;
 };
 
 const OLT_DEFAULTS: OltForm = {
@@ -46,7 +54,7 @@ const OLT_DEFAULTS: OltForm = {
 };
 
 const PROFILE_DEFAULTS: ProfileForm = {
-  name: "", vlanId: "", accessMode: "bridge", downstreamKbps: "", upstreamKbps: "",
+  name: "", vlanId: "", accessMode: "bridge", downstreamKbps: "", upstreamKbps: "", tr069InformIntervalSeconds: "",
 };
 
 function healthBadge(state: string) {
@@ -62,18 +70,38 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
   const { data: profiles, isLoading: profilesLoading } = useListOltServiceProfiles();
   const { data: jobs, isLoading: jobsLoading } = useListOltProvisioningJobs();
   const { data: compatibilityProfiles, isLoading: compatibilityLoading } = useListOltCompatibilityProfiles();
+  
+  const { data: acsConfig, isLoading: acsLoading } = useGetTr069AcsConfig();
+  const { data: cpes, isLoading: cpesLoading } = useListTr069Devices();
+  const { data: commands, isLoading: commandsLoading } = useListTr069Commands();
+
   const createOlt = useCreateOlt();
   const deleteOlt = useDeleteOlt();
   const discoverOlt = useDiscoverOltInventory();
   const createProfile = useCreateOltServiceProfile();
   const deleteProfile = useDeleteOltServiceProfile();
+  
+  const updateAcsConfig = useUpdateTr069AcsConfig();
+  const enrollCpe = useEnrollTr069Onu();
+  const refreshCpe = useRefreshTr069Device();
+  const createCommand = useCreateTr069Command();
+  const retryCommand = useRetryTr069Command();
 
   const [oltDialogOpen, setOltDialogOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [acsDialogOpen, setAcsDialogOpen] = useState(false);
+  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
+  const [commandDialogOpen, setCommandDialogOpen] = useState(false);
+
   const [oltForm, setOltForm] = useState<OltForm>(OLT_DEFAULTS);
   const [profileForm, setProfileForm] = useState<ProfileForm>(PROFILE_DEFAULTS);
+  const [acsForm, setAcsForm] = useState<Tr069AcsConfigInput>({ name: "", baseUrl: "", nbiUsername: "", nbiPassword: "", enabled: true });
+  const [enrollForm, setEnrollForm] = useState<Tr069DeviceEnrollment & { onuId: string }>({ onuId: "", acsDeviceId: "", dataModel: "tr-098" });
+  const [commandForm, setCommandForm] = useState<Tr069CommandInput & { cpeId: string }>({ onuId: 0, serviceProfileId: 0, applyImmediately: false, cpeId: "" });
+  
   const [error, setError] = useState<string | null>(null);
   const [discoveringId, setDiscoveringId] = useState<number | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const refresh = async () => {
     await Promise.all([
@@ -81,6 +109,14 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
       queryClient.invalidateQueries({ queryKey: getListOnusQueryKey() }),
       queryClient.invalidateQueries({ queryKey: getListOltProvisioningJobsQueryKey() }),
       queryClient.invalidateQueries({ queryKey: getListOltServiceProfilesQueryKey() }),
+    ]);
+  };
+
+  const refreshTr069 = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: getGetTr069AcsConfigQueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getListTr069DevicesQueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getListTr069CommandsQueryKey() }),
     ]);
   };
 
@@ -114,6 +150,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
           accessMode: profileForm.accessMode,
           downstreamKbps: profileForm.downstreamKbps ? Number(profileForm.downstreamKbps) : null,
           upstreamKbps: profileForm.upstreamKbps ? Number(profileForm.upstreamKbps) : null,
+          tr069InformIntervalSeconds: profileForm.tr069InformIntervalSeconds ? Number(profileForm.tr069InformIntervalSeconds) : null,
         } as OltServiceProfileInput,
       });
       await refresh();
@@ -156,6 +193,72 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete the service profile.");
+    }
+  };
+
+  const saveAcsConfig = async () => {
+    setError(null);
+    try {
+      await updateAcsConfig.mutateAsync({ data: acsForm });
+      await refreshTr069();
+      setAcsDialogOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save ACS configuration.");
+    }
+  };
+
+  const saveEnrollment = async () => {
+    setError(null);
+    try {
+      await enrollCpe.mutateAsync({ 
+        onuId: Number(enrollForm.onuId), 
+        data: { acsDeviceId: enrollForm.acsDeviceId, dataModel: enrollForm.dataModel } 
+      });
+      await refreshTr069();
+      setEnrollDialogOpen(false);
+      setEnrollForm({ onuId: "", acsDeviceId: "", dataModel: "tr-098" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not enroll CPE.");
+    }
+  };
+
+  const saveCommand = async () => {
+    setError(null);
+    try {
+      await createCommand.mutateAsync({ 
+        data: { onuId: Number(commandForm.onuId), serviceProfileId: Number(commandForm.serviceProfileId), applyImmediately: commandForm.applyImmediately } 
+      });
+      await refreshTr069();
+      setCommandDialogOpen(false);
+      setCommandForm({ onuId: 0, serviceProfileId: 0, applyImmediately: false, cpeId: "" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not queue command.");
+    }
+  };
+
+  const handleRefreshCpe = async (id: number) => {
+    setError(null);
+    setActionLoading(`refresh-${id}`);
+    try {
+      await refreshCpe.mutateAsync({ id });
+      await refreshTr069();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not refresh CPE state.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRetryCommand = async (id: number) => {
+    setError(null);
+    setActionLoading(`retry-${id}`);
+    try {
+      await retryCommand.mutateAsync({ id });
+      await refreshTr069();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not retry command.");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -252,6 +355,92 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
         </div>
       </section>
 
+      <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-white p-5 mt-8">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+          <div className="flex gap-3">
+            <div className="rounded-lg bg-indigo-600 p-2.5 text-white"><Server className="h-5 w-5" /></div>
+            <div>
+              <h2 className="font-semibold text-gray-900">CPE Management (TR-069)</h2>
+              <p className="mt-1 max-w-2xl text-sm text-gray-600">Enroll ONU-backed CPEs for remote management via GenieACS. Ensure device authentication is enforced at the ACS boundary.</p>
+            </div>
+          </div>
+          {canManageNetwork && (
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50" onClick={() => {
+                if (acsConfig) setAcsForm({ name: acsConfig.name, baseUrl: acsConfig.baseUrl, nbiUsername: "", nbiPassword: "", enabled: acsConfig.enabled });
+                setAcsDialogOpen(true);
+              }}><Settings2 className="mr-1.5 h-4 w-4" />ACS Settings</Button>
+              <Button size="sm" className="bg-indigo-700 hover:bg-indigo-800" onClick={() => setEnrollDialogOpen(true)} disabled={!acsConfig?.enabled}><Plus className="mr-1.5 h-4 w-4" />Enroll CPE</Button>
+            </div>
+          )}
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-lg border border-indigo-100 bg-white/80 p-3"><p className="text-xs font-medium uppercase tracking-wide text-gray-500">ACS Status</p><p className="mt-1 text-2xl font-semibold text-gray-900">{acsConfig?.enabled ? "Enabled" : "Disabled"}</p></div>
+          <div className="rounded-lg border border-indigo-100 bg-white/80 p-3"><p className="text-xs font-medium uppercase tracking-wide text-gray-500">Enrolled Devices</p><p className="mt-1 text-2xl font-semibold text-gray-900">{cpes?.length ?? "—"}</p></div>
+          <div className="rounded-lg border border-indigo-100 bg-white/80 p-3"><p className="text-xs font-medium uppercase tracking-wide text-gray-500">Queued Tasks</p><p className="mt-1 text-2xl font-semibold text-gray-900">{commands?.filter(c => c.status === "queued").length ?? "0"}</p></div>
+        </div>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3"><div className="flex items-center gap-2"><Wifi className="h-4 w-4 text-indigo-700" /><h3 className="font-medium text-gray-900">Managed CPEs</h3></div></div>
+          <div className="divide-y divide-gray-100">
+            {cpesLoading ? <div className="p-4"><Skeleton className="h-10 w-full" /></div>
+              : cpes?.length ? cpes.map((cpe) => (
+                <div key={cpe.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+                  <div className="rounded-md bg-indigo-50 p-2 text-indigo-700"><HardDrive className="h-4 w-4" /></div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2"><p className="truncate text-sm font-medium text-gray-900">{cpe.acsDeviceId}</p><Badge variant="outline" className="text-[10px] uppercase">{cpe.dataModel}</Badge></div>
+                    <p className="mt-0.5 text-xs text-gray-500">ONU ID: {cpe.onuId} · {cpe.status} {cpe.lastInformAt ? `· Last Check-in: ${new Date(cpe.lastInformAt).toLocaleTimeString()}` : ""}</p>
+                  </div>
+                  {canManageNetwork && (
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
+                        setCommandForm({ ...commandForm, onuId: cpe.onuId, cpeId: String(cpe.id) });
+                        setCommandDialogOpen(true);
+                      }}><Play className="mr-1 h-3 w-3" />Queue Task</Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-indigo-700" disabled={actionLoading === `refresh-${cpe.id}`} onClick={() => void handleRefreshCpe(cpe.id)}>
+                        {actionLoading === `refresh-${cpe.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))
+              : <div className="px-4 py-8 text-center text-sm text-gray-500">No CPEs have been enrolled yet.</div>}
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3"><div className="flex items-center gap-2"><Clock className="h-4 w-4 text-slate-700" /><h3 className="font-medium text-gray-900">Recent Commands</h3></div></div>
+          <div className="divide-y divide-gray-100 max-h-[300px] overflow-y-auto">
+            {commandsLoading ? <div className="p-4"><Skeleton className="h-10 w-full" /></div>
+              : commands?.length ? commands.slice(0, 10).map((cmd) => (
+                <div key={cmd.id} className="flex flex-col gap-2 px-4 py-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={cmd.status === "failed" ? "border-red-200 bg-red-50 text-red-700" : cmd.status === "completed" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-700"}>
+                        {cmd.status.toUpperCase()}
+                      </Badge>
+                      <span className="font-medium">{cmd.operation}</span>
+                    </div>
+                    {cmd.status === "failed" && canManageNetwork && (
+                      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-red-700 hover:bg-red-50" disabled={actionLoading === `retry-${cmd.id}`} onClick={() => void handleRetryCommand(cmd.id)}>
+                        {actionLoading === `retry-${cmd.id}` ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />} Retry
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>CPE ID: {cmd.tr069DeviceId}</span>
+                    <span>{new Date(cmd.createdAt || Date.now()).toLocaleString()}</span>
+                  </div>
+                  {cmd.error && <p className="text-xs text-red-600 bg-red-50 p-1.5 rounded">{cmd.error}</p>}
+                </div>
+              ))
+              : <div className="px-4 py-8 text-center text-sm text-gray-500">No commands found.</div>}
+          </div>
+        </section>
+      </div>
+
       <Dialog open={oltDialogOpen} onOpenChange={(open) => { setOltDialogOpen(open); if (!open) setError(null); }}>
         <DialogContent className="max-w-xl">
           <DialogHeader><DialogTitle>Add OLT</DialogTitle><DialogDescription>Register an OLT for safe, read-only inventory discovery.</DialogDescription></DialogHeader>
@@ -294,8 +483,88 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
             <div className="space-y-1"><Label>Name *</Label><Input value={profileForm.name} onChange={(event) => setProfileForm({ ...profileForm, name: event.target.value })} placeholder="Home 20 Mbps" /></div>
             <div className="grid grid-cols-2 gap-3"><div className="space-y-1"><Label>VLAN ID *</Label><Input type="number" value={profileForm.vlanId} onChange={(event) => setProfileForm({ ...profileForm, vlanId: event.target.value })} placeholder="100" /></div><div className="space-y-1"><Label>Access mode *</Label><Select value={profileForm.accessMode} onValueChange={(value: ProfileForm["accessMode"]) => setProfileForm({ ...profileForm, accessMode: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="bridge">Bridge</SelectItem><SelectItem value="router">Router</SelectItem><SelectItem value="pppoe">PPPoE</SelectItem><SelectItem value="dhcp">DHCP</SelectItem></SelectContent></Select></div></div>
             <div className="grid grid-cols-2 gap-3"><div className="space-y-1"><Label>Download (Kbps)</Label><Input type="number" value={profileForm.downstreamKbps} onChange={(event) => setProfileForm({ ...profileForm, downstreamKbps: event.target.value })} /></div><div className="space-y-1"><Label>Upload (Kbps)</Label><Input type="number" value={profileForm.upstreamKbps} onChange={(event) => setProfileForm({ ...profileForm, upstreamKbps: event.target.value })} /></div></div>
+            <div className="space-y-1"><Label>TR-069 Inform Interval (Seconds)</Label><Input type="number" value={profileForm.tr069InformIntervalSeconds} onChange={(event) => setProfileForm({ ...profileForm, tr069InformIntervalSeconds: event.target.value })} placeholder="300" /><p className="text-[11px] text-gray-500">Optional. Only applied if the CPE is enrolled and online.</p></div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setProfileDialogOpen(false)}>Cancel</Button><Button className="bg-sky-700 hover:bg-sky-800" disabled={createProfile.isPending || !profileForm.name || !profileForm.vlanId} onClick={() => void saveProfile()}>{createProfile.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Save profile</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={acsDialogOpen} onOpenChange={(open) => { setAcsDialogOpen(open); if (!open) setError(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>ACS Settings</DialogTitle><DialogDescription>Configure the connection to your GenieACS instance.</DialogDescription></DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch checked={acsForm.enabled} onCheckedChange={(checked) => setAcsForm({ ...acsForm, enabled: checked })} />
+              <Label>Enable TR-069 Management</Label>
+            </div>
+            <div className="space-y-1"><Label>Name *</Label><Input value={acsForm.name} onChange={(e) => setAcsForm({ ...acsForm, name: e.target.value })} placeholder="GenieACS Primary" /></div>
+            <div className="space-y-1"><Label>Base URL (HTTPS) *</Label><Input value={acsForm.baseUrl} onChange={(e) => setAcsForm({ ...acsForm, baseUrl: e.target.value })} placeholder="https://acs.example.com" /></div>
+            <div className="space-y-1"><Label>NBI Username *</Label><Input value={acsForm.nbiUsername} onChange={(e) => setAcsForm({ ...acsForm, nbiUsername: e.target.value })} /></div>
+            <div className="space-y-1"><Label>NBI Password</Label><Input type="password" value={acsForm.nbiPassword ?? ""} onChange={(e) => setAcsForm({ ...acsForm, nbiPassword: e.target.value || undefined })} placeholder="Required for the first save; leave blank to retain" /></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setAcsDialogOpen(false)}>Cancel</Button><Button className="bg-indigo-700 hover:bg-indigo-800" disabled={updateAcsConfig.isPending || !acsForm.name || !acsForm.baseUrl || !acsForm.nbiUsername} onClick={() => void saveAcsConfig()}>{updateAcsConfig.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Save Settings</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={enrollDialogOpen} onOpenChange={(open) => { setEnrollDialogOpen(open); if (!open) setError(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Enroll CPE</DialogTitle><DialogDescription>Link an existing ONU to an ACS device ID for remote management.</DialogDescription></DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-700 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-800 leading-relaxed">NetPulse verifies the ACS device’s netpulse-auth-verified marker and reported data model before enrollment. Configure the device-specific CWMP authentication policy in GenieACS first.</p>
+            </div>
+            <div className="space-y-1">
+              <Label>Select ONU *</Label>
+              <Select value={enrollForm.onuId} onValueChange={(value) => setEnrollForm({ ...enrollForm, onuId: value })}>
+                <SelectTrigger><SelectValue placeholder="Select an ONU..." /></SelectTrigger>
+                <SelectContent>
+                  {onus?.map(onu => <SelectItem key={onu.id} value={String(onu.id)}>{onu.serialNumber || onu.loid || `ONU ${onu.id}`}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1"><Label>ACS Device ID (OUI-SerialNumber) *</Label><Input value={enrollForm.acsDeviceId} onChange={(e) => setEnrollForm({ ...enrollForm, acsDeviceId: e.target.value })} placeholder="202BC1-HA7304VD-12345" /></div>
+            <div className="space-y-1">
+              <Label>Data Model *</Label>
+              <Select value={enrollForm.dataModel} onValueChange={(value: "tr-098" | "tr-181") => setEnrollForm({ ...enrollForm, dataModel: value })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="tr-098">InternetGatewayDevice:1 (TR-098)</SelectItem><SelectItem value="tr-181">Device:2 (TR-181)</SelectItem></SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setEnrollDialogOpen(false)}>Cancel</Button><Button className="bg-indigo-700 hover:bg-indigo-800" disabled={enrollCpe.isPending || !enrollForm.onuId || !enrollForm.acsDeviceId} onClick={() => void saveEnrollment()}>{enrollCpe.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Verify & Enroll</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={commandDialogOpen} onOpenChange={(open) => { setCommandDialogOpen(open); if (!open) setError(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Queue TR-069 Task</DialogTitle><DialogDescription>Provision an enrolled CPE with a service profile via GenieACS.</DialogDescription></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label>Target CPE *</Label>
+              <Select value={String(commandForm.onuId)} onValueChange={(value) => setCommandForm({ ...commandForm, onuId: Number(value) })}>
+                <SelectTrigger><SelectValue placeholder="Select a CPE..." /></SelectTrigger>
+                <SelectContent>
+                  {cpes?.map(cpe => <SelectItem key={cpe.id} value={String(cpe.onuId)}>{cpe.acsDeviceId} (ONU {cpe.onuId})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Service Profile *</Label>
+              <Select value={String(commandForm.serviceProfileId)} onValueChange={(value) => setCommandForm({ ...commandForm, serviceProfileId: Number(value) })}>
+                <SelectTrigger><SelectValue placeholder="Select a profile..." /></SelectTrigger>
+                <SelectContent>
+                  {profiles?.map(profile => <SelectItem key={profile.id} value={String(profile.id)}>{profile.name} (VLAN {profile.vlanId})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center space-x-2 pt-2">
+              <Checkbox id="applyImmediately" checked={commandForm.applyImmediately} onCheckedChange={(checked) => setCommandForm({ ...commandForm, applyImmediately: checked === true })} />
+              <Label htmlFor="applyImmediately" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Apply immediately (Request connection)
+              </Label>
+            </div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setCommandDialogOpen(false)}>Cancel</Button><Button className="bg-indigo-700 hover:bg-indigo-800" disabled={createCommand.isPending || !commandForm.onuId || !commandForm.serviceProfileId} onClick={() => void saveCommand()}>{createCommand.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Queue Task</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

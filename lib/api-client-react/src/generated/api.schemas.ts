@@ -266,6 +266,13 @@ export interface OltServiceProfile {
   downstreamKbps?: number | null;
   /** @nullable */
   upstreamKbps?: number | null;
+  /**
+     * Optional standard CWMP periodic inform interval for verified TR-098/TR-181 CPEs.
+     * @minimum 60
+     * @maximum 86400
+     * @nullable
+     */
+  tr069InformIntervalSeconds?: number | null;
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -302,6 +309,12 @@ export interface OltServiceProfileInput {
      * @nullable
      */
   upstreamKbps?: number | null;
+  /**
+     * @minimum 60
+     * @maximum 86400
+     * @nullable
+     */
+  tr069InformIntervalSeconds?: number | null;
   enabled?: boolean;
 }
 
@@ -336,6 +349,12 @@ export interface OltServiceProfileUpdate {
      * @nullable
      */
   upstreamKbps?: number | null;
+  /**
+     * @minimum 60
+     * @maximum 86400
+     * @nullable
+     */
+  tr069InformIntervalSeconds?: number | null;
   enabled?: boolean;
 }
 
@@ -1729,6 +1748,161 @@ export interface RadiusSyncResult {
   ok: boolean;
   synced: number;
   skipped: number;
+}
+
+export interface Tr069AcsConfig {
+  id: number;
+  name: string;
+  baseUrl: string;
+  enabled: boolean;
+  credentialsConfigured: boolean;
+  /** @nullable */
+  lastValidatedAt?: string | null;
+  /** @nullable */
+  lastError?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Tr069AcsConfigInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  name: string;
+  /** HTTPS URL of the externally managed GenieACS NBI endpoint. */
+  baseUrl: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  nbiUsername: string;
+  /**
+     * Required for the first connector save. Leave empty on later edits to retain the existing encrypted password.
+     * @minLength 12
+     */
+  nbiPassword?: string;
+  enabled: boolean;
+}
+
+export type Tr069DeviceDataModel = typeof Tr069DeviceDataModel[keyof typeof Tr069DeviceDataModel];
+
+
+export const Tr069DeviceDataModel = {
+  'tr-098': 'tr-098',
+  'tr-181': 'tr-181',
+} as const;
+
+export type Tr069DeviceStatus = typeof Tr069DeviceStatus[keyof typeof Tr069DeviceStatus];
+
+
+export const Tr069DeviceStatus = {
+  pending_inform: 'pending_inform',
+  online: 'online',
+  offline: 'offline',
+  unknown: 'unknown',
+  disabled: 'disabled',
+} as const;
+
+/**
+ * Safe, non-secret device model metadata reported by the ACS.
+ */
+export type Tr069DeviceReportedParameters = { [key: string]: unknown };
+
+export interface Tr069Device {
+  id: number;
+  onuId: number;
+  acsConfigId: number;
+  acsDeviceId: string;
+  dataModel: Tr069DeviceDataModel;
+  status: Tr069DeviceStatus;
+  /** True only after NetPulse verifies the ACS device authentication marker. Credentials are never stored or returned by NetPulse. */
+  deviceAuthenticationConfigured: boolean;
+  /** @nullable */
+  deviceAuthenticationVerifiedAt?: string | null;
+  /** @nullable */
+  dataModelVerifiedAt?: string | null;
+  /** @nullable */
+  lastInformAt?: string | null;
+  /** @nullable */
+  lastManagedAt?: string | null;
+  /** @nullable */
+  lastRefreshAt?: string | null;
+  /** Safe, non-secret device model metadata reported by the ACS. */
+  reportedParameters: Tr069DeviceReportedParameters;
+  /** @nullable */
+  lastError?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type Tr069DeviceEnrollmentDataModel = typeof Tr069DeviceEnrollmentDataModel[keyof typeof Tr069DeviceEnrollmentDataModel];
+
+
+export const Tr069DeviceEnrollmentDataModel = {
+  'tr-098': 'tr-098',
+  'tr-181': 'tr-181',
+} as const;
+
+export interface Tr069DeviceEnrollment {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  acsDeviceId: string;
+  dataModel: Tr069DeviceEnrollmentDataModel;
+}
+
+export interface Tr069Parameter {
+  name: string;
+  value: unknown;
+}
+
+export type Tr069CommandStatus = typeof Tr069CommandStatus[keyof typeof Tr069CommandStatus];
+
+
+export const Tr069CommandStatus = {
+  queued: 'queued',
+  completed: 'completed',
+  waiting_for_inform: 'waiting_for_inform',
+  offline: 'offline',
+  failed: 'failed',
+  unsupported: 'unsupported',
+  retry_scheduled: 'retry_scheduled',
+} as const;
+
+export interface Tr069Command {
+  id: number;
+  tr069DeviceId: number;
+  /** @nullable */
+  serviceProfileId?: number | null;
+  operation: string;
+  parameters: Tr069Parameter[];
+  status: Tr069CommandStatus;
+  attemptCount: number;
+  /** @nullable */
+  nextAttemptAt?: string | null;
+  /** @nullable */
+  acsTaskId?: string | null;
+  result?: unknown;
+  /** @nullable */
+  error?: string | null;
+  /** @nullable */
+  recoveryGuidance?: string | null;
+  requestedBy: string;
+  /** @nullable */
+  startedAt?: string | null;
+  /** @nullable */
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Tr069CommandInput {
+  onuId: number;
+  serviceProfileId: number;
+  /** Request a GenieACS connection request; false queues work for the next successful inform. */
+  applyImmediately: boolean;
 }
 
 export type AuditLogAction = typeof AuditLogAction[keyof typeof AuditLogAction];

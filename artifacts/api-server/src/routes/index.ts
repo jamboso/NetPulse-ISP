@@ -43,6 +43,7 @@ import openaiRouter from "./openai";
 import passwordResetRouter from "./password-reset";
 import companiesRouter from "./companies";
 import oltsRouter from "./olts";
+import tr069Router from "./tr069";
 
 const router: IRouter = Router();
 
@@ -115,7 +116,8 @@ router.use(vpnRouter);
 router.use(securityEventsRouter);
 router.use(blockedIpsRouter);
 router.use(trafficRouter);
-  router.use(oltsRouter);
+router.use(oltsRouter);
+router.use(tr069Router);
 router.use(openaiRouter);
 
 export default router;

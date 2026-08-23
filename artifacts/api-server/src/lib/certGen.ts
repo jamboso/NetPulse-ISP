@@ -1,4 +1,5 @@
 import forge from "node-forge";
+import { randomBytes } from "node:crypto";
 
 export interface CertBundle {
   cert: string;
@@ -11,7 +12,12 @@ export interface VpnServerCerts {
 }
 
 function makeSerial(): string {
-  return Date.now().toString(16).padStart(16, "0");
+  // X.509 serials are DER INTEGERs. They must be positive and minimally
+  // encoded; leading zero bytes make OpenSSL reject the certificate.
+  const serial = randomBytes(16);
+  serial[0] &= 0x7f;
+  if (serial[0] === 0) serial[0] = 1;
+  return serial.toString("hex");
 }
 
 function buildCert(opts: {

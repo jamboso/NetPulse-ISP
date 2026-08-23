@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { generateRosScript } from "../lib/certGen.js";
+import { X509Certificate } from "node:crypto";
+import { generateClientCert, generateRosScript, generateVpnServerCerts } from "../lib/certGen.js";
 
 describe("generateRosScript", () => {
   const params = {
@@ -84,5 +85,16 @@ describe("generateRosScript", () => {
 
     expect(script).toContain("protocol=udp");
     expect(script).toContain('mode=ip \\\n    protocol=udp \\\n    certificate="netpulse-client"');
+  });
+});
+
+describe("VPN certificate generation", () => {
+  it("generates certificates accepted by Node's OpenSSL parser", async () => {
+    const vpnCerts = await generateVpnServerCerts();
+    const clientCert = await generateClientCert("router-test", vpnCerts.ca.cert, vpnCerts.ca.key);
+
+    expect(() => new X509Certificate(vpnCerts.ca.cert)).not.toThrow();
+    expect(() => new X509Certificate(vpnCerts.server.cert)).not.toThrow();
+    expect(() => new X509Certificate(clientCert.cert)).not.toThrow();
   });
 });

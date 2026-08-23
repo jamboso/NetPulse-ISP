@@ -5,6 +5,13 @@ import request from "supertest";
 const mockExec = vi.hoisted(() => vi.fn());
 const mockSignUp = vi.hoisted(() => vi.fn());
 const mockGetSettings = vi.hoisted(() => vi.fn());
+const mockSendMail = vi.hoisted(() => vi.fn().mockResolvedValue({}));
+const mockCreateTransport = vi.hoisted(() => vi.fn().mockReturnValue({ sendMail: mockSendMail }));
+
+vi.mock("nodemailer", () => ({
+  createTransport: mockCreateTransport,
+  default: { createTransport: mockCreateTransport },
+}));
 
 vi.mock("@workspace/db", () => {
   const chain: Record<string, unknown> = {};
@@ -95,6 +102,7 @@ const mockSendStaffWelcomeEmail = vi.hoisted(() =>
 vi.mock("../lib/mailer.js", () => ({
   sendStaffWelcomeEmail: mockSendStaffWelcomeEmail,
   buildWelcomeEmailHtml: vi.fn().mockReturnValue("<html/>"),
+  buildWelcomeEmailSubject: vi.fn().mockReturnValue("Welcome to Acme ISP"),
   buildWelcomeEmailText: vi.fn().mockReturnValue("text"),
 }));
 
@@ -252,6 +260,33 @@ describe("POST /users/welcome-email-preview/send", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/SMTP is not configured/i);
+    expect(mockCreateTransport).not.toHaveBeenCalled();
+    expect(mockSendMail).not.toHaveBeenCalled();
+  });
+
+  it("sends a test welcome email to the logged-in admin", async () => {
+    mockGetSettings.mockResolvedValue({
+      smtpHost: "smtp.example.com",
+      smtpUser: "mailer@example.com",
+      smtpPass: "secret",
+      smtpFrom: "noreply@example.com",
+      companyName: "Acme ISP",
+    });
+
+    const res = await request(buildApp()).post("/users/welcome-email-preview/send");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      message: "Test email sent to admin@test.com",
+    });
+    expect(mockSendMail).toHaveBeenCalledOnce();
+    expect(mockSendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "admin@test.com",
+        subject: expect.stringMatching(/^\[Test\]/),
+      }),
+    );
   });
 
   it("rejects unauthenticated test-send requests", async () => {

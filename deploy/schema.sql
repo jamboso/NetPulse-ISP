@@ -181,6 +181,7 @@ CREATE TABLE IF NOT EXISTS "olts" (
         "name" text NOT NULL,
         "vendor" text NOT NULL,
         "model" text NOT NULL,
+        "firmware_version" text,
         "pon_technology" text NOT NULL,
         "management_host" text NOT NULL,
         "management_port" integer DEFAULT 161 NOT NULL,
@@ -195,6 +196,8 @@ CREATE TABLE IF NOT EXISTS "olts" (
         "created_at" timestamp with time zone DEFAULT now() NOT NULL,
         "updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
+--> statement-breakpoint
+ALTER TABLE "olts" ADD COLUMN IF NOT EXISTS "firmware_version" text;
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "olt_pon_ports" (
         "id" serial PRIMARY KEY NOT NULL,

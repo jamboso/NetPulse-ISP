@@ -1,13 +1,16 @@
 import * as net from "node:net";
+import { hiosoEponAdapter, hiosoGponIdentityAdapter } from "./hiosoEponAdapter";
 
 export type OltAdapterInput = {
   id: number;
   vendor: string;
   model: string;
+  firmwareVersion: string | null;
   ponTechnology: string;
   managementHost: string;
   managementPort: number;
   managementProtocol: string;
+  snmpCommunity?: string;
 };
 
 export type OltDiscovery = {
@@ -94,7 +97,8 @@ const safeReadOnlyAdapter: OltVendorAdapter = {
 };
 
 export function getOltAdapter(input: OltAdapterInput): OltVendorAdapter {
-  // Vendor-specific adapters are registered here only after model/firmware
-  // validation. The default adapter never sends device configuration commands.
+  if (hiosoEponAdapter.supports(input)) return hiosoEponAdapter;
+  if (hiosoGponIdentityAdapter.supports(input)) return hiosoGponIdentityAdapter;
+  // The default adapter never sends device configuration commands.
   return safeReadOnlyAdapter;
 }

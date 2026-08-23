@@ -80,6 +80,8 @@ export * from './listUsersParams';
 export * from './mpesaIpAllowlist';
 export * from './mpesaIpAllowlistSource';
 export * from './olt';
+export * from './oltCapability';
+export * from './oltCapabilityStatus';
 export * from './oltDetail';
 export * from './oltHealthState';
 export * from './oltInput';

@@ -1934,6 +1934,7 @@ export const ListOltsResponseItem = zod.object({
   "name": zod.string(),
   "vendor": zod.string(),
   "model": zod.string(),
+  "firmwareVersion": zod.string().nullable(),
   "ponTechnology": zod.enum(['epon', 'gpon']),
   "managementHost": zod.string(),
   "managementPort": zod.number(),
@@ -1945,6 +1946,12 @@ export const ListOltsResponseItem = zod.object({
   "lastDiscoveryAt": zod.coerce.date().nullish(),
   "lastError": zod.string().nullish(),
   "credentialsConfigured": zod.boolean(),
+  "capability": zod.object({
+  "status": zod.enum(['mib-validated-read-only', 'standard-identity-read-only', 'recognized-read-only', 'unsupported']),
+  "discoveryEnabled": zod.boolean(),
+  "provisioningEnabled": zod.boolean(),
+  "message": zod.string()
+}),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -1968,6 +1975,7 @@ export const CreateOltBody = zod.object({
   "name": zod.string().min(1),
   "vendor": zod.string().min(1),
   "model": zod.string().min(1),
+  "firmwareVersion": zod.string().nullish(),
   "ponTechnology": zod.enum(['epon', 'gpon']),
   "managementHost": zod.string().min(1),
   "managementPort": zod.number().min(1).max(createOltBodyManagementPortMax).default(createOltBodyManagementPortDefault),
@@ -1991,6 +1999,7 @@ export const GetOltResponse = zod.object({
   "name": zod.string(),
   "vendor": zod.string(),
   "model": zod.string(),
+  "firmwareVersion": zod.string().nullable(),
   "ponTechnology": zod.enum(['epon', 'gpon']),
   "managementHost": zod.string(),
   "managementPort": zod.number(),
@@ -2002,6 +2011,12 @@ export const GetOltResponse = zod.object({
   "lastDiscoveryAt": zod.coerce.date().nullish(),
   "lastError": zod.string().nullish(),
   "credentialsConfigured": zod.boolean(),
+  "capability": zod.object({
+  "status": zod.enum(['mib-validated-read-only', 'standard-identity-read-only', 'recognized-read-only', 'unsupported']),
+  "discoveryEnabled": zod.boolean(),
+  "provisioningEnabled": zod.boolean(),
+  "message": zod.string()
+}),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }).and(zod.object({
@@ -2037,6 +2052,7 @@ export const UpdateOltBody = zod.object({
   "name": zod.string().min(1).optional(),
   "vendor": zod.string().min(1).optional(),
   "model": zod.string().min(1).optional(),
+  "firmwareVersion": zod.string().nullish(),
   "ponTechnology": zod.enum(['epon', 'gpon']).optional(),
   "managementHost": zod.string().min(1).optional(),
   "managementPort": zod.number().min(1).max(updateOltBodyManagementPortMax).optional(),
@@ -2052,6 +2068,7 @@ export const UpdateOltResponse = zod.object({
   "name": zod.string(),
   "vendor": zod.string(),
   "model": zod.string(),
+  "firmwareVersion": zod.string().nullable(),
   "ponTechnology": zod.enum(['epon', 'gpon']),
   "managementHost": zod.string(),
   "managementPort": zod.number(),
@@ -2063,6 +2080,12 @@ export const UpdateOltResponse = zod.object({
   "lastDiscoveryAt": zod.coerce.date().nullish(),
   "lastError": zod.string().nullish(),
   "credentialsConfigured": zod.boolean(),
+  "capability": zod.object({
+  "status": zod.enum(['mib-validated-read-only', 'standard-identity-read-only', 'recognized-read-only', 'unsupported']),
+  "discoveryEnabled": zod.boolean(),
+  "provisioningEnabled": zod.boolean(),
+  "message": zod.string()
+}),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

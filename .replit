@@ -41,4 +41,4 @@ externalPort = 3000
 
 [nix]
 channel = "stable-25_05"
-packages = ["glib", "nspr", "nss", "atk", "at-spi2-atk", "at-spi2-core", "dbus", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "mesa", "libxkbcommon", "alsa-lib", "libgbm"]
+packages = ["alsa-lib", "at-spi2-atk", "at-spi2-core", "atk", "dbus", "freetype", "glib", "gumbo", "harfbuzz", "jbig2dec", "libgbm", "libjpeg_turbo", "libxkbcommon", "mesa", "mupdf", "nspr", "nss", "openjpeg", "swig", "xcbuild", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb"]

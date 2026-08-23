@@ -13,6 +13,7 @@ export const oltsTable = pgTable("olts", {
   name: text("name").notNull(),
   vendor: text("vendor").notNull(),
   model: text("model").notNull(),
+  firmwareVersion: text("firmware_version"),
   ponTechnology: text("pon_technology").notNull(), // "epon" | "gpon"
   managementHost: text("management_host").notNull(),
   managementPort: integer("management_port").notNull().default(161),

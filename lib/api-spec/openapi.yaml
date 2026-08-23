@@ -2085,12 +2085,13 @@ components:
     # ── FIBER ACCESS ──────────────────────────────────────────────────────────
     Olt:
       type: object
-      required: [id, name, vendor, model, ponTechnology, managementHost, managementPort, managementProtocol, enabled, healthState, credentialsConfigured, createdAt, updatedAt]
+      required: [id, name, vendor, model, firmwareVersion, ponTechnology, managementHost, managementPort, managementProtocol, enabled, healthState, credentialsConfigured, capability, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
         vendor: { type: string }
         model: { type: string }
+        firmwareVersion: { type: ["string", "null"] }
         ponTechnology: { type: string, enum: [epon, gpon] }
         managementHost: { type: string }
         managementPort: { type: integer }
@@ -2102,6 +2103,14 @@ components:
         lastDiscoveryAt: { type: ["string", "null"], format: date-time }
         lastError: { type: ["string", "null"] }
         credentialsConfigured: { type: boolean }
+        capability:
+          type: object
+          required: [status, discoveryEnabled, provisioningEnabled, message]
+          properties:
+            status: { type: string, enum: [mib-validated-read-only, standard-identity-read-only, recognized-read-only, unsupported] }
+            discoveryEnabled: { type: boolean }
+            provisioningEnabled: { type: boolean }
+            message: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -2113,6 +2122,7 @@ components:
         name: { type: string, minLength: 1 }
         vendor: { type: string, minLength: 1 }
         model: { type: string, minLength: 1 }
+        firmwareVersion: { type: ["string", "null"] }
         ponTechnology: { type: string, enum: [epon, gpon] }
         managementHost: { type: string, minLength: 1 }
         managementPort: { type: integer, minimum: 1, maximum: 65535, default: 161 }
@@ -2129,6 +2139,7 @@ components:
         name: { type: string, minLength: 1 }
         vendor: { type: string, minLength: 1 }
         model: { type: string, minLength: 1 }
+        firmwareVersion: { type: ["string", "null"] }
         ponTechnology: { type: string, enum: [epon, gpon] }
         managementHost: { type: string, minLength: 1 }
         managementPort: { type: integer, minimum: 1, maximum: 65535 }

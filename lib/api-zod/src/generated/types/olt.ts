@@ -5,6 +5,7 @@
  * ISP Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { OltCapability } from './oltCapability';
 import type { OltHealthState } from './oltHealthState';
 import type { OltManagementProtocol } from './oltManagementProtocol';
 import type { OltPonTechnology } from './oltPonTechnology';
@@ -14,6 +15,8 @@ export interface Olt {
   name: string;
   vendor: string;
   model: string;
+  /** @nullable */
+  firmwareVersion: string | null;
   ponTechnology: OltPonTechnology;
   managementHost: string;
   managementPort: number;
@@ -29,6 +32,7 @@ export interface Olt {
   /** @nullable */
   lastError?: string | null;
   credentialsConfigured: boolean;
+  capability: OltCapability;
   createdAt: Date;
   updatedAt: Date;
 }

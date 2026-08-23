@@ -21,6 +21,7 @@ type OltForm = {
   name: string;
   vendor: string;
   model: string;
+  firmwareVersion: string;
   ponTechnology: "epon" | "gpon";
   managementHost: string;
   managementPort: string;
@@ -39,7 +40,7 @@ type ProfileForm = {
 };
 
 const OLT_DEFAULTS: OltForm = {
-  name: "", vendor: "HIOSO", model: "", ponTechnology: "epon",
+  name: "", vendor: "HIOSO", model: "", firmwareVersion: "", ponTechnology: "epon",
   managementHost: "", managementPort: "161", managementProtocol: "snmp-v2c",
   managementUsername: "", managementSecret: "", location: "",
 };
@@ -88,6 +89,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
       await createOlt.mutateAsync({
         data: {
           ...oltForm,
+          firmwareVersion: oltForm.firmwareVersion || null,
           managementPort: Number(oltForm.managementPort),
           managementUsername: oltForm.managementUsername || undefined,
           location: oltForm.location || null,
@@ -186,13 +188,14 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3"><Radio className="h-4 w-4 text-sky-700" /><h3 className="font-medium text-gray-900">OLT inventory</h3></div>
         <Table>
-          <TableHeader className="bg-gray-50"><TableRow><TableHead>Name</TableHead><TableHead>Vendor / model</TableHead><TableHead>PON</TableHead><TableHead>Management</TableHead><TableHead>Health</TableHead><TableHead className="w-36">Actions</TableHead></TableRow></TableHeader>
+          <TableHeader className="bg-gray-50"><TableRow><TableHead>Name</TableHead><TableHead>Vendor / model</TableHead><TableHead>Compatibility</TableHead><TableHead>PON</TableHead><TableHead>Management</TableHead><TableHead>Health</TableHead><TableHead className="w-36">Actions</TableHead></TableRow></TableHeader>
           <TableBody>
-            {oltsLoading ? Array.from({ length: 3 }).map((_, index) => <TableRow key={index}><TableCell colSpan={6}><Skeleton className="h-6 w-full" /></TableCell></TableRow>)
-              : oltsError ? <TableRow><TableCell colSpan={6} className="py-8 text-center text-red-600">Could not load the OLT inventory.</TableCell></TableRow>
+            {oltsLoading ? Array.from({ length: 3 }).map((_, index) => <TableRow key={index}><TableCell colSpan={7}><Skeleton className="h-6 w-full" /></TableCell></TableRow>)
+              : oltsError ? <TableRow><TableCell colSpan={7} className="py-8 text-center text-red-600">Could not load the OLT inventory.</TableCell></TableRow>
               : olts?.length ? olts.map((olt) => <TableRow key={olt.id}>
                 <TableCell><div className="font-medium text-gray-900">{olt.name}</div><div className="text-xs text-gray-500">{olt.location || "No location"}</div></TableCell>
-                <TableCell><div className="text-sm font-medium">{olt.vendor}</div><div className="text-xs text-gray-500">{olt.model}</div></TableCell>
+                <TableCell><div className="text-sm font-medium">{olt.vendor}</div><div className="text-xs text-gray-500">{olt.model}{olt.firmwareVersion ? ` · ${olt.firmwareVersion}` : " · Firmware not recorded"}</div></TableCell>
+                <TableCell><div title={olt.capability.message}><Badge variant="outline" className={olt.capability.discoveryEnabled ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}>{olt.capability.discoveryEnabled ? "MIB inventory" : "Read-only"}</Badge><div className="mt-1 max-w-52 text-[11px] leading-4 text-gray-500">{olt.capability.message}</div></div></TableCell>
                 <TableCell><Badge variant="outline" className="uppercase">{olt.ponTechnology}</Badge></TableCell>
                 <TableCell className="font-mono text-xs text-gray-600">{olt.managementHost}:{olt.managementPort}<div className="mt-1 font-sans text-[11px] text-gray-400">{olt.managementProtocol}</div></TableCell>
                 <TableCell>{healthBadge(olt.healthState)}</TableCell>
@@ -201,7 +204,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
                   {canDeleteNetworkRecords && <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600" aria-label={`Remove ${olt.name}`} onClick={() => void removeOlt(olt.id, olt.name)}><Trash2 className="h-3.5 w-3.5" /></Button>}
                 </div></TableCell>
               </TableRow>)
-              : <TableRow><TableCell colSpan={6} className="py-10 text-center text-gray-500"><Cable className="mx-auto mb-2 h-7 w-7 opacity-30" /><p>No OLTs registered yet.</p>{canManageNetwork && <Button variant="link" className="mt-1 text-sky-700" onClick={() => setOltDialogOpen(true)}>Register the first OLT</Button>}</TableCell></TableRow>}
+              : <TableRow><TableCell colSpan={7} className="py-10 text-center text-gray-500"><Cable className="mx-auto mb-2 h-7 w-7 opacity-30" /><p>No OLTs registered yet.</p>{canManageNetwork && <Button variant="link" className="mt-1 text-sky-700" onClick={() => setOltDialogOpen(true)}>Register the first OLT</Button>}</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
@@ -248,6 +251,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
               <div className="space-y-1"><Label>Model *</Label><Input value={oltForm.model} onChange={(event) => setOltForm({ ...oltForm, model: event.target.value })} placeholder="FD1208S" /></div>
               <div className="space-y-1"><Label>PON technology *</Label><Select value={oltForm.ponTechnology} onValueChange={(value: OltForm["ponTechnology"]) => setOltForm({ ...oltForm, ponTechnology: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="epon">EPON</SelectItem><SelectItem value="gpon">GPON</SelectItem></SelectContent></Select></div>
             </div>
+            <div className="space-y-1"><Label>Firmware version</Label><Input value={oltForm.firmwareVersion} onChange={(event) => setOltForm({ ...oltForm, firmwareVersion: event.target.value })} placeholder="e.g. v1.1.28" /><p className="text-[11px] text-gray-500">Exact firmware is required before a model can receive a MIB-specific compatibility profile.</p></div>
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2 space-y-1"><Label>Management address *</Label><Input value={oltForm.managementHost} onChange={(event) => setOltForm({ ...oltForm, managementHost: event.target.value })} placeholder="10.0.0.10" /></div>
               <div className="space-y-1"><Label>Port *</Label><Input type="number" value={oltForm.managementPort} onChange={(event) => setOltForm({ ...oltForm, managementPort: event.target.value })} /></div>

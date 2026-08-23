@@ -32,6 +32,10 @@ vi.mock("@workspace/db", () => {
 });
 
 vi.mock("../lib/audit.js", () => ({ writeAuditLog: vi.fn() }));
+vi.mock("../lib/oltCredentials.js", () => ({
+  encryptOltCredentials: vi.fn(() => "v1:test-credentials"),
+  decryptOltCredentials: vi.fn(() => ({ secret: "private-community" })),
+}));
 vi.mock("../lib/oltTargetSecurity.js", () => ({
   OltTargetSecurityError: class OltTargetSecurityError extends Error {},
   resolveApprovedOltTarget: vi.fn().mockResolvedValue("10.12.4.8"),
@@ -175,6 +179,25 @@ describe("OLT fiber access routes", () => {
 
     expect(response.status, response.text).toBe(409);
     expect(mockDiscover).not.toHaveBeenCalled();
+  });
+
+  it("does not persist inventory when a device-side HIOSO profile check rejects discovery", async () => {
+    const job = { id: 90 };
+    const failed = { ...job, companyId: 7, status: "failed", operation: "discovery", error: "HIOSO device identity mismatch", createdAt: new Date() };
+    mockDiscover.mockRejectedValueOnce(new Error("HIOSO device identity mismatch"));
+    mockExec
+      .mockResolvedValueOnce([activeCompany])
+      .mockResolvedValueOnce([sampleOlt])
+      .mockResolvedValueOnce([job])
+      .mockResolvedValueOnce([failed])
+      .mockResolvedValueOnce([]);
+
+    const response = await request(buildApp()).post("/olts/11/discover");
+
+    expect(response.status, response.text).toBe(502);
+    expect(response.body.error).toMatch(/identity mismatch/i);
+    expect(mockValues).toHaveBeenCalledTimes(1);
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({ operation: "discovery", status: "running" }));
   });
 
   it("redacts encrypted credentials from API and audit responses", async () => {

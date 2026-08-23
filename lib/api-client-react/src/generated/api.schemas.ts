@@ -38,11 +38,30 @@ export const OltHealthState = {
   unknown: 'unknown',
 } as const;
 
+export type OltCapabilityStatus = typeof OltCapabilityStatus[keyof typeof OltCapabilityStatus];
+
+
+export const OltCapabilityStatus = {
+  'mib-validated-read-only': 'mib-validated-read-only',
+  'standard-identity-read-only': 'standard-identity-read-only',
+  'recognized-read-only': 'recognized-read-only',
+  unsupported: 'unsupported',
+} as const;
+
+export type OltCapability = {
+  status: OltCapabilityStatus;
+  discoveryEnabled: boolean;
+  provisioningEnabled: boolean;
+  message: string;
+};
+
 export interface Olt {
   id: number;
   name: string;
   vendor: string;
   model: string;
+  /** @nullable */
+  firmwareVersion: string | null;
   ponTechnology: OltPonTechnology;
   managementHost: string;
   managementPort: number;
@@ -58,6 +77,7 @@ export interface Olt {
   /** @nullable */
   lastError?: string | null;
   credentialsConfigured: boolean;
+  capability: OltCapability;
   createdAt: string;
   updatedAt: string;
 }
@@ -88,6 +108,8 @@ export interface OltInput {
   vendor: string;
   /** @minLength 1 */
   model: string;
+  /** @nullable */
+  firmwareVersion?: string | null;
   ponTechnology: OltInputPonTechnology;
   /** @minLength 1 */
   managementHost: string;
@@ -131,6 +153,8 @@ export interface OltUpdate {
   vendor?: string;
   /** @minLength 1 */
   model?: string;
+  /** @nullable */
+  firmwareVersion?: string | null;
   ponTechnology?: OltUpdatePonTechnology;
   /** @minLength 1 */
   managementHost?: string;

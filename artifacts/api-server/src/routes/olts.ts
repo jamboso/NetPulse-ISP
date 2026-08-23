@@ -13,8 +13,9 @@ import {
 import { requireRole } from "../middlewares/requireRole";
 import { resolveCompanyScope } from "../middlewares/companyScope";
 import { writeAuditLog } from "../lib/audit";
-import { encryptOltCredentials } from "../lib/oltCredentials";
+import { decryptOltCredentials, encryptOltCredentials } from "../lib/oltCredentials";
 import { getOltAdapter, type OltAdapterInput } from "../lib/oltAdapters";
+import { getOltCapability } from "../lib/oltCapabilities";
 import { OltTargetSecurityError, resolveApprovedOltTarget } from "../lib/oltTargetSecurity";
 import { persistOltDiscovery } from "../lib/oltDiscovery";
 
@@ -58,7 +59,7 @@ function scopedWhere(table: { id: unknown; companyId: unknown }, id: number, com
 
 function publicOlt(olt: typeof oltsTable.$inferSelect) {
   const { encryptedManagementCredentials: _credentials, ...safe } = olt;
-  return { ...safe, credentialsConfigured: Boolean(_credentials) };
+  return { ...safe, credentialsConfigured: Boolean(_credentials), capability: getOltCapability(asAdapterInput(olt)) };
 }
 
 function asAdapterInput(olt: typeof oltsTable.$inferSelect): OltAdapterInput {
@@ -66,6 +67,7 @@ function asAdapterInput(olt: typeof oltsTable.$inferSelect): OltAdapterInput {
     id: olt.id,
     vendor: olt.vendor,
     model: olt.model,
+    firmwareVersion: olt.firmwareVersion,
     ponTechnology: olt.ponTechnology,
     managementHost: olt.managementHost,
     managementPort: olt.managementPort,
@@ -101,6 +103,7 @@ router.post("/olts", requireRole("admin", "technician"), async (req, res): Promi
     name: body.name,
     vendor: body.vendor,
     model: body.model,
+    firmwareVersion: body.firmwareVersion ?? null,
     ponTechnology: body.ponTechnology,
     managementHost: body.managementHost,
     managementPort: body.managementPort,
@@ -150,7 +153,7 @@ router.patch("/olts/:id", requireRole("admin", "technician"), async (req, res): 
   }
 
   const update: Record<string, unknown> = {};
-  for (const key of ["name", "vendor", "model", "ponTechnology", "managementHost", "managementPort", "managementProtocol", "location", "enabled"] as const) {
+  for (const key of ["name", "vendor", "model", "firmwareVersion", "ponTechnology", "managementHost", "managementPort", "managementProtocol", "location", "enabled"] as const) {
     if (body[key] !== undefined) update[key] = body[key];
   }
   if (body.managementSecret !== undefined) {
@@ -222,7 +225,12 @@ router.post("/olts/:id/discover", requireRole("admin", "technician"), discoveryL
     const approvedAddress = await resolveApprovedOltTarget(adapterInput);
     // Never give adapters a hostname after validation; using the resolved IP
     // prevents DNS rebinding between the policy check and the network request.
-    const result = await getOltAdapter(adapterInput).discover({ ...adapterInput, managementHost: approvedAddress });
+    const credentials = decryptOltCredentials(olt.encryptedManagementCredentials);
+    const result = await getOltAdapter(adapterInput).discover({
+      ...adapterInput,
+      managementHost: approvedAddress,
+      snmpCommunity: credentials.secret,
+    });
     const inventory = await persistOltDiscovery(companyId, olt.id, result);
     await db.update(oltsTable).set({
       healthState: result.healthState,

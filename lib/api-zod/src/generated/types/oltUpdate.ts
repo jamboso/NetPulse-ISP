@@ -15,6 +15,8 @@ export interface OltUpdate {
   vendor?: string;
   /** @minLength 1 */
   model?: string;
+  /** @nullable */
+  firmwareVersion?: string | null;
   ponTechnology?: OltUpdatePonTechnology;
   /** @minLength 1 */
   managementHost?: string;

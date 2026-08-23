@@ -264,7 +264,7 @@ function DiffModal({ log, onClose }: DiffModalProps) {
   );
 }
 
-export default function AuditLogs() {
+function AdminAuditLogs() {
   const search = useSearch();
   const [, setLocation] = useLocation();
 
@@ -899,4 +899,78 @@ export default function AuditLogs() {
       </div>
     </div>
   );
+}
+
+function StaffAuditExport({ userId }: { userId?: string }) {
+  const [exporting, setExporting] = useState(false);
+  const canExport = Boolean(userId);
+
+  async function handleExportCsv() {
+    if (!userId) return;
+
+    setExporting(true);
+    try {
+      const qs = new URLSearchParams({ userId });
+      const resp = await fetch(`/api/audit-logs/export.csv?${qs.toString()}`, {
+        credentials: "include",
+      });
+      if (!resp.ok) throw new Error(`Export failed: ${resp.status}`);
+
+      const blob = await resp.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `my-audit-activity-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(link.href);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
+          <ClipboardList className="w-6 h-6 text-blue-600" /> My Audit Activity
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Download a CSV of the actions recorded under your account.
+        </p>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+        <div>
+          <h2 className="font-semibold text-gray-900">Export my activity</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            This download is restricted to your own audit records.
+          </p>
+        </div>
+        {!canExport && (
+          <p className="text-sm text-red-600">
+            Your account details are still loading. Refresh and try again.
+          </p>
+        )}
+        <Button
+          onClick={handleExportCsv}
+          disabled={exporting || !canExport}
+          className="gap-2"
+        >
+          <Download className="w-4 h-4" />
+          {exporting ? "Preparing download…" : "Download my activity"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export default function AuditLogs() {
+  const currentUser = useCurrentUser();
+
+  if (currentUser.isAdmin || currentUser.isOwner) {
+    return <AdminAuditLogs />;
+  }
+
+  return <StaffAuditExport userId={currentUser.id} />;
 }

@@ -102,6 +102,16 @@ const billingUser: MockUser = {
   active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date(),
 };
 
+const supportUser: MockUser = {
+  id: "u3", email: "support@test.com", name: "Support", role: "support",
+  active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date(),
+};
+
+const technicianUser: MockUser = {
+  id: "u4", email: "tech@test.com", name: "Technician", role: "technician",
+  active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date(),
+};
+
 function buildApp(user: MockUser = adminUser) {
   const app = express();
   app.use(express.json());
@@ -264,10 +274,41 @@ describe("GET /audit-logs/export.csv", () => {
     expect(res.headers["content-type"]).toMatch(/text\/csv/);
   });
 
-  it("returns 403 for non-admin role", async () => {
+  it("rejects a non-admin export without a self userId filter", async () => {
     const res = await request(buildApp(billingUser)).get("/audit-logs/export.csv");
 
     expect(res.status).toBe(403);
+  });
+
+  it.each([
+    ["billing", billingUser],
+    ["support", supportUser],
+    ["technician", technicianUser],
+  ])("allows %s staff to export only their own audit activity", async (_role, user) => {
+    mockExec.mockResolvedValueOnce([{ ...sampleLog, userId: user.id, userEmail: user.email }]);
+
+    const res = await request(buildApp(user)).get(`/audit-logs/export.csv?userId=${user.id}`);
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain(user.email);
+    expect(mockEq).toHaveBeenCalledWith(auditLogsTable.userId, user.id);
+  });
+
+  it("rejects a non-admin attempt to export another user's audit activity", async () => {
+    const res = await request(buildApp(billingUser)).get("/audit-logs/export.csv?userId=u1");
+
+    expect(res.status).toBe(403);
+    expect(mockExec).not.toHaveBeenCalled();
+  });
+
+  it("allows an admin to export another user's audit activity", async () => {
+    mockExec.mockResolvedValueOnce([{ ...sampleLog, userId: billingUser.id, userEmail: billingUser.email }]);
+
+    const res = await request(buildApp(adminUser)).get(`/audit-logs/export.csv?userId=${billingUser.id}`);
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain(billingUser.email);
+    expect(mockEq).toHaveBeenCalledWith(auditLogsTable.userId, billingUser.id);
   });
 
   it("returns CSV with header row", async () => {

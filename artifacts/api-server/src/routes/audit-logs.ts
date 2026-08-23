@@ -82,8 +82,18 @@ router.get("/audit-logs", requireRole("admin"), async (req, res) => {
   res.json({ data: rows, page: pageNum, limit: limitNum });
 });
 
-router.get("/audit-logs/export.csv", requireRole("admin"), async (req, res) => {
-  const conditions = buildAuditConditions(req.query as Record<string, string>);
+router.get("/audit-logs/export.csv", requireRole("admin", "billing", "support", "technician"), async (req, res) => {
+  const filters = req.query as Record<string, string>;
+  const isAdmin = req.user!.role === "admin" || req.user!.role === "owner";
+
+  // Non-admin staff may download a self-audit only. Requiring the filter also
+  // prevents an omitted userId from turning a self-export into a tenant-wide one.
+  if (!isAdmin && filters.userId !== req.user!.id) {
+    res.status(403).json({ error: "Forbidden: staff may only export their own audit activity" });
+    return;
+  }
+
+  const conditions = buildAuditConditions(filters);
   const scope = companyAuditCondition(req);
   if (scope) conditions.push(scope);
   let query = db.select().from(auditLogsTable).orderBy(desc(auditLogsTable.createdAt)).$dynamic();

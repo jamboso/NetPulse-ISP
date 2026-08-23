@@ -67,7 +67,12 @@ export default function Layout({ children }: LayoutProps) {
     { name: "SMS Manager",   href: "/sms",          icon: MessageSquare,   show: isAdmin },
     { name: "Settings",      href: "/settings",     icon: SettingsIcon,    show: isOwner || isAdmin },
     { name: "Staff",         href: "/staff",        icon: UserCog,         show: isAdmin },
-    { name: "Audit Log",     href: "/audit-logs",   icon: ClipboardList,   show: isAdmin },
+    {
+      name: isAdmin || isOwner ? "Audit Log" : "My Audit Activity",
+      href: "/audit-logs",
+      icon: ClipboardList,
+      show: isOwner || isAdmin || ["billing", "support", "technician"].includes(role),
+    },
   ].filter(item => item.show);
 
   return (

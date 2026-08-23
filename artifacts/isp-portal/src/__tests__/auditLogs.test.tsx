@@ -13,6 +13,8 @@ const mockUseGetAuditPurgeHistory = vi.fn();
 const mockUsePurgeAuditLogs = vi.fn();
 const mockUseGetSettings = vi.fn();
 const mockUseUpdateSettings = vi.fn();
+const mockUseCurrentUser = vi.fn();
+const mockFetch = vi.fn();
 
 vi.mock("@workspace/api-client-react", () => ({
   useListAuditLogs: (...args: unknown[]) => mockUseListAuditLogs(...args),
@@ -23,6 +25,10 @@ vi.mock("@workspace/api-client-react", () => ({
   getListAuditLogsQueryKey: vi.fn(() => ["/api/audit-logs"]),
   getGetAuditPurgeHistoryQueryKey: vi.fn(() => ["/api/audit-logs/purge-history"]),
   getGetSettingsQueryKey: vi.fn(() => ["/api/settings"]),
+}));
+
+vi.mock("@/hooks/useCurrentUser", () => ({
+  useCurrentUser: () => mockUseCurrentUser(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -91,6 +97,12 @@ function ReactiveWrapper({ children }: { children: ReactNode }) {
 const emptyResponse = { data: [], page: 1, limit: 50 };
 
 function setupDefaultMocks() {
+  mockUseCurrentUser.mockReturnValue({
+    id: "u1",
+    role: "owner",
+    isAdmin: false,
+    isOwner: true,
+  });
   mockUseListAuditLogs.mockReturnValue({
     data: emptyResponse,
     isLoading: false,
@@ -120,6 +132,12 @@ function getLastCallParams(): Record<string, unknown> {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal("fetch", mockFetch);
+  vi.stubGlobal("URL", {
+    createObjectURL: vi.fn(() => "blob:audit-export"),
+    revokeObjectURL: vi.fn(),
+  });
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
   currentSearch = "";
   urlListeners.length = 0;
   mockUseSearch.mockReturnValue("");
@@ -130,6 +148,38 @@ beforeEach(() => {
     urlListeners.forEach((fn) => fn(currentSearch));
   });
   setupDefaultMocks();
+});
+
+describe("Audit Logs — staff self-export", () => {
+  it.each([
+    ["billing", "u2"],
+    ["support", "u3"],
+    ["technician", "u4"],
+  ])("lets %s staff download only their own activity", async (role, userId) => {
+    mockUseCurrentUser.mockReturnValue({
+      id: userId,
+      role,
+      isAdmin: false,
+      isOwner: false,
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      blob: async () => new Blob(["audit activity"], { type: "text/csv" }),
+    });
+
+    await renderAuditLogs();
+    const user = userEvent.setup();
+
+    expect(mockUseListAuditLogs).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: /download my activity/i }));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        `/api/audit-logs/export.csv?userId=${userId}`,
+        { credentials: "include" },
+      );
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

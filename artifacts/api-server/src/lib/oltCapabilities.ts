@@ -8,8 +8,136 @@ export type OltCapability = {
   message: string;
 };
 
+export type OltCompatibilityProfile = {
+  vendor: string;
+  models: string[];
+  ponTechnologies: Array<"epon" | "gpon">;
+  ponPortCapacity: string;
+  firmwareRequirement: string;
+  managementRequirement: string;
+  status: "recognized-read-only";
+  message: string;
+};
+
 function normalized(value: string | null | undefined): string {
   return (value ?? "").trim().toUpperCase().replace(/[\s_-]+/g, "");
+}
+
+const compatibilityProfiles: OltCompatibilityProfile[] = [
+  {
+    vendor: "Huawei",
+    models: ["MA5608T"],
+    ponTechnologies: ["epon", "gpon"],
+    ponPortCapacity: "Up to 32 PON ports, depending on installed service boards",
+    firmwareRequirement: "Exact running firmware has not been provided; lab validation is required.",
+    managementRequirement: "Provide the enabled management interface and redacted MIB, API, or CLI evidence.",
+    status: "recognized-read-only",
+    message: "Recognized small-ISP chassis profile. No Huawei inventory or provisioning command is enabled.",
+  },
+  {
+    vendor: "Huawei",
+    models: ["MA5801"],
+    ponTechnologies: ["gpon"],
+    ponPortCapacity: "8 or 16 built-in GPON ports",
+    firmwareRequirement: "Exact running firmware has not been provided; lab validation is required.",
+    managementRequirement: "Provide the enabled management interface and redacted MIB, API, or CLI evidence.",
+    status: "recognized-read-only",
+    message: "Recognized fixed GPON profile. No Huawei inventory or provisioning command is enabled.",
+  },
+  {
+    vendor: "Huawei",
+    models: ["MA5683T"],
+    ponTechnologies: ["epon", "gpon"],
+    ponPortCapacity: "Up to 80 PON ports, depending on installed service boards",
+    firmwareRequirement: "Exact running firmware has not been provided; lab validation is required.",
+    managementRequirement: "Provide the enabled management interface and redacted MIB, API, or CLI evidence.",
+    status: "recognized-read-only",
+    message: "Recognized modular chassis profile. No Huawei inventory or provisioning command is enabled.",
+  },
+  {
+    vendor: "Huawei",
+    models: ["MA5800-X2", "MA5800-X7", "MA5800-X15"],
+    ponTechnologies: ["gpon"],
+    ponPortCapacity: "4–16 PON ports per service board; chassis capacity depends on installed boards",
+    firmwareRequirement: "Exact running firmware has not been provided; lab validation is required.",
+    managementRequirement: "Provide the enabled management interface and redacted MIB, API, or CLI evidence.",
+    status: "recognized-read-only",
+    message: "Recognized MA5800 family profile. No Huawei inventory or provisioning command is enabled.",
+  },
+  {
+    vendor: "V-SOL",
+    models: ["V1600D1"],
+    ponTechnologies: ["epon"],
+    ponPortCapacity: "1 EPON port · up to 64 ONUs",
+    firmwareRequirement: "Exact running firmware has not been provided; lab validation is required.",
+    managementRequirement: "Provide the enabled management interface and redacted MIB, API, or CLI evidence.",
+    status: "recognized-read-only",
+    message: "Recognized 1-port EPON profile. No V-SOL inventory or provisioning command is enabled.",
+  },
+  {
+    vendor: "V-SOL",
+    models: ["V1600G1"],
+    ponTechnologies: ["gpon"],
+    ponPortCapacity: "1 GPON port · up to 128 ONUs",
+    firmwareRequirement: "Exact running firmware has not been provided; lab validation is required.",
+    managementRequirement: "Provide the enabled management interface and redacted MIB, API, or CLI evidence.",
+    status: "recognized-read-only",
+    message: "Recognized 1-port GPON profile. No V-SOL inventory or provisioning command is enabled.",
+  },
+  {
+    vendor: "V-SOL",
+    models: ["V1600D2"],
+    ponTechnologies: ["epon"],
+    ponPortCapacity: "2 EPON ports · up to 128 ONUs",
+    firmwareRequirement: "Exact running firmware has not been provided; lab validation is required.",
+    managementRequirement: "Provide the enabled management interface and redacted MIB, API, or CLI evidence.",
+    status: "recognized-read-only",
+    message: "Recognized 2-port EPON profile. No V-SOL inventory or provisioning command is enabled.",
+  },
+  {
+    vendor: "V-SOL",
+    models: ["V1600G2-B"],
+    ponTechnologies: ["gpon"],
+    ponPortCapacity: "2 GPON ports · up to 256 ONUs · 10G uplinks",
+    firmwareRequirement: "Exact running firmware has not been provided; lab validation is required.",
+    managementRequirement: "Provide the enabled management interface and redacted MIB, API, or CLI evidence.",
+    status: "recognized-read-only",
+    message: "Recognized 2-port GPON profile. No V-SOL inventory or provisioning command is enabled.",
+  },
+  {
+    vendor: "V-SOL",
+    models: ["V1600D4-DP"],
+    ponTechnologies: ["epon"],
+    ponPortCapacity: "4 EPON ports · up to 256 ONUs · dual power supplies",
+    firmwareRequirement: "Exact running firmware has not been provided; lab validation is required.",
+    managementRequirement: "Provide the enabled management interface and redacted MIB, API, or CLI evidence.",
+    status: "recognized-read-only",
+    message: "Recognized 4-port EPON profile. No V-SOL inventory or provisioning command is enabled.",
+  },
+  {
+    vendor: "V-SOL",
+    models: ["V1600G4-DP"],
+    ponTechnologies: ["gpon"],
+    ponPortCapacity: "4 GPON ports · up to 512 ONUs · 10G uplinks and dual power",
+    firmwareRequirement: "Exact running firmware has not been provided; lab validation is required.",
+    managementRequirement: "Provide the enabled management interface and redacted MIB, API, or CLI evidence.",
+    status: "recognized-read-only",
+    message: "Recognized 4-port GPON profile. No V-SOL inventory or provisioning command is enabled.",
+  },
+];
+
+export function getOltCompatibilityMatrix(): OltCompatibilityProfile[] {
+  return compatibilityProfiles.map((profile) => ({ ...profile, models: [...profile.models], ponTechnologies: [...profile.ponTechnologies] }));
+}
+
+function matchingKnownProfile(input: Pick<OltAdapterInput, "vendor" | "model" | "ponTechnology">): OltCompatibilityProfile | undefined {
+  const vendor = normalized(input.vendor);
+  const model = normalized(input.model);
+  return compatibilityProfiles.find((profile) =>
+    normalized(profile.vendor) === vendor
+    && profile.models.some((candidate) => normalized(candidate) === model)
+    && profile.ponTechnologies.includes(input.ponTechnology as "epon" | "gpon"),
+  );
 }
 
 function isHioso(input: Pick<OltAdapterInput, "vendor">): boolean {
@@ -23,6 +151,17 @@ function isHioso(input: Pick<OltAdapterInput, "vendor">): boolean {
  * lab-validated yet.
  */
 export function getOltCapability(input: Pick<OltAdapterInput, "vendor" | "model" | "firmwareVersion" | "ponTechnology" | "managementProtocol">): OltCapability {
+  const knownProfile = matchingKnownProfile(input);
+  if (knownProfile) {
+    return {
+      status: "recognized-read-only",
+      discoveryEnabled: false,
+      provisioningEnabled: false,
+      adapter: "none",
+      message: `${knownProfile.message} Capacity: ${knownProfile.ponPortCapacity} ${knownProfile.firmwareRequirement}`,
+    };
+  }
+
   if (!isHioso(input)) {
     return {
       status: "unsupported",

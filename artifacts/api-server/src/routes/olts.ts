@@ -15,7 +15,7 @@ import { resolveCompanyScope } from "../middlewares/companyScope";
 import { writeAuditLog } from "../lib/audit";
 import { decryptOltCredentials, encryptOltCredentials } from "../lib/oltCredentials";
 import { getOltAdapter, type OltAdapterInput } from "../lib/oltAdapters";
-import { getOltCapability } from "../lib/oltCapabilities";
+import { getOltCapability, getOltCompatibilityMatrix } from "../lib/oltCapabilities";
 import { OltTargetSecurityError, resolveApprovedOltTarget } from "../lib/oltTargetSecurity";
 import { persistOltDiscovery } from "../lib/oltDiscovery";
 
@@ -90,6 +90,10 @@ router.get("/olts", async (req, res): Promise<void> => {
     .orderBy(oltsTable.createdAt);
   auditRead(req, companyId, "olt");
   res.json(rows.map(publicOlt));
+});
+
+router.get("/olt-compatibility", (_req, res): void => {
+  res.json(getOltCompatibilityMatrix());
 });
 
 router.post("/olts", requireRole("admin", "technician"), async (req, res): Promise<void> => {

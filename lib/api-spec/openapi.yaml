@@ -1940,6 +1940,20 @@ paths:
         "404": { description: OLT not found }
         "429": { description: Too many discovery requests }
 
+  /olt-compatibility:
+    get:
+      operationId: listOltCompatibilityProfiles
+      tags: [fiber-access]
+      summary: List recognized OLT profiles and their validated capability level
+      responses:
+        "200":
+          description: Vendor compatibility catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/OltCompatibilityProfile" }
+
   /onus:
     get:
       operationId: listOnus
@@ -2083,6 +2097,23 @@ components:
           type: string
 
     # ── FIBER ACCESS ──────────────────────────────────────────────────────────
+    OltCompatibilityProfile:
+      type: object
+      required: [vendor, models, ponTechnologies, ponPortCapacity, firmwareRequirement, managementRequirement, status, message]
+      properties:
+        vendor: { type: string }
+        models:
+          type: array
+          items: { type: string }
+        ponTechnologies:
+          type: array
+          items: { type: string, enum: [epon, gpon] }
+        ponPortCapacity: { type: string }
+        firmwareRequirement: { type: string }
+        managementRequirement: { type: string }
+        status: { type: string, enum: [recognized-read-only] }
+        message: { type: string }
+
     Olt:
       type: object
       required: [id, name, vendor, model, firmwareVersion, ponTechnology, managementHost, managementPort, managementProtocol, enabled, healthState, credentialsConfigured, capability, createdAt, updatedAt]

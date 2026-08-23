@@ -2127,6 +2127,22 @@ export const DiscoverOltInventoryResponse = zod.object({
 
 
 /**
+ * @summary List recognized OLT profiles and their validated capability level
+ */
+export const ListOltCompatibilityProfilesResponseItem = zod.object({
+  "vendor": zod.string(),
+  "models": zod.array(zod.string()),
+  "ponTechnologies": zod.array(zod.enum(['epon', 'gpon'])),
+  "ponPortCapacity": zod.string(),
+  "firmwareRequirement": zod.string(),
+  "managementRequirement": zod.string(),
+  "status": zod.enum(['recognized-read-only']),
+  "message": zod.string()
+})
+export const ListOltCompatibilityProfilesResponse = zod.array(ListOltCompatibilityProfilesResponseItem)
+
+
+/**
  * @summary List detected ONUs in the active company
  */
 export const ListOnusQueryParams = zod.object({

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getOltCapability } from "../lib/oltCapabilities";
+import { getOltCapability, getOltCompatibilityMatrix } from "../lib/oltCapabilities";
 import { createHiosoEponAdapter, createHiosoGponIdentityAdapter, normalizeHiosoEponDiscovery } from "../lib/hiosoEponAdapter";
 
 const input = {
@@ -101,5 +101,18 @@ describe("HIOSO EPON compatibility and discovery", () => {
     expect(discovery.note).toMatch(/No GPON vendor OIDs or configuration commands were sent/i);
     expect(walk).toHaveBeenCalledTimes(2);
     await expect(adapter.provision()).rejects.toThrow(/disabled/i);
+  });
+
+  it("lists the supplied Huawei and V-SOL small-ISP profiles as read-only only", () => {
+    expect(getOltCapability({ ...input, vendor: "Huawei", model: "MA5801", ponTechnology: "gpon" })).toMatchObject({
+      status: "recognized-read-only",
+      discoveryEnabled: false,
+      provisioningEnabled: false,
+    });
+    expect(getOltCapability({ ...input, vendor: "V-SOL", model: "V1600D4-DP", ponTechnology: "epon" }).message).toMatch(/4 EPON ports/i);
+    expect(getOltCompatibilityMatrix()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ vendor: "Huawei", models: expect.arrayContaining(["MA5608T"]) }),
+      expect.objectContaining({ vendor: "V-SOL", models: expect.arrayContaining(["V1600G4-DP"]) }),
+    ]));
   });
 });

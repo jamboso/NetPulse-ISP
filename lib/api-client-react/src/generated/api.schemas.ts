@@ -10,6 +10,32 @@ export interface EmailResult {
   message: string;
 }
 
+export type OltCompatibilityProfilePonTechnologiesItem = typeof OltCompatibilityProfilePonTechnologiesItem[keyof typeof OltCompatibilityProfilePonTechnologiesItem];
+
+
+export const OltCompatibilityProfilePonTechnologiesItem = {
+  epon: 'epon',
+  gpon: 'gpon',
+} as const;
+
+export type OltCompatibilityProfileStatus = typeof OltCompatibilityProfileStatus[keyof typeof OltCompatibilityProfileStatus];
+
+
+export const OltCompatibilityProfileStatus = {
+  'recognized-read-only': 'recognized-read-only',
+} as const;
+
+export interface OltCompatibilityProfile {
+  vendor: string;
+  models: string[];
+  ponTechnologies: OltCompatibilityProfilePonTechnologiesItem[];
+  ponPortCapacity: string;
+  firmwareRequirement: string;
+  managementRequirement: string;
+  status: OltCompatibilityProfileStatus;
+  message: string;
+}
+
 export type OltPonTechnology = typeof OltPonTechnology[keyof typeof OltPonTechnology];
 
 

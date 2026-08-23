@@ -66,6 +66,7 @@ import type {
   ListUsersParams,
   MpesaIpAllowlist,
   Olt,
+  OltCompatibilityProfile,
   OltDetail,
   OltInput,
   OltProvisioningJob,
@@ -7368,6 +7369,83 @@ export const useDiscoverOltInventory = <TError = ErrorType<void>,
       > => {
       return useMutation(getDiscoverOltInventoryMutationOptions(options));
     }
+
+export const getListOltCompatibilityProfilesUrl = () => {
+
+
+
+
+  return `/api/olt-compatibility`
+}
+
+/**
+ * @summary List recognized OLT profiles and their validated capability level
+ */
+export const listOltCompatibilityProfiles = async ( options?: RequestInit): Promise<OltCompatibilityProfile[]> => {
+
+  return customFetch<OltCompatibilityProfile[]>(getListOltCompatibilityProfilesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOltCompatibilityProfilesQueryKey = () => {
+    return [
+    `/api/olt-compatibility`
+    ] as const;
+    }
+
+
+export const getListOltCompatibilityProfilesQueryOptions = <TData = Awaited<ReturnType<typeof listOltCompatibilityProfiles>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOltCompatibilityProfiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOltCompatibilityProfilesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOltCompatibilityProfiles>>> = ({ signal }) => listOltCompatibilityProfiles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOltCompatibilityProfiles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOltCompatibilityProfilesQueryResult = NonNullable<Awaited<ReturnType<typeof listOltCompatibilityProfiles>>>
+export type ListOltCompatibilityProfilesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List recognized OLT profiles and their validated capability level
+ */
+
+export function useListOltCompatibilityProfiles<TData = Awaited<ReturnType<typeof listOltCompatibilityProfiles>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOltCompatibilityProfiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOltCompatibilityProfilesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListOnusUrl = (params?: ListOnusParams,) => {
   const normalizedParams = new URLSearchParams();

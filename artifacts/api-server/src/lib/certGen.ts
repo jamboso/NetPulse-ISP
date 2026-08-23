@@ -382,8 +382,7 @@ ${certificateFetchBlock}
 # ── 4/8  Create OpenVPN tunnel interface ──────────────────────────────────────
 :put "[4/8] Creating OpenVPN tunnel..."
 
-:do {
-  /interface ovpn-client add \\
+/interface ovpn-client add \\
     name="netpulse-vpn" \\
     connect-to="${params.serverIp}" \\
     port=${params.vpnPort} \\
@@ -393,10 +392,15 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
     password="" \\
     add-default-route=no \\
     disabled=no
-} on-error={ :log warning "NetPulse: ovpn-client already exists" }
 
 :put "Waiting 20 seconds for tunnel..."
 :delay 20s
+:local vpnRunning false
+:do { :set vpnRunning [/interface ovpn-client get [find name="netpulse-vpn"] running] } on-error={}
+:if ($vpnRunning = false) do={
+  :log error "NetPulse: OpenVPN tunnel did not connect"
+  :error "NetPulse: OpenVPN tunnel did not connect"
+}
 
 # ── 5/8  Configure RADIUS over VPN ───────────────────────────────────────────
 :put "[5/8] Configuring RADIUS..."
@@ -423,6 +427,9 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
 /interface bridge add name="NETPULSE" protocol-mode=rstp comment="netpulse-managed"
 
 # -- Add ether2 as LAN port (default) --
+# RouterOS v6 may keep ether2 as a hardware slave using master-port. Newer
+# RouterOS versions reject this property, so safely ignore that compatibility no-op.
+:do { /interface ethernet set ether2 master-port=none } on-error={}
 :do { /interface bridge port remove [find interface="ether2"] } on-error={}
 /interface bridge port add interface=ether2 bridge=NETPULSE comment="netpulse-lan"
 

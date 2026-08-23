@@ -1069,6 +1069,8 @@ export default function Network() {
 
   // Router dialog
   const [routerDialog, setRouterDialog] = useState<{ open: boolean; id?: number; initial?: RouterFormData }>({ open: false });
+  const [reprovisioningRouterId, setReprovisioningRouterId] = useState<number | null>(null);
+  const [reprovisionError, setReprovisionError] = useState<{ routerId: number; message: string } | null>(null);
   // Equipment dialog
   const [equipDialog, setEquipDialog] = useState<{ open: boolean; id?: number; initial?: EquipmentFormData }>({ open: false });
   // IP Pool dialog
@@ -1137,6 +1139,34 @@ export default function Network() {
     if (!confirm("Delete this router?")) return;
     await deleteRouter.mutateAsync({ id });
     qc.invalidateQueries({ queryKey: ["/api/routers"] });
+  };
+
+  const handleReprovisionRouter = async (routerId: number, routerName: string) => {
+    if (!confirm(`Reprovision ${routerName}? This creates a new setup token and VPN certificate. The previous setup file will stop working.`)) {
+      return;
+    }
+
+    setReprovisioningRouterId(routerId);
+    setReprovisionError(null);
+    try {
+      const response = await fetch(`/api/routers/${routerId}/reprovision`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error ?? "Could not reprovision this router.");
+      }
+      await qc.invalidateQueries({ queryKey: ["/api/routers"] });
+      setExpandedProvision(routerId);
+    } catch (error) {
+      setReprovisionError({
+        routerId,
+        message: error instanceof Error ? error.message : "Could not reprovision this router.",
+      });
+    } finally {
+      setReprovisioningRouterId(null);
+    }
   };
 
   const handleDeleteEquipment = async (id: number) => {
@@ -1262,7 +1292,25 @@ export default function Network() {
                               {(r as any).provisionStatus === "provisioned" ? "Provisioning…" : "Unprovisioned"}
                             </Badge>
                           )}
+                          {r.routerType === "routeros" && canManageNetwork && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 border-emerald-300 px-2 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                              title={`Create a fresh setup file for ${r.name}`}
+                              onClick={() => { void handleReprovisionRouter(r.id, r.name); }}
+                              disabled={reprovisioningRouterId === r.id}
+                            >
+                              {reprovisioningRouterId === r.id
+                                ? <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                : <RotateCcw className="mr-1 h-3 w-3" />}
+                              Reprovision
+                            </Button>
+                          )}
                         </div>
+                        {reprovisionError?.routerId === r.id && (
+                          <p className="mt-1 text-xs text-red-600">{reprovisionError.message}</p>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">

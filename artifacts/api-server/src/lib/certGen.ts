@@ -389,6 +389,8 @@ ${certificateFetchBlock}
     port=${params.vpnPort} \\
     mode=ip \\
 ${ovpnProtocolLine}    certificate="netpulse-client" \\
+    user="" \\
+    password="" \\
     add-default-route=no \\
     disabled=no
 } on-error={ :log warning "NetPulse: ovpn-client already exists" }

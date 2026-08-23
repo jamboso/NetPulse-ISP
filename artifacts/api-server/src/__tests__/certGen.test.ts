@@ -65,7 +65,9 @@ describe("generateRosScript", () => {
     expect(script).toContain('password=""');
     expect(script).toContain("timeout=3s");
     expect(script).not.toContain("timeout=3000");
-    expect(script).toContain("/interface ethernet set ether2 master-port=none");
+    expect(script).toContain(':parse "/interface ethernet set ether2 master-port=none"');
+    expect(script).not.toContain(':do { /interface ethernet set ether2 master-port=none }');
+    expect(script).toContain('/interface bridge port remove [find where interface="ether2"]');
     expect(script).toContain('NetPulse: OpenVPN tunnel did not connect');
     expect(script).not.toContain('on-error={ :log warning "NetPulse: ovpn-client already exists" }');
   });

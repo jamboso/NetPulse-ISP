@@ -427,10 +427,14 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
 /interface bridge add name="NETPULSE" protocol-mode=rstp comment="netpulse-managed"
 
 # -- Add ether2 as LAN port (default) --
-# RouterOS v6 may keep ether2 as a hardware slave using master-port. Newer
-# RouterOS versions reject this property, so safely ignore that compatibility no-op.
-:do { /interface ethernet set ether2 master-port=none } on-error={}
-:do { /interface bridge port remove [find interface="ether2"] } on-error={}
+# Older RouterOS versions may keep ether2 as a hardware slave using master-port.
+# Parse the legacy-only command at runtime so RouterOS 6.49+ can safely ignore it.
+:do {
+  :local clearLegacyMasterPort [:parse "/interface ethernet set ether2 master-port=none"]
+  $clearLegacyMasterPort
+} on-error={}
+/interface bridge port remove [find where interface="ether2"]
+:delay 1s
 /interface bridge port add interface=ether2 bridge=NETPULSE comment="netpulse-lan"
 
 # -- PPPoE server --

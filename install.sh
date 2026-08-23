@@ -645,7 +645,6 @@ EASYRSA_VARS
   ./easyrsa gen-req server nopass
   ./easyrsa sign-req server server
   ./easyrsa gen-dh
-  openvpn --genkey secret "${EASYRSA_DIR}/pki/ta.key"
   ok "PKI initialised"
 else
   skip "PKI already initialised"
@@ -656,7 +655,6 @@ cp -f "${EASYRSA_DIR}/pki/ca.crt"              "$OVPN_DIR/ca.crt"
 cp -f "${EASYRSA_DIR}/pki/issued/server.crt"   "$OVPN_DIR/server.crt"
 cp -f "${EASYRSA_DIR}/pki/private/server.key"  "$OVPN_DIR/server.key"
 cp -f "${EASYRSA_DIR}/pki/dh.pem"              "$OVPN_DIR/dh.pem"
-cp -f "${EASYRSA_DIR}/pki/ta.key"              "$OVPN_DIR/ta.key"
 mkdir -p "${OVPN_DIR}/ccd"
 
 if [[ ! -f "${OVPN_DIR}/server.conf" ]]; then
@@ -670,7 +668,8 @@ ca   /etc/openvpn/ca.crt
 cert /etc/openvpn/server.crt
 key  /etc/openvpn/server.key
 dh   /etc/openvpn/dh.pem
-tls-auth /etc/openvpn/ta.key 0
+# RouterOS v6 clients cannot present a tls-auth static key.
+# Client certificates remain required for every connection.
 
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist /var/log/openvpn/ipp.txt
@@ -741,7 +740,6 @@ SERVER_IP=$(curl -sf --max-time 5 https://api.ipify.org 2>/dev/null || hostname 
 CA=$(cat "$OVPN_DIR/ca.crt")
 CERT=$(openssl x509 -in "${EASYRSA_DIR}/pki/issued/${CN}.crt")
 KEY=$(cat "${EASYRSA_DIR}/pki/private/${CN}.key")
-TA=$(cat "$OVPN_DIR/ta.key")
 
 cat <<OVPN
 client
@@ -757,7 +755,6 @@ cipher AES-256-GCM
 auth SHA256
 compress lz4-v2
 verb 3
-key-direction 1
 <ca>
 ${CA}
 </ca>
@@ -767,9 +764,6 @@ ${CERT}
 <key>
 ${KEY}
 </key>
-<tls-auth>
-${TA}
-</tls-auth>
 OVPN
 VPN_ISSUE
 chmod 755 /usr/local/bin/netpulse-vpn-issue

@@ -1,0 +1,28 @@
+mboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo -H bash -lc '
+sleep 70
+
+echo "=== Recent notification-related errors from current process ==="
+grep -a "\"pid\":12705" /var/log/netpulse/out-0.log \
+  | grep -Ei "invalid encrypted|router monitor.*failed|audit export.*failed|inactivity.*failed" \
+  | tail -n 20 || true
+
+echo
+echo "=== Current PM2 status ==="
+pm2 ls
+'
+
+=== Recent notification-related errors from current process ===
+2026-08-23 17:12:02: {"level":40,"time":1787494322999,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"Stored notification setting has an invalid encrypted format","stack":"Error: Stored notification setting has an invalid encrypted format\n    at decryptNotificationSetting (/opt/netpulse/artifacts/api-server/src/lib/settingsEncryption.ts:71:11)\n    at getSettings (/opt/netpulse/artifacts/api-server/src/lib/sms.ts:15:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async runStaffInactivityDigest (/opt/netpulse/artifacts/api-server/src/lib/staffInactivityDigest.ts:164:20)"},"msg":"Staff inactivity digest: initial check failed"}
+2026-08-23 17:12:03: {"level":40,"time":1787494323000,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"Stored notification setting has an invalid encrypted format","stack":"Error: Stored notification setting has an invalid encrypted format\n    at decryptNotificationSetting (/opt/netpulse/artifacts/api-server/src/lib/settingsEncryption.ts:71:11)\n    at getSettings (/opt/netpulse/artifacts/api-server/src/lib/sms.ts:15:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async runExportIfDue (/opt/netpulse/artifacts/api-server/src/lib/auditExportScheduler.ts:103:13)"},"msg":"Audit export scheduler: initial check failed"}
+2026-08-23 17:13:02: {"level":40,"time":1787494382988,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"Stored notification setting has an invalid encrypted format","stack":"Error: Stored notification setting has an invalid encrypted format\n    at decryptNotificationSetting (/opt/netpulse/artifacts/api-server/src/lib/settingsEncryption.ts:71:11)\n    at getSettings (/opt/netpulse/artifacts/api-server/src/lib/sms.ts:15:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async pollRouters (/opt/netpulse/artifacts/api-server/src/lib/routerMonitor.ts:194:20)"},"msg":"Router monitor: first poll failed"}
+2026-08-23 17:16:02: {"level":40,"time":1787494562988,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"Stored notification setting has an invalid encrypted format","stack":"Error: Stored notification setting has an invalid encrypted format\n    at decryptNotificationSetting (/opt/netpulse/artifacts/api-server/src/lib/settingsEncryption.ts:71:11)\n    at getSettings (/opt/netpulse/artifacts/api-server/src/lib/sms.ts:15:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async pollRouters (/opt/netpulse/artifacts/api-server/src/lib/routerMonitor.ts:194:20)"},"msg":"Router monitor: poll failed"}
+
+=== Current PM2 status ===
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 12705    │ 6m     │ 20   │ online    │ 0%       │ 226.0mb  │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

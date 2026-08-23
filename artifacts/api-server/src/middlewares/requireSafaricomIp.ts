@@ -115,10 +115,23 @@ async function fetchAllowList(companyId: number): Promise<ParsedCidr[] | "*"> {
       return parseCidrList(value);
     }
   } catch {
-    // fall through to default
+    // Fall through to the legacy environment override before using defaults.
+    // This keeps a configured allowlist effective if the settings lookup is
+    // temporarily unavailable.
   }
 
-  // 2. Default Safaricom published ranges
+  // 2. Legacy environment override. Per-company config remains authoritative
+  //    for non-legacy tenants, so a global environment value cannot leak from
+  //    company 1 into another company's callback allowlist.
+  if (companyId === 1) {
+    const envValue = process.env["MPESA_ALLOWED_IPS"]?.trim();
+    if (envValue) {
+      if (envValue === "*") return "*";
+      return parseCidrList(envValue);
+    }
+  }
+
+  // 3. Default Safaricom published ranges
   return DEFAULT_SAFARICOM_CIDRS.map((cidr) => parseCidr(cidr));
 }
 

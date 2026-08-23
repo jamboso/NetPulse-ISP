@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import express, { type Express } from "express";
+import express, {
+  type Express,
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import request from "supertest";
 
 vi.mock("@workspace/db", () => ({ db: {}, pool: {} }));
@@ -20,16 +25,18 @@ function attachLogger(app: Express) {
 }
 
 async function buildApp(overrideIp: string): Promise<Express> {
-  const { requireSafaricomIp } = (await import(
-    "../middlewares/requireSafaricomIp.js"
-  )) as MiddlewareModule;
+  const { requireSafaricomIp } =
+    (await import("../middlewares/requireSafaricomIp.js")) as MiddlewareModule;
 
   const app = express();
   app.set("trust proxy", true);
 
   // Force req.ip to a fixed value regardless of supertest connection address
   app.use((_req, _res, next) => {
-    Object.defineProperty(_req, "ip", { get: () => overrideIp, configurable: true });
+    Object.defineProperty(_req, "ip", {
+      get: () => overrideIp,
+      configurable: true,
+    });
     next();
   });
 
@@ -37,6 +44,34 @@ async function buildApp(overrideIp: string): Promise<Express> {
 
   app.post("/api/mpesa/callback", requireSafaricomIp, (_req, res) => {
     res.json({ ok: true });
+  });
+
+  return app;
+}
+
+/**
+ * Mount the actual public callback router as routes/index.ts does. A settings
+ * route registered afterwards represents staff traffic that falls through the
+ * public router before authentication is applied.
+ */
+async function buildRouteScopingApp(overrideIp: string): Promise<Express> {
+  const { mpesaPublicRouter } = await import("../routes/mpesa.js");
+
+  const app = express();
+  app.set("trust proxy", true);
+  app.use(express.json());
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    Object.defineProperty(req, "ip", {
+      get: () => overrideIp,
+      configurable: true,
+    });
+    next();
+  });
+  attachLogger(app);
+
+  app.use("/api", mpesaPublicRouter);
+  app.patch("/api/settings", (_req, res) => {
+    res.json({ saved: true });
   });
 
   return app;
@@ -139,125 +174,99 @@ describe("requireSafaricomIp middleware", () => {
     vi.resetModules();
     vi.mock("@workspace/db", () => ({ db: {}, pool: {} }));
     const allowed = await buildApp("5.5.5.5");
-    const resAllowed = await request(allowed).post("/api/mpesa/callback").send({});
+    const resAllowed = await request(allowed)
+      .post("/api/mpesa/callback")
+      .send({});
     expect(resAllowed.status).toBe(200);
 
     vi.resetModules();
     vi.mock("@workspace/db", () => ({ db: {}, pool: {} }));
     const blocked = await buildApp("5.5.5.6");
-    const resBlocked = await request(blocked).post("/api/mpesa/callback").send({});
+    const resBlocked = await request(blocked)
+      .post("/api/mpesa/callback")
+      .send({});
     expect(resBlocked.status).toBe(403);
   });
 
-  // --- DB setting tests ---
-  // These use vi.doMock (not vi.mock) because vi.mock is statically hoisted by
-  // Vitest's transform and cannot be overridden at runtime inside a test body.
-  // vi.doMock is the non-hoisted alternative designed for per-test mocking.
+  it.each([
+    "/api/mpesa/callback",
+    "/api/mpesa/c2b/validation",
+    "/api/mpesa/c2b/confirmation",
+  ])(
+    "blocks non-Safaricom IPs on the public callback route %s",
+    async (path) => {
+      const app = await buildRouteScopingApp("1.2.3.4");
 
-  it("allows an IP that falls within a CIDR returned by the DB mpesaAllowedIps setting", async () => {
-    vi.resetModules();
-    vi.doMock("@workspace/db", () => ({
-      db: {
-        select: () => ({
-          from: () => ({
-            where: () =>
-              Promise.resolve([{ key: "mpesaAllowedIps", value: "10.20.30.0/24" }]),
-          }),
-        }),
-        insert: () => ({ values: () => Promise.resolve() }),
-      },
-      settingsTable: {},
-      securityEventsTable: {},
-      pool: {},
+      const res = await request(app).post(path).send({});
+
+      expect(res.status).toBe(403);
+      expect(res.body).toHaveProperty("error");
+    },
+  );
+
+  it("does not apply the callback IP filter to PATCH /api/settings", async () => {
+    const app = await buildRouteScopingApp("1.2.3.4");
+
+    const res = await request(app)
+      .patch("/api/settings")
+      .send({ siteName: "NetPulse" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ saved: true });
+  });
+
+  // --- Per-company M-Pesa configuration tests ---
+  // Mock the resolved config boundary rather than the old global settings
+  // table: callback allowlists are now stored per company.
+
+  function mockMpesaConfig(allowedIps?: string) {
+    vi.doMock("../lib/mpesaConfig.js", () => ({
+      resolveMpesaConfig: vi
+        .fn()
+        .mockResolvedValue({ companyId: 1, env: "sandbox", allowedIps }),
     }));
+  }
+
+  it("allows an IP in the per-company callback CIDR", async () => {
+    vi.resetModules();
+    mockMpesaConfig("10.20.30.0/24");
+
     const app = await buildApp("10.20.30.55");
     const res = await request(app).post("/api/mpesa/callback").send({});
+
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true });
   });
 
-  it("rejects an IP that is outside the CIDR returned by the DB mpesaAllowedIps setting", async () => {
+  it("rejects an IP outside the per-company callback CIDR", async () => {
     vi.resetModules();
-    vi.doMock("@workspace/db", () => ({
-      db: {
-        select: () => ({
-          from: () => ({
-            where: () =>
-              Promise.resolve([{ key: "mpesaAllowedIps", value: "10.20.30.0/24" }]),
-          }),
-        }),
-        insert: () => ({ values: () => Promise.resolve() }),
-      },
-      settingsTable: {},
-      securityEventsTable: {},
-      pool: {},
-    }));
+    mockMpesaConfig("10.20.30.0/24");
+
     const app = await buildApp("10.20.31.1");
     const res = await request(app).post("/api/mpesa/callback").send({});
+
     expect(res.status).toBe(403);
   });
 
-  it("allows all IPs when DB mpesaAllowedIps setting is set to * (bypass)", async () => {
+  it("allows all IPs when the per-company callback allowlist is *", async () => {
     vi.resetModules();
-    vi.doMock("@workspace/db", () => ({
-      db: {
-        select: () => ({
-          from: () => ({
-            where: () =>
-              Promise.resolve([{ key: "mpesaAllowedIps", value: "*" }]),
-          }),
-        }),
-        insert: () => ({ values: () => Promise.resolve() }),
-      },
-      settingsTable: {},
-      securityEventsTable: {},
-      pool: {},
-    }));
+    mockMpesaConfig("*");
+
     const app = await buildApp("1.2.3.4");
     const res = await request(app).post("/api/mpesa/callback").send({});
+
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true });
   });
 
-  it("falls through to MPESA_ALLOWED_IPS env var when DB returns an empty mpesaAllowedIps value", async () => {
+  it("falls through to MPESA_ALLOWED_IPS when the legacy company has no stored allowlist", async () => {
     process.env["MPESA_ALLOWED_IPS"] = "7.7.7.7/32";
     vi.resetModules();
-    vi.doMock("@workspace/db", () => ({
-      db: {
-        select: () => ({
-          from: () => ({
-            where: () => Promise.resolve([{ key: "mpesaAllowedIps", value: "" }]),
-          }),
-        }),
-        insert: () => ({ values: () => Promise.resolve() }),
-      },
-      settingsTable: {},
-      securityEventsTable: {},
-      pool: {},
-    }));
+    mockMpesaConfig();
+
     const app = await buildApp("7.7.7.7");
     const res = await request(app).post("/api/mpesa/callback").send({});
-    expect(res.status).toBe(200);
-  });
 
-  it("falls through to MPESA_ALLOWED_IPS env var when DB returns no rows for mpesaAllowedIps", async () => {
-    process.env["MPESA_ALLOWED_IPS"] = "8.8.8.8/32";
-    vi.resetModules();
-    vi.doMock("@workspace/db", () => ({
-      db: {
-        select: () => ({
-          from: () => ({
-            where: () => Promise.resolve([]),
-          }),
-        }),
-        insert: () => ({ values: () => Promise.resolve() }),
-      },
-      settingsTable: {},
-      securityEventsTable: {},
-      pool: {},
-    }));
-    const app = await buildApp("8.8.8.8");
-    const res = await request(app).post("/api/mpesa/callback").send({});
     expect(res.status).toBe(200);
   });
 });

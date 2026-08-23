@@ -55,6 +55,7 @@ import type {
   ListCustomersParams,
   ListEquipmentParams,
   ListInvoicesParams,
+  ListOnusParams,
   ListPaymentsParams,
   ListSecurityEvents200,
   ListSecurityEventsParams,
@@ -63,6 +64,16 @@ import type {
   ListUsers200,
   ListUsersParams,
   MpesaIpAllowlist,
+  Olt,
+  OltDetail,
+  OltInput,
+  OltProvisioningJob,
+  OltProvisioningJobInput,
+  OltServiceProfile,
+  OltServiceProfileInput,
+  OltServiceProfileUpdate,
+  OltUpdate,
+  Onu,
   OpenaiConversation,
   OpenaiConversationInput,
   OpenaiConversationWithMessages,
@@ -6918,5 +6929,1034 @@ export const useUnblockIp = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUnblockIpMutationOptions(options));
+    }
+
+export const getListOltsUrl = () => {
+
+
+
+
+  return `/api/olts`
+}
+
+/**
+ * @summary List OLTs in the active company
+ */
+export const listOlts = async ( options?: RequestInit): Promise<Olt[]> => {
+
+  return customFetch<Olt[]>(getListOltsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOltsQueryKey = () => {
+    return [
+    `/api/olts`
+    ] as const;
+    }
+
+
+export const getListOltsQueryOptions = <TData = Awaited<ReturnType<typeof listOlts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOlts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOltsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOlts>>> = ({ signal }) => listOlts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOlts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOltsQueryResult = NonNullable<Awaited<ReturnType<typeof listOlts>>>
+export type ListOltsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List OLTs in the active company
+ */
+
+export function useListOlts<TData = Awaited<ReturnType<typeof listOlts>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOlts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOltsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateOltUrl = () => {
+
+
+
+
+  return `/api/olts`
+}
+
+/**
+ * @summary Register an OLT with protected management credentials
+ */
+export const createOlt = async (oltInput: OltInput, options?: RequestInit): Promise<Olt> => {
+
+  return customFetch<Olt>(getCreateOltUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      oltInput,)
+  }
+);}
+
+
+
+
+export const getCreateOltMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOlt>>, TError,{data: BodyType<OltInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOlt>>, TError,{data: BodyType<OltInput>}, TContext> => {
+
+const mutationKey = ['createOlt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOlt>>, {data: BodyType<OltInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createOlt(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOltMutationResult = NonNullable<Awaited<ReturnType<typeof createOlt>>>
+    export type CreateOltMutationBody = BodyType<OltInput>
+    export type CreateOltMutationError = ErrorType<void>
+
+    /**
+ * @summary Register an OLT with protected management credentials
+ */
+export const useCreateOlt = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOlt>>, TError,{data: BodyType<OltInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOlt>>,
+        TError,
+        {data: BodyType<OltInput>},
+        TContext
+      > => {
+      return useMutation(getCreateOltMutationOptions(options));
+    }
+
+export const getGetOltUrl = (id: number,) => {
+
+
+
+
+  return `/api/olts/${id}`
+}
+
+/**
+ * @summary Get an OLT with PON ports
+ */
+export const getOlt = async (id: number, options?: RequestInit): Promise<OltDetail> => {
+
+  return customFetch<OltDetail>(getGetOltUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOltQueryKey = (id: number,) => {
+    return [
+    `/api/olts/${id}`
+    ] as const;
+    }
+
+
+export const getGetOltQueryOptions = <TData = Awaited<ReturnType<typeof getOlt>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOlt>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOltQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOlt>>> = ({ signal }) => getOlt(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOlt>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOltQueryResult = NonNullable<Awaited<ReturnType<typeof getOlt>>>
+export type GetOltQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get an OLT with PON ports
+ */
+
+export function useGetOlt<TData = Awaited<ReturnType<typeof getOlt>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOlt>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOltQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateOltUrl = (id: number,) => {
+
+
+
+
+  return `/api/olts/${id}`
+}
+
+/**
+ * @summary Update OLT settings or rotate management credentials
+ */
+export const updateOlt = async (id: number,
+    oltUpdate: OltUpdate, options?: RequestInit): Promise<Olt> => {
+
+  return customFetch<Olt>(getUpdateOltUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      oltUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateOltMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOlt>>, TError,{id: number;data: BodyType<OltUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOlt>>, TError,{id: number;data: BodyType<OltUpdate>}, TContext> => {
+
+const mutationKey = ['updateOlt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOlt>>, {id: number;data: BodyType<OltUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateOlt(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOltMutationResult = NonNullable<Awaited<ReturnType<typeof updateOlt>>>
+    export type UpdateOltMutationBody = BodyType<OltUpdate>
+    export type UpdateOltMutationError = ErrorType<void>
+
+    /**
+ * @summary Update OLT settings or rotate management credentials
+ */
+export const useUpdateOlt = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOlt>>, TError,{id: number;data: BodyType<OltUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateOlt>>,
+        TError,
+        {id: number;data: BodyType<OltUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateOltMutationOptions(options));
+    }
+
+export const getDeleteOltUrl = (id: number,) => {
+
+
+
+
+  return `/api/olts/${id}`
+}
+
+/**
+ * @summary Remove an OLT record (admin only)
+ */
+export const deleteOlt = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteOltUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteOltMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOlt>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteOlt>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteOlt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteOlt>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteOlt(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteOltMutationResult = NonNullable<Awaited<ReturnType<typeof deleteOlt>>>
+
+    export type DeleteOltMutationError = ErrorType<void>
+
+    /**
+ * @summary Remove an OLT record (admin only)
+ */
+export const useDeleteOlt = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOlt>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteOlt>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteOltMutationOptions(options));
+    }
+
+export const getDiscoverOltInventoryUrl = (id: number,) => {
+
+
+
+
+  return `/api/olts/${id}/discover`
+}
+
+/**
+ * @summary Run a rate-limited, read-only OLT discovery job
+ */
+export const discoverOltInventory = async (id: number, options?: RequestInit): Promise<OltProvisioningJob> => {
+
+  return customFetch<OltProvisioningJob>(getDiscoverOltInventoryUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getDiscoverOltInventoryMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discoverOltInventory>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof discoverOltInventory>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['discoverOltInventory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof discoverOltInventory>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  discoverOltInventory(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DiscoverOltInventoryMutationResult = NonNullable<Awaited<ReturnType<typeof discoverOltInventory>>>
+
+    export type DiscoverOltInventoryMutationError = ErrorType<void>
+
+    /**
+ * @summary Run a rate-limited, read-only OLT discovery job
+ */
+export const useDiscoverOltInventory = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discoverOltInventory>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof discoverOltInventory>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDiscoverOltInventoryMutationOptions(options));
+    }
+
+export const getListOnusUrl = (params?: ListOnusParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/onus?${stringifiedParams}` : `/api/onus`
+}
+
+/**
+ * @summary List detected ONUs in the active company
+ */
+export const listOnus = async (params?: ListOnusParams, options?: RequestInit): Promise<Onu[]> => {
+
+  return customFetch<Onu[]>(getListOnusUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOnusQueryKey = (params?: ListOnusParams,) => {
+    return [
+    `/api/onus`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListOnusQueryOptions = <TData = Awaited<ReturnType<typeof listOnus>>, TError = ErrorType<unknown>>(params?: ListOnusParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOnus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOnusQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOnus>>> = ({ signal }) => listOnus(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOnus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOnusQueryResult = NonNullable<Awaited<ReturnType<typeof listOnus>>>
+export type ListOnusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List detected ONUs in the active company
+ */
+
+export function useListOnus<TData = Awaited<ReturnType<typeof listOnus>>, TError = ErrorType<unknown>>(
+ params?: ListOnusParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOnus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOnusQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListOltServiceProfilesUrl = () => {
+
+
+
+
+  return `/api/olt-service-profiles`
+}
+
+/**
+ * @summary List reusable OLT service profiles
+ */
+export const listOltServiceProfiles = async ( options?: RequestInit): Promise<OltServiceProfile[]> => {
+
+  return customFetch<OltServiceProfile[]>(getListOltServiceProfilesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOltServiceProfilesQueryKey = () => {
+    return [
+    `/api/olt-service-profiles`
+    ] as const;
+    }
+
+
+export const getListOltServiceProfilesQueryOptions = <TData = Awaited<ReturnType<typeof listOltServiceProfiles>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOltServiceProfiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOltServiceProfilesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOltServiceProfiles>>> = ({ signal }) => listOltServiceProfiles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOltServiceProfiles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOltServiceProfilesQueryResult = NonNullable<Awaited<ReturnType<typeof listOltServiceProfiles>>>
+export type ListOltServiceProfilesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List reusable OLT service profiles
+ */
+
+export function useListOltServiceProfiles<TData = Awaited<ReturnType<typeof listOltServiceProfiles>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOltServiceProfiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOltServiceProfilesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateOltServiceProfileUrl = () => {
+
+
+
+
+  return `/api/olt-service-profiles`
+}
+
+/**
+ * @summary Create a reusable OLT service profile
+ */
+export const createOltServiceProfile = async (oltServiceProfileInput: OltServiceProfileInput, options?: RequestInit): Promise<OltServiceProfile> => {
+
+  return customFetch<OltServiceProfile>(getCreateOltServiceProfileUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      oltServiceProfileInput,)
+  }
+);}
+
+
+
+
+export const getCreateOltServiceProfileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOltServiceProfile>>, TError,{data: BodyType<OltServiceProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOltServiceProfile>>, TError,{data: BodyType<OltServiceProfileInput>}, TContext> => {
+
+const mutationKey = ['createOltServiceProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOltServiceProfile>>, {data: BodyType<OltServiceProfileInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createOltServiceProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOltServiceProfileMutationResult = NonNullable<Awaited<ReturnType<typeof createOltServiceProfile>>>
+    export type CreateOltServiceProfileMutationBody = BodyType<OltServiceProfileInput>
+    export type CreateOltServiceProfileMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a reusable OLT service profile
+ */
+export const useCreateOltServiceProfile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOltServiceProfile>>, TError,{data: BodyType<OltServiceProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOltServiceProfile>>,
+        TError,
+        {data: BodyType<OltServiceProfileInput>},
+        TContext
+      > => {
+      return useMutation(getCreateOltServiceProfileMutationOptions(options));
+    }
+
+export const getUpdateOltServiceProfileUrl = (id: number,) => {
+
+
+
+
+  return `/api/olt-service-profiles/${id}`
+}
+
+/**
+ * @summary Update a reusable OLT service profile
+ */
+export const updateOltServiceProfile = async (id: number,
+    oltServiceProfileUpdate: OltServiceProfileUpdate, options?: RequestInit): Promise<OltServiceProfile> => {
+
+  return customFetch<OltServiceProfile>(getUpdateOltServiceProfileUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      oltServiceProfileUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateOltServiceProfileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOltServiceProfile>>, TError,{id: number;data: BodyType<OltServiceProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOltServiceProfile>>, TError,{id: number;data: BodyType<OltServiceProfileUpdate>}, TContext> => {
+
+const mutationKey = ['updateOltServiceProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOltServiceProfile>>, {id: number;data: BodyType<OltServiceProfileUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateOltServiceProfile(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOltServiceProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateOltServiceProfile>>>
+    export type UpdateOltServiceProfileMutationBody = BodyType<OltServiceProfileUpdate>
+    export type UpdateOltServiceProfileMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a reusable OLT service profile
+ */
+export const useUpdateOltServiceProfile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOltServiceProfile>>, TError,{id: number;data: BodyType<OltServiceProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateOltServiceProfile>>,
+        TError,
+        {id: number;data: BodyType<OltServiceProfileUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateOltServiceProfileMutationOptions(options));
+    }
+
+export const getDeleteOltServiceProfileUrl = (id: number,) => {
+
+
+
+
+  return `/api/olt-service-profiles/${id}`
+}
+
+/**
+ * @summary Delete a service profile (admin only)
+ */
+export const deleteOltServiceProfile = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteOltServiceProfileUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteOltServiceProfileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOltServiceProfile>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteOltServiceProfile>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteOltServiceProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteOltServiceProfile>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteOltServiceProfile(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteOltServiceProfileMutationResult = NonNullable<Awaited<ReturnType<typeof deleteOltServiceProfile>>>
+
+    export type DeleteOltServiceProfileMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a service profile (admin only)
+ */
+export const useDeleteOltServiceProfile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOltServiceProfile>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteOltServiceProfile>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteOltServiceProfileMutationOptions(options));
+    }
+
+export const getListOltProvisioningJobsUrl = () => {
+
+
+
+
+  return `/api/olt-provisioning-jobs`
+}
+
+/**
+ * @summary List OLT discovery and provisioning job history
+ */
+export const listOltProvisioningJobs = async ( options?: RequestInit): Promise<OltProvisioningJob[]> => {
+
+  return customFetch<OltProvisioningJob[]>(getListOltProvisioningJobsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOltProvisioningJobsQueryKey = () => {
+    return [
+    `/api/olt-provisioning-jobs`
+    ] as const;
+    }
+
+
+export const getListOltProvisioningJobsQueryOptions = <TData = Awaited<ReturnType<typeof listOltProvisioningJobs>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOltProvisioningJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOltProvisioningJobsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOltProvisioningJobs>>> = ({ signal }) => listOltProvisioningJobs({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOltProvisioningJobs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOltProvisioningJobsQueryResult = NonNullable<Awaited<ReturnType<typeof listOltProvisioningJobs>>>
+export type ListOltProvisioningJobsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List OLT discovery and provisioning job history
+ */
+
+export function useListOltProvisioningJobs<TData = Awaited<ReturnType<typeof listOltProvisioningJobs>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOltProvisioningJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOltProvisioningJobsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateOltProvisioningJobUrl = () => {
+
+
+
+
+  return `/api/olt-provisioning-jobs`
+}
+
+/**
+ * @summary Create a dry-run OLT provisioning or rollback job
+ */
+export const createOltProvisioningJob = async (oltProvisioningJobInput: OltProvisioningJobInput, options?: RequestInit): Promise<OltProvisioningJob> => {
+
+  return customFetch<OltProvisioningJob>(getCreateOltProvisioningJobUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      oltProvisioningJobInput,)
+  }
+);}
+
+
+
+
+export const getCreateOltProvisioningJobMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOltProvisioningJob>>, TError,{data: BodyType<OltProvisioningJobInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOltProvisioningJob>>, TError,{data: BodyType<OltProvisioningJobInput>}, TContext> => {
+
+const mutationKey = ['createOltProvisioningJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOltProvisioningJob>>, {data: BodyType<OltProvisioningJobInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createOltProvisioningJob(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOltProvisioningJobMutationResult = NonNullable<Awaited<ReturnType<typeof createOltProvisioningJob>>>
+    export type CreateOltProvisioningJobMutationBody = BodyType<OltProvisioningJobInput>
+    export type CreateOltProvisioningJobMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a dry-run OLT provisioning or rollback job
+ */
+export const useCreateOltProvisioningJob = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOltProvisioningJob>>, TError,{data: BodyType<OltProvisioningJobInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOltProvisioningJob>>,
+        TError,
+        {data: BodyType<OltProvisioningJobInput>},
+        TContext
+      > => {
+      return useMutation(getCreateOltProvisioningJobMutationOptions(options));
+    }
+
+export const getApproveOltProvisioningJobUrl = (id: number,) => {
+
+
+
+
+  return `/api/olt-provisioning-jobs/${id}/approve`
+}
+
+/**
+ * @summary Record admin approval for a dry-run provisioning plan
+ */
+export const approveOltProvisioningJob = async (id: number, options?: RequestInit): Promise<OltProvisioningJob> => {
+
+  return customFetch<OltProvisioningJob>(getApproveOltProvisioningJobUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getApproveOltProvisioningJobMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveOltProvisioningJob>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveOltProvisioningJob>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['approveOltProvisioningJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveOltProvisioningJob>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  approveOltProvisioningJob(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveOltProvisioningJobMutationResult = NonNullable<Awaited<ReturnType<typeof approveOltProvisioningJob>>>
+
+    export type ApproveOltProvisioningJobMutationError = ErrorType<void>
+
+    /**
+ * @summary Record admin approval for a dry-run provisioning plan
+ */
+export const useApproveOltProvisioningJob = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveOltProvisioningJob>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveOltProvisioningJob>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getApproveOltProvisioningJobMutationOptions(options));
     }
 

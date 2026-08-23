@@ -1926,3 +1926,358 @@ export const UnblockIpResponse = zod.object({
 })
 
 
+/**
+ * @summary List OLTs in the active company
+ */
+export const ListOltsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "vendor": zod.string(),
+  "model": zod.string(),
+  "ponTechnology": zod.enum(['epon', 'gpon']),
+  "managementHost": zod.string(),
+  "managementPort": zod.number(),
+  "managementProtocol": zod.enum(['snmp-v2c', 'snmp-v3', 'ssh', 'https', 'telnet']),
+  "location": zod.string().nullish(),
+  "enabled": zod.boolean(),
+  "healthState": zod.enum(['online', 'offline', 'unknown']),
+  "lastHealthCheckAt": zod.coerce.date().nullish(),
+  "lastDiscoveryAt": zod.coerce.date().nullish(),
+  "lastError": zod.string().nullish(),
+  "credentialsConfigured": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListOltsResponse = zod.array(ListOltsResponseItem)
+
+
+/**
+ * @summary Register an OLT with protected management credentials
+ */
+
+
+
+
+export const createOltBodyManagementPortDefault = 161;
+export const createOltBodyManagementPortMax = 65535;
+
+
+export const createOltBodyEnabledDefault = true;
+
+export const CreateOltBody = zod.object({
+  "name": zod.string().min(1),
+  "vendor": zod.string().min(1),
+  "model": zod.string().min(1),
+  "ponTechnology": zod.enum(['epon', 'gpon']),
+  "managementHost": zod.string().min(1),
+  "managementPort": zod.number().min(1).max(createOltBodyManagementPortMax).default(createOltBodyManagementPortDefault),
+  "managementProtocol": zod.enum(['snmp-v2c', 'snmp-v3', 'ssh', 'https', 'telnet']),
+  "managementUsername": zod.string().optional(),
+  "managementSecret": zod.string().min(1),
+  "location": zod.string().nullish(),
+  "enabled": zod.boolean().default(createOltBodyEnabledDefault)
+})
+
+
+/**
+ * @summary Get an OLT with PON ports
+ */
+export const GetOltParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetOltResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "vendor": zod.string(),
+  "model": zod.string(),
+  "ponTechnology": zod.enum(['epon', 'gpon']),
+  "managementHost": zod.string(),
+  "managementPort": zod.number(),
+  "managementProtocol": zod.enum(['snmp-v2c', 'snmp-v3', 'ssh', 'https', 'telnet']),
+  "location": zod.string().nullish(),
+  "enabled": zod.boolean(),
+  "healthState": zod.enum(['online', 'offline', 'unknown']),
+  "lastHealthCheckAt": zod.coerce.date().nullish(),
+  "lastDiscoveryAt": zod.coerce.date().nullish(),
+  "lastError": zod.string().nullish(),
+  "credentialsConfigured": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "ponPorts": zod.array(zod.object({
+  "id": zod.number(),
+  "oltId": zod.number(),
+  "portNumber": zod.string(),
+  "label": zod.string().nullish(),
+  "state": zod.string(),
+  "opticalState": zod.string().nullish(),
+  "lastSeenAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Update OLT settings or rotate management credentials
+ */
+export const UpdateOltParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+
+export const updateOltBodyManagementPortMax = 65535;
+
+
+
+
+export const UpdateOltBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "vendor": zod.string().min(1).optional(),
+  "model": zod.string().min(1).optional(),
+  "ponTechnology": zod.enum(['epon', 'gpon']).optional(),
+  "managementHost": zod.string().min(1).optional(),
+  "managementPort": zod.number().min(1).max(updateOltBodyManagementPortMax).optional(),
+  "managementProtocol": zod.enum(['snmp-v2c', 'snmp-v3', 'ssh', 'https', 'telnet']).optional(),
+  "managementUsername": zod.string().optional(),
+  "managementSecret": zod.string().min(1).optional(),
+  "location": zod.string().nullish(),
+  "enabled": zod.boolean().optional()
+})
+
+export const UpdateOltResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "vendor": zod.string(),
+  "model": zod.string(),
+  "ponTechnology": zod.enum(['epon', 'gpon']),
+  "managementHost": zod.string(),
+  "managementPort": zod.number(),
+  "managementProtocol": zod.enum(['snmp-v2c', 'snmp-v3', 'ssh', 'https', 'telnet']),
+  "location": zod.string().nullish(),
+  "enabled": zod.boolean(),
+  "healthState": zod.enum(['online', 'offline', 'unknown']),
+  "lastHealthCheckAt": zod.coerce.date().nullish(),
+  "lastDiscoveryAt": zod.coerce.date().nullish(),
+  "lastError": zod.string().nullish(),
+  "credentialsConfigured": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove an OLT record (admin only)
+ */
+export const DeleteOltParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Run a rate-limited, read-only OLT discovery job
+ */
+export const DiscoverOltInventoryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DiscoverOltInventoryResponse = zod.object({
+  "id": zod.number(),
+  "oltId": zod.number(),
+  "onuId": zod.number().nullish(),
+  "serviceProfileId": zod.number().nullish(),
+  "operation": zod.enum(['discovery', 'provision', 'rollback']),
+  "status": zod.string(),
+  "dryRun": zod.boolean(),
+  "requiresApproval": zod.boolean(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "approvedBy": zod.string().nullish(),
+  "requestedBy": zod.string(),
+  "result": zod.string().nullish(),
+  "error": zod.string().nullish(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List detected ONUs in the active company
+ */
+export const ListOnusQueryParams = zod.object({
+  "oltId": zod.coerce.number().optional()
+})
+
+export const ListOnusResponseItem = zod.object({
+  "id": zod.number(),
+  "oltId": zod.number(),
+  "ponPortId": zod.number().nullish(),
+  "serialNumber": zod.string().nullish(),
+  "loid": zod.string().nullish(),
+  "vendor": zod.string().nullish(),
+  "model": zod.string().nullish(),
+  "macAddress": zod.string().nullish(),
+  "opticalState": zod.string().nullish(),
+  "rxPowerDbm": zod.string().nullish(),
+  "txPowerDbm": zod.string().nullish(),
+  "provisioningState": zod.string(),
+  "customerId": zod.number().nullish(),
+  "lastSeenAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListOnusResponse = zod.array(ListOnusResponseItem)
+
+
+/**
+ * @summary List reusable OLT service profiles
+ */
+export const ListOltServiceProfilesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "vlanId": zod.number(),
+  "accessMode": zod.enum(['bridge', 'router', 'pppoe', 'dhcp']),
+  "downstreamKbps": zod.number().nullish(),
+  "upstreamKbps": zod.number().nullish(),
+  "enabled": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListOltServiceProfilesResponse = zod.array(ListOltServiceProfilesResponseItem)
+
+
+/**
+ * @summary Create a reusable OLT service profile
+ */
+
+export const createOltServiceProfileBodyVlanIdMax = 4094;
+
+
+
+export const createOltServiceProfileBodyEnabledDefault = true;
+
+export const CreateOltServiceProfileBody = zod.object({
+  "name": zod.string().min(1),
+  "description": zod.string().nullish(),
+  "vlanId": zod.number().min(1).max(createOltServiceProfileBodyVlanIdMax),
+  "accessMode": zod.enum(['bridge', 'router', 'pppoe', 'dhcp']),
+  "downstreamKbps": zod.number().min(1).nullish(),
+  "upstreamKbps": zod.number().min(1).nullish(),
+  "enabled": zod.boolean().default(createOltServiceProfileBodyEnabledDefault)
+})
+
+
+/**
+ * @summary Update a reusable OLT service profile
+ */
+export const UpdateOltServiceProfileParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+export const updateOltServiceProfileBodyVlanIdMax = 4094;
+
+
+
+
+
+export const UpdateOltServiceProfileBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "description": zod.string().nullish(),
+  "vlanId": zod.number().min(1).max(updateOltServiceProfileBodyVlanIdMax).optional(),
+  "accessMode": zod.enum(['bridge', 'router', 'pppoe', 'dhcp']).optional(),
+  "downstreamKbps": zod.number().min(1).nullish(),
+  "upstreamKbps": zod.number().min(1).nullish(),
+  "enabled": zod.boolean().optional()
+})
+
+export const UpdateOltServiceProfileResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "vlanId": zod.number(),
+  "accessMode": zod.enum(['bridge', 'router', 'pppoe', 'dhcp']),
+  "downstreamKbps": zod.number().nullish(),
+  "upstreamKbps": zod.number().nullish(),
+  "enabled": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a service profile (admin only)
+ */
+export const DeleteOltServiceProfileParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary List OLT discovery and provisioning job history
+ */
+export const ListOltProvisioningJobsResponseItem = zod.object({
+  "id": zod.number(),
+  "oltId": zod.number(),
+  "onuId": zod.number().nullish(),
+  "serviceProfileId": zod.number().nullish(),
+  "operation": zod.enum(['discovery', 'provision', 'rollback']),
+  "status": zod.string(),
+  "dryRun": zod.boolean(),
+  "requiresApproval": zod.boolean(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "approvedBy": zod.string().nullish(),
+  "requestedBy": zod.string(),
+  "result": zod.string().nullish(),
+  "error": zod.string().nullish(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListOltProvisioningJobsResponse = zod.array(ListOltProvisioningJobsResponseItem)
+
+
+/**
+ * @summary Create a dry-run OLT provisioning or rollback job
+ */
+export const createOltProvisioningJobBodyDryRunDefault = true;
+
+export const CreateOltProvisioningJobBody = zod.object({
+  "oltId": zod.number(),
+  "onuId": zod.number(),
+  "serviceProfileId": zod.number(),
+  "operation": zod.enum(['provision', 'rollback']),
+  "dryRun": zod.boolean().default(createOltProvisioningJobBodyDryRunDefault)
+})
+
+
+/**
+ * @summary Record admin approval for a dry-run provisioning plan
+ */
+export const ApproveOltProvisioningJobParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ApproveOltProvisioningJobResponse = zod.object({
+  "id": zod.number(),
+  "oltId": zod.number(),
+  "onuId": zod.number().nullish(),
+  "serviceProfileId": zod.number().nullish(),
+  "operation": zod.enum(['discovery', 'provision', 'rollback']),
+  "status": zod.string(),
+  "dryRun": zod.boolean(),
+  "requiresApproval": zod.boolean(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "approvedBy": zod.string().nullish(),
+  "requestedBy": zod.string(),
+  "result": zod.string().nullish(),
+  "error": zod.string().nullish(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+

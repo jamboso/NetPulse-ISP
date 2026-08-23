@@ -44,6 +44,8 @@ tags:
     description: Blocked M-Pesa callback attempts and security event log
   - name: openai
     description: AI diagnostics assistant (admin only) — chat conversations backed by live system diagnostics
+  - name: fiber-access
+    description: Tenant-scoped OLT, ONU, and fiber service profile management
 
 paths:
   # ── AI DIAGNOSTICS ASSISTANT ─────────────────────────────────────────────────
@@ -1848,7 +1850,228 @@ paths:
         "403":
           description: Forbidden — admin role required
 
+  # ── FIBER ACCESS ────────────────────────────────────────────────────────────
+  /olts:
+    get:
+      operationId: listOlts
+      tags: [fiber-access]
+      summary: List OLTs in the active company
+      responses:
+        "200":
+          description: OLT inventory
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Olt" }
+    post:
+      operationId: createOlt
+      tags: [fiber-access]
+      summary: Register an OLT with protected management credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OltInput" }
+      responses:
+        "201":
+          description: Registered OLT
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Olt" }
+        "400": { description: Invalid OLT input }
+        "403": { description: Forbidden }
+
+  /olts/{id}:
+    get:
+      operationId: getOlt
+      tags: [fiber-access]
+      summary: Get an OLT with PON ports
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: OLT detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OltDetail" }
+        "404": { description: OLT not found }
+    patch:
+      operationId: updateOlt
+      tags: [fiber-access]
+      summary: Update OLT settings or rotate management credentials
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OltUpdate" }
+      responses:
+        "200":
+          description: Updated OLT
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Olt" }
+        "404": { description: OLT not found }
+    delete:
+      operationId: deleteOlt
+      tags: [fiber-access]
+      summary: Remove an OLT record (admin only)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204": { description: Deleted }
+        "404": { description: OLT not found }
+
+  /olts/{id}/discover:
+    post:
+      operationId: discoverOltInventory
+      tags: [fiber-access]
+      summary: Run a rate-limited, read-only OLT discovery job
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Completed discovery job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OltProvisioningJob" }
+        "404": { description: OLT not found }
+        "429": { description: Too many discovery requests }
+
+  /onus:
+    get:
+      operationId: listOnus
+      tags: [fiber-access]
+      summary: List detected ONUs in the active company
+      parameters:
+        - name: oltId
+          in: query
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Detected ONU inventory
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Onu" }
+
+  /olt-service-profiles:
+    get:
+      operationId: listOltServiceProfiles
+      tags: [fiber-access]
+      summary: List reusable OLT service profiles
+      responses:
+        "200":
+          description: Service profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/OltServiceProfile" }
+    post:
+      operationId: createOltServiceProfile
+      tags: [fiber-access]
+      summary: Create a reusable OLT service profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OltServiceProfileInput" }
+      responses:
+        "201":
+          description: Created service profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OltServiceProfile" }
+        "400": { description: Invalid service profile }
+
+  /olt-service-profiles/{id}:
+    patch:
+      operationId: updateOltServiceProfile
+      tags: [fiber-access]
+      summary: Update a reusable OLT service profile
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OltServiceProfileUpdate" }
+      responses:
+        "200":
+          description: Updated service profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OltServiceProfile" }
+        "404": { description: Service profile not found }
+    delete:
+      operationId: deleteOltServiceProfile
+      tags: [fiber-access]
+      summary: Delete a service profile (admin only)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204": { description: Deleted }
+        "404": { description: Service profile not found }
+
+  /olt-provisioning-jobs:
+    get:
+      operationId: listOltProvisioningJobs
+      tags: [fiber-access]
+      summary: List OLT discovery and provisioning job history
+      responses:
+        "200":
+          description: Job history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/OltProvisioningJob" }
+    post:
+      operationId: createOltProvisioningJob
+      tags: [fiber-access]
+      summary: Create a dry-run OLT provisioning or rollback job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OltProvisioningJobInput" }
+      responses:
+        "201":
+          description: Created job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OltProvisioningJob" }
+        "400": { description: Invalid or cross-tenant reference }
+        "422": { description: Write operations require a verified vendor adapter }
+
+  /olt-provisioning-jobs/{id}/approve:
+    post:
+      operationId: approveOltProvisioningJob
+      tags: [fiber-access]
+      summary: Record admin approval for a dry-run provisioning plan
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Approved job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OltProvisioningJob" }
+        "404": { description: Job not found }
+        "409": { description: Job cannot be approved }
+
 components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
   schemas:
     EmailResult:
       type: object
@@ -1858,6 +2081,177 @@ components:
           type: boolean
         message:
           type: string
+
+    # ── FIBER ACCESS ──────────────────────────────────────────────────────────
+    Olt:
+      type: object
+      required: [id, name, vendor, model, ponTechnology, managementHost, managementPort, managementProtocol, enabled, healthState, credentialsConfigured, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        vendor: { type: string }
+        model: { type: string }
+        ponTechnology: { type: string, enum: [epon, gpon] }
+        managementHost: { type: string }
+        managementPort: { type: integer }
+        managementProtocol: { type: string, enum: [snmp-v2c, snmp-v3, ssh, https, telnet] }
+        location: { type: ["string", "null"] }
+        enabled: { type: boolean }
+        healthState: { type: string, enum: [online, offline, unknown] }
+        lastHealthCheckAt: { type: ["string", "null"], format: date-time }
+        lastDiscoveryAt: { type: ["string", "null"], format: date-time }
+        lastError: { type: ["string", "null"] }
+        credentialsConfigured: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    OltInput:
+      type: object
+      additionalProperties: false
+      required: [name, vendor, model, ponTechnology, managementHost, managementProtocol, managementSecret]
+      properties:
+        name: { type: string, minLength: 1 }
+        vendor: { type: string, minLength: 1 }
+        model: { type: string, minLength: 1 }
+        ponTechnology: { type: string, enum: [epon, gpon] }
+        managementHost: { type: string, minLength: 1 }
+        managementPort: { type: integer, minimum: 1, maximum: 65535, default: 161 }
+        managementProtocol: { type: string, enum: [snmp-v2c, snmp-v3, ssh, https, telnet] }
+        managementUsername: { type: string }
+        managementSecret: { type: string, minLength: 1, writeOnly: true }
+        location: { type: ["string", "null"] }
+        enabled: { type: boolean, default: true }
+
+    OltUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1 }
+        vendor: { type: string, minLength: 1 }
+        model: { type: string, minLength: 1 }
+        ponTechnology: { type: string, enum: [epon, gpon] }
+        managementHost: { type: string, minLength: 1 }
+        managementPort: { type: integer, minimum: 1, maximum: 65535 }
+        managementProtocol: { type: string, enum: [snmp-v2c, snmp-v3, ssh, https, telnet] }
+        managementUsername: { type: string }
+        managementSecret: { type: string, minLength: 1, writeOnly: true }
+        location: { type: ["string", "null"] }
+        enabled: { type: boolean }
+
+    OltPonPort:
+      type: object
+      required: [id, oltId, portNumber, state]
+      properties:
+        id: { type: integer }
+        oltId: { type: integer }
+        portNumber: { type: string }
+        label: { type: ["string", "null"] }
+        state: { type: string }
+        opticalState: { type: ["string", "null"] }
+        lastSeenAt: { type: ["string", "null"], format: date-time }
+
+    OltDetail:
+      allOf:
+        - $ref: "#/components/schemas/Olt"
+        - type: object
+          required: [ponPorts]
+          properties:
+            ponPorts:
+              type: array
+              items: { $ref: "#/components/schemas/OltPonPort" }
+
+    Onu:
+      type: object
+      required: [id, oltId, provisioningState, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        oltId: { type: integer }
+        ponPortId: { type: ["integer", "null"] }
+        serialNumber: { type: ["string", "null"] }
+        loid: { type: ["string", "null"] }
+        vendor: { type: ["string", "null"] }
+        model: { type: ["string", "null"] }
+        macAddress: { type: ["string", "null"] }
+        opticalState: { type: ["string", "null"] }
+        rxPowerDbm: { type: ["string", "null"] }
+        txPowerDbm: { type: ["string", "null"] }
+        provisioningState: { type: string }
+        customerId: { type: ["integer", "null"] }
+        lastSeenAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    OltServiceProfile:
+      type: object
+      required: [id, name, vlanId, accessMode, enabled, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        vlanId: { type: integer }
+        accessMode: { type: string, enum: [bridge, router, pppoe, dhcp] }
+        downstreamKbps: { type: ["integer", "null"] }
+        upstreamKbps: { type: ["integer", "null"] }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    OltServiceProfileInput:
+      type: object
+      additionalProperties: false
+      required: [name, vlanId, accessMode]
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: ["string", "null"] }
+        vlanId: { type: integer, minimum: 1, maximum: 4094 }
+        accessMode: { type: string, enum: [bridge, router, pppoe, dhcp] }
+        downstreamKbps: { type: ["integer", "null"], minimum: 1 }
+        upstreamKbps: { type: ["integer", "null"], minimum: 1 }
+        enabled: { type: boolean, default: true }
+
+    OltServiceProfileUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: ["string", "null"] }
+        vlanId: { type: integer, minimum: 1, maximum: 4094 }
+        accessMode: { type: string, enum: [bridge, router, pppoe, dhcp] }
+        downstreamKbps: { type: ["integer", "null"], minimum: 1 }
+        upstreamKbps: { type: ["integer", "null"], minimum: 1 }
+        enabled: { type: boolean }
+
+    OltProvisioningJob:
+      type: object
+      required: [id, oltId, operation, status, dryRun, requiresApproval, requestedBy, createdAt]
+      properties:
+        id: { type: integer }
+        oltId: { type: integer }
+        onuId: { type: ["integer", "null"] }
+        serviceProfileId: { type: ["integer", "null"] }
+        operation: { type: string, enum: [discovery, provision, rollback] }
+        status: { type: string }
+        dryRun: { type: boolean }
+        requiresApproval: { type: boolean }
+        approvedAt: { type: ["string", "null"], format: date-time }
+        approvedBy: { type: ["string", "null"] }
+        requestedBy: { type: string }
+        result: { type: ["string", "null"] }
+        error: { type: ["string", "null"] }
+        startedAt: { type: ["string", "null"], format: date-time }
+        completedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    OltProvisioningJobInput:
+      type: object
+      additionalProperties: false
+      required: [oltId, onuId, serviceProfileId, operation]
+      properties:
+        oltId: { type: integer }
+        onuId: { type: integer }
+        serviceProfileId: { type: integer }
+        operation: { type: string, enum: [provision, rollback] }
+        dryRun: { type: boolean, default: true }
 
     MpesaIpAllowlist:
       type: object

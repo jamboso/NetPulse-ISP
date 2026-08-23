@@ -3,7 +3,12 @@ import { db, auditLogsTable } from "@workspace/db";
 export type AuditAction =
   | "create"
   | "update"
-  | "delete";
+  | "delete"
+  | "read"
+  | "provision"
+  | "approve"
+  | "rollback"
+  | "failure";
 
 export type AuditEntityType =
   | "customer"
@@ -14,7 +19,11 @@ export type AuditEntityType =
   | "equipment"
   | "ip_pool"
   | "company"
-  | "company_mpesa_config";
+  | "company_mpesa_config"
+  | "olt"
+  | "onu"
+  | "olt_service_profile"
+  | "olt_provisioning_job";
 
 interface AuditParams {
   companyId?: number | null;

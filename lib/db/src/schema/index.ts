@@ -11,6 +11,7 @@ export * from "./equipment";
 export * from "./ipPools";
 export * from "./settings";
 export * from "./routers";
+export * from "./olts";
 export * from "./hotspot";
 export * from "./usageSnapshots";
 export * from "./sessionLogs";

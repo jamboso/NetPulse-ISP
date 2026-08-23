@@ -9,6 +9,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { FiberAccessWorkspace } from "@/components/fiber-access-workspace";
 import { Link } from "wouter";
 import {
   Plus, Server, Route, Wifi, Pencil, Trash2, ChevronDown,
@@ -1214,6 +1215,9 @@ export default function Network() {
           <TabsTrigger value="traffic" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <BarChart2 className="w-4 h-4" /> Traffic Analysis
           </TabsTrigger>
+          <TabsTrigger value="fiber" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Radio className="w-4 h-4" /> Fiber Access
+          </TabsTrigger>
         </TabsList>
 
         {/* ── ROUTERS ───────────────────────────────────────────────────── */}
@@ -1602,6 +1606,13 @@ export default function Network() {
               </TableBody>
             </Table>
           </div>
+        </TabsContent>
+
+        <TabsContent value="fiber" className="mt-6">
+          <FiberAccessWorkspace
+            canManageNetwork={canManageNetwork}
+            canDeleteNetworkRecords={canDeleteNetworkRecords}
+          />
         </TabsContent>
 
         {/* ── IP POOLS ──────────────────────────────────────────────────── */}

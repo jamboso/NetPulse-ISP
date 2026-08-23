@@ -173,6 +173,111 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 --> statement-breakpoint
+
+-- ── Fiber access / OLT and ONU management ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "olts" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "company_id" integer NOT NULL,
+        "name" text NOT NULL,
+        "vendor" text NOT NULL,
+        "model" text NOT NULL,
+        "pon_technology" text NOT NULL,
+        "management_host" text NOT NULL,
+        "management_port" integer DEFAULT 161 NOT NULL,
+        "management_protocol" text DEFAULT 'snmp-v2c' NOT NULL,
+        "encrypted_management_credentials" text NOT NULL,
+        "location" text,
+        "enabled" boolean DEFAULT true NOT NULL,
+        "health_state" text DEFAULT 'unknown' NOT NULL,
+        "last_health_check_at" timestamp with time zone,
+        "last_discovery_at" timestamp with time zone,
+        "last_error" text,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "olt_pon_ports" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "company_id" integer NOT NULL,
+        "olt_id" integer NOT NULL,
+        "port_number" text NOT NULL,
+        "label" text,
+        "state" text DEFAULT 'unknown' NOT NULL,
+        "optical_state" text,
+        "last_seen_at" timestamp with time zone,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "onus" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "company_id" integer NOT NULL,
+        "olt_id" integer NOT NULL,
+        "pon_port_id" integer,
+        "serial_number" text,
+        "loid" text,
+        "vendor" text,
+        "model" text,
+        "mac_address" text,
+        "optical_state" text,
+        "rx_power_dbm" text,
+        "tx_power_dbm" text,
+        "provisioning_state" text DEFAULT 'discovered' NOT NULL,
+        "customer_id" integer,
+        "last_seen_at" timestamp with time zone,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "olt_service_profiles" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "company_id" integer NOT NULL,
+        "name" text NOT NULL,
+        "description" text,
+        "vlan_id" integer NOT NULL,
+        "access_mode" text NOT NULL,
+        "downstream_kbps" integer,
+        "upstream_kbps" integer,
+        "enabled" boolean DEFAULT true NOT NULL,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "olt_provisioning_jobs" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "company_id" integer NOT NULL,
+        "olt_id" integer NOT NULL,
+        "onu_id" integer,
+        "service_profile_id" integer,
+        "operation" text NOT NULL,
+        "status" text DEFAULT 'queued' NOT NULL,
+        "dry_run" boolean DEFAULT true NOT NULL,
+        "requires_approval" boolean DEFAULT true NOT NULL,
+        "approved_at" timestamp with time zone,
+        "approved_by" text,
+        "requested_by" text NOT NULL,
+        "result" text,
+        "error" text,
+        "started_at" timestamp with time zone,
+        "completed_at" timestamp with time zone,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "olts_company_id_idx" ON "olts" ("company_id");
+CREATE INDEX IF NOT EXISTS "olts_company_name_idx" ON "olts" ("company_id", "name");
+CREATE INDEX IF NOT EXISTS "olt_pon_ports_company_olt_idx" ON "olt_pon_ports" ("company_id", "olt_id");
+CREATE INDEX IF NOT EXISTS "olt_pon_ports_lookup_idx" ON "olt_pon_ports" ("olt_id", "port_number");
+CREATE UNIQUE INDEX IF NOT EXISTS "olt_pon_ports_company_olt_port_unique" ON "olt_pon_ports" ("company_id", "olt_id", "port_number");
+CREATE INDEX IF NOT EXISTS "onus_company_olt_idx" ON "onus" ("company_id", "olt_id");
+CREATE INDEX IF NOT EXISTS "onus_company_serial_idx" ON "onus" ("company_id", "serial_number");
+CREATE INDEX IF NOT EXISTS "onus_company_customer_idx" ON "onus" ("company_id", "customer_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "onus_company_olt_serial_unique" ON "onus" ("company_id", "olt_id", "serial_number");
+CREATE INDEX IF NOT EXISTS "olt_service_profiles_company_idx" ON "olt_service_profiles" ("company_id");
+CREATE INDEX IF NOT EXISTS "olt_service_profiles_company_name_idx" ON "olt_service_profiles" ("company_id", "name");
+CREATE INDEX IF NOT EXISTS "olt_jobs_company_created_idx" ON "olt_provisioning_jobs" ("company_id", "created_at");
+CREATE INDEX IF NOT EXISTS "olt_jobs_company_olt_idx" ON "olt_provisioning_jobs" ("company_id", "olt_id");
+CREATE INDEX IF NOT EXISTS "olt_jobs_company_onu_idx" ON "olt_provisioning_jobs" ("company_id", "onu_id");
+--> statement-breakpoint
 CREATE TABLE "hotspot_packages" (
         "id" serial PRIMARY KEY NOT NULL,
         "router_id" integer NOT NULL,

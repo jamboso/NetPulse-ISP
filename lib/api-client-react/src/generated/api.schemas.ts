@@ -10,6 +10,337 @@ export interface EmailResult {
   message: string;
 }
 
+export type OltPonTechnology = typeof OltPonTechnology[keyof typeof OltPonTechnology];
+
+
+export const OltPonTechnology = {
+  epon: 'epon',
+  gpon: 'gpon',
+} as const;
+
+export type OltManagementProtocol = typeof OltManagementProtocol[keyof typeof OltManagementProtocol];
+
+
+export const OltManagementProtocol = {
+  'snmp-v2c': 'snmp-v2c',
+  'snmp-v3': 'snmp-v3',
+  ssh: 'ssh',
+  https: 'https',
+  telnet: 'telnet',
+} as const;
+
+export type OltHealthState = typeof OltHealthState[keyof typeof OltHealthState];
+
+
+export const OltHealthState = {
+  online: 'online',
+  offline: 'offline',
+  unknown: 'unknown',
+} as const;
+
+export interface Olt {
+  id: number;
+  name: string;
+  vendor: string;
+  model: string;
+  ponTechnology: OltPonTechnology;
+  managementHost: string;
+  managementPort: number;
+  managementProtocol: OltManagementProtocol;
+  /** @nullable */
+  location?: string | null;
+  enabled: boolean;
+  healthState: OltHealthState;
+  /** @nullable */
+  lastHealthCheckAt?: string | null;
+  /** @nullable */
+  lastDiscoveryAt?: string | null;
+  /** @nullable */
+  lastError?: string | null;
+  credentialsConfigured: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type OltInputPonTechnology = typeof OltInputPonTechnology[keyof typeof OltInputPonTechnology];
+
+
+export const OltInputPonTechnology = {
+  epon: 'epon',
+  gpon: 'gpon',
+} as const;
+
+export type OltInputManagementProtocol = typeof OltInputManagementProtocol[keyof typeof OltInputManagementProtocol];
+
+
+export const OltInputManagementProtocol = {
+  'snmp-v2c': 'snmp-v2c',
+  'snmp-v3': 'snmp-v3',
+  ssh: 'ssh',
+  https: 'https',
+  telnet: 'telnet',
+} as const;
+
+export interface OltInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  vendor: string;
+  /** @minLength 1 */
+  model: string;
+  ponTechnology: OltInputPonTechnology;
+  /** @minLength 1 */
+  managementHost: string;
+  /**
+     * @minimum 1
+     * @maximum 65535
+     */
+  managementPort?: number;
+  managementProtocol: OltInputManagementProtocol;
+  managementUsername?: string;
+  /** @minLength 1 */
+  managementSecret: string;
+  /** @nullable */
+  location?: string | null;
+  enabled?: boolean;
+}
+
+export type OltUpdatePonTechnology = typeof OltUpdatePonTechnology[keyof typeof OltUpdatePonTechnology];
+
+
+export const OltUpdatePonTechnology = {
+  epon: 'epon',
+  gpon: 'gpon',
+} as const;
+
+export type OltUpdateManagementProtocol = typeof OltUpdateManagementProtocol[keyof typeof OltUpdateManagementProtocol];
+
+
+export const OltUpdateManagementProtocol = {
+  'snmp-v2c': 'snmp-v2c',
+  'snmp-v3': 'snmp-v3',
+  ssh: 'ssh',
+  https: 'https',
+  telnet: 'telnet',
+} as const;
+
+export interface OltUpdate {
+  /** @minLength 1 */
+  name?: string;
+  /** @minLength 1 */
+  vendor?: string;
+  /** @minLength 1 */
+  model?: string;
+  ponTechnology?: OltUpdatePonTechnology;
+  /** @minLength 1 */
+  managementHost?: string;
+  /**
+     * @minimum 1
+     * @maximum 65535
+     */
+  managementPort?: number;
+  managementProtocol?: OltUpdateManagementProtocol;
+  managementUsername?: string;
+  /** @minLength 1 */
+  managementSecret?: string;
+  /** @nullable */
+  location?: string | null;
+  enabled?: boolean;
+}
+
+export interface OltPonPort {
+  id: number;
+  oltId: number;
+  portNumber: string;
+  /** @nullable */
+  label?: string | null;
+  state: string;
+  /** @nullable */
+  opticalState?: string | null;
+  /** @nullable */
+  lastSeenAt?: string | null;
+}
+
+export type OltDetail = Olt & {
+  ponPorts: OltPonPort[];
+};
+
+export interface Onu {
+  id: number;
+  oltId: number;
+  /** @nullable */
+  ponPortId?: number | null;
+  /** @nullable */
+  serialNumber?: string | null;
+  /** @nullable */
+  loid?: string | null;
+  /** @nullable */
+  vendor?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  macAddress?: string | null;
+  /** @nullable */
+  opticalState?: string | null;
+  /** @nullable */
+  rxPowerDbm?: string | null;
+  /** @nullable */
+  txPowerDbm?: string | null;
+  provisioningState: string;
+  /** @nullable */
+  customerId?: number | null;
+  /** @nullable */
+  lastSeenAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type OltServiceProfileAccessMode = typeof OltServiceProfileAccessMode[keyof typeof OltServiceProfileAccessMode];
+
+
+export const OltServiceProfileAccessMode = {
+  bridge: 'bridge',
+  router: 'router',
+  pppoe: 'pppoe',
+  dhcp: 'dhcp',
+} as const;
+
+export interface OltServiceProfile {
+  id: number;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  vlanId: number;
+  accessMode: OltServiceProfileAccessMode;
+  /** @nullable */
+  downstreamKbps?: number | null;
+  /** @nullable */
+  upstreamKbps?: number | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type OltServiceProfileInputAccessMode = typeof OltServiceProfileInputAccessMode[keyof typeof OltServiceProfileInputAccessMode];
+
+
+export const OltServiceProfileInputAccessMode = {
+  bridge: 'bridge',
+  router: 'router',
+  pppoe: 'pppoe',
+  dhcp: 'dhcp',
+} as const;
+
+export interface OltServiceProfileInput {
+  /** @minLength 1 */
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 4094
+     */
+  vlanId: number;
+  accessMode: OltServiceProfileInputAccessMode;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  downstreamKbps?: number | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  upstreamKbps?: number | null;
+  enabled?: boolean;
+}
+
+export type OltServiceProfileUpdateAccessMode = typeof OltServiceProfileUpdateAccessMode[keyof typeof OltServiceProfileUpdateAccessMode];
+
+
+export const OltServiceProfileUpdateAccessMode = {
+  bridge: 'bridge',
+  router: 'router',
+  pppoe: 'pppoe',
+  dhcp: 'dhcp',
+} as const;
+
+export interface OltServiceProfileUpdate {
+  /** @minLength 1 */
+  name?: string;
+  /** @nullable */
+  description?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 4094
+     */
+  vlanId?: number;
+  accessMode?: OltServiceProfileUpdateAccessMode;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  downstreamKbps?: number | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  upstreamKbps?: number | null;
+  enabled?: boolean;
+}
+
+export type OltProvisioningJobOperation = typeof OltProvisioningJobOperation[keyof typeof OltProvisioningJobOperation];
+
+
+export const OltProvisioningJobOperation = {
+  discovery: 'discovery',
+  provision: 'provision',
+  rollback: 'rollback',
+} as const;
+
+export interface OltProvisioningJob {
+  id: number;
+  oltId: number;
+  /** @nullable */
+  onuId?: number | null;
+  /** @nullable */
+  serviceProfileId?: number | null;
+  operation: OltProvisioningJobOperation;
+  status: string;
+  dryRun: boolean;
+  requiresApproval: boolean;
+  /** @nullable */
+  approvedAt?: string | null;
+  /** @nullable */
+  approvedBy?: string | null;
+  requestedBy: string;
+  /** @nullable */
+  result?: string | null;
+  /** @nullable */
+  error?: string | null;
+  /** @nullable */
+  startedAt?: string | null;
+  /** @nullable */
+  completedAt?: string | null;
+  createdAt: string;
+}
+
+export type OltProvisioningJobInputOperation = typeof OltProvisioningJobInputOperation[keyof typeof OltProvisioningJobInputOperation];
+
+
+export const OltProvisioningJobInputOperation = {
+  provision: 'provision',
+  rollback: 'rollback',
+} as const;
+
+export interface OltProvisioningJobInput {
+  oltId: number;
+  onuId: number;
+  serviceProfileId: number;
+  operation: OltProvisioningJobInputOperation;
+  dryRun?: boolean;
+}
+
 /**
  * Where the effective list came from
  */
@@ -1523,5 +1854,9 @@ export type ListBlockedIps200 = {
 export type UnblockIp200 = {
   success: boolean;
   ip: string;
+};
+
+export type ListOnusParams = {
+oltId?: number;
 };
 

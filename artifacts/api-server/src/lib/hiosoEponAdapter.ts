@@ -52,14 +52,16 @@ function firmware(value: string | number | null | undefined): string {
   return normalized(value).replace(/^V/, "");
 }
 
-function validateLiveHiosoProfile(input: OltAdapterInput, sysDescr: SnmpVarbind[], oltValues: SnmpVarbind[]): void {
+function validateLiveHiosoIdentity(input: OltAdapterInput, sysDescr: SnmpVarbind[]): void {
   const expectedModel = normalized(input.model);
   const advertisedDescription = sysDescr.map((value) => String(value.value ?? "")).join(" ");
   const advertisedModel = advertisedDescription.match(/HA\s*7304V(?:D)?/i)?.[0];
   if (!/HIOSO/i.test(advertisedDescription) || !advertisedModel || normalized(advertisedModel) !== expectedModel) {
     throw new Error(`HIOSO device identity mismatch: expected ${input.vendor} ${input.model}, but the SNMP system description reported ${advertisedDescription || "no matching model"}.`);
   }
+}
 
+function validateLiveHiosoFirmware(input: OltAdapterInput, oltValues: SnmpVarbind[]): void {
   const firmwareValues = [...tableRows(OLT_TABLE, oltValues).values()]
     .flatMap((row) => [row[12]])
     .filter((value): value is string | number => value != null);
@@ -137,14 +139,17 @@ export function createHiosoEponAdapter(reader: SnmpReader = snmpV2c): OltVendorA
     },
     async discover(input) {
       if (!input.snmpCommunity) throw new Error("HIOSO SNMP discovery needs an encrypted SNMP community configured for this OLT.");
-      const [sysDescr, sysName, olts, ports, onus] = await Promise.all([
-        reader.walk(input.managementHost, input.managementPort, input.snmpCommunity, SYS_DESCR),
+      // Confirm the advertised model before any vendor MIB is requested, then
+      // confirm the firmware before PON/ONU inventory tables are read.
+      const sysDescr = await reader.walk(input.managementHost, input.managementPort, input.snmpCommunity, SYS_DESCR);
+      validateLiveHiosoIdentity(input, sysDescr);
+      const olts = await reader.walk(input.managementHost, input.managementPort, input.snmpCommunity, OLT_TABLE);
+      validateLiveHiosoFirmware(input, olts);
+      const [sysName, ports, onus] = await Promise.all([
         reader.walk(input.managementHost, input.managementPort, input.snmpCommunity, SYS_NAME),
-        reader.walk(input.managementHost, input.managementPort, input.snmpCommunity, OLT_TABLE),
         reader.walk(input.managementHost, input.managementPort, input.snmpCommunity, PON_PORT_TABLE),
         reader.walk(input.managementHost, input.managementPort, input.snmpCommunity, ONU_TABLE),
       ]);
-      validateLiveHiosoProfile(input, sysDescr, olts);
       return normalizeHiosoEponDiscovery({ sysDescr, sysName, olts, ports, onus });
     },
     validateServiceProfile(profile) {

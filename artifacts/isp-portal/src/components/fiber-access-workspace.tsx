@@ -187,11 +187,11 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
       {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
       <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3"><ShieldCheck className="h-4 w-4 text-amber-700" /><div><h3 className="font-medium text-gray-900">Vendor compatibility catalog</h3><p className="text-xs text-gray-500">Listed profiles are recognized for planning only until exact firmware and lab evidence enable a vendor adapter.</p></div></div>
+        <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3"><ShieldCheck className="h-4 w-4 text-amber-700" /><div><h3 className="font-medium text-gray-900">Vendor compatibility catalog</h3><p className="text-xs text-gray-500">Listed models can verify their standard SNMP identity only. Exact firmware and lab evidence are still required for PON/ONU inventory or any configuration workflow.</p></div></div>
         <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
           {compatibilityLoading ? Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-36 w-full" />)
             : compatibilityProfiles?.length ? compatibilityProfiles.map((profile) => <div key={`${profile.vendor}-${profile.models.join("-")}`} className="rounded-lg border border-amber-200 bg-amber-50/40 p-3">
-              <div className="flex items-start justify-between gap-2"><div><p className="text-sm font-semibold text-gray-900">{profile.vendor}</p><p className="mt-0.5 text-xs text-gray-700">{profile.models.join(" · ")}</p></div><Badge variant="outline" className="border-amber-200 bg-white text-amber-800">Read-only</Badge></div>
+              <div className="flex items-start justify-between gap-2"><div><p className="text-sm font-semibold text-gray-900">{profile.vendor}</p><p className="mt-0.5 text-xs text-gray-700">{profile.models.join(" · ")}</p></div><Badge variant="outline" className="border-sky-200 bg-white text-sky-800">Identity only</Badge></div>
               <p className="mt-2 text-xs text-gray-700">{profile.ponTechnologies.join(" / ").toUpperCase()} · {profile.ponPortCapacity}</p>
               <p className="mt-2 text-[11px] leading-4 text-gray-500">{profile.firmwareRequirement}</p>
             </div>)

@@ -78,15 +78,32 @@ describe("HIOSO EPON compatibility and discovery", () => {
     await expect(adapter.rollback()).rejects.toThrow(/unavailable/i);
   });
 
-  it("fails discovery before normalization when the live model or firmware is not the approved profile", async () => {
+  it("stops before vendor MIB reads when the live model is not the approved profile", async () => {
     const walk = vi.fn(async (_host: string, _port: number, _community: string, root: string) => {
       if (root === "1.3.6.1.2.1.1.1") return [{ oid: "1.3.6.1.2.1.1.1.0", value: "HIOSO HA7304V" }];
-      if (root === "1.3.6.1.4.1.25355.3.2.6.3.1") return [{ oid: "1.3.6.1.4.1.25355.3.2.6.3.1.12.1", value: "v1.1.29" }];
       return [];
     });
     const adapter = createHiosoEponAdapter({ walk });
 
     await expect(adapter.discover(input)).rejects.toThrow(/identity mismatch/i);
+    expect(walk).toHaveBeenCalledTimes(1);
+    expect(walk).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything(), "1.3.6.1.4.1.25355.3.2.6.3.1");
+    expect(walk).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything(), "1.3.6.1.4.1.25355.3.2.6.1.1");
+    expect(walk).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything(), "1.3.6.1.4.1.25355.3.2.6.3.2.1");
+  });
+
+  it("stops before PON and ONU reads when the live firmware is not approved", async () => {
+    const walk = vi.fn(async (_host: string, _port: number, _community: string, root: string) => {
+      if (root === "1.3.6.1.2.1.1.1") return [{ oid: "1.3.6.1.2.1.1.1.0", value: "HIOSO HA7304VD" }];
+      if (root === "1.3.6.1.4.1.25355.3.2.6.3.1") return [{ oid: "1.3.6.1.4.1.25355.3.2.6.3.1.12.1", value: "v1.1.29" }];
+      return [];
+    });
+    const adapter = createHiosoEponAdapter({ walk });
+
+    await expect(adapter.discover(input)).rejects.toThrow(/firmware mismatch/i);
+    expect(walk).toHaveBeenCalledTimes(2);
+    expect(walk).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything(), "1.3.6.1.4.1.25355.3.2.6.1.1");
+    expect(walk).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything(), "1.3.6.1.4.1.25355.3.2.6.3.2.1");
   });
 
   it("uses standard system identity only for HA7304G-J GPON", async () => {

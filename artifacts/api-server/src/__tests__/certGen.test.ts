@@ -55,6 +55,10 @@ describe("generateRosScript", () => {
       '/interface pppoe-server server remove [find service-name="netpulse-pppoe"]',
     );
     expect(script).not.toContain('comment="netpulse-pppoe"');
+    expect(script).toContain('/ip hotspot remove [find name="netpulse-hotspot"]');
+    expect(script).not.toContain("radius-address=");
+    expect(script).not.toContain("radius-secret=");
+    expect(script).not.toContain('comment="netpulse-hotspot"');
   });
 
   it("only emits the protocol property for UDP clients", () => {

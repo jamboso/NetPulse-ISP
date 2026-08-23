@@ -446,7 +446,7 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
   authentication=mschap2,mschap1,chap,pap
 
 # -- Hotspot --
-:do { /ip hotspot remove [find comment="netpulse-hotspot"] } on-error={}
+:do { /ip hotspot remove [find name="netpulse-hotspot"] } on-error={}
 :do { /ip hotspot profile remove [find name="netpulse-hs"] } on-error={}
 :do { /ip pool remove [find name="netpulse-hs-pool"] } on-error={}
 :do { /ip address remove [find comment="netpulse-hs-addr"] } on-error={}
@@ -460,8 +460,6 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
   name="netpulse-hs" \\
   hotspot-address=192.168.10.1 \\
   use-radius=yes \\
-  radius-address="${serverVpnIp}" \\
-  radius-secret="${params.radiusSecret}" \\
   login-by=http-chap,mac \\
   mac-auth-mode=mac-as-username+password
 
@@ -469,10 +467,7 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
   name="netpulse-hotspot" \\
   interface=NETPULSE \\
   address-pool=netpulse-hs-pool \\
-  profile=netpulse-hs \\
-  idle-timeout=none \\
-  keepalive-timeout=none \\
-  comment="netpulse-hotspot"
+  profile=netpulse-hs
 
 # ── 7/8  Routing + firewall ───────────────────────────────────────────────────
 :put "[7/8] Configuring routing..."

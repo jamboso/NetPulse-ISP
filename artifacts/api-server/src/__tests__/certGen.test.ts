@@ -51,6 +51,10 @@ describe("generateRosScript", () => {
       'one-session-per-host=yes \\\n  disabled=no \\\n  authentication=mschap2,mschap1,chap,pap',
     );
     expect(script).not.toContain("enabled=yes");
+    expect(script).toContain(
+      '/interface pppoe-server server remove [find service-name="netpulse-pppoe"]',
+    );
+    expect(script).not.toContain('comment="netpulse-pppoe"');
   });
 
   it("only emits the protocol property for UDP clients", () => {

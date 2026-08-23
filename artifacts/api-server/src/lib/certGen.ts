@@ -436,15 +436,14 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
   use-encryption=yes \\
   dns-server=8.8.8.8,8.8.4.4
 
-:do { /interface pppoe-server server remove [find comment="netpulse-pppoe"] } on-error={}
+:do { /interface pppoe-server server remove [find service-name="netpulse-pppoe"] } on-error={}
 /interface pppoe-server server add \\
   service-name="netpulse-pppoe" \\
   interface=NETPULSE \\
   default-profile=netpulse-profile \\
   one-session-per-host=yes \\
   disabled=no \\
-  authentication=mschap2,mschap1,chap,pap \\
-  comment="netpulse-pppoe"
+  authentication=mschap2,mschap1,chap,pap
 
 # -- Hotspot --
 :do { /ip hotspot remove [find comment="netpulse-hotspot"] } on-error={}

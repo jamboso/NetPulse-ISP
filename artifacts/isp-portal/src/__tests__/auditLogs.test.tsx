@@ -187,6 +187,18 @@ describe("Audit Logs — staff self-export", () => {
 // ---------------------------------------------------------------------------
 
 describe("Audit Logs — Entity ID filter: hook params", () => {
+  it("pre-fills the entity ID from the URL and immediately queries with it", async () => {
+    currentSearch = "entityId=42";
+    mockUseSearch.mockReturnValue(currentSearch);
+
+    await renderAuditLogs();
+
+    expect(screen.getByPlaceholderText("Entity ID…")).toHaveValue(42);
+    expect(getLastCallParams()).toEqual(
+      expect.objectContaining({ entityId: 42 }),
+    );
+  });
+
   it("does not include entityId when the input is empty on initial render", async () => {
     await renderAuditLogs();
 
@@ -248,6 +260,19 @@ describe("Audit Logs — Entity ID filter: hook params", () => {
 });
 
 describe("Audit Logs — Entity ID filter: combined with entity type", () => {
+  it("pre-fills entity type and ID together from the URL", async () => {
+    currentSearch = "entityType=customer&entityId=42";
+    mockUseSearch.mockReturnValue(currentSearch);
+
+    await renderAuditLogs();
+
+    expect(screen.getByText("Customer")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Entity ID…")).toHaveValue(42);
+    expect(getLastCallParams()).toEqual(
+      expect.objectContaining({ entityType: "customer", entityId: 42 }),
+    );
+  });
+
   it("includes both entityType and entityId when entity type is pre-set via URL and ID is typed", async () => {
     currentSearch = "entityType=customer";
     mockUseSearch.mockReturnValue(currentSearch);

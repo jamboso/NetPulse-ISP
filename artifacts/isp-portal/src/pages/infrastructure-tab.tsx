@@ -150,6 +150,7 @@ export function InfrastructureTab({
 
   const [savingVpn, setSavingVpn] = useState(false);
   const [generatingCerts, setGeneratingCerts] = useState(false);
+  const [syncingInstalledCerts, setSyncingInstalledCerts] = useState(false);
   const [testingRadius, setTestingRadius] = useState(false);
   const [exportingUsers, setExportingUsers] = useState(false);
   const [radiusResult, setRadiusResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -211,6 +212,28 @@ export function InfrastructureTab({
       setCertMsg("Certificate generation failed.");
     } finally {
       setGeneratingCerts(false);
+    }
+  };
+
+  const syncInstalledCertificates = async () => {
+    const confirmed = window.confirm(
+      "Sync the OpenVPN certificates installed on this server into NetPulse? " +
+      "NetPulse will use that certificate authority for future router provisioning. " +
+      "You will need to reprovision routers that were issued certificates before this sync.",
+    );
+    if (!confirmed) return;
+
+    setSyncingInstalledCerts(true);
+    setCertMsg("Syncing the installed OpenVPN certificates…");
+    try {
+      const res = await fetch("/api/infrastructure/vpn/sync-installed-certs", { method: "POST" });
+      const data = await res.json() as { success?: boolean; message?: string; error?: string };
+      setCertMsg(data.message ?? data.error ?? "Certificate sync complete.");
+      if (res.ok) await loadStatus();
+    } catch {
+      setCertMsg("Could not sync the installed OpenVPN certificates.");
+    } finally {
+      setSyncingInstalledCerts(false);
     }
   };
 
@@ -539,6 +562,21 @@ radtest testuser testpass localhost 0 ${f("radiusSecret") || "your-secret"}`} />
             {vpnReady ? "Regenerate Certs" : "Generate Certificates"}
           </Button>
 
+          {status?.vpn?.configured && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={syncInstalledCertificates}
+              disabled={syncingInstalledCerts}
+              className="gap-2"
+            >
+              {syncingInstalledCerts
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <RefreshCw className="w-3.5 h-3.5" />}
+              Sync installed certificates
+            </Button>
+          )}
+
           {vpnReady && (
             <Button size="sm" variant="outline" onClick={downloadServerConf} className="gap-2">
               <Download className="w-3.5 h-3.5" /> Download server.conf
@@ -556,6 +594,11 @@ radtest testuser testpass localhost 0 ${f("radiusSecret") || "your-secret"}`} />
             {certMsg}
           </p>
         )}
+
+        <p className="text-xs text-gray-500">
+          If OpenVPN was already installed on this server, sync its certificates before provisioning routers.
+          This does not restart or alter OpenVPN; reprovision routers that used the previous NetPulse certificate authority.
+        </p>
 
         <InstallGuide title="OpenVPN Server Install Guide (Ubuntu)">
           <Step n={1} title="Install OpenVPN">

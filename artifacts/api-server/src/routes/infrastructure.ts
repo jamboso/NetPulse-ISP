@@ -5,6 +5,8 @@ import {
   settingsTable, type RouterVpnCert,
 } from "@workspace/db";
 import { generateVpnServerCerts, generateClientCert, generateOpenVpnServerConf, generateRosScript } from "../lib/certGen";
+import { requireRole } from "../middlewares/requireRole";
+import { loadInstalledOpenVpnCertificates } from "../lib/systemVpnCerts";
 
 const router = Router();
 
@@ -238,6 +240,40 @@ router.post("/infrastructure/vpn/generate-certs", async (req, res) => {
   } catch (err) {
     req.log.error(err, "vpn cert gen error");
     return res.status(500).json({ error: "Certificate generation failed" });
+  }
+});
+
+// ── POST /api/infrastructure/vpn/sync-installed-certs ────────────────────────
+// Imports the OpenVPN PKI produced by NetPulse's Ubuntu installer. This route is
+// deliberately owner-only: it reads the CA signing key from the server filesystem
+// but never includes private key material in its response.
+router.post("/infrastructure/vpn/sync-installed-certs", requireRole("owner"), async (req, res) => {
+  try {
+    const existing = await db.select().from(vpnConfigTable).limit(1);
+    if (existing.length === 0) {
+      return res.status(400).json({ error: "Save VPN configuration before syncing installed certificates." });
+    }
+
+    const installed = await loadInstalledOpenVpnCertificates();
+    await db
+      .update(vpnConfigTable)
+      .set({
+        ...installed,
+        certsGeneratedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(vpnConfigTable.id, existing[0].id));
+
+    req.log.info("Synced the installed OpenVPN certificate authority into NetPulse");
+    return res.json({
+      success: true,
+      message: "Installed OpenVPN certificates synced. Reprovision routers that received certificates before this sync.",
+    });
+  } catch (err) {
+    req.log.error(err, "installed OpenVPN certificate sync error");
+    return res.status(400).json({
+      error: "Could not sync the installed OpenVPN certificates. Confirm OpenVPN was installed with NetPulse's deployment script.",
+    });
   }
 });
 

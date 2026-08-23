@@ -7,6 +7,7 @@ const mockGenerateServerCerts = vi.hoisted(() => vi.fn());
 const mockGenerateClientCert = vi.hoisted(() => vi.fn());
 const mockGenerateServerConf = vi.hoisted(() => vi.fn());
 const mockGenerateRosScript = vi.hoisted(() => vi.fn());
+const mockLoadInstalledOpenVpnCertificates = vi.hoisted(() => vi.fn());
 
 vi.mock("@workspace/db", () => {
   const chain: Record<string, unknown> = {};
@@ -32,14 +33,18 @@ vi.mock("../lib/certGen.js", () => ({
   generateOpenVpnServerConf: mockGenerateServerConf,
   generateRosScript: mockGenerateRosScript,
 }));
+vi.mock("../lib/systemVpnCerts.js", () => ({
+  loadInstalledOpenVpnCertificates: mockLoadInstalledOpenVpnCertificates,
+}));
 
 const { default: infrastructureRouter } = await import("../routes/infrastructure.js");
 
-function buildApp() {
+function buildApp(role = "owner") {
   const app = express();
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
     (req as any).log = { info: vi.fn(), error: vi.fn() };
+    (req as any).user = { role };
     next();
   });
   app.use(infrastructureRouter);
@@ -147,6 +152,29 @@ describe("infrastructure write operations", () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(mockGenerateServerCerts).toHaveBeenCalledOnce();
+  });
+
+  it("syncs the installed OpenVPN certificate authority for an owner", async () => {
+    mockExec.mockResolvedValueOnce([{ id: 1 }]);
+    mockLoadInstalledOpenVpnCertificates.mockResolvedValueOnce({
+      caCert: "installed-ca",
+      caKey: "installed-ca-key",
+      serverCert: "installed-server",
+      serverKey: "installed-server-key",
+    });
+
+    const response = await request(buildApp()).post("/infrastructure/vpn/sync-installed-certs");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(expect.objectContaining({ success: true }));
+    expect(mockLoadInstalledOpenVpnCertificates).toHaveBeenCalledOnce();
+  });
+
+  it("refuses to sync installed OpenVPN certificates for non-owners", async () => {
+    const response = await request(buildApp("admin")).post("/infrastructure/vpn/sync-installed-certs");
+
+    expect(response.status).toBe(403);
+    expect(mockLoadInstalledOpenVpnCertificates).not.toHaveBeenCalled();
   });
 
   it("revokes a router client certificate", async () => {

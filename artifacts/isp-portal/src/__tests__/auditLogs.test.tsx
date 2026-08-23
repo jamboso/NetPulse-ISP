@@ -194,6 +194,17 @@ describe("Audit Logs — Entity ID filter: hook params", () => {
     expect(params).not.toHaveProperty("entityId");
   });
 
+  it("handles non-numeric typing without passing entityId to the hook", async () => {
+    await renderAuditLogs();
+    const user = userEvent.setup();
+
+    const entityIdInput = screen.getByPlaceholderText("Entity ID…");
+    await user.type(entityIdInput, "not-a-number");
+
+    expect(entityIdInput).toHaveValue(null);
+    expect(getLastCallParams()).not.toHaveProperty("entityId");
+  });
+
   it("passes entityId as a number to the hook after typing a valid integer", async () => {
     await renderAuditLogs();
     const user = userEvent.setup();

@@ -3,6 +3,19 @@ import express, { type Request, type Response, type NextFunction } from "express
 import request from "supertest";
 
 const mockExec = vi.hoisted(() => vi.fn());
+const mockDbDelete = vi.hoisted(() => vi.fn());
+const mockTables = vi.hoisted(() => ({
+  customersTable: {
+    id: {}, name: {}, email: {}, phone: {}, status: {}, createdAt: {},
+    companyId: {}, pppoeUsername: {},
+  },
+  subscriptionsTable: { customerId: {} },
+  invoicesTable: { id: {}, customerId: {} },
+  paymentsTable: { invoiceId: {} },
+  ticketsTable: { id: {}, customerId: {} },
+  ticketRepliesTable: { ticketId: {} },
+  radcheckTable: { id: {}, username: {}, attribute: {} },
+}));
 
 vi.mock("@workspace/db", () => {
   const chain: Record<string, unknown> = {};
@@ -10,7 +23,6 @@ vi.mock("@workspace/db", () => {
     "select",
     "insert",
     "update",
-    "delete",
     "from",
     "values",
     "set",
@@ -24,6 +36,10 @@ vi.mock("@workspace/db", () => {
   for (const m of chainMethods) {
     chain[m] = () => chain;
   }
+  chain["delete"] = (...args: unknown[]) => {
+    mockDbDelete(...args);
+    return chain;
+  };
   chain["returning"] = () => mockExec();
   chain["then"] = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
     mockExec().then(resolve, reject);
@@ -31,12 +47,7 @@ vi.mock("@workspace/db", () => {
 
   return {
     db: chain,
-    customersTable: { id: {}, name: {}, email: {}, phone: {}, status: {}, createdAt: {} },
-    subscriptionsTable: {},
-    invoicesTable: {},
-    paymentsTable: {},
-    ticketsTable: {},
-    ticketRepliesTable: {},
+    ...mockTables,
     eq: vi.fn(),
     ilike: vi.fn(),
     or: vi.fn(),
@@ -47,6 +58,13 @@ vi.mock("@workspace/db", () => {
 
 vi.mock("../lib/audit.js", () => ({
   writeAuditLog: vi.fn(),
+}));
+
+vi.mock("../middlewares/companyScope", () => ({
+  resolveCompanyScope: (req: Request, _res: Response, next: NextFunction) => {
+    req.companyId = 1;
+    next();
+  },
 }));
 
 const { default: customersRouter } = await import("../routes/customers.js");
@@ -276,7 +294,7 @@ describe("PATCH /customers/:id", () => {
 });
 
 describe("DELETE /customers/:id", () => {
-  it("deletes a customer and returns 204 (admin)", async () => {
+  it("removes linked subscriptions before deleting the customer", async () => {
     mockExec.mockResolvedValueOnce([sampleCustomer]); // select before
     mockExec.mockResolvedValueOnce([]);               // tickets select
     mockExec.mockResolvedValueOnce([]);               // invoices select
@@ -286,6 +304,30 @@ describe("DELETE /customers/:id", () => {
     const res = await request(buildApp()).delete("/customers/1");
 
     expect(res.status).toBe(204);
+    expect(mockDbDelete.mock.calls.map(([table]) => table)).toEqual([
+      mockTables.subscriptionsTable,
+      mockTables.customersTable,
+    ]);
+  });
+
+  it("cascades linked payments and invoices before deleting the customer", async () => {
+    mockExec.mockResolvedValueOnce([sampleCustomer]); // select before
+    mockExec.mockResolvedValueOnce([]);               // tickets select
+    mockExec.mockResolvedValueOnce([{ id: 41 }, { id: 42 }]); // invoices select
+    mockExec.mockResolvedValueOnce([]);               // delete payments
+    mockExec.mockResolvedValueOnce([]);               // delete invoices
+    mockExec.mockResolvedValueOnce([]);               // delete subscriptions
+    mockExec.mockResolvedValueOnce([]);               // delete customer
+
+    const res = await request(buildApp()).delete("/customers/1");
+
+    expect(res.status).toBe(204);
+    expect(mockDbDelete.mock.calls.map(([table]) => table)).toEqual([
+      mockTables.paymentsTable,
+      mockTables.invoicesTable,
+      mockTables.subscriptionsTable,
+      mockTables.customersTable,
+    ]);
   });
 
   it("returns 403 for billing role on DELETE", async () => {

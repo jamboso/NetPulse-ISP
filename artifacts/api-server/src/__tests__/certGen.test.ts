@@ -45,5 +45,20 @@ describe("generateRosScript", () => {
     );
     expect(script).not.toContain("CLIENT-KEY-SECRET");
     expect(script).toContain('/file remove [find name="netpulse-client.key"]');
+    expect(script).not.toContain("protocol=tcp");
+    expect(script).toContain('mode=ip \\\n    certificate="netpulse-client"');
+  });
+
+  it("only emits the protocol property for UDP clients", () => {
+    const script = generateRosScript({
+      ...params,
+      vpnProtocol: "udp",
+      caCertPem: "CA",
+      clientCertPem: "CLIENT-CERT",
+      clientKeyPem: "CLIENT-KEY",
+    });
+
+    expect(script).toContain("protocol=udp");
+    expect(script).toContain('mode=ip \\\n    protocol=udp \\\n    certificate="netpulse-client"');
   });
 });

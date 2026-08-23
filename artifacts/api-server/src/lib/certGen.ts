@@ -272,6 +272,12 @@ export function generateRosScript(params: {
   const now = new Date().toISOString();
   const subnetBase = params.vpnSubnet.split(".").slice(0, 3).join(".");
   const serverVpnIp = `${subnetBase}.1`;
+  // RouterOS v6 OpenVPN clients are TCP-only and reject an explicit
+  // `protocol=tcp` property. TCP is their default and remains the default on
+  // current RouterOS releases, so only emit the property when UDP is requested.
+  const ovpnProtocolLine = params.vpnProtocol.toLowerCase() === "udp"
+    ? "    protocol=udp \\\n"
+    : "";
   const certificateFetchBlock = params.token && params.serverUrl
     ? `:put "[2/8] Downloading certificates..."
 
@@ -382,8 +388,7 @@ ${certificateFetchBlock}
     connect-to="${params.serverIp}" \\
     port=${params.vpnPort} \\
     mode=ip \\
-    protocol=${params.vpnProtocol} \\
-    certificate="netpulse-client" \\
+${ovpnProtocolLine}    certificate="netpulse-client" \\
     add-default-route=no \\
     disabled=no
 } on-error={ :log warning "NetPulse: ovpn-client already exists" }

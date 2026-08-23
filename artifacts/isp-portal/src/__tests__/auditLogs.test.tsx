@@ -132,6 +132,7 @@ function getLastCallParams(): Record<string, unknown> {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.history.replaceState({}, "", "/");
   vi.stubGlobal("fetch", mockFetch);
   vi.stubGlobal("URL", {
     createObjectURL: vi.fn(() => "blob:audit-export"),
@@ -289,6 +290,67 @@ describe("Audit Logs — Entity ID filter: combined with entity type", () => {
       const params = getLastCallParams();
       expect(params).toHaveProperty("entityType", "customer");
       expect(params).toHaveProperty("entityId", 7);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// URL filter synchronization
+// ---------------------------------------------------------------------------
+
+describe("Audit Logs — URL filter synchronization", () => {
+  it("initializes entity type, entity ID, and action filters from the URL", async () => {
+    currentSearch = "entityType=customer&entityId=42&action=update";
+    mockUseSearch.mockReturnValue(currentSearch);
+
+    await renderAuditLogs();
+
+    const [entityTypeSelect, actionSelect] = screen.getAllByRole("combobox");
+    expect(entityTypeSelect).toHaveTextContent("Customer");
+    expect(screen.getByPlaceholderText("Entity ID…")).toHaveValue(42);
+    expect(actionSelect).toHaveTextContent("Update");
+    expect(getLastCallParams()).toEqual(
+      expect.objectContaining({
+        entityType: "customer",
+        entityId: 42,
+        action: "update",
+      }),
+    );
+  });
+
+  it("updates the URL through useLocation when a filter changes", async () => {
+    currentSearch = "entityType=customer&entityId=42&action=update";
+    mockUseSearch.mockReturnValue(currentSearch);
+
+    await renderAuditLogs();
+    const user = userEvent.setup();
+    const [, actionSelect] = screen.getAllByRole("combobox");
+
+    await user.click(actionSelect);
+    await user.click(await screen.findByRole("option", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(mockSetLocation).toHaveBeenLastCalledWith(
+        "/audit-logs?entityType=customer&entityId=42&action=delete",
+        { replace: false },
+      );
+    });
+  });
+
+  it("copies the current browser URL when Copy link is clicked", async () => {
+    const pathname = "/audit-logs?entityType=customer&entityId=42&action=update";
+    window.history.replaceState({}, "", pathname);
+    currentSearch = "entityType=customer&entityId=42&action=update";
+    mockUseSearch.mockReturnValue(currentSearch);
+
+    await renderAuditLogs();
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(window.navigator.clipboard, "writeText");
+
+    await user.click(screen.getByRole("button", { name: /copy link/i }));
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith(window.location.href);
     });
   });
 });

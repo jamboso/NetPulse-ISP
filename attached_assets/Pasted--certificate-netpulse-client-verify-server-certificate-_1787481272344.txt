@@ -1,0 +1,29 @@
+      certificate=netpulse-client verify-server-certificate=no auth=sha1 cipher=blowfish128 use-peer-dns=yes add-default-route=no 
+[admin@f3dccde50c01ca44c69235466985abdb10cbeea3] > /interface ovpn-client print detail where name="netpulse-vpn"
+Flags: X - disabled, R - running 
+ 0    name="netpulse-vpn" mac-address=FE:44:A7:1A:D0:24 max-mtu=1500 connect-to=10.5.50.102 port=1194 mode=ip user="netpulse" password="" profile=default 
+      certificate=netpulse-client verify-server-certificate=no auth=sha1 cipher=blowfish128 use-peer-dns=yes add-default-route=no 
+[admin@f3dccde50c01ca44c69235466985abdb10cbeea3] > /interface ovpn-client print detail where name="netpulse-vpn"
+Flags: X - disabled, R - running 
+ 0    name="netpulse-vpn" mac-address=FE:44:A7:1A:D0:24 max-mtu=1500 connect-to=10.5.50.102 port=1194 mode=ip user="netpulse" password="" profile=default 
+      certificate=netpulse-client verify-server-certificate=no auth=sha1 cipher=blowfish128 use-peer-dns=yes add-default-route=no 
+[admin@f3dccde50c01ca44c69235466985abdb10cbeea3] > 
+[admin@f3dccde50c01ca44c69235466985abdb10cbeea3] > 
+[admin@f3dccde50c01ca44c69235466985abdb10cbeea3] > 
+13:20:44 echo: ovpn,debug,error,,,,,,,,,bgp,info,,async,update,,critical,,,,update,,,,,critical,,,,firewall duplicate packet, dropping
+[admin@f3dccde50c01ca44c69235466985abdb10cbeea3] > /certificate print detail where name="netpulse-ca"
+Flags: K - private-key, L - crl, C - smart-card-key, A - authority, I - issued, R - revoked, E - expired, T - trusted 
+ 0       T name="netpulse-ca" issuer=CN=NetPulse CA,O=NetPulse ISP,C=KE digest-algorithm=sha256 key-type=rsa country="KE" organization="NetPulse ISP" 
+           common-name="NetPulse CA" key-size=2048 subject-alt-name="" days-valid=3653 trusted=yes key-usage=key-cert-sign,crl-sign 
+           serial-number="019FE75F53BB" fingerprint="a4367e222da726ce75af1cea48eb338967b3598a2df851eaed595569d0ade695" akid="" 
+           skid=132957f83fec55cebf96346091a7117a9ece3ce4 invalid-before=aug/09/2026 19:33:32 invalid-after=aug/09/2036 19:33:32 
+           expires-after=519w6d6h8m50s 
+[admin@f3dccde50c01ca44c69235466985abdb10cbeea3] > /interface ovpn-client print detail where name="netpulse-vpn"
+Flags: X - disabled, R - running 
+ 0    name="netpulse-vpn" mac-address=FE:44:A7:1A:D0:24 max-mtu=1500 connect-to=10.5.50.102 port=1194 mode=ip user="netpulse" password="" profile=default 
+      certificate=netpulse-client verify-server-certificate=no auth=sha1 cipher=blowfish128 use-peer-dns=yes add-default-route=no 
+[admin@f3dccde50c01ca44c69235466985abdb10cbeea3] > /interface ovpn-client print detail where name="netpulse-vpn"
+Flags: X - disabled, R - running 
+ 0    name="netpulse-vpn" mac-address=FE:44:A7:1A:D0:24 max-mtu=1500 connect-to=10.5.50.102 port=1194 mode=ip user="netpulse" password="" profile=default 
+      certificate=netpulse-client verify-server-certificate=no auth=sha1 cipher=blowfish128 use-peer-dns=yes add-default-route=no 
+[admin@f3dccde50c01ca44c69235466985abdb10cbeea3] > 

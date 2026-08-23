@@ -8,24 +8,29 @@ import { validateBody } from "../middlewares/validateBody";
 import { resolveCompanyScope } from "../middlewares/companyScope";
 import { writeAuditLog } from "../lib/audit";
 
+const ipv4CidrSchema = z.cidrv4().refine(
+  (network) => Number(network.split("/")[1]) >= 2,
+  { message: "Network CIDR must have a prefix of /2 or greater" },
+);
+
 const createIpPoolSchema = z.object({
   name:        z.string().min(1),
-  network:     z.string().min(1),
-  gateway:     z.string().min(1),
-  subnetMask:  z.string().min(1),
+  network:     ipv4CidrSchema,
+  gateway:     z.ipv4(),
+  subnetMask:  z.ipv4(),
   dns1:        z.string().optional().nullable(),
   dns2:        z.string().optional().nullable(),
   description: z.string().optional().nullable(),
-});
+}).strict();
 
 const updateIpPoolSchema = z.object({
   name:        z.string().min(1).optional(),
-  gateway:     z.string().min(1).optional(),
-  subnetMask:  z.string().min(1).optional(),
+  gateway:     z.ipv4().optional(),
+  subnetMask:  z.ipv4().optional(),
   dns1:        z.string().optional().nullable(),
   dns2:        z.string().optional().nullable(),
   description: z.string().optional().nullable(),
-});
+}).strict();
 
 const router = Router();
 router.use(resolveCompanyScope);
@@ -45,9 +50,8 @@ router.get("/ip-pools", async (req, res) => {
 
 router.post("/ip-pools", requireRole("admin", "technician"), validateBody(createIpPoolSchema), async (req, res) => {
   const body = req.body;
-  const cidrMatch = body.network?.match(/\/(\d+)$/);
-  const prefix = cidrMatch ? parseInt(cidrMatch[1]) : 24;
-  const totalIps = prefix <= 32 ? Math.pow(2, 32 - prefix) - 2 : 0;
+  const prefix = Number(body.network.split("/")[1]);
+  const totalIps = prefix <= 30 ? 2 ** (32 - prefix) - 2 : 2 ** (32 - prefix);
 
   const [pool] = await db.insert(ipPoolsTable).values({
     companyId: req.companyId!,

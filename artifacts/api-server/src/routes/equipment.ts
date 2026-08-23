@@ -16,12 +16,12 @@ const createEquipmentSchema = z.object({
   type:       z.enum(EQUIPMENT_TYPES).optional(),
   model:      z.string().min(1),
   brand:      z.string().optional().nullable(),
-  ipAddress:  z.string().min(1),
+  ipAddress:  z.ipv4(),
   macAddress: z.string().optional().nullable(),
   location:   z.string().optional().nullable(),
   status:     z.enum(EQUIPMENT_STATUSES).optional(),
   notes:      z.string().optional().nullable(),
-});
+}).strict();
 
 const updateEquipmentSchema = createEquipmentSchema.partial();
 

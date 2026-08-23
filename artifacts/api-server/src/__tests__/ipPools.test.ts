@@ -41,6 +41,9 @@ vi.mock("@workspace/db", () => {
       description: {},
       createdAt: {},
     },
+    companiesTable: {
+      id: {},
+    },
     eq: vi.fn(),
   };
 });
@@ -57,6 +60,7 @@ type MockUser = {
   email: string;
   name: string;
   role: string;
+  companyId?: number;
   active: boolean;
   emailVerified: boolean;
   image?: string | null;
@@ -67,9 +71,9 @@ type MockUser = {
 function buildApp(
   user: MockUser = {
     id: "u1",
-    email: "admin@test.com",
-    name: "Admin",
-    role: "admin",
+    email: "owner@test.com",
+    name: "Owner",
+    role: "owner",
     active: true,
     emailVerified: false,
     createdAt: new Date(),
@@ -101,7 +105,7 @@ const samplePool = {
 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe("GET /ip-pools", () => {
@@ -170,19 +174,21 @@ describe("POST /ip-pools", () => {
     expect(res.body.totalIps).toBe(254);
   });
 
-  it("falls back to totalIps 0 when network has no CIDR notation", async () => {
-    const poolWithZero = { ...samplePool, totalIps: 0 };
-    mockExec.mockResolvedValueOnce([poolWithZero]);
-
+  it("calculates a single usable IP for a /32 network", async () => {
+    const poolWithOne = { ...samplePool, totalIps: 1 };
+    mockExec.mockResolvedValueOnce([poolWithOne]);
     const res = await request(buildApp())
       .post("/ip-pools")
-      .send({ name: "Pool B", network: "10.0.0.0", gateway: "10.0.0.1", subnetMask: "255.255.255.0" });
+      .send({ name: "Pool B", network: "10.0.0.1/32", gateway: "10.0.0.1", subnetMask: "255.255.255.255" });
 
     expect(res.status).toBe(201);
+    expect(res.body.totalIps).toBe(1);
   });
 
   it("creates an IP pool as technician role", async () => {
-    mockExec.mockResolvedValueOnce([samplePool]);
+    mockExec
+      .mockResolvedValueOnce([{ accessStatus: "active", accessUntil: null, exempt: false }])
+      .mockResolvedValueOnce([samplePool]);
 
     const res = await request(
       buildApp({
@@ -190,6 +196,7 @@ describe("POST /ip-pools", () => {
         email: "tech@test.com",
         name: "Tech",
         role: "technician",
+        companyId: 1,
         active: true,
         emailVerified: false,
         createdAt: new Date(),
@@ -251,6 +258,18 @@ describe("POST /ip-pools — validation", () => {
     const res = await request(buildApp())
       .post("/ip-pools")
       .send({ name: "Main Pool", network: "192.168.1.0/24", gateway: "192.168.1.1" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it.each([
+    "10.0.0.0",
+    "not-a-network",
+    "10.0.0.0/33",
+  ])("returns 400 when network is an invalid CIDR (%s)", async (network) => {
+    const res = await request(buildApp())
+      .post("/ip-pools")
+      .send({ name: "Main Pool", network, gateway: "10.0.0.1", subnetMask: "255.255.255.0" });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("fields");
   });
@@ -317,6 +336,14 @@ describe("PATCH /ip-pools/:id — validation", () => {
     const res = await request(buildApp())
       .patch("/ip-pools/1")
       .send({ subnetMask: "" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when gateway is not an IPv4 string", async () => {
+    const res = await request(buildApp())
+      .patch("/ip-pools/1")
+      .send({ gateway: 123 });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("fields");
   });

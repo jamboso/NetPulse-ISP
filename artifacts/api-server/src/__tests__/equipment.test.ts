@@ -41,6 +41,9 @@ vi.mock("@workspace/db", () => {
       notes: {},
       createdAt: {},
     },
+    companiesTable: {
+      id: {},
+    },
     eq: vi.fn(),
   };
 });
@@ -57,6 +60,7 @@ type MockUser = {
   email: string;
   name: string;
   role: string;
+  companyId?: number;
   active: boolean;
   emailVerified: boolean;
   image?: string | null;
@@ -67,9 +71,9 @@ type MockUser = {
 function buildApp(
   user: MockUser = {
     id: "u1",
-    email: "admin@test.com",
-    name: "Admin",
-    role: "admin",
+    email: "owner@test.com",
+    name: "Owner",
+    role: "owner",
     active: true,
     emailVerified: false,
     createdAt: new Date(),
@@ -101,7 +105,7 @@ const sampleEquipment = {
 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe("GET /equipment", () => {
@@ -211,7 +215,9 @@ describe("POST /equipment", () => {
   });
 
   it("creates equipment as technician role", async () => {
-    mockExec.mockResolvedValueOnce([sampleEquipment]);
+    mockExec
+      .mockResolvedValueOnce([{ accessStatus: "active", accessUntil: null, exempt: false }])
+      .mockResolvedValueOnce([sampleEquipment]);
 
     const res = await request(
       buildApp({
@@ -219,6 +225,7 @@ describe("POST /equipment", () => {
         email: "tech@test.com",
         name: "Tech",
         role: "technician",
+        companyId: 1,
         active: true,
         emailVerified: false,
         createdAt: new Date(),
@@ -272,6 +279,14 @@ describe("POST /equipment — validation", () => {
     const res = await request(buildApp())
       .post("/equipment")
       .send({ name: "Core Router", model: "RB4011" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when ipAddress is not a valid IPv4 address", async () => {
+    const res = await request(buildApp())
+      .post("/equipment")
+      .send({ name: "Core Router", model: "RB4011", ipAddress: "999.168.1.1" });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("fields");
   });
@@ -338,6 +353,14 @@ describe("PATCH /equipment/:id — validation", () => {
     const res = await request(buildApp())
       .patch("/equipment/1")
       .send({ status: "broken" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when ipAddress is not a valid IPv4 address", async () => {
+    const res = await request(buildApp())
+      .patch("/equipment/1")
+      .send({ ipAddress: "not-an-ip-address" });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("fields");
   });

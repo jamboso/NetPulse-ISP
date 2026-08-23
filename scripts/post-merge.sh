@@ -1,6 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
+readonly REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Hooks are local Git configuration, so make sure each merged checkout enables
+# the repository-owned pre-commit secret scan.
+bash "$REPO_ROOT/scripts/setup-git-hooks.sh"
+
 # Keep the GitHub remote tokenless. Git requests the current token through the
 # repository-scoped credential helper at push time, so rotating the secret does
 # not require editing .git/config.

@@ -136,6 +136,7 @@ Both default to **No** and can be added later by re-running the setup script.
 git clone https://github.com/jamboso/NetPulse-ISP.git
 cd NetPulse-ISP
 pnpm install
+bash scripts/setup-git-hooks.sh
 ```
 
 Create a `.env` file in `artifacts/api-server/`:
@@ -188,6 +189,29 @@ Open [http://localhost:8080](http://localhost:8080) and complete the Setup Wizar
 
 ---
 
+## Secret scanning
+
+This repository includes a pre-commit check that scans staged files and the
+local `.git/config` for common credential formats, including GitHub personal
+access tokens. It blocks the commit without printing any matched value.
+
+Run this once in every clone (the post-merge setup also re-applies it):
+
+```bash
+bash scripts/setup-git-hooks.sh
+```
+
+To confirm the scanner works, run:
+
+```bash
+pnpm run test:secrets
+```
+
+If the check blocks a commit, remove and rotate the credential if it is real;
+do not bypass the hook with `--no-verify`.
+
+---
+
 ## Useful Commands
 
 | Command | Purpose |
@@ -195,6 +219,7 @@ Open [http://localhost:8080](http://localhost:8080) and complete the Setup Wizar
 | `pnpm run typecheck` | Full typecheck across all packages |
 | `pnpm run build` | Typecheck + build all packages |
 | `pnpm run test` | Run all tests |
+| `pnpm run test:secrets` | Verify the Git credential scanner |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks + Zod schemas from OpenAPI spec |
 | `pnpm --filter @workspace/db run push` | Push DB schema changes (dev only) |
 | `pnpm --filter @workspace/api-server run test:coverage` | API test coverage report |

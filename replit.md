@@ -10,9 +10,20 @@ A full-featured ISP Management SaaS for managing customers, service plans, subsc
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
+- `pnpm run test:secrets` — verify the pre-commit credential scanner
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+
+## Git credential protection
+
+- Run `bash scripts/setup-git-hooks.sh` once after cloning. The existing
+  post-merge setup also re-applies it.
+- The pre-commit hook scans staged files and the local `.git/config` for common
+  credential formats, including GitHub PATs, and blocks a match without
+  printing the value.
+- Remove and rotate any real credential it finds; never bypass the check with
+  `git commit --no-verify`.
 
 ## Stack
 

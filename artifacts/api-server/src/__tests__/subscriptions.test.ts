@@ -64,12 +64,8 @@ vi.mock("../lib/audit.js", () => ({
   writeAuditLog: vi.fn(),
 }));
 
-vi.mock("../lib/radiusSync.js", () => ({
-  syncSubscriptionCreate: vi.fn().mockResolvedValue(undefined),
-  syncSubscriptionSuspend: vi.fn().mockResolvedValue(undefined),
-  syncSubscriptionReactivate: vi.fn().mockResolvedValue(undefined),
-  syncSubscriptionCancel: vi.fn().mockResolvedValue(undefined),
-  syncPlanRadiusGroup: vi.fn().mockResolvedValue(undefined),
+vi.mock("../middlewares/companyScope.js", () => ({
+  resolveCompanyScope: (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 
 const { default: subscriptionsRouter } = await import("../routes/subscriptions.js");
@@ -279,6 +275,7 @@ describe("POST /subscriptions", () => {
     mockExec
       .mockResolvedValueOnce([sampleCustomer])
       .mockResolvedValueOnce([samplePlan])
+      .mockResolvedValueOnce([{ id: 5 }])
       .mockResolvedValueOnce([subWithRouter])
       .mockResolvedValueOnce([sampleRouter]);
 

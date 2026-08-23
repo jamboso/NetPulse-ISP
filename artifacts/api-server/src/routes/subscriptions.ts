@@ -291,14 +291,14 @@ router.post("/subscriptions", requireRole("admin", "billing"), validateBody(crea
 
   // Provision on RouterOS (best-effort, non-blocking response)
   if (shouldProvision && pppoeUsername && pppoePassword) {
-    provisionPPPoE(
+    void provisionPPPoE(
       body.routerId!,
       pppoeUsername,
       pppoePassword,
       plan?.rosProfileName ?? "default",
       `Sub #${sub!.id} | ${customer!.name} | ${plan?.name ?? ""}`,
       req.log
-    );
+    ).catch(err => req.log?.error({ err }, "Failed to provision PPPoE secret"));
   }
 
   // Sync RADIUS (best-effort)
@@ -403,27 +403,34 @@ router.patch("/subscriptions/:id", requireRole("admin", "billing"), validateBody
 
     if (newStatus === "active") {
       if (existing.pppoeUsername) {
-        enablePPPoESecret(effectiveRouterId, existing.pppoeUsername, req.log);
+        void enablePPPoESecret(effectiveRouterId, existing.pppoeUsername, req.log)
+          .catch(err => req.log?.error({ err }, "Failed to re-enable PPPoE secret"));
       } else if (update.pppoeUsername) {
         const [[customer], [plan]] = await Promise.all([
           db.select().from(customersTable).where(eq(customersTable.id, existing.customerId)),
           db.select().from(plansTable).where(eq(plansTable.id, existing.planId)),
         ]);
         if (customer && username) {
-          provisionPPPoE(
+          void provisionPPPoE(
             effectiveRouterId,
             update.pppoeUsername as string,
             update.pppoePassword as string,
             plan?.rosProfileName ?? "default",
             `Sub #${id} | ${customer.name} | ${plan?.name ?? ""}`,
             req.log
-          );
+          ).catch(err => req.log?.error({ err }, "Failed to provision PPPoE secret"));
         }
       }
     } else if (newStatus === "suspended") {
-      if (username) disablePPPoESecret(effectiveRouterId, username, req.log);
+      if (username) {
+        void disablePPPoESecret(effectiveRouterId, username, req.log)
+          .catch(err => req.log?.error({ err }, "Failed to disable PPPoE secret"));
+      }
     } else if (newStatus === "cancelled") {
-      if (username) deletePPPoESecret(effectiveRouterId, username, req.log);
+      if (username) {
+        void deletePPPoESecret(effectiveRouterId, username, req.log)
+          .catch(err => req.log?.error({ err }, "Failed to delete PPPoE secret"));
+      }
     }
   }
 
@@ -449,7 +456,8 @@ router.delete("/subscriptions/:id", requireRole("admin"), async (req, res) => {
   if (!existing) { res.status(404).json({ error: "Subscription not found" }); return; }
 
   if (existing.pppoeUsername && existing.routerId) {
-    deletePPPoESecret(existing.routerId, existing.pppoeUsername, req.log);
+    void deletePPPoESecret(existing.routerId, existing.pppoeUsername, req.log)
+      .catch(err => req.log?.error({ err }, "Failed to delete PPPoE secret"));
   }
   if (existing.pppoeUsername) {
     void syncSubscriptionCancel(existing.pppoeUsername);

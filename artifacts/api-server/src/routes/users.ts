@@ -128,15 +128,26 @@ router.post("/users", requireRole("admin"), validateBody(createUserSchema), asyn
     diff: { after: { id: updated?.id, email, name, role } },
   });
 
-  // ── Always send a welcome email (skips silently when SMTP is not configured) ─
+  // ── Always send a welcome email ────────────────────────────────────────────
   const appUrl = process.env["REPLIT_DOMAINS"]
     ? `https://${process.env["REPLIT_DOMAINS"].split(",")[0]}`
     : (process.env["BETTER_AUTH_URL"] ?? "");
 
-  void sendStaffWelcomeEmail({ name, email, password, role, appUrl }).then((result) => {
-    if (result.success) req.log.info({ email }, "Staff welcome email sent");
-    else req.log.warn({ email }, `Staff welcome email skipped: ${result.message}`);
-  });
+  let emailSent = false;
+  let emailError: string | undefined;
+  try {
+    const result = await sendStaffWelcomeEmail({ name, email, password, role, appUrl });
+    emailSent = result.success;
+    if (result.success) {
+      req.log.info({ email }, "Staff welcome email sent");
+    } else {
+      emailError = result.message;
+      req.log.warn({ email }, `Staff welcome email skipped: ${result.message}`);
+    }
+  } catch (err: unknown) {
+    emailError = err instanceof Error ? err.message : String(err);
+    req.log.warn({ err, email }, "Staff welcome email failed");
+  }
 
   // ── Optional SMS / additional notification ────────────────────────────────
   const roleLabels: Record<string, string> = {
@@ -163,7 +174,11 @@ router.post("/users", requireRole("admin"), validateBody(createUserSchema), asyn
     }
   }
 
-  res.status(201).json(updated);
+  res.status(201).json({
+    ...updated,
+    emailSent,
+    ...(emailError ? { emailError } : {}),
+  });
 });
 
 // ── Welcome email preview & test-send ────────────────────────────────────────

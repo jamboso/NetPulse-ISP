@@ -18,6 +18,7 @@ export * from './companyMpesaConfig';
 export * from './companyMpesaConfigEnv';
 export * from './companyMpesaConfigInput';
 export * from './companyMpesaConfigInputEnv';
+export * from './createdStaffUser';
 export * from './createUserInput';
 export * from './createUserInputNotifyMethod';
 export * from './createUserInputRole';

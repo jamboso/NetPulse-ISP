@@ -249,6 +249,7 @@ export default function StaffPage() {
   const [editUser, setEditUser] = useState<StaffUser | null>(null);
   const [editRole, setEditRole] = useState<Role>("admin");
   const [formError, setFormError] = useState("");
+  const [emailWarning, setEmailWarning] = useState<string | null>(null);
   const [bulkWorking, setBulkWorking] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [testSendStatus, setTestSendStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -293,8 +294,12 @@ export default function StaffPage() {
 
   const createMutation = useCreateUser({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (createdUser) => {
         void qc.invalidateQueries({ queryKey: getListUsersQueryKey() });
+        if (!createdUser.emailSent) {
+          setEmailWarning(createdUser.emailError ?? "The welcome email could not be sent.");
+          return;
+        }
         setInviteOpen(false);
         resetInviteForm();
       },
@@ -331,13 +336,14 @@ export default function StaffPage() {
 
   function resetInviteForm() {
     setNewName(""); setNewEmail(""); setNewPassword(""); setNewRole("support");
-    setNewAccountPhone(""); setNewPhone(""); setNotifyMethod("none"); setFormError("");
+    setNewAccountPhone(""); setNewPhone(""); setNotifyMethod("none"); setFormError(""); setEmailWarning(null);
   }
 
   function handleInviteOpen() { resetInviteForm(); setInviteOpen(true); }
 
   function handleInviteSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (emailWarning) return;
     setFormError("");
     if ((notifyMethod === "sms" || notifyMethod === "both") && !newPhone.trim()) {
       setFormError("Phone number is required when SMS notification is selected.");
@@ -555,6 +561,15 @@ export default function StaffPage() {
         <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
           <DialogHeader><DialogTitle>Invite Staff Member</DialogTitle></DialogHeader>
           <form id="invite-staff-form" onSubmit={handleInviteSubmit} className="space-y-4 pt-2 overflow-y-auto flex-1 pr-1 -mr-1">
+            {emailWarning && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  The account was created, but its welcome email could not be sent. Manually share the login credentials with {newEmail}.
+                  <span className="block mt-1 text-xs text-amber-700">{emailWarning}</span>
+                </span>
+              </div>
+            )}
             <div className="space-y-1">
               <Label htmlFor="inv-name">Full Name</Label>
               <Input id="inv-name" placeholder="Jane Doe" value={newName} onChange={e => setNewName(e.target.value)} required />
@@ -623,10 +638,14 @@ export default function StaffPage() {
             )}
           </form>
           <DialogFooter className="pt-2 border-t border-gray-100 mt-2">
-            <Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button type="submit" form="invite-staff-form" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating…" : "Create Account"}
+            <Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>
+              {emailWarning ? "Close" : "Cancel"}
             </Button>
+            {!emailWarning && (
+              <Button type="submit" form="invite-staff-form" disabled={createMutation.isPending}>
+                {createMutation.isPending ? "Creating…" : "Create Account"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

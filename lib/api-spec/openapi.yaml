@@ -217,7 +217,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StaffUser"
+                $ref: "#/components/schemas/CreatedStaffUser"
         "400":
           description: Validation error or email already exists
         "403":
@@ -3632,6 +3632,19 @@ components:
           type: string
           format: date-time
           nullable: true
+
+    CreatedStaffUser:
+      allOf:
+        - $ref: "#/components/schemas/StaffUser"
+        - type: object
+          required: [emailSent]
+          properties:
+            emailSent:
+              type: boolean
+              description: Whether the staff welcome email was delivered successfully
+            emailError:
+              type: string
+              description: Why the welcome email could not be delivered, when emailSent is false
 
     CreateUserInput:
       type: object

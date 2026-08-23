@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -7,6 +7,8 @@ import type { ReactNode } from "react";
 const mockUseListUsers = vi.fn();
 const mockUseCreateUser = vi.fn();
 const mockUseUpdateUser = vi.fn();
+type CreateUserResult = { emailSent: boolean; emailError?: string };
+let triggerCreateSuccess: ((data: CreateUserResult) => void) | undefined;
 
 vi.mock("@workspace/api-client-react", () => ({
   useListUsers: (...args: unknown[]) => mockUseListUsers(...args),
@@ -56,7 +58,12 @@ function makeUser(overrides: Record<string, unknown> = {}) {
 }
 
 function setupMutations() {
-  mockUseCreateUser.mockReturnValue({ mutate: vi.fn(), isPending: false });
+  mockUseCreateUser.mockImplementation((options: {
+    mutation?: { onSuccess?: (data: CreateUserResult) => void };
+  }) => {
+    triggerCreateSuccess = options.mutation?.onSuccess;
+    return { mutate: vi.fn(), isPending: false };
+  });
   mockUseUpdateUser.mockReturnValue({ mutate: vi.fn(), isPending: false });
 }
 
@@ -269,5 +276,27 @@ describe("Staff page — Last Active column: multiple users", () => {
 
     expect(screen.getByText("Just now")).toBeInTheDocument();
     expect(screen.getByText("Never")).toBeInTheDocument();
+  });
+});
+
+describe("Staff page — failed welcome email", () => {
+  it("keeps the invite dialog open and warns the admin to share credentials manually", async () => {
+    mockUseListUsers.mockReturnValue({ data: { data: [] }, isLoading: false });
+    await renderStaffPage();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Invite Staff" }));
+    act(() => {
+      triggerCreateSuccess?.({
+        emailSent: false,
+        emailError: "SMTP not configured — email skipped",
+      });
+    });
+
+    expect(screen.getByText(/The account was created, but its welcome email could not be sent/)).toBeInTheDocument();
+    expect(screen.getByText(/Manually share the login credentials/)).toBeInTheDocument();
+    expect(screen.getByText("SMTP not configured — email skipped")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Close" })).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Create Account" })).not.toBeInTheDocument();
   });
 });

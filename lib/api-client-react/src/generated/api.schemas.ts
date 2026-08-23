@@ -1541,6 +1541,13 @@ export interface StaffUser {
   lastActiveAt?: string | null;
 }
 
+export type CreatedStaffUser = StaffUser & {
+  /** Whether the staff welcome email was delivered successfully */
+  emailSent: boolean;
+  /** Why the welcome email could not be delivered, when emailSent is false */
+  emailError?: string;
+};
+
 export type CreateUserInputRole = typeof CreateUserInputRole[keyof typeof CreateUserInputRole];
 
 

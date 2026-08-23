@@ -27,6 +27,7 @@ import type {
   CompanyMpesaConfig,
   CompanyMpesaConfigInput,
   CreateUserInput,
+  CreatedStaffUser,
   Customer,
   CustomerInput,
   CustomerList,
@@ -749,9 +750,9 @@ export const getCreateUserUrl = () => {
 /**
  * @summary Create a new staff account (admin only)
  */
-export const createUser = async (createUserInput: CreateUserInput, options?: RequestInit): Promise<StaffUser> => {
+export const createUser = async (createUserInput: CreateUserInput, options?: RequestInit): Promise<CreatedStaffUser> => {
 
-  return customFetch<StaffUser>(getCreateUserUrl(),
+  return customFetch<CreatedStaffUser>(getCreateUserUrl(),
   {
     ...options,
     method: 'POST',

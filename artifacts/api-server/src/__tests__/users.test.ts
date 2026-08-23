@@ -315,6 +315,11 @@ describe("POST /users", () => {
       .send({ name: "New Staff", email: "newstaff@example.com", password: "securepass", role: "support" });
 
     expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      id: "u99",
+      emailSent: false,
+      emailError: "SMTP not configured",
+    });
   });
 
   it("calls sendStaffWelcomeEmail with the correct name, email, role, and appUrl", async () => {
@@ -352,6 +357,26 @@ describe("POST /users", () => {
 
     expect(res.status).toBe(201);
     expect(mockSendStaffWelcomeEmail).toHaveBeenCalledOnce();
+    expect(res.body).toMatchObject({
+      emailSent: false,
+      emailError: "SMTP not configured — email skipped",
+    });
+  });
+
+  it("reports emailSent when the welcome email is delivered", async () => {
+    mockSendStaffWelcomeEmail.mockResolvedValueOnce({ success: true, message: "Welcome email sent" });
+    mockExec
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([sampleUser]);
+    mockSignUp.mockResolvedValueOnce({ user: { id: "u99" } });
+
+    const res = await request(buildApp())
+      .post("/users")
+      .send({ name: "New Staff", email: "newstaff@example.com", password: "securepass", role: "support" });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ emailSent: true });
+    expect(res.body).not.toHaveProperty("emailError");
   });
 
   it("returns 403 for non-admin role", async () => {

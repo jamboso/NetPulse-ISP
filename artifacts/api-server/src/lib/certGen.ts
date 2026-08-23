@@ -409,7 +409,7 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
   service=ppp,hotspot \\
   authentication-port=1812 \\
   accounting-port=1813 \\
-  timeout=3000 \\
+  timeout=3s \\
   realm=""
 
 /ppp aaa set use-radius=yes accounting=yes

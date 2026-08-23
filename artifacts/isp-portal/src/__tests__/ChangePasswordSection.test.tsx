@@ -161,6 +161,12 @@ describe("ChangePasswordSection — client-side validation", () => {
 // 3. Valid credentials — successful password change
 // ---------------------------------------------------------------------------
 describe("ChangePasswordSection — successful password change", () => {
+  it("renders the sign-out-other-devices checkbox unchecked by default", () => {
+    render(<ChangePasswordSection />);
+
+    expect(screen.getByRole("checkbox", { name: /sign out all other devices/i })).not.toBeChecked();
+  });
+
   it("shows 'Password changed successfully.' after a valid password change", async () => {
     mockChangePassword.mockResolvedValueOnce({ status: true });
 
@@ -221,5 +227,33 @@ describe("ChangePasswordSection — successful password change", () => {
       newPassword: "NewValid1!",
       revokeOtherSessions: false,
     });
+  });
+
+  it("revokes other sessions and confirms they were signed out when selected", async () => {
+    mockChangePassword.mockResolvedValueOnce({ status: true });
+
+    render(<ChangePasswordSection />);
+
+    const { user, fill, submit } = fillForm({
+      current: "OldPass1!",
+      next: "NewValid1!",
+      confirm: "NewValid1!",
+    });
+    const revokeSessions = screen.getByRole("checkbox", { name: /sign out all other devices/i });
+
+    await user.click(revokeSessions);
+    expect(revokeSessions).toBeChecked();
+
+    await fill();
+    await submit();
+
+    await waitFor(() => {
+      expect(mockChangePassword).toHaveBeenCalledWith({
+        currentPassword: "OldPass1!",
+        newPassword: "NewValid1!",
+        revokeOtherSessions: true,
+      });
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("All other devices have been signed out.");
   });
 });

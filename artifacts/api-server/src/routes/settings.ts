@@ -8,6 +8,12 @@ import { validateBody } from "../middlewares/validateBody";
 import { resolveCompanyScope } from "../middlewares/companyScope";
 import { sendTestEmail } from "../lib/mailer";
 import { getCompanyMpesaConfigRow, upsertCompanyMpesaConfig } from "../lib/mpesaConfig";
+import {
+  decryptNotificationSetting,
+  encryptNotificationSetting,
+  isNotificationSetting,
+  redactedNotificationSettingKeys,
+} from "../lib/settingsEncryption";
 
 const DEFAULT_SAFARICOM_CIDRS = [
   "196.201.214.0/24",
@@ -86,14 +92,33 @@ const SETTINGS_KEYS = [
 
 type SettingsKey = (typeof SETTINGS_KEYS)[number];
 
-async function loadSettings(): Promise<Record<string, string | null>> {
+const settingsPatchSchema = z.record(
+  z.string(),
+  z.string().nullable(),
+);
+
+async function loadSettings(): Promise<Record<string, string | boolean | null>> {
   const rows = await db.select().from(settingsTable);
-  const result: Record<string, string | null> = {};
+  const result: Record<string, string | boolean | null> = {};
   for (const key of SETTINGS_KEYS) {
     result[key] = null;
   }
   for (const row of rows) {
-    result[row.key] = row.value ?? null;
+    if (!SETTINGS_KEYS.includes(row.key as SettingsKey)) continue;
+
+    const stored = row.value ?? null;
+    if (stored === null || !isNotificationSetting(row.key)) {
+      result[row.key] = stored;
+      continue;
+    }
+
+    const value = decryptNotificationSetting(stored);
+    if (redactedNotificationSettingKeys.has(row.key)) {
+      result[row.key] = null;
+      result[`${row.key}Configured`] = value.length > 0;
+    } else {
+      result[row.key] = value;
+    }
   }
   return result;
 }
@@ -122,10 +147,19 @@ router.get("/settings", requireRole("owner"), async (_req, res) => {
 });
 
 router.patch("/settings", requireRole("owner"), async (req, res) => {
-  const body = req.body as Partial<Record<SettingsKey, string>>;
+  const parsed = settingsPatchSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Settings values must use known setting names and contain strings or null" });
+    return;
+  }
 
-  for (const [key, value] of Object.entries(body)) {
+  for (const [key, value] of Object.entries(parsed.data)) {
     if (!SETTINGS_KEYS.includes(key as SettingsKey)) continue;
+    const storedValue = value === null
+      ? null
+      : isNotificationSetting(key)
+        ? encryptNotificationSetting(value)
+        : value;
     const existing = await db
       .select()
       .from(settingsTable)
@@ -133,10 +167,10 @@ router.patch("/settings", requireRole("owner"), async (req, res) => {
     if (existing.length > 0) {
       await db
         .update(settingsTable)
-        .set({ value: value ?? null, updatedAt: new Date() })
+        .set({ value: storedValue, updatedAt: new Date() })
         .where(eq(settingsTable.key, key));
     } else {
-      await db.insert(settingsTable).values({ key, value: value ?? null });
+      await db.insert(settingsTable).values({ key, value: storedValue });
     }
   }
 

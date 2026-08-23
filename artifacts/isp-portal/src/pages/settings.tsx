@@ -24,7 +24,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 type SettingsData = Record<string, string | null>;
 
 function SettingField({
-  label, name, value, onChange, type = "text", placeholder, hint, secret,
+  label, name, value, onChange, type = "text", placeholder, hint, secret, configured,
 }: {
   label: string;
   name: string;
@@ -34,6 +34,7 @@ function SettingField({
   placeholder?: string;
   hint?: string;
   secret?: boolean;
+  configured?: boolean;
 }) {
   return (
     <div className="grid grid-cols-12 gap-3 items-start py-3 border-b border-gray-100 last:border-0">
@@ -58,6 +59,11 @@ function SettingField({
             onChange={(e) => onChange(name, e.target.value)}
             className="text-sm"
           />
+        )}
+        {configured && (
+          <p className="text-xs text-emerald-600 mt-1.5">
+            Saved securely. Leave this blank to keep the current value.
+          </p>
         )}
       </div>
     </div>
@@ -275,6 +281,7 @@ export default function Settings() {
 
   const [form, setForm] = useState<SettingsData>({});
   const [dirty, setDirty] = useState(false);
+  const [changedKeys, setChangedKeys] = useState<Set<string>>(() => new Set());
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
 
@@ -282,14 +289,17 @@ export default function Settings() {
     if (serverSettings) {
       const data: SettingsData = {};
       for (const [k, v] of Object.entries(serverSettings)) {
-        data[k] = v ?? "";
+        if (typeof v === "string" || v === null) data[k] = v ?? "";
       }
       setForm(data);
+      setChangedKeys(new Set());
+      setDirty(false);
     }
   }, [serverSettings]);
 
   const set = (name: string, val: string) => {
     setForm((prev) => ({ ...prev, [name]: val }));
+    setChangedKeys((prev) => new Set(prev).add(name));
     setDirty(true);
     setSaved(false);
   };
@@ -299,14 +309,16 @@ export default function Settings() {
   const handleSave = async () => {
     setSaveError("");
     try {
-      const payload: Record<string, string> = {};
-      for (const [k, v] of Object.entries(form)) {
-        if (v !== null && v !== undefined) payload[k] = v as string;
+      const payload: Record<string, string | null> = {};
+      for (const key of changedKeys) {
+        const value = form[key];
+        if (value !== undefined) payload[key] = value;
       }
       await updateMutation.mutateAsync({ data: payload });
       await queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
       setSaved(true);
       setDirty(false);
+      setChangedKeys(new Set());
       setTimeout(() => setSaved(false), 3000);
     } catch {
       setSaveError("Failed to save settings. Please try again.");
@@ -495,12 +507,14 @@ export default function Settings() {
             </div>
           </SectionCard>
 
-          <SectionCard icon={Bell} title="Alert Destinations">
+          <SectionCard icon={Bell} title="Notification Channels">
             <SettingField
               label="Slack Webhook URL"
               name="alertSlackWebhook"
               value={f("alertSlackWebhook")}
               onChange={set}
+              secret
+              configured={serverSettings?.alertSlackWebhookConfigured === true}
               placeholder="https://hooks.slack.com/services/..."
               hint="Post system alerts (router up/down, etc.) to a Slack channel. Paste the Incoming Webhook URL here."
             />
@@ -524,7 +538,15 @@ export default function Settings() {
             <SettingField label="SMTP Host" name="smtpHost" value={f("smtpHost")} onChange={set} placeholder="smtp.gmail.com" />
             <SettingField label="SMTP Port" name="smtpPort" value={f("smtpPort")} onChange={set} type="number" placeholder="587" hint="Usually 587 (TLS) or 465 (SSL)" />
             <SettingField label="Username" name="smtpUser" value={f("smtpUser")} onChange={set} placeholder="you@gmail.com" />
-            <SettingField label="Password" name="smtpPass" value={f("smtpPass")} onChange={set} secret placeholder="app password" />
+            <SettingField
+              label="Password"
+              name="smtpPass"
+              value={f("smtpPass")}
+              onChange={set}
+              secret
+              configured={serverSettings?.smtpPassConfigured === true}
+              placeholder="app password"
+            />
             <SettingField label="From Address" name="smtpFrom" value={f("smtpFrom")} onChange={set} placeholder="noreply@myisp.co.ke" hint="Displayed sender in customer emails" />
             <div className="py-3">
               <SendTestEmailButton />

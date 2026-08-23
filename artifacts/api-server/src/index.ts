@@ -7,6 +7,7 @@ import { startAuditLogPurgeScheduler } from "./lib/auditLogPurge";
 import { startAuditExportScheduler } from "./lib/auditExportScheduler";
 import { startDnsPoller } from "./lib/dnsPoller";
 import { ensureCompanyBackfill } from "./lib/companyBackfill";
+import { migrateLegacyNotificationSettings } from "./lib/notificationSettingsMigration";
 
 const rawPort = process.env["PORT"];
 
@@ -22,11 +23,24 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-ensureCompanyBackfill()
-  .catch((err) => {
+async function prepareStartup(): Promise<void> {
+  try {
+    await ensureCompanyBackfill();
+  } catch (err) {
     logger.error({ err }, "Company backfill failed — continuing startup");
-  })
-  .finally(() => {
+  }
+
+  const migratedNotificationSettings = await migrateLegacyNotificationSettings();
+  if (migratedNotificationSettings > 0) {
+    logger.info(
+      { migratedNotificationSettings },
+      "Encrypted existing notification settings",
+    );
+  }
+}
+
+prepareStartup()
+  .then(() => {
     app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");
@@ -41,4 +55,8 @@ ensureCompanyBackfill()
       startAuditExportScheduler();
       startDnsPoller();
     });
+  })
+  .catch((err) => {
+    logger.fatal({ err }, "Notification settings migration failed — refusing to start");
+    process.exitCode = 1;
   });

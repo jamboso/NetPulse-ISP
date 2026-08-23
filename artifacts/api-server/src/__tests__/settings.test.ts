@@ -3,6 +3,7 @@ import express, { type Request, type Response, type NextFunction } from "express
 import request from "supertest";
 
 const mockExec = vi.hoisted(() => vi.fn());
+const mockValues = vi.hoisted(() => vi.fn());
 
 vi.mock("@workspace/db", () => {
   const chain: Record<string, unknown> = {};
@@ -12,7 +13,6 @@ vi.mock("@workspace/db", () => {
     "update",
     "delete",
     "from",
-    "values",
     "set",
     "where",
     "orderBy",
@@ -21,6 +21,10 @@ vi.mock("@workspace/db", () => {
   for (const m of chainMethods) {
     chain[m] = () => chain;
   }
+  chain["values"] = (value: unknown) => {
+    mockValues(value);
+    return chain;
+  };
   chain["returning"] = () => mockExec();
   chain["then"] = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
     mockExec().then(resolve, reject);
@@ -51,7 +55,7 @@ type MockUser = {
 };
 
 const adminUser: MockUser = {
-  id: "u1", email: "admin@test.com", name: "Admin", role: "admin",
+  id: "u1", email: "admin@test.com", name: "Admin", role: "owner",
   active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date(),
 };
 
@@ -73,6 +77,7 @@ function buildApp(user: MockUser = adminUser) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  process.env["SESSION_SECRET"] = "settings-route-test-secret";
 });
 
 // ---------------------------------------------------------------------------
@@ -101,6 +106,25 @@ describe("GET /settings", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("companyName", null);
     expect(res.body).toHaveProperty("timezone", null);
+  });
+
+  it("redacts saved notification secrets and reports their configured state", async () => {
+    mockExec.mockResolvedValueOnce([
+      { key: "alertSlackWebhook", value: "https://hooks.slack.com/services/T000/B000/secret" },
+      { key: "smtpPass", value: "smtp-app-password" },
+      { key: "alertEmail", value: "ops@example.com" },
+    ]);
+
+    const res = await request(buildApp()).get("/settings");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      alertSlackWebhook: null,
+      alertSlackWebhookConfigured: true,
+      smtpPass: null,
+      smtpPassConfigured: true,
+      alertEmail: "ops@example.com",
+    });
   });
 
   it("returns 403 for non-admin role", async () => {
@@ -150,6 +174,24 @@ describe("PATCH /settings", () => {
       .send({ timezone: "Africa/Nairobi" });
 
     expect(res.status).toBe(200);
+  });
+
+  it("encrypts notification channel values before storing them", async () => {
+    mockExec
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const res = await request(buildApp())
+      .patch("/settings")
+      .send({ alertSlackWebhook: "https://hooks.slack.com/services/T000/B000/secret" });
+
+    expect(res.status).toBe(200);
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "alertSlackWebhook",
+      value: expect.stringMatching(/^v1:[^:]+:[^:]+:[^:]+$/),
+    }));
+    expect(mockValues.mock.calls[0]![0].value).not.toContain("hooks.slack.com");
   });
 
   it("ignores unknown keys not in the SETTINGS_KEYS list", async () => {

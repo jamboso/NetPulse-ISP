@@ -1,18 +1,12 @@
 import { betterAuth } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { db, usersTable, sessionsTable, accountsTable, verificationsTable, settingsTable } from "@workspace/db";
+import { db, usersTable, sessionsTable, accountsTable, verificationsTable } from "@workspace/db";
 import nodemailer from "nodemailer";
 import { syncStaffUserRadius } from "./radiusSync";
 import { logger } from "./logger";
 import { impersonatePlugin } from "./impersonatePlugin";
-
-async function loadSmtpSettings(): Promise<Record<string, string>> {
-  const rows = await db.select().from(settingsTable);
-  const result: Record<string, string> = {};
-  for (const row of rows) result[row.key] = row.value ?? "";
-  return result;
-}
+import { getSettings } from "./sms.js";
 
 export const auth = betterAuth({
   baseURL: process.env["BETTER_AUTH_URL"] ?? "http://localhost:5000",
@@ -29,7 +23,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     async sendResetPassword({ user, url }) {
-      const s = await loadSmtpSettings();
+      const s = await getSettings();
       if (!s["smtpHost"] || !s["smtpUser"] || !s["smtpPass"]) return;
       const companyName = s["companyName"] ?? "NetPulse ISP";
       const transporter = nodemailer.createTransport({

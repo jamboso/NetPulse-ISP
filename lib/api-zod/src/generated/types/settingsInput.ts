@@ -30,8 +30,13 @@ export interface SettingsInput {
   smtpHost?: string;
   smtpPort?: string;
   smtpUser?: string;
-  smtpPass?: string;
+  /** @nullable */
+  smtpPass?: string | null;
   smtpFrom?: string;
+  /** @nullable */
+  alertSlackWebhook?: string | null;
+  /** @nullable */
+  alertEmail?: string | null;
   mpesaConsumerKey?: string;
   mpesaConsumerSecret?: string;
   mpesaShortcode?: string;

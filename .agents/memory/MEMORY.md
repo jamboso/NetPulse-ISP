@@ -16,3 +16,4 @@
 - [Better-auth custom impersonation](better-auth-custom-impersonation.md) — "login as" built via a tiny custom plugin instead of the official admin plugin, to avoid schema/role-system collisions
 - [Per-company M-Pesa Daraja config](multi-tenant-mpesa-config.md) — one-row-per-company creds with company-1 legacy fallback; callbacks route via companies.username in the URL path, not req.companyId
 - [OpenVPN protocol alignment](openvpn-protocol-alignment.md) — MikroTik client and deployed server must agree on TCP/UDP before issuing router profiles.
+- [Notification settings encryption](notification-settings-encryption.md) — legacy notification values must encrypt before API traffic is accepted; a failed migration is fail-closed.

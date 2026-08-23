@@ -57,6 +57,15 @@ export interface Settings {
   smtpPass?: string | null;
   /** @nullable */
   smtpFrom?: string | null;
+  /**
+     * Redacted from responses; use alertSlackWebhookConfigured to check whether it is saved.
+     * @nullable
+     */
+  alertSlackWebhook?: string | null;
+  alertSlackWebhookConfigured?: boolean;
+  /** @nullable */
+  alertEmail?: string | null;
+  smtpPassConfigured?: boolean;
   /** @nullable */
   mpesaConsumerKey?: string | null;
   /** @nullable */

@@ -4,11 +4,17 @@
 
 import { db } from "@workspace/db";
 import { settingsTable, smsLogsTable } from "@workspace/db";
+import { decryptNotificationSetting, isNotificationSetting } from "./settingsEncryption.js";
 
 export async function getSettings(): Promise<Record<string, string>> {
   const rows = await db.select().from(settingsTable);
   const out: Record<string, string> = {};
-  for (const row of rows) out[row.key] = row.value ?? "";
+  for (const row of rows) {
+    const value = row.value ?? "";
+    out[row.key] = isNotificationSetting(row.key)
+      ? decryptNotificationSetting(value)
+      : value;
+  }
   return out;
 }
 

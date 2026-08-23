@@ -8,6 +8,8 @@ export const logger = pino({
     "req.headers.authorization",
     "req.headers.cookie",
     "res.headers['set-cookie']",
+    "req.body.alertSlackWebhook",
+    "req.body.smtpPass",
   ],
   ...(isProduction
     ? {}

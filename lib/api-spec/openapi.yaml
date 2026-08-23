@@ -2787,6 +2787,15 @@ components:
           type: ["string", "null"]
         smtpFrom:
           type: ["string", "null"]
+        alertSlackWebhook:
+          type: ["string", "null"]
+          description: Redacted from responses; use alertSlackWebhookConfigured to check whether it is saved.
+        alertSlackWebhookConfigured:
+          type: boolean
+        alertEmail:
+          type: ["string", "null"]
+        smtpPassConfigured:
+          type: boolean
         mpesaConsumerKey:
           type: ["string", "null"]
         mpesaConsumerSecret:
@@ -2854,9 +2863,13 @@ components:
         smtpUser:
           type: string
         smtpPass:
-          type: string
+          type: ["string", "null"]
         smtpFrom:
           type: string
+        alertSlackWebhook:
+          type: ["string", "null"]
+        alertEmail:
+          type: ["string", "null"]
         mpesaConsumerKey:
           type: string
         mpesaConsumerSecret:

@@ -4,10 +4,11 @@ import request from "supertest";
 
 const mockExec = vi.hoisted(() => vi.fn());
 const mockPurge = vi.hoisted(() => vi.fn());
-const mockEq = vi.hoisted(() => vi.fn());
-const mockGte = vi.hoisted(() => vi.fn());
-const mockLte = vi.hoisted(() => vi.fn());
-const mockIlike = vi.hoisted(() => vi.fn());
+const mockWhere = vi.hoisted(() => vi.fn());
+const mockEq = vi.hoisted(() => vi.fn((...args: unknown[]) => ({ operator: "eq", args })));
+const mockGte = vi.hoisted(() => vi.fn((...args: unknown[]) => ({ operator: "gte", args })));
+const mockLte = vi.hoisted(() => vi.fn((...args: unknown[]) => ({ operator: "lte", args })));
+const mockIlike = vi.hoisted(() => vi.fn((...args: unknown[]) => ({ operator: "ilike", args })));
 const mockAnd = vi.hoisted(() => vi.fn((...args: unknown[]) => args));
 const mockDesc = vi.hoisted(() => vi.fn());
 
@@ -32,7 +33,12 @@ vi.mock("@workspace/db", () => {
     "$dynamic",
   ];
   for (const m of chainMethods) {
-    chain[m] = () => chain;
+    chain[m] = m === "where"
+      ? (...args: unknown[]) => {
+        mockWhere(...args);
+        return chain;
+      }
+      : () => chain;
   }
   chain["then"] = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
     mockExec().then(resolve, reject);
@@ -63,6 +69,10 @@ vi.mock("../lib/auditLogPurge.js", () => ({
   purgeAuditLogs: mockPurge,
 }));
 
+vi.mock("../middlewares/companyScope.js", () => ({
+  resolveCompanyScope: (_req: Request, _res: Response, next: NextFunction) => next(),
+}));
+
 const { default: auditLogsRouter } = await import("../routes/audit-logs.js");
 const { auditLogsTable } = await import("@workspace/db");
 
@@ -79,6 +89,11 @@ type MockUser = {
 
 const adminUser: MockUser = {
   id: "u1", email: "admin@test.com", name: "Admin", role: "admin",
+  active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date(),
+};
+
+const ownerUser: MockUser = {
+  id: "owner-1", email: "owner@test.com", name: "Owner", role: "owner",
   active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date(),
 };
 
@@ -316,12 +331,14 @@ describe("GET /audit-logs/export.csv", () => {
     expect(res.headers["content-disposition"]).toMatch(/audit-log/);
   });
 
-  it("accepts entityType filter in CSV export", async () => {
+  it("applies the entityType filter to the CSV export query", async () => {
     mockExec.mockResolvedValueOnce([sampleLog]);
 
     const res = await request(buildApp()).get("/audit-logs/export.csv?entityType=customer");
 
     expect(res.status).toBe(200);
+    expect(mockEq).toHaveBeenCalledWith(auditLogsTable.entityType, "customer");
+    expect(mockWhere).toHaveBeenCalledWith(mockEq.mock.results[0]!.value);
   });
 
   it("CSV header row contains all seven required columns", async () => {
@@ -436,23 +453,49 @@ describe("GET /audit-logs/export.csv", () => {
     expect(dataLine).not.toContain("speed");
   });
 
-  it("builds eq predicate for action filter", async () => {
+  it("applies the action filter to the CSV export query", async () => {
     mockExec.mockResolvedValueOnce([sampleLog]);
 
     await request(buildApp()).get("/audit-logs/export.csv?action=create");
 
     expect(mockEq).toHaveBeenCalledWith(auditLogsTable.action, "create");
+    expect(mockWhere).toHaveBeenCalledWith(mockEq.mock.results[0]!.value);
   });
 
-  it("builds gte/lte predicates for date-range filters", async () => {
+  it("applies the userId filter to the CSV export query", async () => {
     mockExec.mockResolvedValueOnce([sampleLog]);
 
-    await request(buildApp()).get(
-      "/audit-logs/export.csv?from=2025-01-01&to=2025-12-31",
-    );
+    await request(buildApp()).get("/audit-logs/export.csv?userId=u1");
 
-    expect(mockGte).toHaveBeenCalledWith(auditLogsTable.createdAt, expect.any(Date));
-    expect(mockLte).toHaveBeenCalledWith(auditLogsTable.createdAt, expect.any(Date));
+    expect(mockEq).toHaveBeenCalledWith(auditLogsTable.userId, "u1");
+    expect(mockWhere).toHaveBeenCalledWith(mockEq.mock.results[0]!.value);
+  });
+
+  it("applies the userEmail filter to the CSV export query", async () => {
+    mockExec.mockResolvedValueOnce([sampleLog]);
+
+    await request(buildApp()).get("/audit-logs/export.csv?userEmail=admin@test.com");
+
+    expect(mockIlike).toHaveBeenCalledWith(auditLogsTable.userEmail, "%admin@test.com%");
+    expect(mockWhere).toHaveBeenCalledWith(mockIlike.mock.results[0]!.value);
+  });
+
+  it("applies the from date filter to the CSV export query", async () => {
+    mockExec.mockResolvedValueOnce([sampleLog]);
+
+    await request(buildApp()).get("/audit-logs/export.csv?from=2025-01-01");
+
+    expect(mockGte).toHaveBeenCalledWith(auditLogsTable.createdAt, new Date("2025-01-01"));
+    expect(mockWhere).toHaveBeenCalledWith(mockGte.mock.results[0]!.value);
+  });
+
+  it("applies the to date filter to the CSV export query", async () => {
+    mockExec.mockResolvedValueOnce([sampleLog]);
+
+    await request(buildApp()).get("/audit-logs/export.csv?to=2025-12-31");
+
+    expect(mockLte).toHaveBeenCalledWith(auditLogsTable.createdAt, new Date("2025-12-31"));
+    expect(mockWhere).toHaveBeenCalledWith(mockLte.mock.results[0]!.value);
   });
 
   it("builds predicates for combined filters (entityType + action + from/to)", async () => {
@@ -471,12 +514,13 @@ describe("GET /audit-logs/export.csv", () => {
     expect(mockAnd).toHaveBeenCalled();
   });
 
-  it("builds eq predicate for entityId filter in CSV export", async () => {
+  it("applies the entityId filter to the CSV export query", async () => {
     mockExec.mockResolvedValueOnce([sampleLog]);
 
     await request(buildApp()).get("/audit-logs/export.csv?entityId=42");
 
     expect(mockEq).toHaveBeenCalledWith(auditLogsTable.entityId, 42);
+    expect(mockWhere).toHaveBeenCalledWith(mockEq.mock.results[0]!.value);
   });
 
   it("CSV export with entityId returns only rows for that entity", async () => {
@@ -522,18 +566,18 @@ describe("GET /audit-logs/export.csv", () => {
 // ---------------------------------------------------------------------------
 
 describe("GET /audit-logs/purge-history", () => {
-  it("returns purge history (admin)", async () => {
+  it("returns purge history (owner)", async () => {
     const purgeRow = { id: 1, purgedAt: new Date().toISOString(), deletedCount: 100, triggeredBy: "manual" };
     mockExec.mockResolvedValueOnce([purgeRow]);
 
-    const res = await request(buildApp()).get("/audit-logs/purge-history");
+    const res = await request(buildApp(ownerUser)).get("/audit-logs/purge-history");
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("data");
     expect(Array.isArray(res.body.data)).toBe(true);
   });
 
-  it("returns 403 for non-admin role", async () => {
+  it("returns 403 for non-owner role", async () => {
     const res = await request(buildApp(billingUser)).get("/audit-logs/purge-history");
 
     expect(res.status).toBe(403);
@@ -542,7 +586,7 @@ describe("GET /audit-logs/purge-history", () => {
   it("returns empty data array when no history exists", async () => {
     mockExec.mockResolvedValueOnce([]);
 
-    const res = await request(buildApp()).get("/audit-logs/purge-history");
+    const res = await request(buildApp(ownerUser)).get("/audit-logs/purge-history");
 
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
@@ -552,7 +596,7 @@ describe("GET /audit-logs/purge-history", () => {
     const purgeRow = { id: 1, purgedAt: new Date().toISOString(), deletedCount: 50, triggeredBy: "manual" };
     mockExec.mockResolvedValueOnce([purgeRow]);
 
-    const res = await request(buildApp()).get("/audit-logs/purge-history");
+    const res = await request(buildApp(ownerUser)).get("/audit-logs/purge-history");
 
     expect(res.status).toBe(200);
     expect(res.body.data[0].triggeredBy).toBe("manual");
@@ -562,7 +606,7 @@ describe("GET /audit-logs/purge-history", () => {
     const purgeRow = { id: 2, purgedAt: new Date().toISOString(), deletedCount: 10, triggeredBy: "scheduler" };
     mockExec.mockResolvedValueOnce([purgeRow]);
 
-    const res = await request(buildApp()).get("/audit-logs/purge-history");
+    const res = await request(buildApp(ownerUser)).get("/audit-logs/purge-history");
 
     expect(res.status).toBe(200);
     expect(res.body.data[0].triggeredBy).toBe("scheduler");
@@ -573,7 +617,7 @@ describe("GET /audit-logs/purge-history", () => {
     const newer = { id: 2, purgedAt: "2025-06-01T00:00:00.000Z", deletedCount: 15, triggeredBy: "manual" };
     mockExec.mockResolvedValueOnce([newer, older]);
 
-    const res = await request(buildApp()).get("/audit-logs/purge-history");
+    const res = await request(buildApp(ownerUser)).get("/audit-logs/purge-history");
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
@@ -585,7 +629,7 @@ describe("GET /audit-logs/purge-history", () => {
     const purgeRow = { id: 7, purgedAt: new Date().toISOString(), deletedCount: 123, triggeredBy: "manual" };
     mockExec.mockResolvedValueOnce([purgeRow]);
 
-    const res = await request(buildApp()).get("/audit-logs/purge-history");
+    const res = await request(buildApp(ownerUser)).get("/audit-logs/purge-history");
 
     expect(res.status).toBe(200);
     const entry = res.body.data[0];
@@ -603,7 +647,7 @@ describe("GET /audit-logs/purge-history", () => {
     ];
     mockExec.mockResolvedValueOnce(rows);
 
-    const res = await request(buildApp()).get("/audit-logs/purge-history");
+    const res = await request(buildApp(ownerUser)).get("/audit-logs/purge-history");
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(3);
@@ -618,17 +662,17 @@ describe("GET /audit-logs/purge-history", () => {
 // ---------------------------------------------------------------------------
 
 describe("POST /audit-logs/purge", () => {
-  it("runs purge and returns deleted count (admin)", async () => {
+  it("runs purge and returns deleted count (owner)", async () => {
     mockPurge.mockResolvedValueOnce(250);
 
-    const res = await request(buildApp()).post("/audit-logs/purge");
+    const res = await request(buildApp(ownerUser)).post("/audit-logs/purge");
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("deleted", 250);
     expect(mockPurge).toHaveBeenCalledWith("manual");
   });
 
-  it("returns 403 for non-admin role", async () => {
+  it("returns 403 for non-owner role", async () => {
     const res = await request(buildApp(billingUser)).post("/audit-logs/purge");
 
     expect(res.status).toBe(403);
@@ -638,7 +682,7 @@ describe("POST /audit-logs/purge", () => {
   it("returns 0 when no records were purged", async () => {
     mockPurge.mockResolvedValueOnce(0);
 
-    const res = await request(buildApp()).post("/audit-logs/purge");
+    const res = await request(buildApp(ownerUser)).post("/audit-logs/purge");
 
     expect(res.status).toBe(200);
     expect(res.body.deleted).toBe(0);

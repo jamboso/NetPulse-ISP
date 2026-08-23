@@ -388,7 +388,7 @@ ${certificateFetchBlock}
     port=${params.vpnPort} \\
     mode=ip \\
 ${ovpnProtocolLine}    certificate="netpulse-client" \\
-    user="" \\
+    user="netpulse" \\
     password="" \\
     add-default-route=no \\
     disabled=no

@@ -46,10 +46,19 @@ vi.mock("@/hooks/useCurrentUser", () => ({
 let currentSearch = "";
 const urlListeners: Array<(search: string) => void> = [];
 
+function notifyUrlListeners() {
+  urlListeners.forEach((fn) => fn(currentSearch));
+}
+
+function navigateBrowserHistory(search: string) {
+  currentSearch = search;
+  notifyUrlListeners();
+}
+
 const mockSetLocation = vi.fn((path: string) => {
   const qIndex = path.indexOf("?");
   currentSearch = qIndex >= 0 ? path.slice(qIndex + 1) : "";
-  urlListeners.forEach((fn) => fn(currentSearch));
+  notifyUrlListeners();
 });
 
 const mockUseSearch = vi.fn(() => currentSearch);
@@ -146,7 +155,7 @@ beforeEach(() => {
   mockSetLocation.mockImplementation((path: string) => {
     const qIndex = path.indexOf("?");
     currentSearch = qIndex >= 0 ? path.slice(qIndex + 1) : "";
-    urlListeners.forEach((fn) => fn(currentSearch));
+    notifyUrlListeners();
   });
   setupDefaultMocks();
 });
@@ -299,6 +308,70 @@ describe("Audit Logs — Entity ID filter: combined with entity type", () => {
 // ---------------------------------------------------------------------------
 
 describe("Audit Logs — URL filter synchronization", () => {
+  it("updates the URL query string when an entity type is selected", async () => {
+    await renderAuditLogs();
+    const user = userEvent.setup();
+    const [entityTypeSelect] = screen.getAllByRole("combobox");
+
+    await user.click(entityTypeSelect);
+    await user.click(await screen.findByRole("option", { name: "Invoice" }));
+
+    await waitFor(() => {
+      expect(mockSetLocation).toHaveBeenLastCalledWith(
+        "/audit-logs?entityType=invoice",
+        { replace: false },
+      );
+    });
+  });
+
+  it("pre-populates the entity type and action dropdowns from a filter URL", async () => {
+    currentSearch = "entityType=invoice&action=create";
+    mockUseSearch.mockReturnValue(currentSearch);
+
+    await renderAuditLogs();
+
+    const [entityTypeSelect, actionSelect] = screen.getAllByRole("combobox");
+    expect(entityTypeSelect).toHaveTextContent("Invoice");
+    expect(actionSelect).toHaveTextContent("Create");
+  });
+
+  it("includes the user search text in the URL", async () => {
+    await renderAuditLogs();
+    const user = userEvent.setup();
+
+    await user.type(screen.getByPlaceholderText("User email…"), "sam@example.com");
+
+    await waitFor(() => {
+      expect(mockSetLocation).toHaveBeenLastCalledWith(
+        "/audit-logs?user=sam%40example.com",
+        { replace: true },
+      );
+    });
+  });
+
+  it("restores filters when browser back and forward navigation changes the URL", async () => {
+    currentSearch = "entityType=invoice&action=create";
+    mockUseSearch.mockReturnValue(currentSearch);
+
+    await renderAuditLogs();
+
+    await act(async () => {
+      navigateBrowserHistory("entityType=customer&action=delete");
+    });
+
+    let [entityTypeSelect, actionSelect] = screen.getAllByRole("combobox");
+    expect(entityTypeSelect).toHaveTextContent("Customer");
+    expect(actionSelect).toHaveTextContent("Delete");
+
+    await act(async () => {
+      navigateBrowserHistory("entityType=invoice&action=create");
+    });
+
+    [entityTypeSelect, actionSelect] = screen.getAllByRole("combobox");
+    expect(entityTypeSelect).toHaveTextContent("Invoice");
+    expect(actionSelect).toHaveTextContent("Create");
+  });
+
   it("initializes entity type, entity ID, and action filters from the URL", async () => {
     currentSearch = "entityType=customer&entityId=42&action=update";
     mockUseSearch.mockReturnValue(currentSearch);

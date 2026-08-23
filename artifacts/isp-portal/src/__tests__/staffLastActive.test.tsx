@@ -183,6 +183,19 @@ describe("Staff page — Last Active column: no sessions", () => {
 
     expect(await screen.findByRole("tooltip")).toHaveTextContent("No sessions have been recorded.");
   });
+
+  it("shows a 'Never logged in' badge alongside the last active text", async () => {
+    mockUseListUsers.mockReturnValue({
+      data: { data: [makeUser({ lastActiveAt: null })] },
+      isLoading: false,
+    });
+
+    await renderStaffPage();
+
+    expect(screen.getByText("Never logged in")).toBeInTheDocument();
+    expect(screen.getByText("Never")).toBeInTheDocument();
+    expect(screen.getByText("Never").closest("tr")).toHaveClass("bg-red-50/50");
+  });
 });
 
 describe("Staff page — Last Active column: old session", () => {
@@ -210,6 +223,33 @@ describe("Staff page — Last Active column: old session", () => {
     const el = screen.getByText("1mo ago");
     expect(el).toHaveClass("text-gray-400");
     expect(el).not.toHaveClass("text-gray-700");
+  });
+
+  it("shows a muted warning indicator for an account inactive for more than 30 days", async () => {
+    const thirtyOneDaysAgo = new Date(Date.now() - 31 * 86_400_000).toISOString();
+    mockUseListUsers.mockReturnValue({
+      data: { data: [makeUser({ lastActiveAt: thirtyOneDaysAgo })] },
+      isLoading: false,
+    });
+
+    await renderStaffPage();
+
+    const indicator = screen.getByText("Inactive 31d");
+    expect(indicator).toHaveClass("bg-amber-100", "text-amber-700");
+    expect(indicator.closest("tr")).toHaveClass("bg-amber-50/50");
+  });
+
+  it("does not flag accounts active within the 30-day inactivity window", async () => {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    mockUseListUsers.mockReturnValue({
+      data: { data: [makeUser({ lastActiveAt: thirtyDaysAgo })] },
+      isLoading: false,
+    });
+
+    await renderStaffPage();
+
+    expect(screen.queryByText(/Inactive \d+d/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Never logged in")).not.toBeInTheDocument();
   });
 });
 

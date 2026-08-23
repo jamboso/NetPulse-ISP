@@ -468,7 +468,18 @@ export default function StaffPage() {
                 </TableRow>
               )}
               {!isLoading && users.map((user) => (
-                <TableRow key={user.id} className={selected.has(user.id) ? "bg-blue-50/40" : ""}>
+                <TableRow
+                  key={user.id}
+                  className={
+                    selected.has(user.id)
+                      ? "bg-blue-50/40"
+                      : !user.lastActiveAt
+                        ? "bg-red-50/50 hover:bg-red-50/70"
+                        : isInactive(user.lastActiveAt)
+                          ? "bg-amber-50/50 hover:bg-amber-50/70"
+                          : ""
+                  }
+                >
                   <TableCell>
                     <Checkbox
                       checked={selected.has(user.id)}

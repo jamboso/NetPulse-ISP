@@ -1,0 +1,82 @@
+6-08-23 17:21:17: {"level":40,"time":1787494877656,"pid":12895,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"Stored notification setting has an invalid encrypted format","stack":"Error: Stored notification setting has an invalid encrypted format\n    at decryptNotificationSetting (/opt/netpulse/artifacts/api-server/src/lib/settingsEncryption.ts:71:11)\n    at getSettings (/opt/netpulse/artifacts/api-server/src/lib/sms.ts:15:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async runStaffInactivityDigest (/opt/netpulse/artifacts/api-server/src/lib/staffInactivityDigest.ts:164:20)"},"msg":"Staff inactivity digest: initial check failed"}
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo -H bash -lc '
+set -euo pipefail
+cd /opt/netpulse
+
+set -a
+. ./.env
+set +a
+
+STAMP=$(date +%Y%m%d-%H%M%S)
+BACKUP_DIR=/root/netpulse-release-backups/$STAMP
+mkdir -p "$BACKUP_DIR"
+
+echo "=== Back up current settings table locally ==="
+pg_dump --dbname="$DATABASE_URL" \
+  --data-only \
+  --table=settings \
+  --file="$BACKUP_DIR/settings-before-alert-reset.sql"
+
+echo "=== Disable only the two corrupted alert destinations ==="
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -P pager=off <<'"'"'SQL'"'"'
+BEGIN;
+
+UPDATE settings
+SET value = NULL,
+    updated_at = NOW()
+WHERE key IN ('"'"'alertEmail'"'"', '"'"'alertSlackWebhook'"'"')
+RETURNING key;
+
+COMMIT;
+SQL
+
+echo "=== Restart NetPulse ==="
+pm2 restart netpulse --update-env
+pm2 save
+sleep 10
+
+PID=$(pm2 pid netpulse | tail -n 1)
+
+echo
+echo "=== Current process ==="
+pm2 ls
+
+echo
+echo "=== New-process scheduler errors, if any ==="
+'cho "Settings backup: $BACKUP_DIR/settings-before-alert-reset.sql".*failed|inactivity.*failed" \
+=== Back up current settings table locally ===
+=== Disable only the two corrupted alert destinations ===
+BEGIN
+        key
+-------------------
+ alertSlackWebhook
+ alertEmail
+(2 rows)
+
+UPDATE 2
+COMMIT
+=== Restart NetPulse ===
+[PM2] Applying action restartProcessId on app [netpulse](ids: [ 0 ])
+[PM2] [netpulse](0) ✓
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 12965    │ 0s     │ 22   │ online    │ 0%       │ 14.7mb   │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[PM2] Saving current process list...
+[PM2] Successfully saved in /root/.pm2/dump.pm2
+
+=== Current process ===
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 12965    │ 10s    │ 22   │ online    │ 0%       │ 265.2mb  │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+
+=== New-process scheduler errors, if any ===
+2026-08-23 17:22:59: {"level":40,"time":1787494979490,"pid":12965,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"_DrizzleQueryError","message":"Failed query: insert into \"staff_inactivity_digest_log\" (\"id\", \"company_id\", \"digest_date\", \"recipient_email\", \"affected_count\", \"status\", \"processing_started_at\", \"sent_at\", \"error\") values (default, $1, $2, $3, $4, $5, $6, $7, $8) on conflict (\"company_id\",\"digest_date\") do update set \"recipient_email\" = $9, \"affected_count\" = $10, \"status\" = $11, \"processing_started_at\" = $12, \"sent_at\" = $13, \"error\" = $14 where (\"staff_inactivity_digest_log\".\"status\" = $15 or (\"staff_inactivity_digest_log\".\"status\" = $16 and \"staff_inactivity_digest_log\".\"processing_started_at\" < $17)) returning \"id\"\nparams: 1,2026-08-23,nondi.moice@gmail.com,1,pending,2026-08-23T14:22:59.452Z,,,nondi.moice@gmail.com,1,pending,2026-08-23T14:22:59.452Z,,,failed,pending,2026-08-23T13:22:59.452Z: relation \"staff_inactivity_digest_log\" does not exist","stack":"Error: Failed query: insert into \"staff_inactivity_digest_log\" (\"id\", \"company_id\", \"digest_date\", \"recipient_email\", \"affected_count\", \"status\", \"processing_started_at\", \"sent_at\", \"error\") values (default, $1, $2, $3, $4, $5, $6, $7, $8) on conflict (\"company_id\",\"digest_date\") do update set \"recipient_email\" = $9, \"affected_count\" = $10, \"status\" = $11, \"processing_started_at\" = $12, \"sent_at\" = $13, \"error\" = $14 where (\"staff_inactivity_digest_log\".\"status\" = $15 or (\"staff_inactivity_digest_log\".\"status\" = $16 and \"staff_inactivity_digest_log\".\"processing_started_at\" < $17)) returning \"id\"\nparams: 1,2026-08-23,nondi.moice@gmail.com,1,pending,2026-08-23T14:22:59.452Z,,,nondi.moice@gmail.com,1,pending,2026-08-23T14:22:59.452Z,,,failed,pending,2026-08-23T13:22:59.452Z\n    at NodePgPreparedQuery.queryWithCache (/opt/netpulse/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.20.0/node_modules/src/pg-core/session.ts:73:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async <anonymous> (/opt/netpulse/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.20.0/node_modules/src/node-postgres/session.ts:154:19)\n    at async claimDigest (/opt/netpulse/artifacts/api-server/src/lib/staffInactivityDigest.ts:105:21)\n    at async runStaffInactivityDigest (/opt/netpulse/artifacts/api-server/src/lib/staffInactivityDigest.ts:195:21)\ncaused by: error: relation \"staff_inactivity_digest_log\" does not exist\n    at <anonymous> (/opt/netpulse/node_modules/.pnpm/pg-pool@3.13.0_pg@8.20.0/node_modules/pg-pool/index.js:45:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async <anonymous> (/opt/netpulse/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.20.0/node_modules/src/node-postgres/session.ts:161:13)\n    at async NodePgPreparedQuery.queryWithCache (/opt/netpulse/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.20.0/node_modules/src/pg-core/session.ts:71:12)\n    at async <anonymous> (/opt/netpulse/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.20.0/node_modules/src/node-postgres/session.ts:154:19)\n    at async claimDigest (/opt/netpulse/artifacts/api-server/src/lib/staffInactivityDigest.ts:105:21)\n    at async runStaffInactivityDigest (/opt/netpulse/artifacts/api-server/src/lib/staffInactivityDigest.ts:195:21)","query":"insert into \"staff_inactivity_digest_log\" (\"id\", \"company_id\", \"digest_date\", \"recipient_email\", \"affected_count\", \"status\", \"processing_started_at\", \"sent_at\", \"error\") values (default, $1, $2, $3, $4, $5, $6, $7, $8) on conflict (\"company_id\",\"digest_date\") do update set \"recipient_email\" = $9, \"affected_count\" = $10, \"status\" = $11, \"processing_started_at\" = $12, \"sent_at\" = $13, \"error\" = $14 where (\"staff_inactivity_digest_log\".\"status\" = $15 or (\"staff_inactivity_digest_log\".\"status\" = $16 and \"staff_inactivity_digest_log\".\"processing_started_at\" < $17)) returning \"id\"","params":[1,"2026-08-23","nondi.moice@gmail.com",1,"pending","2026-08-23T14:22:59.452Z",null,null,"nondi.moice@gmail.com",1,"pending","2026-08-23T14:22:59.452Z",null,null,"failed","pending","2026-08-23T13:22:59.452Z"]},"msg":"Staff inactivity digest: initial check failed"}
+
+Settings backup: /root/netpulse-release-backups/20260823-172258/settings-before-alert-reset.sql
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

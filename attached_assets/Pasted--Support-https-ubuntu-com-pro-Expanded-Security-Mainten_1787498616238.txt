@@ -1,0 +1,107 @@
+ * Support:        https://ubuntu.com/pro
+
+Expanded Security Maintenance for Applications is not enabled.
+
+88 updates can be applied immediately.
+To see these additional updates run: apt list --upgradable
+
+7 additional security updates can be applied with ESM Apps.
+Learn more about enabling ESM Apps service at https://ubuntu.com/esm
+
+Last login: Sun Aug 23 18:17:59 2026 from 10.16.15.189
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo -H -i
+cd /opt/netpulse
+set -euo pipefail
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "STOP: tracked local changes exist:"
+  git status --short
+  exit 1
+fi
+REMOTE=github
+if ! git remote get-url "$REMOTE" >/dev/null 2>&1; then
+  REMOTE=origin
+fi
+git fetch --prune "$REMOTE" main
+echo "Commits about to be installed:"
+git log --oneline HEAD.."$REMOTE/main"
+git merge --ff-only "$REMOTE/main"
+echo
+git log -1 --oneline
+git status --short
+[sudo] password for amboso:
+root@amboso-HP-EliteDesk-800-G2-DM-65W:~# cd /opt/netpulse
+set -euo pipefail
+
+CI=true NETPULSE_INSTALL=1 pnpm install --frozen-lockfile
+
+pnpm run typecheck:libs
+pnpm --filter @workspace/api-server run build
+
+PORT=3000 BASE_PATH=/ NODE_ENV=production \
+  pnpm --filter @workspace/isp-portal run build
+
+bash deploy/migrate.sh
+
+echo "Build and recorded migrations completed successfully."
+Scope: all 11 workspace projects
+Lockfile is up to date, resolution step is skipped
+Already up to date
+
+. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; [ "$NETPULSE_INSTALL" =                                                                              "1" ] && exit 0; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm i                                                                             nstead" >&2; exit 1 ;; esac'
+. preinstall: Done
+Done in 1.8s using pnpm v10.26.1
+
+> workspace@0.0.0 typecheck:libs /opt/netpulse
+> tsc --build
+
+
+> @workspace/api-server@0.0.0 build /opt/netpulse/artifacts/api-server
+> node ./build.mjs
+
+
+  dist/index.mjs                       6.2mb ⚠️
+  dist/pino-worker.mjs               153.4kb
+  dist/pino-file.mjs                 142.0kb
+  dist/pino-pretty.mjs               114.6kb
+  dist/thread-stream-worker.mjs        7.3kb
+  dist/index.mjs.map                  11.7mb
+  dist/pino-worker.mjs.map           256.9kb
+  dist/pino-file.mjs.map             229.0kb
+  dist/pino-pretty.mjs.map           204.0kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+
+⚡ Done in 480ms
+
+> @workspace/isp-portal@0.0.0 build /opt/netpulse/artifacts/isp-portal
+> vite build --config vite.config.ts
+
+vite v7.3.3 building client environment for production...
+src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an                                                                              error: Can't resolve original location of error.
+src/components/ui/label.tsx (2:0): Error when using sourcemap for reporting an e                                                                             rror: Can't resolve original location of error.
+src/components/ui/select.tsx (2:0): Error when using sourcemap for reporting an                                                                              error: Can't resolve original location of error.
+src/components/ui/progress.tsx (2:0): Error when using sourcemap for reporting a                                                                             n error: Can't resolve original location of error.
+src/components/ui/dropdown-menu.tsx (2:0): Error when using sourcemap for report                                                                             ing an error: Can't resolve original location of error.
+✓ 2894 modules transformed.
+dist/public/index.html                     1.63 kB │ gzip:   0.66 kB
+dist/public/assets/index-BOv3QoNi.css    158.96 kB │ gzip:  29.43 kB
+dist/public/assets/index-D1tzaWOo.js   1,710.69 kB │ gzip: 454.27 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 6.42s
+CREATE TABLE
+  → Applying 001_staff_inactivity_digest_log.sql
+BEGIN
+psql:/opt/netpulse/deploy/migrations/001_staff_inactivity_digest_log.sql:11: NOTICE:  relation "staff_inactivity_digest_log" already exists, skipping
+CREATE TABLE
+psql:/opt/netpulse/deploy/migrations/001_staff_inactivity_digest_log.sql:14: NOTICE:  relation "staff_inactivity_digest_company_date_idx" already exists, skipping
+CREATE INDEX
+INSERT 0 1
+COMMIT
+  ✓ 001_staff_inactivity_digest_log.sql applied
+Build and recorded migrations completed successfully.
+root@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse#

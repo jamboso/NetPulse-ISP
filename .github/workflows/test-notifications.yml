@@ -10,6 +10,9 @@ name: Test Notifications
 #   1. Go to Actions → "Test Notifications" → "Run workflow"
 #   2. Check the Slack channel and inbox for the test alert
 #   3. If both arrive, the integration is confirmed working
+#
+# For responding to a real CI or deployment alert, see:
+# docs/runbook-ci-alerts.md
 
 on:
   workflow_dispatch:

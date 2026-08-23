@@ -82,7 +82,8 @@ ok "PKI files copied"
 if [[ ! -f "${OVPN_DIR}/server.conf" ]]; then
   cat > "${OVPN_DIR}/server.conf" <<OVPN_CONF
 port 1194
-proto udp
+# RouterOS v6 OpenVPN clients support TCP only.
+proto tcp-server
 dev tun
 
 ca   /etc/openvpn/ca.crt
@@ -104,10 +105,11 @@ push "dhcp-option DNS 8.8.8.8"
 push "dhcp-option DNS 8.8.4.4"
 
 keepalive 10 120
-cipher AES-256-GCM
-auth SHA256
-compress lz4-v2
-push "compress lz4-v2"
+# RouterOS 6.49 supports only CBC ciphers and SHA1 for OpenVPN.
+cipher AES-128-CBC
+data-ciphers AES-128-CBC
+data-ciphers-fallback AES-128-CBC
+auth SHA1
 max-clients 500
 
 user  nobody
@@ -142,7 +144,7 @@ ok "IP forwarding enabled"
 # ── 7. Start OpenVPN ──────────────────────────────────────────────────────────
 systemctl enable openvpn@server --quiet
 if systemctl restart openvpn@server 2>/tmp/ovpn_start.err; then
-  ok "OpenVPN server running on UDP 1194"
+  ok "OpenVPN server running on TCP 1194"
 else
   warn "OpenVPN failed to start — check: journalctl -u openvpn@server"
   head -10 /tmp/ovpn_start.err >&2 || true
@@ -174,16 +176,17 @@ KEY=$(cat "${EASYRSA_DIR}/pki/private/${CN}.key")
 cat <<OVPN
 client
 dev tun
-proto udp
+proto tcp-client
 remote ${SERVER_IP} 1194
 resolv-retry infinite
 nobind
 persist-key
 persist-tun
 remote-cert-tls server
-cipher AES-256-GCM
-auth SHA256
-compress lz4-v2
+cipher AES-128-CBC
+data-ciphers AES-128-CBC
+data-ciphers-fallback AES-128-CBC
+auth SHA1
 verb 3
 <ca>
 ${CA}

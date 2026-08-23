@@ -8,7 +8,7 @@ import {
 describe("loadInstalledOpenVpnCertificates", () => {
   it("accepts a complete OpenVPN certificate bundle with matching keys", async () => {
     const certs = await generateVpnServerCerts();
-    const files = new Map([
+    const files = new Map<string, string>([
       [INSTALLED_OPENVPN_CERTIFICATE_PATHS.caCert, certs.ca.cert],
       [INSTALLED_OPENVPN_CERTIFICATE_PATHS.caKey, certs.ca.key],
       [INSTALLED_OPENVPN_CERTIFICATE_PATHS.serverCert, certs.server.cert],
@@ -24,7 +24,7 @@ describe("loadInstalledOpenVpnCertificates", () => {
   it("rejects a server certificate issued by a different certificate authority", async () => {
     const trusted = await generateVpnServerCerts();
     const other = await generateVpnServerCerts();
-    const files = new Map([
+    const files = new Map<string, string>([
       [INSTALLED_OPENVPN_CERTIFICATE_PATHS.caCert, trusted.ca.cert],
       [INSTALLED_OPENVPN_CERTIFICATE_PATHS.caKey, trusted.ca.key],
       [INSTALLED_OPENVPN_CERTIFICATE_PATHS.serverCert, other.server.cert],

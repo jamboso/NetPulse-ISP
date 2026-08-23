@@ -179,12 +179,12 @@ push "dhcp-option DNS ${opts.dns}"
 client-to-client
 keepalive 10 120
 
-cipher AES-256-GCM
-auth SHA256
+# RouterOS 6.49 supports only CBC ciphers and SHA1 for OpenVPN.
+cipher AES-128-CBC
+data-ciphers AES-128-CBC
+data-ciphers-fallback AES-128-CBC
+auth SHA1
 tls-version-min 1.2
-
-compress lz4-v2
-push "compress lz4-v2"
 
 persist-key
 persist-tun
@@ -396,6 +396,8 @@ ${certificateFetchBlock}
 ${ovpnProtocolLine}    certificate="netpulse-client" \\
     user="netpulse" \\
     password="" \\
+    cipher=aes128 \\
+    auth=sha1 \\
     add-default-route=no \\
     disabled=no
 

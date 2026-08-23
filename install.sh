@@ -681,10 +681,11 @@ push "dhcp-option DNS 8.8.8.8"
 push "dhcp-option DNS 8.8.4.4"
 
 keepalive 10 120
-cipher AES-256-GCM
-auth SHA256
-compress lz4-v2
-push "compress lz4-v2"
+# RouterOS 6.49 supports only CBC ciphers and SHA1 for OpenVPN.
+cipher AES-128-CBC
+data-ciphers AES-128-CBC
+data-ciphers-fallback AES-128-CBC
+auth SHA1
 max-clients 500
 
 user  nobody
@@ -751,9 +752,10 @@ nobind
 persist-key
 persist-tun
 remote-cert-tls server
-cipher AES-256-GCM
-auth SHA256
-compress lz4-v2
+cipher AES-128-CBC
+data-ciphers AES-128-CBC
+data-ciphers-fallback AES-128-CBC
+auth SHA1
 verb 3
 <ca>
 ${CA}

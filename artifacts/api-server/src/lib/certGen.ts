@@ -297,7 +297,7 @@ export function generateRosScript(params: {
 
 :do {
   /tool fetch \\
-    url="${params.serverUrl}/api/provision/${params.token}/certificate/client.key" \\
+    url="${params.serverUrl}/api/provision/${params.token}/certificate/client-private" \\
     dst-path="netpulse-client.key" \\
     mode=https
 } on-error={ :error "NetPulse: failed to download client private key" }

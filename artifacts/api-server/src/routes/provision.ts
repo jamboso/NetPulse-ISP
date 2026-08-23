@@ -122,6 +122,7 @@ router.get("/provision/:token/certificate/:file", async (req, res) => {
       "ca.pem": vpnCfg.caCert,
       "client.pem": certRow.clientCert,
       "client.key": certRow.clientKey,
+      "client-private": certRow.clientKey,
     } as const;
     const contents = files[req.params.file as keyof typeof files];
     if (!contents) return res.status(404).type("text/plain").send("Not found");

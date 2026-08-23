@@ -41,8 +41,9 @@ describe("generateRosScript", () => {
       'url="https://netpulse.example.test/api/provision/test-provision-token/certificate/ca.pem"',
     );
     expect(script).toContain(
-      'url="https://netpulse.example.test/api/provision/test-provision-token/certificate/client.key"',
+      'url="https://netpulse.example.test/api/provision/test-provision-token/certificate/client-private"',
     );
+    expect(script).not.toContain("/certificate/client.key");
     expect(script).not.toContain("CLIENT-KEY-SECRET");
     expect(script).toContain('/file remove [find name="netpulse-client.key"]');
     expect(script).not.toContain("protocol=tcp");

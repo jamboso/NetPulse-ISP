@@ -47,6 +47,10 @@ describe("generateRosScript", () => {
     expect(script).toContain('/file remove [find name="netpulse-client.key"]');
     expect(script).not.toContain("protocol=tcp");
     expect(script).toContain('mode=ip \\\n    certificate="netpulse-client"');
+    expect(script).toContain(
+      'one-session-per-host=yes \\\n  disabled=no \\\n  authentication=mschap2,mschap1,chap,pap',
+    );
+    expect(script).not.toContain("enabled=yes");
   });
 
   it("only emits the protocol property for UDP clients", () => {

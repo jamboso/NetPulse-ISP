@@ -442,7 +442,7 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
   interface=NETPULSE \\
   default-profile=netpulse-profile \\
   one-session-per-host=yes \\
-  enabled=yes \\
+  disabled=no \\
   authentication=mschap2,mschap1,chap,pap \\
   comment="netpulse-pppoe"
 

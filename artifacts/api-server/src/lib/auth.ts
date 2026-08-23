@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db, usersTable, sessionsTable, accountsTable, verificationsTable } from "@workspace/db";
 import nodemailer from "nodemailer";
@@ -7,6 +7,18 @@ import { syncStaffUserRadius } from "./radiusSync";
 import { logger } from "./logger";
 import { impersonatePlugin } from "./impersonatePlugin";
 import { getSettings } from "./sms.js";
+import {
+  getPasswordChangeMaxAttempts,
+  isInvalidPasswordError,
+  isPasswordChangeLocked,
+  isSuccessfulPasswordChange,
+  recordInvalidPasswordAttempt,
+  resetPasswordChangeAttempts,
+  TOO_MANY_PASSWORD_ATTEMPTS_MESSAGE,
+} from "./passwordChangeLockout";
+
+type AuthSession = { user: { id: string } };
+let getSessionForPasswordChange: ((headers: Headers) => Promise<AuthSession | null>) | undefined;
 
 export const auth = betterAuth({
   baseURL: process.env["BETTER_AUTH_URL"] ?? "http://localhost:5000",
@@ -81,6 +93,19 @@ export const auth = betterAuth({
   },
   plugins: [impersonatePlugin()],
   hooks: {
+    // The change-password endpoint requires a valid session. Check that
+    // session's durable lock state before Better Auth reads or verifies the
+    // submitted current password.
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/change-password") return;
+
+      const session = await getSessionForPasswordChange?.(ctx.headers ?? new Headers());
+      if (session && await isPasswordChangeLocked(session.user.id)) {
+        throw APIError.fromStatus("TOO_MANY_REQUESTS", {
+          message: TOO_MANY_PASSWORD_ATTEMPTS_MESSAGE,
+        });
+      }
+    }),
     // Mirror plaintext staff/admin passwords into FreeRADIUS's radcheck table
     // whenever they pass through the app, so RouterOS RADIUS admin-login
     // (Winbox/SSH/web/API — see routes/radius.ts) works with the same
@@ -89,22 +114,64 @@ export const auth = betterAuth({
     // sign up/change password again must use the self-service sync endpoint
     // (POST /api/radius/staff-login/sync) instead.
     after: createAuthMiddleware(async (ctx) => {
-      try {
-        if (ctx.path === "/sign-up/email") {
-          const email = (ctx.body as { email?: string } | undefined)?.email;
-          const password = (ctx.body as { password?: string } | undefined)?.password;
-          if (email && password) await syncStaffUserRadius(email, password);
-        } else if (ctx.path === "/change-password") {
-          const email = ctx.context.session?.user?.email;
-          const newPassword = (ctx.body as { newPassword?: string } | undefined)?.newPassword;
-          if (email && newPassword) await syncStaffUserRadius(email, newPassword);
+      if (ctx.path !== "/change-password") {
+        try {
+          if (ctx.path === "/sign-up/email") {
+            const email = (ctx.body as { email?: string } | undefined)?.email;
+            const password = (ctx.body as { password?: string } | undefined)?.password;
+            if (email && password) await syncStaffUserRadius(email, password);
+          }
+        } catch (err) {
+          logger.error({ err, path: ctx.path }, "auth hook: failed to sync staff RADIUS login");
         }
+        return undefined;
+      }
+
+      const session = ctx.context.session;
+      const userId = session?.user.id;
+      if (!userId || !session) return undefined;
+
+      if (isInvalidPasswordError(ctx.context.returned)) {
+        const attempts = await recordInvalidPasswordAttempt(
+          userId,
+          getPasswordChangeMaxAttempts(),
+        );
+        if (attempts !== null && attempts >= getPasswordChangeMaxAttempts()) {
+          // Better Auth retains the endpoint's original 400 status when an
+          // after hook replaces an APIError. Return a concrete Response so
+          // the threshold attempt itself is an HTTP 429 as well.
+          return {
+            response: Response.json(
+              {
+                code: "TOO_MANY_PASSWORD_ATTEMPTS",
+                message: TOO_MANY_PASSWORD_ATTEMPTS_MESSAGE,
+              },
+              { status: 429 },
+            ),
+          };
+        }
+        return undefined;
+      }
+
+      // Only a completed password change clears the counter and updates the
+      // router's credential. Failed requests must never update either.
+      if (!isSuccessfulPasswordChange(ctx.context.returned)) return undefined;
+
+      await resetPasswordChangeAttempts(userId);
+      try {
+        const email = session.user.email;
+        const newPassword = (ctx.body as { newPassword?: string } | undefined)?.newPassword;
+        if (email && newPassword) await syncStaffUserRadius(email, newPassword);
       } catch (err) {
         logger.error({ err, path: ctx.path }, "auth hook: failed to sync staff RADIUS login");
       }
+      return undefined;
     }),
   },
 });
+
+getSessionForPasswordChange = async (headers) =>
+  (await auth.api.getSession({ headers })) as AuthSession | null;
 
 export type Session = typeof auth.$Infer.Session;
 export type User    = typeof auth.$Infer.Session.user;

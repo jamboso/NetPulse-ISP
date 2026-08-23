@@ -12,6 +12,11 @@ export const usersTable = pgTable("users", {
   role:          text("role").notNull().default("admin"),
   active:        boolean("active").notNull().default(true),
   phone:         text("phone"),
+  // Tracks consecutive failed current-password checks on the self-service
+  // change-password endpoint. A timestamp makes the lock durable across
+  // application restarts and visible to support staff in the database.
+  passwordChangeFailedAttempts: integer("password_change_failed_attempts").notNull().default(0),
+  passwordChangeLockedAt:       timestamp("password_change_locked_at"),
   // Null for the platform owner (role "owner"); every other staff account
   // belongs to exactly one company and is scoped to that company's data.
   companyId:     integer("company_id"),

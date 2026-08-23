@@ -1,0 +1,76 @@
+me      │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+└────┴───────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[sudo] password for amboso:
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 10873    │ 3h     │ 19   │ online    │ 0%       │ 248.0mb  │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+  kmod-static-nodes.service                             loaded active     exited        Create List of Static Device Nodes
+  pm2-root.service                                      loaded active     running       PM2 process manager
+  systemd-tmpfiles-setup-dev-early.service              loaded active     exited        Create Static Device Nodes in /dev gracefully
+  systemd-tmpfiles-setup-dev.service                    loaded active     exited        Create Static Device Nodes in /dev
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo readlink -f /proc/10873/cwd
+sudo tr '\0' ' ' < /proc/10873/cmdline; echo
+sudo pm2 show netpulse | sed -n '1,90p'
+/opt/netpulse
+node /opt/netpulse/artifacts/api-server/dist/index.mjs
+ Describing process with id 0 - name netpulse
+┌───────────────────┬───────────────────────────────────────────────────┐
+│ status            │ online                                            │
+│ name              │ netpulse                                          │
+│ namespace         │ default                                           │
+│ version           │ 0.0.0                                             │
+│ restarts          │ 19                                                │
+│ uptime            │ 3h                                                │
+│ script path       │ /opt/netpulse/artifacts/api-server/dist/index.mjs │
+│ script args       │ N/A                                               │
+│ error log path    │ /var/log/netpulse/error-0.log                     │
+│ out log path      │ /var/log/netpulse/out-0.log                       │
+│ pid path          │ /root/.pm2/pids/netpulse-0.pid                    │
+│ interpreter       │ /usr/bin/node                                     │
+│ interpreter args  │ --enable-source-maps                              │
+│ script id         │ 0                                                 │
+│ exec cwd          │ /opt/netpulse                                     │
+│ exec mode         │ fork_mode                                         │
+│ node.js version   │ 24.15.0                                           │
+│ node env          │ production                                        │
+│ watch & reload    │ ✘                                                 │
+│ unstable restarts │ 0                                                 │
+│ created at        │ 2026-08-23T10:53:42.334Z                          │
+└───────────────────┴───────────────────────────────────────────────────┘
+ Actions available
+┌────────────────────────┐
+│ km:heapdump            │
+│ km:cpu:profiling:start │
+│ km:cpu:profiling:stop  │
+│ km:heap:sampling:start │
+│ km:heap:sampling:stop  │
+└────────────────────────┘
+ Trigger via: pm2 trigger netpulse <action_name>
+
+ Code metrics value
+┌────────────────────────┬──────────────┐
+│ Heap Size              │ 122.27 MiB   │
+│ Heap Usage             │ 93.5 %       │
+│ Used Heap Size         │ 114.31 MiB   │
+│ Active requests        │ 0            │
+│ Active handles         │ 4            │
+│ Event Loop Latency     │ 0.64 ms      │
+│ Event Loop Latency p95 │ 1.52 ms      │
+│ HTTP Mean Latency      │ 317.5 ms     │
+│ HTTP P95 Latency       │ 2362 ms      │
+│ HTTP                   │ 0.02 req/min │
+└────────────────────────┴──────────────┘
+ Divergent env variables from local env
+┌──────────────┬────────────────────────────────────────────┐
+│ SUDO_COMMAND │ /usr/bin/pm2 restart netpulse --update-env │
+└──────────────┴────────────────────────────────────────────┘
+
+ Add your own code metrics: http://bit.ly/code-metrics
+ Use `pm2 logs netpulse [--lines 1000]` to display logs
+ Use `pm2 env 0` to display environment variables
+ Use `pm2 monit` to monitor CPU and Memory usage netpulse
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

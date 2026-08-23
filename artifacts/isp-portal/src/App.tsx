@@ -16,6 +16,7 @@ import Plans from "./pages/plans";
 import Subscriptions from "./pages/subscriptions";
 import Invoices from "./pages/invoices";
 import Payments from "./pages/payments";
+import PaymentDetail from "./pages/payment-detail";
 import Tickets from "./pages/tickets";
 import TicketDetail from "./pages/ticket-detail";
 import Network from "./pages/network";
@@ -126,6 +127,7 @@ function ProtectedRoutes() {
             <Route path="/subscriptions">{() => <RoleRoute component={Subscriptions} roles={["admin", "billing"]} />}</Route>
             <Route path="/invoices">{() => <RoleRoute component={Invoices} roles={["admin", "billing"]} />}</Route>
             <Route path="/payments">{() => <RoleRoute component={Payments} roles={["admin", "billing"]} />}</Route>
+            <Route path="/payments/:id">{() => <RoleRoute component={PaymentDetail} roles={["admin", "billing"]} />}</Route>
             <Route path="/mpesa">{() => <RoleRoute component={MpesaTransactions} roles={["admin", "billing"]} />}</Route>
             <Route path="/tickets">{() => <RoleRoute component={Tickets} roles={["admin", "support"]} />}</Route>
             <Route path="/tickets/:id">{() => <RoleRoute component={TicketDetail} roles={["admin", "support"]} />}</Route>

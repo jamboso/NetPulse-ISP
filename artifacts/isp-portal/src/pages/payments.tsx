@@ -207,7 +207,11 @@ export default function Payments() {
               )) : Array.isArray(payments) && payments.length > 0 ? (
                 payments.map((payment: any) => (
                   <TableRow key={payment.id} className="hover:bg-gray-50/50">
-                    <TableCell className="font-mono text-sm text-gray-500">{payment.reference || `TXN-${String(payment.id).padStart(6, "0")}`}</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      <Link href={`/payments/${payment.id}`} className="text-blue-600 hover:underline">
+                        {payment.reference || `TXN-${String(payment.id).padStart(6, "0")}`}
+                      </Link>
+                    </TableCell>
                     <TableCell className="font-medium text-gray-900">
                       {payment.customer ? <Link href={`/customers/${payment.customerId}`} className="hover:text-blue-600 hover:underline">{payment.customer.name}</Link> : `Customer #${payment.customerId}`}
                     </TableCell>

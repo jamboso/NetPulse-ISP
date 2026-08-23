@@ -4,6 +4,10 @@ import request from "supertest";
 
 const mockExec = vi.hoisted(() => vi.fn());
 const mockSyncAll = vi.hoisted(() => vi.fn());
+const mockGetRouter = vi.hoisted(() => vi.fn());
+const mockGetRadiusConfig = vi.hoisted(() => vi.fn());
+const mockUpsertRos = vi.hoisted(() => vi.fn());
+const mockRosReq = vi.hoisted(() => vi.fn());
 
 vi.mock("@workspace/db", () => {
   const chain: Record<string, unknown> = {};
@@ -47,6 +51,7 @@ vi.mock("@workspace/db", () => {
       calledstationid: {},
       acctterminatecause: {},
     },
+    customersTable: { id: {}, companyId: {} },
     eq: vi.fn(),
     inArray: vi.fn(),
     desc: vi.fn(),
@@ -67,6 +72,17 @@ vi.mock("../lib/auth.js", () => ({
       signInEmail: mockSignInEmail,
     },
   },
+}));
+
+vi.mock("../routes/pppoe.js", () => ({
+  getRouter: mockGetRouter,
+  getRadiusConfig: mockGetRadiusConfig,
+  upsertRos: mockUpsertRos,
+  rosReq: mockRosReq,
+}));
+
+vi.mock("../middlewares/companyScope.js", () => ({
+  resolveCompanyScope: (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 
 const { default: radiusRouter } = await import("../routes/radius.js");
@@ -96,8 +112,8 @@ function buildApp(user: MockUser = adminUser) {
   const app = express();
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    (req as unknown as { user: MockUser; log: { info: () => void } }).user = user;
-    (req as unknown as { user: MockUser; log: { info: () => void } }).log = { info: vi.fn() };
+    (req as any).user = user;
+    (req as any).log = { info: vi.fn(), error: vi.fn() };
     next();
   });
   app.use(radiusRouter);
@@ -114,7 +130,9 @@ beforeEach(() => {
 
 describe("GET /customers/:id/radius-sessions", () => {
   it("returns an empty array when customer has no subscriptions with usernames", async () => {
-    mockExec.mockResolvedValueOnce([{ id: 5, pppoeUsername: null }]);
+    mockExec
+      .mockResolvedValueOnce([{ id: 10 }])
+      .mockResolvedValueOnce([{ id: 5, pppoeUsername: null }]);
 
     const res = await request(buildApp()).get("/customers/10/radius-sessions");
 
@@ -123,7 +141,9 @@ describe("GET /customers/:id/radius-sessions", () => {
   });
 
   it("returns an empty array when customer has no subscriptions at all", async () => {
-    mockExec.mockResolvedValueOnce([]);
+    mockExec
+      .mockResolvedValueOnce([{ id: 10 }])
+      .mockResolvedValueOnce([]);
 
     const res = await request(buildApp()).get("/customers/10/radius-sessions");
 
@@ -134,6 +154,7 @@ describe("GET /customers/:id/radius-sessions", () => {
   it("returns session data when subscriptions with usernames exist", async () => {
     const now = new Date();
     mockExec
+      .mockResolvedValueOnce([{ id: 10 }])
       .mockResolvedValueOnce([{ id: 5, pppoeUsername: "alice.ngugi" }])
       .mockResolvedValueOnce([{
         radacctid: 1,
@@ -166,6 +187,7 @@ describe("GET /customers/:id/radius-sessions", () => {
   it("marks session as inactive when acctstoptime is set", async () => {
     const now = new Date();
     mockExec
+      .mockResolvedValueOnce([{ id: 10 }])
       .mockResolvedValueOnce([{ id: 5, pppoeUsername: "bob" }])
       .mockResolvedValueOnce([{
         radacctid: 2,
@@ -213,5 +235,82 @@ describe("POST /admin/radius/sync", () => {
 
     expect(res.status).toBe(403);
     expect(mockSyncAll).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /routers/:id/ros/radius/admin-login", () => {
+  it("denies non-admin users before changing RouterOS login configuration", async () => {
+    const res = await request(buildApp(billingUser)).post("/routers/7/ros/radius/admin-login");
+
+    expect(res.status).toBe(403);
+    expect(mockGetRouter).not.toHaveBeenCalled();
+  });
+
+  it("requires RADIUS settings before configuring RouterOS admin authentication", async () => {
+    mockGetRouter.mockResolvedValueOnce({ id: 7 });
+    mockGetRadiusConfig.mockResolvedValueOnce(null);
+
+    const res = await request(buildApp()).post("/routers/7/ros/radius/admin-login");
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("RADIUS is not configured");
+    expect(mockUpsertRos).not.toHaveBeenCalled();
+  });
+
+  it("configures the login RADIUS service and enables RouterOS AAA", async () => {
+    mockGetRouter.mockResolvedValueOnce({
+      id: 7, ipAddress: "192.0.2.7", apiSsl: false, username: "admin", password: "pass",
+    });
+    mockGetRadiusConfig.mockResolvedValueOnce({
+      server: "radius.example.test", secret: "shared-secret", authPort: 1812, acctPort: 1813,
+    });
+    mockUpsertRos.mockResolvedValueOnce(null);
+    mockRosReq.mockResolvedValueOnce(null);
+
+    const res = await request(buildApp()).post("/routers/7/ros/radius/admin-login");
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(mockUpsertRos).toHaveBeenCalledWith(
+      "192.0.2.7", false, "admin", "pass", "/radius",
+      { address: "radius.example.test", service: "login" },
+      expect.objectContaining({ secret: "shared-secret" }),
+    );
+    expect(mockRosReq).toHaveBeenCalledWith(
+      "192.0.2.7", false, "admin", "pass", "PATCH", "/user/aaa", { "use-radius": "yes" },
+    );
+  });
+});
+
+describe("POST /radius/staff-login/sync", () => {
+  it("rejects missing passwords without authenticating the staff user", async () => {
+    const res = await request(buildApp()).post("/radius/staff-login/sync").send({});
+
+    expect(res.status).toBe(400);
+    expect(mockSignInEmail).not.toHaveBeenCalled();
+  });
+
+  it("reconfirms the password before syncing the current staff account", async () => {
+    mockSignInEmail.mockResolvedValueOnce({ user: { id: "u1" } });
+
+    const res = await request(buildApp())
+      .post("/radius/staff-login/sync")
+      .send({ password: "correct-horse" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true });
+    expect(mockSyncStaffUserRadius).toHaveBeenCalledWith("admin@test.com", "correct-horse");
+  });
+
+  it("does not sync credentials when password reconfirmation fails", async () => {
+    mockSignInEmail.mockResolvedValueOnce(null);
+
+    const res = await request(buildApp())
+      .post("/radius/staff-login/sync")
+      .send({ password: "wrong" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("Incorrect password");
+    expect(mockSyncStaffUserRadius).not.toHaveBeenCalled();
   });
 });

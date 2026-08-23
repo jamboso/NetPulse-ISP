@@ -4,7 +4,7 @@ export type OltCapability = {
   status: "mib-validated-read-only" | "standard-identity-read-only" | "recognized-read-only" | "unsupported";
   discoveryEnabled: boolean;
   provisioningEnabled: false;
-  adapter: "hioso-epon-mib" | "hioso-gpon-identity" | "none";
+  adapter: "hioso-epon-mib" | "hioso-gpon-identity" | "vendor-standard-snmp-identity" | "none";
   message: string;
 };
 
@@ -153,12 +153,15 @@ function isHioso(input: Pick<OltAdapterInput, "vendor">): boolean {
 export function getOltCapability(input: Pick<OltAdapterInput, "vendor" | "model" | "firmwareVersion" | "ponTechnology" | "managementProtocol">): OltCapability {
   const knownProfile = matchingKnownProfile(input);
   if (knownProfile) {
+    const standardIdentityEnabled = input.managementProtocol === "snmp-v2c";
     return {
-      status: "recognized-read-only",
-      discoveryEnabled: false,
+      status: standardIdentityEnabled ? "standard-identity-read-only" : "recognized-read-only",
+      discoveryEnabled: standardIdentityEnabled,
       provisioningEnabled: false,
-      adapter: "none",
-      message: `${knownProfile.message} Capacity: ${knownProfile.ponPortCapacity} ${knownProfile.firmwareRequirement}`,
+      adapter: standardIdentityEnabled ? "vendor-standard-snmp-identity" : "none",
+      message: standardIdentityEnabled
+        ? `Standard SNMP system identity discovery is enabled for this exact model. Vendor PON/ONU inventory and provisioning remain disabled. Capacity: ${knownProfile.ponPortCapacity} ${knownProfile.firmwareRequirement}`
+        : `${knownProfile.message} Use SNMP v2c only to enable standard system identity verification. Capacity: ${knownProfile.ponPortCapacity} ${knownProfile.firmwareRequirement}`,
     };
   }
 

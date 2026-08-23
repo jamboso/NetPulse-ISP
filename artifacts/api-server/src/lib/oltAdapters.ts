@@ -1,5 +1,6 @@
 import * as net from "node:net";
 import { hiosoEponAdapter, hiosoGponIdentityAdapter } from "./hiosoEponAdapter";
+import { vendorStandardSnmpIdentityAdapter } from "./vendorStandardSnmpIdentityAdapter";
 
 export type OltAdapterInput = {
   id: number;
@@ -99,6 +100,7 @@ const safeReadOnlyAdapter: OltVendorAdapter = {
 export function getOltAdapter(input: OltAdapterInput): OltVendorAdapter {
   if (hiosoEponAdapter.supports(input)) return hiosoEponAdapter;
   if (hiosoGponIdentityAdapter.supports(input)) return hiosoGponIdentityAdapter;
+  if (vendorStandardSnmpIdentityAdapter.supports(input)) return vendorStandardSnmpIdentityAdapter;
   // The default adapter never sends device configuration commands.
   return safeReadOnlyAdapter;
 }

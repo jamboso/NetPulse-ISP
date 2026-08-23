@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { getOltCapability, getOltCompatibilityMatrix } from "../lib/oltCapabilities";
 import { createHiosoEponAdapter, createHiosoGponIdentityAdapter, normalizeHiosoEponDiscovery } from "../lib/hiosoEponAdapter";
+import { createVendorStandardSnmpIdentityAdapter } from "../lib/vendorStandardSnmpIdentityAdapter";
 
 const input = {
   id: 12,
@@ -103,16 +104,28 @@ describe("HIOSO EPON compatibility and discovery", () => {
     await expect(adapter.provision()).rejects.toThrow(/disabled/i);
   });
 
-  it("lists the supplied Huawei and V-SOL small-ISP profiles as read-only only", () => {
+  it("enables standard identity-only reads for the supplied Huawei and V-SOL small-ISP profiles", async () => {
     expect(getOltCapability({ ...input, vendor: "Huawei", model: "MA5801", ponTechnology: "gpon" })).toMatchObject({
-      status: "recognized-read-only",
-      discoveryEnabled: false,
+      status: "standard-identity-read-only",
+      discoveryEnabled: true,
       provisioningEnabled: false,
     });
-    expect(getOltCapability({ ...input, vendor: "V-SOL", model: "V1600D4-DP", ponTechnology: "epon" }).message).toMatch(/4 EPON ports/i);
+    expect(getOltCapability({ ...input, vendor: "V-SOL", model: "V1600D4-DP", ponTechnology: "epon" }).message).toMatch(/standard SNMP system identity/i);
     expect(getOltCompatibilityMatrix()).toEqual(expect.arrayContaining([
       expect.objectContaining({ vendor: "Huawei", models: expect.arrayContaining(["MA5608T"]) }),
       expect.objectContaining({ vendor: "V-SOL", models: expect.arrayContaining(["V1600G4-DP"]) }),
     ]));
+
+    const walk = vi.fn(async (_host: string, _port: number, _community: string, root: string) => {
+      if (root === "1.3.6.1.2.1.1.1") return [{ oid: "1.3.6.1.2.1.1.1.0", value: "Huawei MA5801 GPON OLT" }];
+      if (root === "1.3.6.1.2.1.1.5") return [{ oid: "1.3.6.1.2.1.1.5.0", value: "rural-pop" }];
+      return [];
+    });
+    const adapter = createVendorStandardSnmpIdentityAdapter({ walk });
+    const discovery = await adapter.discover({ ...input, vendor: "Huawei", model: "MA5801", ponTechnology: "gpon" });
+
+    expect(discovery).toMatchObject({ healthState: "online", ports: [], onus: [] });
+    expect(discovery.note).toMatch(/No vendor enterprise OIDs.*configuration commands were sent/i);
+    await expect(adapter.provision()).rejects.toThrow(/disabled/i);
   });
 });

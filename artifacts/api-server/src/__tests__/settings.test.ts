@@ -4,6 +4,7 @@ import request from "supertest";
 
 const mockExec = vi.hoisted(() => vi.fn());
 const mockValues = vi.hoisted(() => vi.fn());
+const mockSendAuditLogExport = vi.hoisted(() => vi.fn());
 
 vi.mock("@workspace/db", () => {
   const chain: Record<string, unknown> = {};
@@ -40,6 +41,11 @@ vi.mock("@workspace/db", () => {
     eq: vi.fn(),
   };
 });
+
+vi.mock("../lib/auditExportScheduler", () => ({
+  AuditExportConfigurationError: class AuditExportConfigurationError extends Error {},
+  sendAuditLogExport: mockSendAuditLogExport,
+}));
 
 const { default: settingsRouter } = await import("../routes/settings.js");
 
@@ -154,6 +160,34 @@ describe("GET /api/settings", () => {
     expect(typeof res.body).toBe("object");
     expect(Array.isArray(res.body)).toBe(false);
   });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/settings/export-csv-now
+// ---------------------------------------------------------------------------
+
+describe("POST /api/settings/export-csv-now", () => {
+  it("sends an export immediately and returns its sent timestamp", async () => {
+    mockSendAuditLogExport.mockResolvedValueOnce({
+      lastSentAt: "2026-08-23T10:00:00.000Z",
+    });
+
+    const res = await request(buildApp(buildUser("admin"))).post("/api/settings/export-csv-now");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ lastSentAt: "2026-08-23T10:00:00.000Z" });
+    expect(mockSendAuditLogExport).toHaveBeenCalledWith("manual");
+  });
+
+  it.each(["billing", "support", "technician"] as const)(
+    "keeps manual exports restricted for the %s role",
+    async (role) => {
+      const res = await request(buildApp(buildUser(role))).post("/api/settings/export-csv-now");
+
+      expect(res.status).toBe(403);
+      expect(mockSendAuditLogExport).not.toHaveBeenCalled();
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------

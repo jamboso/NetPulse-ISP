@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useGetSettings, useUpdateSettings, useSendTestEmail, useGetMpesaIpAllowlist, useGetCompanyMpesaSettings, useUpdateCompanyMpesaSettings } from "@workspace/api-client-react";
+import { useGetSettings, useUpdateSettings, useSendTestEmail, useSendAuditLogExportNow, useGetMpesaIpAllowlist, useGetCompanyMpesaSettings, useUpdateCompanyMpesaSettings } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -142,6 +142,56 @@ function SendTestEmailButton() {
           <AlertCircle className="w-3.5 h-3.5" />
           {result.message}
         </span>
+      )}
+    </div>
+  );
+}
+
+function SendAuditLogExportButton({ onSent }: { onSent?: () => Promise<unknown> }) {
+  const mutation = useSendAuditLogExportNow();
+  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleSend = async () => {
+    setResult(null);
+    try {
+      const data = await mutation.mutateAsync();
+      await onSent?.();
+      setResult({
+        success: true,
+        message: `Sent at ${new Date(data.lastSentAt).toLocaleString()}`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Request failed. Please try again.";
+      setResult({ success: false, message });
+    }
+  };
+
+  return (
+    <div className="py-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleSend}
+          disabled={mutation.isPending}
+          className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+        >
+          {mutation.isPending
+            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            : <Send className="w-3.5 h-3.5" />}
+          {mutation.isPending ? "Sending…" : "Send Now"}
+        </Button>
+        <span className="text-xs text-gray-400">Immediately emails the CSV to the destination above.</span>
+      </div>
+      {result?.success && (
+        <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-green-600">
+          <CheckCircle2 className="w-3.5 h-3.5" /> {result.message}
+        </p>
+      )}
+      {result && !result.success && (
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-red-600">
+          <AlertCircle className="w-3.5 h-3.5" /> {result.message}
+        </p>
       )}
     </div>
   );
@@ -418,6 +468,12 @@ function AdminWelcomeEmailTemplateSettings() {
         </div>
       </div>
       <WelcomeEmailTemplateSection f={(name) => form[name] ?? ""} set={set} />
+      <SectionCard icon={Bell} title="Scheduled Audit Log Export">
+        <p className="pb-1 text-xs text-gray-500">
+          Send the configured audit log CSV immediately when an incident or compliance review requires it.
+        </p>
+        <SendAuditLogExportButton />
+      </SectionCard>
     </div>
   );
 }
@@ -733,6 +789,9 @@ function OwnerSettings() {
               type="email"
               placeholder="compliance@myisp.co.ke"
               hint="The CSV will be sent as an attachment to this address"
+            />
+            <SendAuditLogExportButton
+              onSent={() => queryClient.invalidateQueries({ queryKey: ["/api/settings"] })}
             />
             {f("exportScheduleLastSentAt") && (
               <div className="py-3 text-xs text-gray-400">

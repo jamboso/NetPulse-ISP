@@ -1494,6 +1494,14 @@ export const SendTestEmailResponse = zod.object({
 
 
 /**
+ * @summary Immediately email the configured audit log CSV export (admin only)
+ */
+export const SendAuditLogExportNowResponse = zod.object({
+  "lastSentAt": zod.coerce.date().describe('Timestamp when the export email was successfully sent')
+})
+
+
+/**
  * @summary Return the effective M-Pesa IP allowlist with its source
  */
 export const GetMpesaIpAllowlistResponse = zod.object({

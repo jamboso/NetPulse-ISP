@@ -9,6 +9,11 @@ import { resolveCompanyScope } from "../middlewares/companyScope";
 import { sendTestEmail } from "../lib/mailer";
 import { getCompanyMpesaConfigRow, upsertCompanyMpesaConfig } from "../lib/mpesaConfig";
 import {
+  AuditExportConfigurationError,
+  sendAuditLogExport,
+} from "../lib/auditExportScheduler";
+import { SendAuditLogExportNowResponse } from "@workspace/api-zod";
+import {
   decryptNotificationSetting,
   encryptNotificationSetting,
   isNotificationSetting,
@@ -155,6 +160,26 @@ router.post("/settings/test-email", requireRole("owner"), async (req, res) => {
 
   const result = await sendTestEmail(toEmail, toName);
   res.status(result.success ? 200 : 502).json(result);
+});
+
+router.post("/settings/export-csv-now", requireRole("admin"), async (req, res): Promise<void> => {
+  try {
+    const result = await sendAuditLogExport("manual");
+    res.json(SendAuditLogExportNowResponse.parse(result));
+  } catch (error) {
+    const isConfigurationError = error instanceof AuditExportConfigurationError;
+    req.log.warn(
+      { err: error },
+      isConfigurationError
+        ? "Audit log export could not start because it is not configured"
+        : "Audit log export delivery failed",
+    );
+    res.status(isConfigurationError ? 400 : 502).json({
+      error: isConfigurationError
+        ? error.message
+        : "The audit log export could not be sent. Check the SMTP settings and try again.",
+    });
+  }
 });
 
 router.get("/settings/welcome-email-template", requireRole("admin"), async (_req, res) => {

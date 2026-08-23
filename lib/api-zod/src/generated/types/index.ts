@@ -9,6 +9,7 @@
 export * from './activityItem';
 export * from './auditLog';
 export * from './auditLogAction';
+export * from './auditLogExportResult';
 export * from './auditPurgeLog';
 export * from './blockedIp';
 export * from './breakdownItem';

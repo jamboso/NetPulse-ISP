@@ -1511,6 +1511,23 @@ paths:
               schema:
                 $ref: "#/components/schemas/EmailResult"
 
+  /settings/export-csv-now:
+    post:
+      operationId: sendAuditLogExportNow
+      tags: [settings]
+      summary: Immediately email the configured audit log CSV export (admin only)
+      responses:
+        "200":
+          description: Audit log CSV export sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogExportResult"
+        "400":
+          description: Export destination or SMTP settings are not configured
+        "502":
+          description: The audit log CSV export could not be sent
+
   /settings/mpesa-ip-allowlist:
     get:
       operationId: getMpesaIpAllowlist
@@ -4169,6 +4186,15 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    AuditLogExportResult:
+      type: object
+      required: [lastSentAt]
+      properties:
+        lastSentAt:
+          type: string
+          format: date-time
+          description: Timestamp when the export email was successfully sent
 
     AuditPurgeLog:
       type: object

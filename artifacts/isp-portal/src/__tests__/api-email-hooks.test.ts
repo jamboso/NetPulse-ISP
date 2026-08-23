@@ -3,6 +3,7 @@ import {
   getGetWelcomeEmailPreviewQueryKey,
   useGetSettings,
   useGetWelcomeEmailPreview,
+  useSendAuditLogExportNow,
   useSendTestEmail,
   useSendWelcomeEmailTest,
   useUpdateSettings,
@@ -15,6 +16,7 @@ describe("email API client hooks", () => {
     expect(useGetSettings).toBeTypeOf("function");
     expect(useUpdateSettings).toBeTypeOf("function");
     expect(useSendTestEmail).toBeTypeOf("function");
+    expect(useSendAuditLogExportNow).toBeTypeOf("function");
     expect(getGetWelcomeEmailPreviewQueryKey()).toEqual([
       "/api/users/welcome-email-preview",
     ]);

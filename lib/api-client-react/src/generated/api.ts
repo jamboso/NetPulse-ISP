@@ -21,6 +21,7 @@ import type {
 
 import type {
   ActivityItem,
+  AuditLogExportResult,
   BreakdownItem,
   ClearSecurityEventsParams,
   ClearSecurityEventsResult,
@@ -5581,6 +5582,76 @@ export const useSendTestEmail = <TError = ErrorType<EmailResult>,
         TContext
       > => {
       return useMutation(getSendTestEmailMutationOptions(options));
+    }
+
+export const getSendAuditLogExportNowUrl = () => {
+
+
+
+
+  return `/api/settings/export-csv-now`
+}
+
+/**
+ * @summary Immediately email the configured audit log CSV export (admin only)
+ */
+export const sendAuditLogExportNow = async ( options?: RequestInit): Promise<AuditLogExportResult> => {
+
+  return customFetch<AuditLogExportResult>(getSendAuditLogExportNowUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSendAuditLogExportNowMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAuditLogExportNow>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendAuditLogExportNow>>, TError,void, TContext> => {
+
+const mutationKey = ['sendAuditLogExportNow'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendAuditLogExportNow>>, void> = () => {
+
+
+          return  sendAuditLogExportNow(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendAuditLogExportNowMutationResult = NonNullable<Awaited<ReturnType<typeof sendAuditLogExportNow>>>
+
+    export type SendAuditLogExportNowMutationError = ErrorType<void>
+
+    /**
+ * @summary Immediately email the configured audit log CSV export (admin only)
+ */
+export const useSendAuditLogExportNow = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAuditLogExportNow>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendAuditLogExportNow>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSendAuditLogExportNowMutationOptions(options));
     }
 
 export const getGetMpesaIpAllowlistUrl = () => {

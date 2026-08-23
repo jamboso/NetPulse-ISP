@@ -1925,6 +1925,11 @@ export interface AuditLog {
   createdAt: string;
 }
 
+export interface AuditLogExportResult {
+  /** Timestamp when the export email was successfully sent */
+  lastSentAt: string;
+}
+
 export interface AuditPurgeLog {
   id: number;
   purgedAt: string;

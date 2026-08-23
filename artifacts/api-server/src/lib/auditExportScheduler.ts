@@ -81,7 +81,7 @@ async function generateCsv(): Promise<string> {
   return lines.join("\r\n");
 }
 
-async function updateLastSentAt(): Promise<void> {
+async function updateLastSentAt(): Promise<string> {
   const now = new Date().toISOString();
   const existing = await db
     .select()
@@ -97,36 +97,34 @@ async function updateLastSentAt(): Promise<void> {
   } else {
     await db.insert(settingsTable).values({ key: "exportScheduleLastSentAt", value: now });
   }
+  return now;
 }
 
-async function runExportIfDue(): Promise<void> {
+export class AuditExportConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AuditExportConfigurationError";
+  }
+}
+
+type AuditExportTrigger = "manual" | "scheduled";
+
+export async function sendAuditLogExport(
+  trigger: AuditExportTrigger,
+): Promise<{ lastSentAt: string }> {
   const s = await getSettings();
-
-  const enabled   = s["exportScheduleEnabled"];
-  if (enabled !== "1" && enabled !== "true") return;
-
   const frequency = (s["exportScheduleFrequency"] ?? "weekly").toLowerCase();
   const email     = s["exportScheduleEmail"] ?? "";
-  const lastSent  = s["exportScheduleLastSentAt"] ?? "";
 
   if (!email) {
-    logger.warn("Audit export scheduler: no destination email configured, skipping");
-    return;
+    throw new AuditExportConfigurationError("Configure an audit log export destination email before sending.");
   }
 
   if (!s["smtpHost"] || !s["smtpUser"] || !s["smtpPass"]) {
-    logger.warn("Audit export scheduler: SMTP not configured, skipping");
-    return;
+    throw new AuditExportConfigurationError("Configure SMTP before sending an audit log export.");
   }
 
-  const thresholdHours = FREQUENCY_HOURS[frequency] ?? FREQUENCY_HOURS["weekly"]!;
-  if (lastSent) {
-    const lastDate = new Date(lastSent);
-    const hoursSinceLast = (Date.now() - lastDate.getTime()) / (1000 * 60 * 60);
-    if (hoursSinceLast < thresholdHours) return;
-  }
-
-  logger.info({ frequency, email }, "Audit export scheduler: generating CSV export");
+  logger.info({ trigger, frequency, email }, "Audit log export: generating CSV export");
 
   const csv     = await generateCsv();
   const company = s["companyName"] ?? "NetPulse ISP";
@@ -148,7 +146,7 @@ async function runExportIfDue(): Promise<void> {
     text: [
       `Hi,`,
       ``,
-      `Please find attached the scheduled ${frequency} audit log export for ${company}.`,
+      `Please find attached the ${trigger === "manual" ? "one-off" : `scheduled ${frequency}`} audit log export for ${company}.`,
       ``,
       `Generated: ${new Date().toUTCString()}`,
       ``,
@@ -157,17 +155,17 @@ async function runExportIfDue(): Promise<void> {
     html: `
 <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#111827">
   <h2 style="color:#1e40af;margin-bottom:4px">${company} — Audit Log Export</h2>
-  <p style="color:#6b7280;margin-top:0">Scheduled ${frequency} export attached.</p>
+   <p style="color:#6b7280;margin-top:0">${trigger === "manual" ? "One-off" : `Scheduled ${frequency}`} export attached.</p>
   <p>Please find the attached CSV containing the latest audit log records.</p>
   <table style="border-collapse:collapse;width:100%;margin:16px 0">
     <tr>
       <td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;color:#6b7280;width:110px">Generated</td>
       <td style="padding:8px 12px;border:1px solid #e2e8f0">${new Date().toUTCString()}</td>
     </tr>
-    <tr>
+        ${trigger === "scheduled" ? `<tr>
       <td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;color:#6b7280">Frequency</td>
       <td style="padding:8px 12px;border:1px solid #e2e8f0;text-transform:capitalize">${frequency}</td>
-    </tr>
+    </tr>` : ""}
   </table>
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
   <p style="font-size:0.8em;color:#9ca3af">— The ${company} Team</p>
@@ -181,9 +179,28 @@ async function runExportIfDue(): Promise<void> {
     ],
   });
 
-  await updateLastSentAt();
+  const lastSentAt = await updateLastSentAt();
 
-  logger.info({ email, frequency }, "Audit export scheduler: CSV export sent successfully");
+  logger.info({ trigger, email, frequency, lastSentAt }, "Audit log export: CSV export sent successfully");
+  return { lastSentAt };
+}
+
+async function runExportIfDue(): Promise<void> {
+  const s = await getSettings();
+  const enabled = s["exportScheduleEnabled"];
+  if (enabled !== "1" && enabled !== "true") return;
+
+  const frequency = (s["exportScheduleFrequency"] ?? "weekly").toLowerCase();
+  const lastSent = s["exportScheduleLastSentAt"] ?? "";
+  const thresholdHours = FREQUENCY_HOURS[frequency] ?? FREQUENCY_HOURS["weekly"]!;
+
+  if (lastSent) {
+    const lastDate = new Date(lastSent);
+    const hoursSinceLast = (Date.now() - lastDate.getTime()) / (1000 * 60 * 60);
+    if (hoursSinceLast < thresholdHours) return;
+  }
+
+  await sendAuditLogExport("scheduled");
 }
 
 export function startAuditExportScheduler(): void {

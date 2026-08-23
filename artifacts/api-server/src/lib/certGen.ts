@@ -489,5 +489,5 @@ ${callbackBlock}
 }
 
 function escapePem(pem: string): string {
-  return pem.trim().replace(/\n/g, "\\n");
+  return pem.trim().replace(/\r\n?|\n/g, "\\n");
 }

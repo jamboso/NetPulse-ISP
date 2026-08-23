@@ -1,207 +1,189 @@
 #!/usr/bin/env bash
-# Safe, owner-triggered NetPulse production updater.
+# Safe, fail-stop NetPulse production release updater.
 set -euo pipefail
 
 APP_DIR="${NETPULSE_DIR:-/opt/netpulse}"
-LOG_FILE="/var/log/netpulse/update.log"
-BACKUP_ROOT="${NETPULSE_BACKUP_DIR:-/root/netpulse-release-backups}"
+UPDATE_CONFIG="${NETPULSE_UPDATE_CONFIG_FILE:-/etc/netpulse/update.conf}"
+LOG_FILE="${NETPULSE_UPDATE_LOG_FILE:-/var/log/netpulse/update.log}"
 STATUS_FILE="${NETPULSE_UPDATE_STATUS_FILE:-/var/lib/netpulse/update-status.json}"
+BACKUP_DIR="${NETPULSE_BACKUP_DIR:-/var/backups/netpulse}"
+LOCK_FILE="${NETPULSE_UPDATE_LOCK_FILE:-/var/lock/netpulse-update.lock}"
+RETRY_FAILED_RELEASE=0
+if [[ "${1:-}" == "--retry" ]]; then
+  RETRY_FAILED_RELEASE=1
+  shift
+fi
+[[ $# -le 1 ]] || { echo "Usage: $0 [--retry] [full-target-commit]" >&2; exit 2; }
+TARGET_COMMIT="${1:-}"
+[[ "$TARGET_COMMIT" =~ ^[0-9a-fA-F]{40}$ ]] || {
+  echo "A full, confirmed target commit SHA is required." >&2
+  exit 2
+}
 START=$(date +%s)
+PREVIOUS_COMMIT=""
+BACKUP_PATH=""
 CURRENT_PHASE="preflight"
-BEFORE=""
-TARGET=""
-BACKUP_DIR=""
-UPDATE_STARTED_AT=$(date +%s)
+RECOVERY_PREVIOUS_COMMIT=""
+RECOVERY_BACKUP_PATH=""
 
-mkdir -p /var/log/netpulse
+mkdir -p "$(dirname "$LOG_FILE")" "$(dirname "$STATUS_FILE")"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 BOLD='\033[1m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 ok()   { echo -e "  ${GREEN}✓${NC}  $*"; }
 info() { echo -e "  ${CYAN}→${NC}  $*"; }
 warn() { echo -e "  ${YELLOW}⚠${NC}  $*"; }
-write_status() {
-  local state="$1"
-  install -d -m 700 "$(dirname "$STATUS_FILE")"
-  umask 077
-  printf '{"state":"%s","phase":"%s","targetCommit":"%s","previousCommit":"%s","backupDir":"%s","pid":%s,"startedAt":%s,"updatedAt":"%s"}\n' \
-    "$state" "$CURRENT_PHASE" "$TARGET" "$BEFORE" "$BACKUP_DIR" "$$" "$UPDATE_STARTED_AT" "$(date -Iseconds)" \
-    > "${STATUS_FILE}.tmp.$$"
-  mv "${STATUS_FILE}.tmp.$$" "$STATUS_FILE"
+
+json_escape() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/ }"
+  value="${value//$'\r'/ }"
+  printf '%s' "$value"
 }
-die()  {
-  write_status "failed"
-  echo -e "  ${RED}✗${NC}  $*" >&2
+
+write_status() {
+  local state="$1" phase="$2" message="$3"
+  local tmp="${STATUS_FILE}.tmp.$$"
+  umask 022
+  cat > "$tmp" <<EOF
+{"state":"$(json_escape "$state")","phase":"$(json_escape "$phase")","message":"$(json_escape "$message")","targetCommit":"$(json_escape "$TARGET_COMMIT")","previousCommit":"$(json_escape "$PREVIOUS_COMMIT")","backupPath":"$(json_escape "$BACKUP_PATH")","updatedAt":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
+EOF
+  mv "$tmp" "$STATUS_FILE"
+}
+
+die() {
+  local message="$*"
+  write_status "failed" "$CURRENT_PHASE" "$message"
+  echo -e "  ${RED}✗  ${message}${NC}"
   exit 1
 }
+
 on_error() {
   local exit_code=$?
-  trap - ERR
-  write_status "failed"
-  echo -e "  ${RED}✗${NC}  Update stopped during $CURRENT_PHASE. The running app was not restarted." >&2
+  write_status "failed" "$CURRENT_PHASE" "Deployment failed during ${CURRENT_PHASE}. The running application was not restarted."
   exit "$exit_code"
 }
-
-require_safe_name() {
-  [[ "$1" =~ ^[A-Za-z0-9._/-]+$ ]] || die "Invalid Git remote or branch name."
-}
-
-resolve_remote() {
-  local upstream candidate
-  if [[ -n "${NETPULSE_UPDATE_REMOTE:-}" ]]; then
-    require_safe_name "$NETPULSE_UPDATE_REMOTE"
-    git remote get-url "$NETPULSE_UPDATE_REMOTE" >/dev/null 2>&1 \
-      || die "Configured Git remote '$NETPULSE_UPDATE_REMOTE' does not exist."
-    printf '%s' "$NETPULSE_UPDATE_REMOTE"
-    return
-  fi
-
-  upstream=$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)
-  if [[ "$upstream" == */* ]]; then
-    candidate="${upstream%%/*}"
-    if git remote get-url "$candidate" >/dev/null 2>&1; then
-      printf '%s' "$candidate"
-      return
-    fi
-  fi
-
-  for candidate in origin github; do
-    if git remote get-url "$candidate" >/dev/null 2>&1; then
-      printf '%s' "$candidate"
-      return
-    fi
-  done
-  die "No Git remote is configured for production updates."
-}
-
-echo ""
-echo -e "${BOLD}NetPulse Update — $(date '+%Y-%m-%d %H:%M:%S')${NC}"
-echo "──────────────────────────────────────────"
-
-[[ -d "$APP_DIR/.git" ]] || die "App checkout not found at $APP_DIR."
-[[ $EUID -eq 0 ]] || die "Run as root so the root-owned PM2 process is updated."
-cd "$APP_DIR"
-exec 9>/var/lock/netpulse-update.lock
-if ! flock -n 9; then
-  echo -e "  ${RED}✗${NC}  Another NetPulse update is already in progress." >&2
-  exit 1
-fi
 trap on_error ERR
 
-set -o allexport
-source "$APP_DIR/.env" 2>/dev/null || true
-set +o allexport
-[[ -n "${DATABASE_URL:-}" ]] || die "DATABASE_URL is missing from $APP_DIR/.env."
+[[ $EUID -ne 0 ]] && die "Run this production updater as root."
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+[[ -d "$APP_DIR/.git" ]] || die "Production checkout is missing."
+[[ -f "$APP_DIR/.env" ]] || die "Production .env is missing; refusing to continue."
+[[ -f "$UPDATE_CONFIG" ]] || die "Root-owned update configuration is missing. Run deploy/setup-ubuntu.sh in upgrade mode as root."
+[[ "$(stat -c '%U:%a' "$UPDATE_CONFIG")" == "root:600" ]] || die "Update configuration must be owned by root with mode 600."
+command -v flock >/dev/null || die "flock is required for safe deployments."
 
-BRANCH="${NETPULSE_UPDATE_BRANCH:-$(git branch --show-current)}"
-require_safe_name "$BRANCH"
-REMOTE=$(resolve_remote)
+exec 9>"$LOCK_FILE"
+flock -n 9 || die "Another deployment is already running."
 
-if ! git diff --quiet || ! git diff --cached --quiet; then
-  die "Tracked server-local code changes were found. Refusing to overwrite them; resolve them before updating."
+cd "$APP_DIR"
+set -o allexport; source "$UPDATE_CONFIG"; set +o allexport
+[[ -n "${DATABASE_URL:-}" ]] || die "DATABASE_URL is required for a production update."
+if [[ "$RETRY_FAILED_RELEASE" == "1" && -f "$STATUS_FILE" ]]; then
+  RECOVERY_PREVIOUS_COMMIT="$(node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); process.stdout.write(/^[0-9a-f]{40}$/i.test(s.previousCommit || "") ? s.previousCommit : "")' "$STATUS_FILE" 2>/dev/null || true)"
+  RECOVERY_BACKUP_PATH="$(node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); process.stdout.write(typeof s.backupPath === "string" ? s.backupPath : "")' "$STATUS_FILE" 2>/dev/null || true)"
 fi
 
-CURRENT_PHASE="fetching release"
-info "Fetching approved release from $REMOTE/$BRANCH..."
-git fetch --prune "$REMOTE" "refs/heads/$BRANCH:refs/remotes/$REMOTE/$BRANCH"
-BEFORE=$(git rev-parse HEAD)
-TARGET=$(git rev-parse "$REMOTE/$BRANCH")
+echo ""
+echo -e "${BOLD}NetPulse safe release update — $(date '+%Y-%m-%d %H:%M:%S')${NC}"
+echo "──────────────────────────────────────────"
 
-if [[ -n "${NETPULSE_EXPECTED_COMMIT:-}" && "$TARGET" != "$NETPULSE_EXPECTED_COMMIT" ]]; then
-  die "The release changed after confirmation. Check for updates again before deploying."
+CURRENT_PHASE="preflight"
+write_status "preflight" "$CURRENT_PHASE" "Validating the configured production branch."
+
+# Ignored files such as .env are deliberately excluded: they are preserved
+# untouched. Any tracked local edit is a reason to stop, never reset it.
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+  die "Tracked server-local changes were found. Commit or revert them before deploying."
 fi
-if [[ "$BEFORE" == "$TARGET" ]] \
-  && [[ -f "$STATUS_FILE" ]] \
-  && grep -Fq "\"state\":\"success\"" "$STATUS_FILE" \
-  && grep -Fq "\"targetCommit\":\"$TARGET\"" "$STATUS_FILE"; then
-  write_status "success"
-  warn "Already successfully deployed ($(git rev-parse --short HEAD)); no changes were made."
-  trap - ERR
+
+BRANCH="$(git symbolic-ref --quiet --short HEAD)" || die "The production checkout is detached."
+REMOTE="$(git config --get "branch.${BRANCH}.remote" || true)"
+MERGE_REF="$(git config --get "branch.${BRANCH}.merge" || true)"
+REMOTE_BRANCH="${MERGE_REF#refs/heads/}"
+[[ -n "$REMOTE" && "$MERGE_REF" == refs/heads/* ]] || die "The deployed checkout does not track a production branch."
+
+git fetch --quiet --no-tags "$REMOTE" "refs/heads/${REMOTE_BRANCH}"
+CANDIDATE_COMMIT="$(git rev-parse FETCH_HEAD)"
+PREVIOUS_COMMIT="$(git rev-parse HEAD)"
+
+if [[ -n "$TARGET_COMMIT" && "$TARGET_COMMIT" != "$CANDIDATE_COMMIT" ]]; then
+  die "The confirmed target is no longer the configured production-branch commit. Check again before deploying."
+fi
+TARGET_COMMIT="$CANDIDATE_COMMIT"
+
+if [[ "$PREVIOUS_COMMIT" == "$TARGET_COMMIT" && "$RETRY_FAILED_RELEASE" != "1" ]]; then
+  write_status "no-update" "complete" "No update is available; production already matches the configured branch."
+  warn "Already up to date ($(git rev-parse --short HEAD))"
   exit 0
 fi
-write_status "running"
 
-STAMP=$(date +%Y%m%d-%H%M%S)
-BACKUP_DIR="$BACKUP_ROOT/$STAMP"
-install -d -m 700 "$BACKUP_DIR"
-
-CURRENT_PHASE="database backup"
-write_status "running"
-info "Backing up the production database..."
-pg_dump --dbname="$DATABASE_URL" --format=custom --file="$BACKUP_DIR/database-before-update.dump"
-printf '%s\n' "$BEFORE" > "$BACKUP_DIR/previous-commit.txt"
-printf '%s\n' "$TARGET" > "$BACKUP_DIR/target-commit.txt"
-git update-ref "refs/netpulse/backups/$STAMP" "$BEFORE"
-ok "Backup created at $BACKUP_DIR"
-
-if [[ "$BEFORE" != "$TARGET" ]]; then
-  CURRENT_PHASE="updating code"
-  write_status "running"
-  info "Fast-forwarding code to $(git rev-parse --short "$TARGET")..."
-  git merge --ff-only "$TARGET"
-  ok "Updated $(git rev-parse --short "$BEFORE") → $(git rev-parse --short HEAD)"
+if [[ "$PREVIOUS_COMMIT" == "$TARGET_COMMIT" ]]; then
+  PREVIOUS_COMMIT="${RECOVERY_PREVIOUS_COMMIT:-$PREVIOUS_COMMIT}"
+  BACKUP_PATH="$RECOVERY_BACKUP_PATH"
+  warn "Retrying the previously failed release without changing the checkout."
 else
-  warn "Re-running the incomplete deployment for $(git rev-parse --short HEAD)."
+  git merge-base --is-ancestor "$PREVIOUS_COMMIT" "$TARGET_COMMIT" \
+    || die "The configured production branch is not a fast-forward update. Refusing to replace the deployed revision."
+
+  CURRENT_PHASE="backing-up"
+  write_status "backing-up" "$CURRENT_PHASE" "Creating a database backup before changing production."
+  mkdir -p "$BACKUP_DIR"
+  umask 077
+  BACKUP_PATH="${BACKUP_DIR}/netpulse-$(date -u +%Y%m%d-%H%M%S)-${PREVIOUS_COMMIT:0:7}.dump"
+  pg_dump --format=custom --file="$BACKUP_PATH" --dbname="$DATABASE_URL"
+  [[ -s "$BACKUP_PATH" ]] || die "Database backup did not produce a usable file."
+  pg_restore --list "$BACKUP_PATH" >/dev/null
+  ok "Database backup created before release change"
+
+  CURRENT_PHASE="updating"
+  write_status "updating" "$CURRENT_PHASE" "Fast-forwarding the verified production branch."
+  git merge --ff-only "$TARGET_COMMIT"
+  ok "Updated $(git rev-parse --short "$PREVIOUS_COMMIT") → $(git rev-parse --short "$TARGET_COMMIT")"
 fi
 
-CURRENT_PHASE="installing dependencies"
-write_status "running"
-info "Installing dependencies..."
+CURRENT_PHASE="installing"
+write_status "installing" "$CURRENT_PHASE" "Installing locked release dependencies."
 for attempt in 1 2 3; do
-  if CI=true NETPULSE_INSTALL=1 pnpm install --frozen-lockfile 2>&1 | tail -5; then
-    break
+  CI=true NETPULSE_INSTALL=1 pnpm install --frozen-lockfile && break
+  if [[ "$attempt" -eq 3 ]]; then
+    die "Dependency installation failed after 3 attempts."
   fi
-  [[ "$attempt" -eq 3 ]] && die "pnpm install failed after three attempts."
-  warn "Install attempt $attempt failed — retrying in 15 seconds..."
+  warn "Dependency installation attempt $attempt failed; retrying in 15 seconds."
   sleep 15
 done
-ok "Dependencies installed"
 
-CURRENT_PHASE="building application"
-write_status "running"
-info "Building shared libraries..."
-pnpm run typecheck:libs 2>&1 | tail -5
-info "Building API server..."
-pnpm --filter @workspace/api-server run build 2>&1 | tail -5
-info "Building frontend..."
-PORT=3000 BASE_PATH=/ NODE_ENV=production \
-  pnpm --filter @workspace/isp-portal run build 2>&1 | tail -5
-ok "Build completed"
+CURRENT_PHASE="building"
+write_status "building" "$CURRENT_PHASE" "Building shared libraries, API, and portal before restart."
+pnpm run typecheck:libs
+pnpm --filter @workspace/api-server run build
+PORT=3000 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/isp-portal run build
+ok "Release built successfully"
 
-CURRENT_PHASE="applying database migrations"
-write_status "running"
-info "Applying recorded database migrations..."
+CURRENT_PHASE="migrating"
+write_status "migrating" "$CURRENT_PHASE" "Applying outstanding recorded database migrations."
 bash "$APP_DIR/deploy/migrate.sh"
-ok "Database migrations completed"
+ok "Recorded database migrations completed"
 
-CURRENT_PHASE="restarting application"
-write_status "running"
-info "Build and migration complete — signalling dashboard before restart..."
-echo "NETPULSE_RESTART_NOW"
-sleep 3
-
-# The API process owns the live-update SSE pipe and will be replaced by PM2.
-# From this point on, write only to the persistent log so the detached updater
-# can always record its final health result in STATUS_FILE.
-exec >>"$LOG_FILE" 2>&1
-
-info "Restarting root-owned PM2 process..."
-pm2 restart netpulse
-pm2 save --force >/dev/null
-
-PORT="${PORT:-8080}"
-sleep 5
-CURRENT_PHASE="verifying health"
-write_status "running"
-if curl --fail --silent --show-error "http://127.0.0.1:$PORT/api/healthz" >/dev/null; then
-  ok "App is healthy"
+CURRENT_PHASE="restarting"
+write_status "restarting" "$CURRENT_PHASE" "Restarting the production PM2 service."
+PM2_USER="${NETPULSE_PM2_USER:-root}"
+if [[ "$PM2_USER" == "root" ]]; then
+  pm2 restart netpulse 2>/dev/null || pm2 start "$APP_DIR/deploy/ecosystem.config.cjs"
+  pm2 save --force >/dev/null
 else
-  die "Health check failed after restart. Previous code ref: $BEFORE; database backup: $BACKUP_DIR"
+  sudo -u "$PM2_USER" pm2 restart netpulse 2>/dev/null || sudo -u "$PM2_USER" pm2 start "$APP_DIR/deploy/ecosystem.config.cjs"
+  sudo -u "$PM2_USER" pm2 save --force >/dev/null
 fi
 
+CURRENT_PHASE="health-check"
+write_status "health-check" "$CURRENT_PHASE" "Waiting for the restarted application health check."
+sleep 5
+curl --fail --silent --show-error --retry 5 --retry-delay 2 "http://localhost:80/api/healthz" -o /dev/null \
+  || die "Health check failed after restart. Inspect the update log before attempting another deployment."
+
 ELAPSED=$(( $(date +%s) - START ))
-CURRENT_PHASE="completed"
-write_status "success"
-trap - ERR
-echo ""
-echo -e "${GREEN}${BOLD}✓ Update complete in ${ELAPSED}s${NC}"
+write_status "succeeded" "complete" "Deployment completed and the application health check passed."
+ok "Deployment completed in ${ELAPSED}s and health check passed"

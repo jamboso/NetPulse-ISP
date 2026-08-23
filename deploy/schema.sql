@@ -167,7 +167,6 @@ ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "vpn_ip" text;
 --> statement-breakpoint
 ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "bridge_ports" text DEFAULT '["ether2"]';
 --> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "phone" text;
 --> statement-breakpoint
 DO $$ BEGIN
         ALTER TABLE "routers" ADD CONSTRAINT "routers_provision_token_unique" UNIQUE("provision_token");
@@ -520,6 +519,8 @@ CREATE TABLE "users" (
         CONSTRAINT "users_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "phone" text;
+--> statement-breakpoint
 CREATE TABLE "verifications" (
         "id" text PRIMARY KEY NOT NULL,
         "identifier" text NOT NULL,
@@ -860,3 +861,21 @@ DO $$ BEGIN
         ALTER TABLE "company_mpesa_configs" ADD CONSTRAINT "company_mpesa_configs_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+--> statement-breakpoint
+
+-- Fresh-install baseline only. Production upgrades apply the matching,
+-- recorded delta in deploy/migrations/0002_staff_inactivity_digest_log.sql.
+CREATE TABLE IF NOT EXISTS "staff_inactivity_digest_log" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "company_id" integer NOT NULL REFERENCES "companies"("id") ON DELETE cascade,
+        "digest_date" date NOT NULL,
+        "recipient_email" text NOT NULL,
+        "affected_count" integer NOT NULL,
+        "status" text DEFAULT 'pending' NOT NULL,
+        "processing_started_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "sent_at" timestamp with time zone,
+        "error" text
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "staff_inactivity_digest_company_date_idx"
+        ON "staff_inactivity_digest_log" ("company_id", "digest_date");

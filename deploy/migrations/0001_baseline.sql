@@ -1,0 +1,2 @@
+-- Marker for the schema created by deploy/schema.sql during a fresh install.
+-- Production upgrades record this immutable baseline and then apply deltas.

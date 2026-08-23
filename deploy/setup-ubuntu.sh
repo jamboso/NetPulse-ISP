@@ -75,6 +75,54 @@ trap 'die "Unexpected error on line $LINENO. Last command: $BASH_COMMAND"' ERR
 # ── Root check ────────────────────────────────────────────────────────────────
 [[ $EUID -ne 0 ]] && die "Run as root:  sudo bash $0"
 
+configure_update_launcher() {
+  local env_file="$1" app_owner="$2" database_url branch remote merge_ref remote_url trusted_repo expected_checksum actual_checksum file
+  [[ -f "$env_file" ]] || die "Cannot configure portal updates without $env_file."
+  database_url="$(grep -E '^DATABASE_URL=' "$env_file" | tail -n 1 | cut -d= -f2- | tr -d '\r')"
+  [[ "$database_url" == postgresql://* || "$database_url" == postgres://* ]] \
+    || die "Cannot configure portal updates: DATABASE_URL is missing or invalid."
+  git -C "$APP_DIR" diff --quiet && git -C "$APP_DIR" diff --cached --quiet \
+    || die "Refusing to authorize a checkout with tracked local changes."
+  branch="$(git -C "$APP_DIR" symbolic-ref --quiet --short HEAD)" \
+    || die "Refusing to authorize a detached checkout."
+  remote="$(git -C "$APP_DIR" config --get "branch.${branch}.remote")"
+  merge_ref="$(git -C "$APP_DIR" config --get "branch.${branch}.merge")"
+  [[ "$merge_ref" == refs/heads/* ]] || die "The checkout does not track a deployable branch."
+  remote_url="$(git -C "$APP_DIR" remote get-url "$remote")"
+  trusted_repo="${REPO_URL%.git}"
+  [[ "${remote_url%.git}" == "$trusted_repo" ]] \
+    || die "The checkout remote does not match the reviewed repository supplied to this installer."
+  git -C "$APP_DIR" fetch --quiet --no-tags "$remote" "$merge_ref"
+  for file in deploy/update.sh deploy/migrate.sh; do
+    expected_checksum="$(git -C "$APP_DIR" show "FETCH_HEAD:${file}" | sha256sum | awk '{print $1}')"
+    actual_checksum="$(sha256sum "$APP_DIR/$file" | awk '{print $1}')"
+    [[ "$actual_checksum" == "$expected_checksum" ]] \
+      || die "The local $file does not match the reviewed tracked-branch version. Fast-forward and rebuild it manually, then re-run this root-only launcher setup."
+  done
+
+  install -d -m 700 /etc/netpulse
+  umask 077
+  {
+    printf 'DATABASE_URL=%q\n' "$database_url"
+    printf 'NETPULSE_PM2_USER=%q\n' "$app_owner"
+  } > /etc/netpulse/update.conf
+  chown root:root /etc/netpulse/update.conf
+  chmod 0600 /etc/netpulse/update.conf
+
+  # The portal's PM2 user may invoke the exact updater through sudo, but it
+  # must not be able to replace that path (or its parent directory). Production
+  # source is therefore root-owned; PM2 only needs read/execute access.
+  chown -R root:root "$APP_DIR"
+  chmod -R go-w "$APP_DIR"
+  chmod 0755 "$APP_DIR/deploy/update.sh" "$APP_DIR/deploy/migrate.sh"
+  cat > /etc/sudoers.d/netpulse-update <<EOF
+${app_owner} ALL=(root) NOPASSWD: ${APP_DIR}/deploy/update.sh *
+EOF
+  chmod 0440 /etc/sudoers.d/netpulse-update
+  visudo -cf /etc/sudoers.d/netpulse-update >/dev/null \
+    || die "Could not validate the NetPulse update sudo rule."
+}
+
 # ── Banner ────────────────────────────────────────────────────────────────────
 clear
 echo ""
@@ -320,9 +368,11 @@ fi
 
 if [[ -n "$REPO_URL" ]]; then
   if [[ "$UPGRADE" == "true" ]]; then
-    info "Pulling latest changes..."
-    git -C "$APP_DIR" fetch origin
-    git -C "$APP_DIR" reset --hard origin/main
+    EXISTING_OWNER="$(stat -c '%U' "$APP_DIR")"
+    [[ "$EXISTING_OWNER" == "root" ]] && EXISTING_OWNER="$REAL_USER"
+    configure_update_launcher "$APP_DIR/.env" "$EXISTING_OWNER"
+    ok "Portal update launcher configured. Use the owner-only Updates page for reviewed releases."
+    exit 0
   else
     info "Cloning repo to $APP_DIR..."
     git clone "$REPO_URL" "$APP_DIR"
@@ -342,6 +392,9 @@ if [[ -f "$ENV_FILE" ]] && [[ "$UPGRADE" == "true" ]]; then
   if ! grep -q "DATABASE_URL" "$ENV_FILE"; then
     echo "DATABASE_URL=${DATABASE_URL}" >> "$ENV_FILE"
   fi
+  if ! grep -q "NETPULSE_PM2_USER" "$ENV_FILE"; then
+    echo "NETPULSE_PM2_USER=${REAL_USER}" >> "$ENV_FILE"
+  fi
 else
   BETTER_AUTH_SECRET=$(openssl rand -hex 32)
   SESSION_SECRET=$(openssl rand -hex 64)
@@ -358,6 +411,7 @@ PORT=${APP_PORT}
 
 # PostgreSQL — auto-generated, do not change unless you move the DB
 DATABASE_URL=${DATABASE_URL}
+NETPULSE_PM2_USER=${REAL_USER}
 
 # ── Authentication (better-auth) ──────────────────────────────────────────────
 # Auto-generated secret — keep this private
@@ -439,30 +493,22 @@ SCHEMA_SQL="$APP_DIR/deploy/schema.sql"
 if [[ ! -f "$SCHEMA_SQL" ]]; then
   die "deploy/schema.sql not found in $APP_DIR. Ensure the repo is fully cloned."
 fi
-# Apply every CREATE TABLE / CREATE INDEX statement idempotently.
-# psql will skip objects that already exist (IF NOT EXISTS) and errors on
-# genuine failures.
-if sudo -u postgres psql -d "$DB_NAME" \
-    -v ON_ERROR_STOP=0 \
-    -f "$SCHEMA_SQL" >/dev/null 2>/tmp/schema.err; then
-  ok "Database schema up to date"
-else
-  # Check if tables already exist (upgrade — schema was applied by a prior run)
-  if sudo -u postgres psql -d "$DB_NAME" \
-      -c "SELECT 1 FROM users LIMIT 1" >/dev/null 2>&1; then
-    warn "Some schema statements produced errors (likely already-existing objects) — schema is present, continuing"
-  else
-    echo ""
-    echo -e "  ${YELLOW}Schema errors:${NC}" >&2
-    cat /tmp/schema.err >&2 || true
-    die "Database schema application failed and users table does not exist. See errors above."
-  fi
-fi
+# This baseline is for a fresh installation only. Upgrade releases use the
+# recorded migration runner below and must never replay this file.
+sudo -u postgres psql -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -f "$SCHEMA_SQL" >/dev/null
+ok "Fresh database baseline applied"
 # Grant permissions on the newly created objects
 sudo -u postgres psql -d "$DB_NAME" \
   -c "GRANT ALL PRIVILEGES ON ALL TABLES   IN SCHEMA public TO ${DB_USER};" >/dev/null 2>&1 || true
 sudo -u postgres psql -d "$DB_NAME" \
   -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER};" >/dev/null 2>&1 || true
+sudo -u postgres psql -d "$DB_NAME" \
+  -c "GRANT CREATE ON SCHEMA public TO ${DB_USER};" >/dev/null 2>&1 || true
+
+# Record the baseline and validate the production migration chain. The setup
+# script has already sourced DATABASE_URL before this point.
+DATABASE_URL="${DATABASE_URL:-postgresql://${DB_USER}@localhost/${DB_NAME}}" \
+  bash "$APP_DIR/deploy/migrate.sh"
 
 # ─────────────────────────────────────────────────────────────────────────────
 step "Starting application with PM2"
@@ -473,6 +519,8 @@ chown "$REAL_USER":"$REAL_USER" /var/log/netpulse
 # Ensure the app dir (including dist/) is owned by the real user so they can
 # rebuild without sudo later
 chown -R "$REAL_USER":"$REAL_USER" "$APP_DIR"
+
+configure_update_launcher "$ENV_FILE" "$REAL_USER"
 
 # Run PM2 as the real user
 sudo -u "$REAL_USER" pm2 delete netpulse 2>/dev/null || true

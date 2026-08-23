@@ -1,252 +1,249 @@
-import { Router } from "express";
-import { execFileSync, spawn } from "child_process";
+import { Router, type Request, type Response } from "express";
+import { execFileSync, spawn, type ChildProcess } from "child_process";
 import { readFileSync } from "fs";
+import path from "path";
+import { z } from "zod";
 import { requireRole } from "../middlewares/requireRole";
 
 const router = Router();
-const SAFE_NAME = /^[A-Za-z0-9._/-]+$/;
+const commitPattern = /^[0-9a-f]{40}$/i;
+let updateInProgress = false;
 
-type ReleaseStatus = {
+type ReleaseInfo = {
+  localCommit: string;
   branch: string;
-  commit: string;
-  commitFull: string;
+  remote: string;
+  candidateCommit: string;
   commitMessage: string;
   commitDate: string;
-  remoteCommit: string | null;
-  remoteCommitFull: string | null;
-  updateAvailable: boolean;
-  retryAvailable: boolean;
-  isProduction: boolean;
-  remote: string | null;
-  deployment: {
-    state: "running" | "success" | "failed";
-    phase: string;
-    targetCommit: string;
-  } | null;
 };
 
-function gitExec(args: string[], cwd: string): string {
-  try {
-    return execFileSync("git", args, { cwd, encoding: "utf8", timeout: 15_000 }).trim();
-  } catch {
-    return "";
-  }
+type UpdateStatus = {
+  state: "idle" | "preflight" | "backing-up" | "updating" | "installing" | "building" | "migrating" | "restarting" | "health-check" | "succeeded" | "failed" | "no-update";
+  phase: string;
+  message: string;
+  targetCommit?: string;
+  previousCommit?: string;
+  backupPath?: string;
+  updatedAt?: string;
+};
+
+const DeployUpdateBody = z.object({
+  targetCommit: z.string().regex(commitPattern, "targetCommit must be a full Git commit SHA"),
+  confirmation: z.string().min(1).max(64),
+});
+
+function git(args: string[], cwd: string): string {
+  return execFileSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    timeout: 20_000,
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
 }
 
-function configuredName(value: string | undefined): string | null {
-  const name = value?.trim();
-  return name && SAFE_NAME.test(name) ? name : null;
-}
+function trackedRelease(cwd: string): ReleaseInfo {
+  const checkoutBranch = git(["symbolic-ref", "--quiet", "--short", "HEAD"], cwd);
+  const remote = git(["config", "--get", `branch.${checkoutBranch}.remote`], cwd);
+  const mergeRef = git(["config", "--get", `branch.${checkoutBranch}.merge`], cwd);
+  const remoteBranch = mergeRef.replace(/^refs\/heads\//, "");
 
-function resolveRemote(cwd: string, branch: string): string | null {
-  const preferred = configuredName(process.env["NETPULSE_UPDATE_REMOTE"]);
-  if (preferred && gitExec(["remote", "get-url", preferred], cwd)) return preferred;
-
-  const tracked = configuredName(gitExec(["config", "--get", `branch.${branch}.remote`], cwd));
-  if (tracked && gitExec(["remote", "get-url", tracked], cwd)) return tracked;
-
-  for (const candidate of ["origin", "github"]) {
-    if (gitExec(["remote", "get-url", candidate], cwd)) return candidate;
+  if (!remote || !remoteBranch || !mergeRef.startsWith("refs/heads/")) {
+    throw new Error("The deployed checkout does not track a production branch.");
   }
 
-  return null;
-}
-
-function deploymentStatus(): ReleaseStatus["deployment"] {
-  const statusFile = process.env["NETPULSE_UPDATE_STATUS_FILE"] ?? "/var/lib/netpulse/update-status.json";
-  try {
-    const parsed = JSON.parse(readFileSync(statusFile, "utf8")) as Record<string, unknown>;
-    const state = parsed["state"];
-    const phase = parsed["phase"];
-    const targetCommit = parsed["targetCommit"];
-    if (
-      (state === "running" || state === "success" || state === "failed")
-      && typeof phase === "string"
-      && typeof targetCommit === "string"
-    ) {
-      if (state === "running") {
-        const pid = parsed["pid"];
-        const isAlive = typeof pid === "number"
-          && Number.isInteger(pid)
-          && pid > 0
-          && (() => {
-            try {
-              process.kill(pid, 0);
-              return true;
-            } catch {
-              return false;
-            }
-          })();
-        if (!isAlive) {
-          return { state: "failed", phase: "interrupted before completion", targetCommit };
-        }
-      }
-      return { state, phase, targetCommit };
-    }
-  } catch {
-    // No previous production deployment status exists yet.
-  }
-  return null;
-}
-
-function releaseStatus(cwd: string, refreshRemote = false): ReleaseStatus {
-  const localCommit = gitExec(["rev-parse", "HEAD"], cwd);
-  const branch = configuredName(process.env["NETPULSE_UPDATE_BRANCH"])
-    ?? configuredName(gitExec(["branch", "--show-current"], cwd))
-    ?? "main";
-  const remote = resolveRemote(cwd, branch);
-
-  if (refreshRemote && remote && SAFE_NAME.test(branch)) {
-    gitExec([
-      "fetch",
-      "--quiet",
-      remote,
-      `refs/heads/${branch}:refs/remotes/${remote}/${branch}`,
-    ], cwd);
-  }
-
-  const remoteCommit = remote
-    ? gitExec(["rev-parse", `${remote}/${branch}`], cwd)
-    : "";
-  const deployment = deploymentStatus();
-  const retryAvailable = Boolean(
-    deployment?.state === "failed"
-    && remoteCommit
-    && localCommit
-    && deployment.targetCommit === localCommit
-    && remoteCommit === localCommit,
-  );
+  // Fetch only the configured tracked branch. This refreshes Git metadata but
+  // never changes the checkout, files, or active application process.
+  git(["fetch", "--quiet", "--no-tags", remote, `refs/heads/${remoteBranch}`], cwd);
 
   return {
-    branch,
-    commit: localCommit ? localCommit.slice(0, 7) : "unknown",
-    commitFull: localCommit,
-    commitMessage: gitExec(["log", "-1", "--format=%s"], cwd),
-    commitDate: gitExec(["log", "-1", "--format=%ai"], cwd),
-    remoteCommit: remoteCommit ? remoteCommit.slice(0, 7) : null,
-    remoteCommitFull: remoteCommit || null,
-    updateAvailable: Boolean(remoteCommit && localCommit && remoteCommit !== localCommit),
-    retryAvailable,
-    isProduction: process.env["NODE_ENV"] === "production",
+    localCommit: git(["rev-parse", "HEAD"], cwd),
+    branch: remoteBranch,
     remote,
-    deployment,
+    candidateCommit: git(["rev-parse", "FETCH_HEAD"], cwd),
+    commitMessage: git(["log", "-1", "--format=%s", "FETCH_HEAD"], cwd),
+    commitDate: git(["log", "-1", "--format=%ai", "FETCH_HEAD"], cwd),
   };
 }
 
-// Deployment controls reveal production release metadata and are deliberately
-// restricted to the platform owner. An admin may manage a tenant, but must not
-// be able to run arbitrary production code from the configured Git remote.
-router.get("/system/version", requireRole("owner"), (_req, res) => {
+function statusFile(): string {
+  return process.env["NETPULSE_UPDATE_STATUS_FILE"] ?? "/var/lib/netpulse/update-status.json";
+}
+
+function readUpdateStatus(): UpdateStatus {
+  try {
+    const parsed = JSON.parse(readFileSync(statusFile(), "utf8")) as Partial<UpdateStatus>;
+    if (
+      typeof parsed.state !== "string" ||
+      typeof parsed.phase !== "string" ||
+      typeof parsed.message !== "string"
+    ) {
+      throw new Error("Invalid update status");
+    }
+    return parsed as UpdateStatus;
+  } catch {
+    return {
+      state: updateInProgress ? "preflight" : "idle",
+      phase: updateInProgress ? "preflight" : "idle",
+      message: updateInProgress ? "Deployment is starting." : "No deployment has been started.",
+    };
+  }
+}
+
+function isValidConfirmation(value: string, targetCommit: string): boolean {
+  return value.trim().toLowerCase() === targetCommit.toLowerCase();
+}
+
+function sendEvent(res: Response, type: "phase" | "log" | "done" | "error", data: string): void {
+  res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+// Update discovery intentionally fetches only the tracked branch; it never
+// checks out code or starts a deployment. Owner-only because commit and remote
+// details are operational information.
+router.get("/system/version", requireRole("owner"), async (req: Request, res: Response): Promise<void> => {
   const appDir = process.env["NETPULSE_DIR"] ?? "/opt/netpulse";
-  const status = releaseStatus(appDir, true);
-  return res.json({ version: "1.0.0", ...status });
+
+  try {
+    const release = trackedRelease(appDir);
+    const previousDeployment = readUpdateStatus();
+    const retryAvailable =
+      previousDeployment.state === "failed" &&
+      previousDeployment.targetCommit?.toLowerCase() === release.candidateCommit.toLowerCase();
+    const updateAvailable = release.localCommit !== release.candidateCommit || retryAvailable;
+    res.json({
+      commit: release.localCommit.slice(0, 7),
+      commitFull: release.localCommit,
+      branch: release.branch,
+      candidateCommit: release.candidateCommit,
+      remoteCommit: release.candidateCommit.slice(0, 7),
+      candidateMessage: release.commitMessage,
+      candidateDate: release.commitDate,
+      updateAvailable,
+      status: retryAvailable ? "retry-available" : updateAvailable ? "update-available" : "up-to-date",
+      isProduction: process.env["NODE_ENV"] === "production",
+      deployment: readUpdateStatus(),
+    });
+  } catch (error) {
+    req.log?.warn({ err: error }, "Production update preflight failed");
+    res.status(503).json({
+      status: "preflight-failed",
+      message: "Could not read the configured production branch. No deployment was started.",
+      isProduction: process.env["NODE_ENV"] === "production",
+    });
+  }
 });
 
-// POST /api/system/update — owner only, streams update output via SSE.
-router.post("/system/update", requireRole("owner"), (req, res): void => {
+router.get("/system/update/status", requireRole("owner"), async (_req: Request, res: Response): Promise<void> => {
+  res.json(readUpdateStatus());
+});
+
+// The target SHA must be the current candidate on the configured tracked
+// branch. The script repeats this preflight immediately before changing code,
+// protecting against a branch moving between confirmation and deployment.
+router.post("/system/update", requireRole("owner"), (req: Request, res: Response): void => {
+  const parsed = DeployUpdateBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "A full target commit and matching confirmation are required." });
+    return;
+  }
+
+  if (!isValidConfirmation(parsed.data.confirmation, parsed.data.targetCommit)) {
+    res.status(400).json({ error: "Confirmation must exactly match the target commit." });
+    return;
+  }
+
+  if (updateInProgress) {
+    res.status(409).json({ error: "Another deployment is already in progress." });
+    return;
+  }
+
   const appDir = process.env["NETPULSE_DIR"] ?? "/opt/netpulse";
-  const status = releaseStatus(appDir, true);
-  const targetCommit = typeof req.body?.targetCommit === "string"
-    ? req.body.targetCommit
-    : "";
-
-  if (!status.isProduction) {
-    res.status(400).json({ error: "Updates can only run on the installed Ubuntu server." });
-    return;
-  }
-  if (!status.remote || !status.remoteCommitFull) {
-    res.status(409).json({ error: "No configured Git remote release was found. Check the server Git configuration." });
-    return;
-  }
-  if (status.deployment?.state === "running") {
-    res.status(409).json({ error: "An update is already in progress. Wait for it to finish before starting another." });
-    return;
-  }
-  if (!status.updateAvailable && !status.retryAvailable) {
-    res.status(409).json({ error: "The server is already up to date." });
-    return;
-  }
-  if (targetCommit !== status.remoteCommitFull) {
-    res.status(409).json({ error: "The available release changed. Check for updates again before deploying." });
+  let release: ReleaseInfo;
+  try {
+    release = trackedRelease(appDir);
+  } catch (error) {
+    req.log?.warn({ err: error }, "Deployment rejected during preflight");
+    res.status(503).json({ error: "Deployment preflight failed. No code was changed." });
     return;
   }
 
-  const updateScript = `${appDir}/deploy/update.sh`;
+  if (release.candidateCommit.toLowerCase() !== parsed.data.targetCommit.toLowerCase()) {
+    res.status(409).json({ error: "The production branch changed. Check again and confirm the new commit." });
+    return;
+  }
+
+  const previousDeployment = readUpdateStatus();
+  const retryingFailedRelease =
+    release.localCommit === release.candidateCommit &&
+    previousDeployment.state === "failed" &&
+    previousDeployment.targetCommit?.toLowerCase() === release.candidateCommit.toLowerCase();
+
+  if (release.localCommit === release.candidateCommit && !retryingFailedRelease) {
+    res.status(409).json({ error: "No update is available for the configured production branch." });
+    return;
+  }
+
+  const updateScript = path.join(appDir, "deploy", "update.sh");
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
-  const send = (type: "log" | "restarting" | "done" | "error", data: string) => {
-    res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
-  };
+  updateInProgress = true;
+  sendEvent(res, "phase", `Preflight passed. Deploying ${release.candidateCommit.slice(0, 7)} from ${release.branch}.`);
 
-  send(
-    "log",
-    status.retryAvailable
-      ? `Retrying incomplete release ${status.remoteCommit} from ${status.branch}…`
-      : `Preparing release ${status.remoteCommit} from ${status.branch}…`,
-  );
+  let child: ChildProcess;
+  try {
+    child = spawn("sudo", ["-n", updateScript, ...(retryingFailedRelease ? ["--retry"] : []), release.candidateCommit], {
+      cwd: appDir,
+      env: { ...process.env },
+      detached: true,
+      stdio: "ignore",
+    });
+    child.unref();
+  } catch (error) {
+    updateInProgress = false;
+    sendEvent(res, "error", "Could not start the deployment script.");
+    res.end();
+    req.log?.error({ err: error }, "Could not start deployment script");
+    return;
+  }
 
-  const child = spawn("bash", [updateScript], {
-    cwd: appDir,
-    env: {
-      ...process.env,
-      NETPULSE_EXPECTED_COMMIT: status.remoteCommitFull,
-      NETPULSE_UPDATE_REMOTE: status.remote,
-      NETPULSE_UPDATE_BRANCH: status.branch,
-    },
-    detached: true,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  child.unref();
-
-  let doneSent = false;
-  const finish = (type: "restarting" | "done" | "error", message: string) => {
-    if (doneSent) return;
-    doneSent = true;
-    send(type, message);
+  let responseClosed = false;
+  const finish = (type: "done" | "error", message: string): void => {
+    if (responseClosed) return;
+    responseClosed = true;
+    clearInterval(statusTicker);
+    sendEvent(res, type, message);
     res.end();
   };
 
-  child.stdout.on("data", (chunk: Buffer) => {
-    for (const line of chunk.toString().split("\n")) {
-      if (!line.trim()) continue;
-      if (line.includes("NETPULSE_RESTART_NOW")) {
-        finish("restarting", "Build and migrations are complete — server is restarting. Refreshing shortly to verify health.");
-        return;
-      }
-      send("log", line);
-    }
-  });
-
-  child.stderr.on("data", (chunk: Buffer) => {
-    for (const line of chunk.toString().split("\n")) {
-      if (line.trim()) send("log", line);
-    }
-  });
-
+  const statusTicker = setInterval(() => {
+    const status = readUpdateStatus();
+    sendEvent(res, "phase", `${status.phase}: ${status.message}`);
+    if (status.state === "succeeded") finish("done", status.message);
+    if (status.state === "failed") finish("error", status.message);
+  }, 2_000);
+  statusTicker.unref();
   child.on("close", (code) => {
-    if (doneSent) return;
-    finish(
-      code === 0 ? "done" : "error",
-      code === 0
-        ? "Update complete."
-        : `Update stopped with code ${code ?? "unknown"}. The running app was not restarted.`,
-    );
+    updateInProgress = false;
+    if (code === 0) {
+      finish("done", "Deployment completed. Health check passed.");
+    } else {
+      finish("error", "Deployment stopped safely. Check the final status for the failed phase.");
+    }
   });
-
   child.on("error", (error) => {
-    const message = error.message.includes("ENOENT")
-      ? "Update script not found on this server."
-      : error.message;
-    finish("error", message);
+    updateInProgress = false;
+    req.log?.error({ err: error }, "Deployment process failed");
+    finish("error", "The deployment process could not run.");
   });
 
-  req.on("close", () => {
-    if (!doneSent) child.kill();
-  });
+  // The detached process deliberately outlives this response and even the API
+  // process itself when PM2 restarts. Owners reconnect through the status
+  // endpoint rather than cancelling a release by closing their browser.
 });
 
 export default router;

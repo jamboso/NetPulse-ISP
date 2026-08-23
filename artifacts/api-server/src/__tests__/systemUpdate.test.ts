@@ -1,17 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import express, { type NextFunction, type Request } from "express";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import express, { type NextFunction, type Request, type Response } from "express";
 import request from "supertest";
+import { EventEmitter } from "node:events";
 
 const mockExecFileSync = vi.hoisted(() => vi.fn());
 const mockSpawn = vi.hoisted(() => vi.fn());
-const mockReadFileSync = vi.hoisted(() => vi.fn());
 
 vi.mock("child_process", () => ({
   execFileSync: mockExecFileSync,
   spawn: mockSpawn,
-}));
-vi.mock("fs", () => ({
-  readFileSync: mockReadFileSync,
 }));
 
 const { default: systemUpdateRouter } = await import("../routes/system-update.js");
@@ -28,15 +25,19 @@ type MockUser = {
 };
 
 const ownerUser: MockUser = {
-  id: "owner-1", email: "owner@test.com", name: "Owner", role: "owner",
+  id: "owner", email: "owner@test.com", name: "Owner", role: "owner",
   active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date(),
 };
-const adminUser: MockUser = { ...ownerUser, id: "admin-1", role: "admin" };
+const adminUser: MockUser = { ...ownerUser, id: "admin", email: "admin@test.com", role: "admin" };
+const billingUser: MockUser = { ...ownerUser, id: "billing", email: "billing@test.com", role: "billing" };
+
+const localCommit = "a".repeat(40);
+const candidateCommit = "b".repeat(40);
 
 function buildApp(user: MockUser = ownerUser) {
   const app = express();
   app.use(express.json());
-  app.use((req: Request, _res, next: NextFunction) => {
+  app.use((req: Request, _res: Response, next: NextFunction) => {
     (req as Request & { user: MockUser }).user = user;
     next();
   });
@@ -44,137 +45,166 @@ function buildApp(user: MockUser = ownerUser) {
   return app;
 }
 
-function mockGit(localCommit = "localcommit1111111111111111111111111111111", remoteCommit = localCommit) {
+function mockTrackedRelease({ candidate = candidateCommit, local = localCommit } = {}) {
   mockExecFileSync.mockImplementation((_command: string, args: string[]) => {
-    const joined = args.join(" ");
-    if (joined === "rev-parse HEAD") return localCommit;
-    if (joined === "branch --show-current") return "main";
-    if (joined === "config --get branch.main.remote") return "origin";
-    if (joined === "remote get-url origin") return "https://github.example/netpulse.git";
-    if (joined.startsWith("fetch --quiet origin")) return "";
-    if (joined === "rev-parse origin/main") return remoteCommit;
-    if (joined === "log -1 --format=%s") return "Safe updater";
-    if (joined === "log -1 --format=%ai") return "2026-08-23 10:00:00 +0000";
-    throw new Error(`Unexpected git command: ${joined}`);
+    if (args[0] === "symbolic-ref") return "release\n";
+    if (args[0] === "config" && args[2] === "branch.release.remote") return "github\n";
+    if (args[0] === "config" && args[2] === "branch.release.merge") return "refs/heads/production\n";
+    if (args[0] === "fetch") return "";
+    if (args[0] === "rev-parse" && args[1] === "HEAD") return `${local}\n`;
+    if (args[0] === "rev-parse" && args[1] === "FETCH_HEAD") return `${candidate}\n`;
+    if (args[0] === "log" && args[2] === "--format=%s") return "Safe release\n";
+    if (args[0] === "log" && args[2] === "--format=%ai") return "2026-08-23 12:00:00 +0000\n";
+    throw new Error(`Unexpected git command ${args.join(" ")}`);
   });
+}
+
+function createChild(): EventEmitter & {
+  stdout: EventEmitter;
+  stderr: EventEmitter;
+  unref: ReturnType<typeof vi.fn>;
+} {
+  const child = new EventEmitter() as EventEmitter & {
+    stdout: EventEmitter;
+    stderr: EventEmitter;
+    unref: ReturnType<typeof vi.fn>;
+  };
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  child.unref = vi.fn();
+  return child;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockReadFileSync.mockImplementation(() => {
-    throw new Error("status file does not exist");
-  });
-  process.env.NODE_ENV = "production";
-  delete process.env.NETPULSE_UPDATE_REMOTE;
-  delete process.env.NETPULSE_UPDATE_BRANCH;
-  mockSpawn.mockImplementation(() => {
-    const child = {
-      stdout: { on: vi.fn() },
-      stderr: { on: vi.fn() },
-      on: vi.fn((event: string, callback: (code: number | null) => void) => {
-        if (event === "close") setImmediate(() => callback(0));
-      }),
-      kill: vi.fn(),
-      unref: vi.fn(),
-    };
-    return child;
-  });
-});
-
-afterEach(() => {
-  delete process.env.NODE_ENV;
-  delete process.env.NETPULSE_UPDATE_REMOTE;
-  delete process.env.NETPULSE_UPDATE_BRANCH;
+  delete process.env.NETPULSE_DIR;
+  delete process.env.NETPULSE_UPDATE_STATUS_FILE;
+  mockTrackedRelease();
 });
 
 describe("GET /system/version", () => {
-  it("reports the fetched GitHub release without exposing the server path", async () => {
-    const local = "localcommit1111111111111111111111111111111";
-    const remote = "remotecommit2222222222222222222222222222222";
-    mockGit(local, remote);
+  it("allows only the platform owner to inspect release details", async () => {
+    const denied = await request(buildApp(adminUser)).get("/system/version");
+    expect(denied.status).toBe(403);
+    expect(mockExecFileSync).not.toHaveBeenCalled();
 
+    const allowed = await request(buildApp()).get("/system/version");
+    expect(allowed.status).toBe(200);
+    expect(allowed.body).toMatchObject({
+      commit: localCommit.slice(0, 7),
+      branch: "production",
+      candidateCommit,
+      remoteCommit: candidateCommit.slice(0, 7),
+      updateAvailable: true,
+      status: "update-available",
+    });
+  });
+
+  it("fetches and compares the configured tracked branch without changing the checkout", async () => {
     const response = await request(buildApp()).get("/system/version");
 
     expect(response.status).toBe(200);
-    expect(response.body).toMatchObject({
-      commit: "localco",
-      remoteCommit: "remotec",
-      remoteCommitFull: remote,
-      branch: "main",
-      remote: "origin",
-      updateAvailable: true,
-      retryAvailable: false,
-      isProduction: true,
-    });
-    expect(response.body.deployment).toBeNull();
-    expect(response.body).not.toHaveProperty("appDir");
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      "git",
+      ["fetch", "--quiet", "--no-tags", "github", "refs/heads/production"],
+      expect.objectContaining({ cwd: "/opt/netpulse" }),
+    );
+    expect(mockExecFileSync.mock.calls.some(([, args]) => (args as string[])[0] === "checkout")).toBe(false);
   });
 
-  it("denies production release metadata to tenant admins", async () => {
-    mockGit();
-    const response = await request(buildApp(adminUser)).get("/system/version");
+  it("reports no update when the tracked branch is already deployed", async () => {
+    mockTrackedRelease({ candidate: localCommit });
+    const response = await request(buildApp()).get("/system/version");
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ updateAvailable: false, status: "up-to-date" });
+  });
+
+  it("clearly reports a failed preflight without starting deployment", async () => {
+    mockExecFileSync.mockImplementation(() => { throw new Error("git fetch failed"); });
+    const response = await request(buildApp()).get("/system/version");
+    expect(response.status).toBe(503);
+    expect(response.body.status).toBe("preflight-failed");
+  });
+});
+
+describe("GET /system/update/status", () => {
+  it("does not expose deployment state to non-owners", async () => {
+    const response = await request(buildApp(billingUser)).get("/system/update/status");
     expect(response.status).toBe(403);
   });
 });
 
 describe("POST /system/update", () => {
-  it("denies tenant admins", async () => {
+  it("rejects non-owners before reading Git or starting an update", async () => {
     const response = await request(buildApp(adminUser))
       .post("/system/update")
-      .send({ targetCommit: "remote" });
+      .send({ targetCommit: candidateCommit, confirmation: candidateCommit });
     expect(response.status).toBe(403);
-  });
-
-  it("requires the checked release commit before starting an update", async () => {
-    mockGit("localcommit1111111111111111111111111111111", "remotecommit2222222222222222222222222222222");
-
-    const response = await request(buildApp())
-      .post("/system/update")
-      .send({ targetCommit: "different-release" });
-
-    expect(response.status).toBe(409);
-    expect(response.body.error).toMatch(/check for updates again/i);
     expect(mockSpawn).not.toHaveBeenCalled();
   });
 
-  it("allows an owner to retry a failed deployment of the current release", async () => {
-    const commit = "currentcommit1111111111111111111111111111111";
-    mockGit(commit, commit);
-    mockReadFileSync.mockReturnValue(JSON.stringify({
-      state: "failed",
-      phase: "verifying health",
-      targetCommit: commit,
-      pid: 999999,
-    }));
+  it("requires an exact full-commit confirmation", async () => {
+    const missing = await request(buildApp()).post("/system/update").send({});
+    expect(missing.status).toBe(400);
 
-    const response = await request(buildApp())
+    const mismatch = await request(buildApp())
       .post("/system/update")
-      .send({ targetCommit: commit });
-
-    expect(response.status).toBe(200);
-    expect(mockSpawn).toHaveBeenCalledOnce();
+      .send({ targetCommit: candidateCommit, confirmation: localCommit });
+    expect(mismatch.status).toBe(400);
+    expect(mockSpawn).not.toHaveBeenCalled();
   });
 
-  it("starts the updater with the owner-confirmed release and remote", async () => {
-    const remote = "remotecommit2222222222222222222222222222222";
-    mockGit("localcommit1111111111111111111111111111111", remote);
+  it("rejects a target that is no longer the configured branch candidate", async () => {
+    const response = await request(buildApp())
+      .post("/system/update")
+      .send({ targetCommit: "c".repeat(40), confirmation: "c".repeat(40) });
+    expect(response.status).toBe(409);
+    expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
+  it("rejects a no-change deployment path", async () => {
+    mockTrackedRelease({ candidate: localCommit });
+    const response = await request(buildApp())
+      .post("/system/update")
+      .send({ targetCommit: localCommit, confirmation: localCommit });
+    expect(response.status).toBe(409);
+    expect(response.body.error).toMatch(/No update/);
+  });
+
+  it("starts only the verified candidate and streams the final outcome", async () => {
+    const child = createChild();
+    mockSpawn.mockImplementation(() => {
+      setImmediate(() => child.emit("close", 0));
+      return child;
+    });
 
     const response = await request(buildApp())
       .post("/system/update")
-      .send({ targetCommit: remote });
+      .send({ targetCommit: candidateCommit.toUpperCase(), confirmation: candidateCommit.toUpperCase() });
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toMatch(/text\/event-stream/);
     expect(mockSpawn).toHaveBeenCalledWith(
-      "bash",
-      ["/opt/netpulse/deploy/update.sh"],
-      expect.objectContaining({
-        env: expect.objectContaining({
-          NETPULSE_EXPECTED_COMMIT: remote,
-          NETPULSE_UPDATE_REMOTE: "origin",
-          NETPULSE_UPDATE_BRANCH: "main",
-        }),
-      }),
+      "sudo",
+      ["-n", "/opt/netpulse/deploy/update.sh", candidateCommit],
+      expect.objectContaining({ cwd: "/opt/netpulse", detached: true, stdio: "ignore" }),
     );
+    expect(child.unref).toHaveBeenCalled();
+    expect(response.text).toContain("event: phase");
+    expect(response.text).toContain("event: done");
+  });
+
+  it("reports a failed script without claiming deployment succeeded", async () => {
+    const child = createChild();
+    mockSpawn.mockImplementation(() => {
+      setImmediate(() => child.emit("close", 1));
+      return child;
+    });
+    const response = await request(buildApp())
+      .post("/system/update")
+      .send({ targetCommit: candidateCommit, confirmation: candidateCommit });
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("event: error");
+    expect(response.text).not.toContain("Health check passed");
   });
 });

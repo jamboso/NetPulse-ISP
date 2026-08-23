@@ -257,6 +257,10 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
           <DialogHeader><DialogTitle>Add OLT</DialogTitle><DialogDescription>Register an OLT for safe, read-only inventory discovery.</DialogDescription></DialogHeader>
           <div className="max-h-[65vh] space-y-3 overflow-y-auto pr-1">
             <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Credentials are encrypted at rest and never returned to the browser. Discovery is read-only until a verified adapter is installed.</p>
+            <div className="flex flex-col gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div><p className="text-xs font-medium text-sky-900">Validated HIOSO EPON profile</p><p className="mt-0.5 text-[11px] leading-4 text-sky-800">Use only for a HA7304VD running v1.1.28 over SNMP v2c. This enables read-only PON and ONU inventory.</p></div>
+              <Button type="button" variant="outline" size="sm" className="shrink-0 border-sky-300 bg-white text-sky-800 hover:bg-sky-100" onClick={() => setOltForm({ ...oltForm, vendor: "HIOSO", model: "HA7304VD", firmwareVersion: "v1.1.28", ponTechnology: "epon", managementPort: "161", managementProtocol: "snmp-v2c" })}>Use HIOSO preset</Button>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label>Name *</Label><Input value={oltForm.name} onChange={(event) => setOltForm({ ...oltForm, name: event.target.value })} placeholder="Main OLT" /></div>
               <div className="space-y-1"><Label>Vendor *</Label><Input value={oltForm.vendor} onChange={(event) => setOltForm({ ...oltForm, vendor: event.target.value })} placeholder="HIOSO" /></div>

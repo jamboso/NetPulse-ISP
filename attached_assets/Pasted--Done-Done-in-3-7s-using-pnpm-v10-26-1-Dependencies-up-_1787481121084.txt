@@ -1,0 +1,106 @@
+: Done
+Done in 3.7s using pnpm v10.26.1
+  ✓  Dependencies up to date
+  →  Building shared libraries...
+> workspace@0.0.0 typecheck:libs /opt/netpulse
+> tsc --build
+
+  ✓  Libraries built
+  →  Building API server...
+  dist/pino-file.mjs.map             229.0kb
+  dist/pino-pretty.mjs.map           204.0kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+
+⚡ Done in 517ms
+  ✓  API server built
+  →  Building frontend...
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 6.29s
+  ✓  Frontend built
+  →  Running database migrations...
+  ✓  Database schema up to date
+  →  Build complete — signalling dashboard before restart...
+NETPULSE_RESTART_NOW
+  →  Restarting PM2 process...
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [netpulse](ids: [ 0 ])
+[PM2] [netpulse](0) ✓
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 10176    │ 0s     │ 17   │ online    │ 0%       │ 13.0mb   │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+  ✓  App restarted
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+  ✓  nginx reloaded
+  ✓  App is healthy ✓
+
+✓ Update complete in 29s
+  pm2 logs netpulse  to watch live logs
+
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo journalctl -u openvpn@server -n 60 --no-pager
+Aug 23 13:01:06 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 23 13:01:06 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 23 13:01:12 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 91.
+Aug 23 13:01:12 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 23 13:01:12 amboso-HP-EliteDesk-800-G2-DM-65W ovpn-server[9457]: WARNING: Compression for receiving enabled. Compression has been used in the past to break encryption. Sent packets are not compressed unless "allow-compression yes" is also set.
+Aug 23 13:01:12 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 23 13:01:12 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 23 13:01:12 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 23 13:01:17 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 92.
+Aug 23 13:01:17 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 23 13:01:17 amboso-HP-EliteDesk-800-G2-DM-65W ovpn-server[9471]: WARNING: Compression for receiving enabled. Compression has been used in the past to break encryption. Sent packets are not compressed unless "allow-compression yes" is also set.
+Aug 23 13:01:17 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 23 13:01:17 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 23 13:01:17 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 23 13:01:22 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 93.
+Aug 23 13:01:22 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 23 13:01:22 amboso-HP-EliteDesk-800-G2-DM-65W ovpn-server[9485]: WARNING: Compression for receiving enabled. Compression has been used in the past to break encryption. Sent packets are not compressed unless "allow-compression yes" is also set.
+Aug 23 13:01:22 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 23 13:01:22 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 23 13:01:22 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 23 13:01:27 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 94.
+Aug 23 13:01:27 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 23 13:01:27 amboso-HP-EliteDesk-800-G2-DM-65W ovpn-server[9504]: WARNING: Compression for receiving enabled. Compression has been used in the past to break encryption. Sent packets are not compressed unless "allow-compression yes" is also set.
+Aug 23 13:01:27 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 23 13:01:27 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 23 13:01:27 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 23 13:01:33 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 95.
+Aug 23 13:01:33 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 23 13:01:33 amboso-HP-EliteDesk-800-G2-DM-65W ovpn-server[9518]: WARNING: Compression for receiving enabled. Compression has been used in the past to break encryption. Sent packets are not compressed unless "allow-compression yes" is also set.
+Aug 23 13:01:33 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 23 13:01:33 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 23 13:01:33 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 23 13:01:38 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 96.
+Aug 23 13:01:38 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 23 13:01:38 amboso-HP-EliteDesk-800-G2-DM-65W ovpn-server[9534]: WARNING: Compression for receiving enabled. Compression has been used in the past to break encryption. Sent packets are not compressed unless "allow-compression yes" is also set.
+Aug 23 13:01:38 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 23 13:01:38 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 23 13:01:38 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 23 13:01:43 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 97.
+Aug 23 13:01:43 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 23 13:01:43 amboso-HP-EliteDesk-800-G2-DM-65W ovpn-server[9550]: WARNING: Compression for receiving enabled. Compression has been used in the past to break encryption. Sent packets are not compressed unless "allow-compression yes" is also set.
+Aug 23 13:01:43 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 23 13:01:43 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 23 13:01:43 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 23 13:01:48 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 98.
+Aug 23 13:01:48 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 23 13:01:48 amboso-HP-EliteDesk-800-G2-DM-65W ovpn-server[9564]: WARNING: Compression for receiving enabled. Compression has been used in the past to break encryption. Sent packets are not compressed unless "allow-compression yes" is also set.
+Aug 23 13:01:48 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 23 13:01:48 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 23 13:01:48 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 23 13:01:51 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Stopped openvpn@server.service - OpenVPN connection to server.
+Aug 23 13:02:24 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 23 13:02:24 amboso-HP-EliteDesk-800-G2-DM-65W ovpn-server[9612]: WARNING: Compression for receiving enabled. Compression has been used in the past to break encryption. Sent packets are not compressed unless "allow-compression yes" is also set.
+Aug 23 13:02:24 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 23 13:17:08 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Stopping openvpn@server.service - OpenVPN connection to server...
+Aug 23 13:17:08 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Deactivated successfully.
+Aug 23 13:17:08 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Stopped openvpn@server.service - OpenVPN connection to server.
+Aug 23 13:17:08 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 23 13:17:08 amboso-HP-EliteDesk-800-G2-DM-65W ovpn-server[9838]: WARNING: Compression for receiving enabled. Compression has been used in the past to break encryption. Sent packets are not compressed unless "allow-compression yes" is also set.
+Aug 23 13:17:08 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

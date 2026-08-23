@@ -56,6 +56,10 @@ vi.mock("@workspace/db", () => {
   };
 });
 
+vi.mock("../middlewares/companyScope", () => ({
+  resolveCompanyScope: (_req: Request, _res: Response, next: NextFunction) => next(),
+}));
+
 const { default: ticketsRouter } = await import("../routes/tickets.js");
 
 type MockUser = {
@@ -289,7 +293,9 @@ describe("GET /tickets/:id", () => {
 
 describe("POST /tickets", () => {
   it("creates a ticket and returns 201", async () => {
-    mockExec.mockResolvedValueOnce([sampleTicket]);
+    mockExec
+      .mockResolvedValueOnce([{ id: 10 }])
+      .mockResolvedValueOnce([sampleTicket]);
 
     const res = await request(buildApp())
       .post("/tickets")
@@ -301,7 +307,9 @@ describe("POST /tickets", () => {
   });
 
   it("allows support role to create a ticket", async () => {
-    mockExec.mockResolvedValueOnce([sampleTicket]);
+    mockExec
+      .mockResolvedValueOnce([{ id: 10 }])
+      .mockResolvedValueOnce([sampleTicket]);
 
     const res = await request(buildApp(supportUser))
       .post("/tickets")
@@ -310,14 +318,12 @@ describe("POST /tickets", () => {
     expect(res.status).toBe(201);
   });
 
-  it("allows billing role to create a ticket", async () => {
-    mockExec.mockResolvedValueOnce([sampleTicket]);
-
+  it("returns 403 for billing role", async () => {
     const res = await request(buildApp(billingUser))
       .post("/tickets")
       .send({ customerId: 10, subject: "Billing issue", description: "Overcharged" });
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(403);
   });
 
   it("returns 403 for technician role", async () => {
@@ -428,6 +434,26 @@ describe("PATCH /tickets/:id", () => {
 
   it("returns 403 for technician role", async () => {
     const res = await request(buildApp(technicianUser))
+      .patch("/tickets/1")
+      .send({ status: "closed" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("allows support role to close a ticket", async () => {
+    const updated = { ...sampleTicket, status: "closed" };
+    mockExec.mockResolvedValueOnce([updated]);
+
+    const res = await request(buildApp(supportUser))
+      .patch("/tickets/1")
+      .send({ status: "closed" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("closed");
+  });
+
+  it("returns 403 for billing role", async () => {
+    const res = await request(buildApp(billingUser))
       .patch("/tickets/1")
       .send({ status: "closed" });
 
@@ -594,19 +620,24 @@ describe("DELETE /tickets/:id", () => {
     expect(res.body).toHaveProperty("error");
   });
 
-  it("returns 403 for support role (admin only)", async () => {
+  it("allows support role to delete a ticket", async () => {
+    mockExec
+      .mockResolvedValueOnce([{ id: 1 }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
     const res = await request(buildApp(supportUser)).delete("/tickets/1");
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(204);
   });
 
-  it("returns 403 for billing role (admin only)", async () => {
+  it("returns 403 for billing role", async () => {
     const res = await request(buildApp(billingUser)).delete("/tickets/1");
 
     expect(res.status).toBe(403);
   });
 
-  it("returns 403 for technician role (admin only)", async () => {
+  it("returns 403 for technician role", async () => {
     const res = await request(buildApp(technicianUser)).delete("/tickets/1");
 
     expect(res.status).toBe(403);
@@ -619,7 +650,10 @@ describe("DELETE /tickets/:id", () => {
 
 describe("POST /tickets/:id/reply", () => {
   it("creates a staff reply and returns 201 with isStaff=true", async () => {
-    mockExec.mockResolvedValueOnce([sampleReply]).mockResolvedValueOnce([]);
+    mockExec
+      .mockResolvedValueOnce([{ id: 1 }])
+      .mockResolvedValueOnce([sampleReply])
+      .mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .post("/tickets/1/reply")
@@ -632,7 +666,9 @@ describe("POST /tickets/:id/reply", () => {
 
   it("creates a customer reply and returns 201 with isStaff=false", async () => {
     const customerReply = { ...sampleReply, isStaff: "false" };
-    mockExec.mockResolvedValueOnce([customerReply]);
+    mockExec
+      .mockResolvedValueOnce([{ id: 1 }])
+      .mockResolvedValueOnce([customerReply]);
 
     const res = await request(buildApp())
       .post("/tickets/1/reply")
@@ -649,6 +685,14 @@ describe("POST /tickets/:id/reply", () => {
 
     expect(res.status).toBe(403);
   });
+
+  it("returns 403 for billing role", async () => {
+    const res = await request(buildApp(billingUser))
+      .post("/tickets/1/reply")
+      .send({ message: "Looking into it", author: "Billing", isStaff: true });
+
+    expect(res.status).toBe(403);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -657,19 +701,24 @@ describe("POST /tickets/:id/reply", () => {
 
 describe("POST /tickets/:id/reply — staff auto-status", () => {
   it("triggers a status update to in_progress when staff replies", async () => {
-    mockExec.mockResolvedValueOnce([sampleReply]).mockResolvedValueOnce([]);
+    mockExec
+      .mockResolvedValueOnce([{ id: 1 }])
+      .mockResolvedValueOnce([sampleReply])
+      .mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .post("/tickets/1/reply")
       .send({ message: "We are looking into it", author: "Staff Name", isStaff: true });
 
     expect(res.status).toBe(201);
-    expect(mockExec).toHaveBeenCalledTimes(2);
+    expect(mockExec).toHaveBeenCalledTimes(3);
   });
 
   it("does not update status when customer replies (isStaff false)", async () => {
     const customerReply = { ...sampleReply, isStaff: "false" };
-    mockExec.mockResolvedValueOnce([customerReply]);
+    mockExec
+      .mockResolvedValueOnce([{ id: 1 }])
+      .mockResolvedValueOnce([customerReply]);
 
     const res = await request(buildApp())
       .post("/tickets/1/reply")
@@ -677,7 +726,7 @@ describe("POST /tickets/:id/reply — staff auto-status", () => {
 
     expect(res.status).toBe(201);
     expect(res.body.isStaff).toBe(false);
-    expect(mockExec).toHaveBeenCalledTimes(1);
+    expect(mockExec).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -733,7 +782,9 @@ describe("POST /tickets/:id/reply — validation", () => {
 
 describe("GET /tickets/:id/replies", () => {
   it("returns a list of replies with isStaff as boolean", async () => {
-    mockExec.mockResolvedValueOnce([sampleReply]);
+    mockExec
+      .mockResolvedValueOnce([{ id: 1 }])
+      .mockResolvedValueOnce([sampleReply]);
 
     const res = await request(buildApp()).get("/tickets/1/replies");
 
@@ -744,7 +795,9 @@ describe("GET /tickets/:id/replies", () => {
 
   it("coerces isStaff='false' string to boolean false", async () => {
     const customerReply = { ...sampleReply, id: 2, isStaff: "false" };
-    mockExec.mockResolvedValueOnce([customerReply]);
+    mockExec
+      .mockResolvedValueOnce([{ id: 1 }])
+      .mockResolvedValueOnce([customerReply]);
 
     const res = await request(buildApp()).get("/tickets/1/replies");
 
@@ -753,7 +806,9 @@ describe("GET /tickets/:id/replies", () => {
   });
 
   it("returns an empty array when there are no replies", async () => {
-    mockExec.mockResolvedValueOnce([]);
+    mockExec
+      .mockResolvedValueOnce([{ id: 1 }])
+      .mockResolvedValueOnce([]);
 
     const res = await request(buildApp()).get("/tickets/1/replies");
 

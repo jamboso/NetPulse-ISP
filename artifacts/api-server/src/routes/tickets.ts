@@ -75,7 +75,7 @@ router.get("/tickets", async (req, res) => {
   res.json({ data, total, page: pageNum, limit: limitNum });
 });
 
-router.post("/tickets", requireRole("admin", "billing", "support"), validateBody(createTicketSchema), async (req, res) => {
+router.post("/tickets", requireRole("admin", "support"), validateBody(createTicketSchema), async (req, res) => {
   const body = req.body;
 
   const [customer] = await db.select({ id: customersTable.id }).from(customersTable).where(
@@ -109,7 +109,7 @@ router.get("/tickets/:id", async (req, res) => {
   res.json({ ...row.tickets, customer: row.customers ?? null });
 });
 
-router.patch("/tickets/:id", requireRole("admin", "billing", "support"), validateBody(updateTicketSchema), async (req, res) => {
+router.patch("/tickets/:id", requireRole("admin", "support"), validateBody(updateTicketSchema), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   const body = req.body;
   const update: Record<string, unknown> = {};
@@ -128,7 +128,7 @@ router.patch("/tickets/:id", requireRole("admin", "billing", "support"), validat
   res.json(updated);
 });
 
-router.delete("/tickets/:id", requireRole("admin"), async (req, res) => {
+router.delete("/tickets/:id", requireRole("admin", "support"), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   const [existing] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(scopedTicketWhere(req, id));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
@@ -137,7 +137,7 @@ router.delete("/tickets/:id", requireRole("admin"), async (req, res) => {
   res.status(204).send();
 });
 
-router.post("/tickets/:id/reply", requireRole("admin", "billing", "support"), validateBody(createTicketReplySchema), async (req, res) => {
+router.post("/tickets/:id/reply", requireRole("admin", "support"), validateBody(createTicketReplySchema), async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   const [ticketExists] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(scopedTicketWhere(req, id));
   if (!ticketExists) { res.status(404).json({ error: "Not found" }); return; }

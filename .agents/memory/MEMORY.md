@@ -17,3 +17,4 @@
 - [Per-company M-Pesa Daraja config](multi-tenant-mpesa-config.md) — one-row-per-company creds with company-1 legacy fallback; callbacks route via companies.username in the URL path, not req.companyId
 - [OpenVPN protocol alignment](openvpn-protocol-alignment.md) — MikroTik client and deployed server must agree on TCP/UDP before issuing router profiles.
 - [Notification settings encryption](notification-settings-encryption.md) — legacy notification values must encrypt before API traffic is accepted; a failed migration is fail-closed.
+- [Route unit test scope isolation](router-unit-test-scope-isolation.md) — isolate tenant scope when validating a router’s local authorization or business behavior.

@@ -116,6 +116,9 @@ describe("GET /api/settings", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("companyName", null);
     expect(res.body).toHaveProperty("timezone", null);
+    expect(res.body).toHaveProperty("emailSubject", null);
+    expect(res.body).toHaveProperty("emailGreeting", null);
+    expect(res.body).toHaveProperty("emailFooter", null);
   });
 
   it("redacts saved notification secrets and reports their configured state", async () => {
@@ -183,6 +186,48 @@ describe("PATCH /api/settings", () => {
       .send({ timezone: "Africa/Nairobi" });
 
     expect(res.status).toBe(200);
+  });
+
+  it("persists welcome email template settings", async () => {
+    mockExec
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { key: "emailSubject", value: "Welcome to {company}" },
+        { key: "emailGreeting", value: "Hello {name}" },
+        { key: "emailFooter", value: "The {company} Team" },
+      ]);
+
+    const res = await request(buildApp())
+      .patch("/api/settings")
+      .send({
+        emailSubject: "Welcome to {company}",
+        emailGreeting: "Hello {name}",
+        emailFooter: "The {company} Team",
+      });
+
+    expect(res.status).toBe(200);
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "emailSubject",
+      value: "Welcome to {company}",
+    }));
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "emailGreeting",
+      value: "Hello {name}",
+    }));
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "emailFooter",
+      value: "The {company} Team",
+    }));
+    expect(res.body).toMatchObject({
+      emailSubject: "Welcome to {company}",
+      emailGreeting: "Hello {name}",
+      emailFooter: "The {company} Team",
+    });
   });
 
   it("encrypts notification channel values before storing them", async () => {

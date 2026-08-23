@@ -68,6 +68,8 @@ const SETTINGS_KEYS = [
   "telegramBotToken", "telegramChatId",
   // SMTP
   "smtpHost", "smtpPort", "smtpUser", "smtpPass", "smtpFrom",
+  // Staff welcome email template
+  "emailSubject", "emailGreeting", "emailFooter",
   // M-Pesa
   "mpesaConsumerKey", "mpesaConsumerSecret", "mpesaShortcode",
   "mpesaPasskey", "mpesaEnv", "mpesaCallbackUrl",

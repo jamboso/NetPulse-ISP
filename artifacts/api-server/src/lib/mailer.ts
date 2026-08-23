@@ -14,6 +14,11 @@ export interface WelcomeEmailOptions {
   companyName?: string;
 }
 
+export interface WelcomeEmailTemplate {
+  emailGreeting?: string | null;
+  emailFooter?: string | null;
+}
+
 export interface RouterAlertEmailOptions {
   to: string;
   subject: string;
@@ -61,6 +66,34 @@ function formatLastLogin(lastActiveAt: Date | null): string {
   return lastActiveAt
     ? lastActiveAt.toISOString().slice(0, 10)
     : "Never logged in";
+}
+
+function applyWelcomeTemplateVariables(
+  value: string,
+  opts: WelcomeEmailOptions & { company: string; roleLabel: string },
+): string {
+  const variables: Record<string, string> = {
+    name: opts.name,
+    email: opts.email,
+    role: opts.roleLabel,
+    company: opts.company,
+    appUrl: opts.appUrl,
+  };
+
+  return value.replace(/\{(name|email|role|company|appUrl)\}/g, (_match, key: string) => variables[key]);
+}
+
+function welcomeTemplateValue(value: string | null | undefined, fallback: string): string {
+  return value?.trim() ? value : fallback;
+}
+
+export function buildWelcomeEmailSubject(
+  opts: WelcomeEmailOptions & { company: string; roleLabel: string; emailSubject?: string | null },
+): string {
+  return applyWelcomeTemplateVariables(
+    welcomeTemplateValue(opts.emailSubject, "Welcome to {company} — Your Staff Account"),
+    opts,
+  );
 }
 
 /** Build the plain-text body for a daily staff-inactivity digest. */
@@ -169,13 +202,27 @@ export async function sendStaffInactivityDigestEmail(
 }
 
 /** Build the plain-text body for the welcome email. */
-export function buildWelcomeEmailText(opts: WelcomeEmailOptions & { company: string; roleLabel: string }): string {
+export function buildWelcomeEmailText(
+  opts: WelcomeEmailOptions & { company: string; roleLabel: string } & WelcomeEmailTemplate,
+): string {
+  const greeting = applyWelcomeTemplateVariables(
+    welcomeTemplateValue(
+      opts.emailGreeting,
+      "An administrator has created a staff account for you. Use the credentials below to sign in:",
+    ),
+    opts,
+  );
+  const footer = applyWelcomeTemplateVariables(
+    welcomeTemplateValue(opts.emailFooter, "— The {company} Team"),
+    opts,
+  );
+
   return [
     `Welcome to ${opts.company}!`,
     "",
     `Hi ${opts.name},`,
     "",
-    "Your staff account has been created. Here are your login details:",
+    greeting,
     "",
     `  Email:    ${opts.email}`,
     `  Password: ${opts.password}`,
@@ -185,36 +232,50 @@ export function buildWelcomeEmailText(opts: WelcomeEmailOptions & { company: str
     "",
     "Please log in and change your password immediately.",
     "",
-    `— The ${opts.company} Team`,
+    footer,
   ].join("\n");
 }
 
 /** Build the HTML body for the welcome email. */
-export function buildWelcomeEmailHtml(opts: WelcomeEmailOptions & { company: string; roleLabel: string }): string {
+export function buildWelcomeEmailHtml(
+  opts: WelcomeEmailOptions & { company: string; roleLabel: string } & WelcomeEmailTemplate,
+): string {
+  const greeting = applyWelcomeTemplateVariables(
+    welcomeTemplateValue(
+      opts.emailGreeting,
+      "An administrator has created a staff account for you. Use the credentials below to sign in:",
+    ),
+    opts,
+  );
+  const footer = applyWelcomeTemplateVariables(
+    welcomeTemplateValue(opts.emailFooter, "— The {company} Team"),
+    opts,
+  );
+
   return `
 <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#111827">
-  <h2 style="color:#1e40af;margin-bottom:4px">Welcome to ${opts.company}!</h2>
+  <h2 style="color:#1e40af;margin-bottom:4px">Welcome to ${escapeHtml(opts.company)}!</h2>
   <p style="color:#6b7280;margin-top:0">Your staff account is ready.</p>
 
-  <p>Hi <strong>${opts.name}</strong>,</p>
-  <p>An administrator has created a staff account for you. Use the credentials below to sign in:</p>
+  <p>Hi <strong>${escapeHtml(opts.name)}</strong>,</p>
+  <p>${escapeHtml(greeting).replaceAll("\n", "<br />")}</p>
 
   <table style="border-collapse:collapse;width:100%;margin:16px 0">
     <tr>
       <td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;color:#6b7280;width:110px">Email</td>
-      <td style="padding:8px 12px;border:1px solid #e2e8f0;font-weight:600">${opts.email}</td>
+      <td style="padding:8px 12px;border:1px solid #e2e8f0;font-weight:600">${escapeHtml(opts.email)}</td>
     </tr>
     <tr>
       <td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;color:#6b7280">Password</td>
-      <td style="padding:8px 12px;border:1px solid #e2e8f0;font-family:monospace;background:#f1f5f9;letter-spacing:0.05em">${opts.password}</td>
+      <td style="padding:8px 12px;border:1px solid #e2e8f0;font-family:monospace;background:#f1f5f9;letter-spacing:0.05em">${escapeHtml(opts.password)}</td>
     </tr>
     <tr>
       <td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;color:#6b7280">Role</td>
-      <td style="padding:8px 12px;border:1px solid #e2e8f0">${opts.roleLabel}</td>
+      <td style="padding:8px 12px;border:1px solid #e2e8f0">${escapeHtml(opts.roleLabel)}</td>
     </tr>
   </table>
 
-  <a href="${opts.appUrl}"
+  <a href="${escapeHtml(opts.appUrl)}"
      style="display:inline-block;padding:10px 20px;background:#1e40af;color:#fff;text-decoration:none;border-radius:6px;font-weight:600">
     Sign In Now
   </a>
@@ -224,7 +285,7 @@ export function buildWelcomeEmailHtml(opts: WelcomeEmailOptions & { company: str
   </p>
 
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
-  <p style="font-size:0.8em;color:#9ca3af">— The ${opts.company} Team</p>
+  <p style="font-size:0.8em;color:#9ca3af">${escapeHtml(footer).replaceAll("\n", "<br />")}</p>
 </div>`;
 }
 
@@ -344,12 +405,19 @@ export async function sendStaffWelcomeEmail(
       auth:   { user: s["smtpUser"], pass: s["smtpPass"] },
     });
 
-    const merged = { ...opts, company, roleLabel };
+    const merged = {
+      ...opts,
+      company,
+      roleLabel,
+      emailSubject: s["emailSubject"],
+      emailGreeting: s["emailGreeting"],
+      emailFooter: s["emailFooter"],
+    };
 
     await transporter.sendMail({
       from,
       to:      opts.email,
-      subject: `Welcome to ${company} — Your Staff Account`,
+      subject: buildWelcomeEmailSubject(merged),
       text:    buildWelcomeEmailText(merged),
       html:    buildWelcomeEmailHtml(merged),
     });

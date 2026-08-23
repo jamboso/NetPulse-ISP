@@ -554,6 +554,43 @@ export default function Settings() {
             </div>
           </SectionCard>
 
+          <SectionCard icon={Bell} title="Welcome Email Template">
+            <p className="pb-3 text-xs text-gray-500">
+              Customize the invitation sent to new staff accounts. Use{" "}
+              <code className="rounded bg-gray-100 px-1 text-gray-700">{"{name}"}</code>,{" "}
+              <code className="rounded bg-gray-100 px-1 text-gray-700">{"{company}"}</code>,{" "}
+              <code className="rounded bg-gray-100 px-1 text-gray-700">{"{email}"}</code>,{" "}
+              <code className="rounded bg-gray-100 px-1 text-gray-700">{"{role}"}</code>, or{" "}
+              <code className="rounded bg-gray-100 px-1 text-gray-700">{"{appUrl}"}</code> to personalize it.
+            </p>
+            <SettingField
+              label="Subject"
+              name="emailSubject"
+              value={f("emailSubject")}
+              onChange={set}
+              placeholder="Welcome to {company} — Your Staff Account"
+              hint="Leave blank to use the default subject."
+            />
+            <SettingField
+              label="Greeting"
+              name="emailGreeting"
+              value={f("emailGreeting")}
+              onChange={set}
+              type="textarea"
+              placeholder="An administrator has created a staff account for you. Use the credentials below to sign in:"
+              hint="Shown after the recipient's name. Leave blank to use the default copy."
+            />
+            <SettingField
+              label="Custom Footer"
+              name="emailFooter"
+              value={f("emailFooter")}
+              onChange={set}
+              type="textarea"
+              placeholder="— The {company} Team"
+              hint="Optional sign-off shown below the sign-in button."
+            />
+          </SectionCard>
+
           <SectionCard icon={Bell} title="Scheduled Audit Log Export">
             <ToggleRow
               label="Enable Scheduled Export"

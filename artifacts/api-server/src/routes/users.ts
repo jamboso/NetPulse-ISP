@@ -8,7 +8,13 @@ import { resolveCompanyScope } from "../middlewares/companyScope";
 import { auth } from "../lib/auth";
 import { writeAuditLog } from "../lib/audit";
 import { getSettings, sendSms, normalisePhone } from "../lib/sms.js";
-import { sendStaffWelcomeEmail, buildWelcomeEmailHtml, buildWelcomeEmailText, type WelcomeEmailOptions } from "../lib/mailer.js";
+import {
+  sendStaffWelcomeEmail,
+  buildWelcomeEmailHtml,
+  buildWelcomeEmailSubject,
+  buildWelcomeEmailText,
+  type WelcomeEmailOptions,
+} from "../lib/mailer.js";
 import { syncStaffUserRadius } from "../lib/radiusSync.js";
 
 const VALID_ROLES = ["admin", "billing", "support", "technician"] as const;
@@ -187,7 +193,13 @@ router.get("/users/welcome-email-preview", requireRole("admin"), async (req, res
 
   const opts = { ...SAMPLE_PREVIEW, appUrl, companyName: company };
   const roleLabel = ROLE_LABELS_LOCAL[opts.role] ?? opts.role;
-  const html = buildWelcomeEmailHtml({ ...opts, company, roleLabel });
+  const html = buildWelcomeEmailHtml({
+    ...opts,
+    company,
+    roleLabel,
+    emailGreeting: s["emailGreeting"],
+    emailFooter: s["emailFooter"],
+  });
 
   res.json({ html, smtpConfigured });
 });
@@ -231,9 +243,21 @@ router.post("/users/welcome-email-preview/send", requireRole("admin"), async (re
     await transporter.sendMail({
       from,
       to:      user.email,
-      subject: `[Test] Welcome to ${company} — Your Staff Account`,
-      text:    buildWelcomeEmailText({ ...opts, company, roleLabel }),
-      html:    buildWelcomeEmailHtml({ ...opts, company, roleLabel }),
+      subject: `[Test] ${buildWelcomeEmailSubject({ ...opts, company, roleLabel, emailSubject: s["emailSubject"] })}`,
+      text:    buildWelcomeEmailText({
+        ...opts,
+        company,
+        roleLabel,
+        emailGreeting: s["emailGreeting"],
+        emailFooter: s["emailFooter"],
+      }),
+      html:    buildWelcomeEmailHtml({
+        ...opts,
+        company,
+        roleLabel,
+        emailGreeting: s["emailGreeting"],
+        emailFooter: s["emailFooter"],
+      }),
     });
 
     req.log.info({ email: user.email }, "Test welcome email sent");

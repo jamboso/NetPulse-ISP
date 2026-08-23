@@ -195,6 +195,25 @@ describe("welcome email preview", () => {
     expect(res.body.html).toMatch(/^<html/);
   });
 
+  it("passes saved template values into the HTML preview", async () => {
+    mockGetSettings.mockResolvedValue({
+      companyName: "Acme ISP",
+      emailGreeting: "Hello {name}",
+      emailFooter: "The {company} Team",
+    });
+
+    const res = await request(buildApp()).get("/users/welcome-email-preview");
+
+    expect(res.status).toBe(200);
+    expect(res.body.html).toBe("<html/>");
+    expect(vi.mocked((await import("../lib/mailer.js")).buildWelcomeEmailHtml)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        emailGreeting: "Hello {name}",
+        emailFooter: "The {company} Team",
+      }),
+    );
+  });
+
   it("reports SMTP as unconfigured when any required setting is missing", async () => {
     mockGetSettings.mockResolvedValue({
       smtpHost: "smtp.example.com",

@@ -18,6 +18,7 @@ const {
   sendStaffInactivityDigestEmail,
   buildWelcomeEmailText,
   buildWelcomeEmailHtml,
+  buildWelcomeEmailSubject,
 } =
   await import("../lib/mailer.js");
 
@@ -108,6 +109,34 @@ describe("sendStaffWelcomeEmail — SMTP configured", () => {
 
     const { subject } = mockSendMail.mock.calls[0][0] as { subject: string };
     expect(subject).toContain("Acme ISP");
+  });
+
+  it("uses the configured subject, greeting, and footer from settings", async () => {
+    mockGetSettings.mockResolvedValue({
+      ...SMTP_SETTINGS,
+      emailSubject: "{company} access details for {name}",
+      emailGreeting: "Hello {name}, welcome to {company}.",
+      emailFooter: "Reply to this email if you need help.",
+    });
+
+    await sendStaffWelcomeEmail({
+      name: "Alice",
+      email: "alice@example.com",
+      password: "Temp@1234",
+      role: "support",
+      appUrl: "https://app.example.com",
+    });
+
+    const { subject, text, html } = mockSendMail.mock.calls[0][0] as {
+      subject: string;
+      text: string;
+      html: string;
+    };
+    expect(subject).toBe("Acme ISP access details for Alice");
+    expect(text).toContain("Hello Alice, welcome to Acme ISP.");
+    expect(text).toContain("Reply to this email if you need help.");
+    expect(html).toContain("Hello Alice, welcome to Acme ISP.");
+    expect(html).toContain("Reply to this email if you need help.");
   });
 
   it("returns { success: true } when the email is delivered", async () => {
@@ -318,6 +347,23 @@ describe("buildWelcomeEmailText", () => {
     expect(text).toContain("Password: Temp@pass");
     expect(text).toContain("Please log in and change your password immediately.");
   });
+
+  it("uses the configured greeting and footer with personalized values", () => {
+    const text = buildWelcomeEmailText({
+      name: "Eve",
+      email: "eve@example.com",
+      password: "Temp@pass",
+      role: "technician",
+      appUrl: "https://isp.example.com",
+      company: "ISP Co",
+      roleLabel: "Technician (network/equipment)",
+      emailGreeting: "Hello {name}, welcome to {company}.",
+      emailFooter: "Questions? Visit {appUrl}",
+    });
+
+    expect(text).toContain("Hello Eve, welcome to ISP Co.");
+    expect(text).toContain("Questions? Visit https://isp.example.com");
+  });
 });
 
 describe("buildWelcomeEmailHtml", () => {
@@ -354,5 +400,39 @@ describe("buildWelcomeEmailHtml", () => {
     expect(html).toMatch(/<div[\s\S]*<\/div>/);
     expect(html).toContain('href="https://isp.example.com"');
     expect(html).toContain("Sign In Now");
+  });
+
+  it("uses the configured greeting and footer without rendering template HTML", () => {
+    const html = buildWelcomeEmailHtml({
+      name: "Frank",
+      email: "frank@example.com",
+      password: "Temp@pass",
+      role: "billing",
+      appUrl: "https://isp.example.com",
+      company: "ISP Co",
+      roleLabel: "Billing (invoices/payments)",
+      emailGreeting: "Hello {name} <strong>there</strong>",
+      emailFooter: "Thanks,<br>{company}",
+    });
+
+    expect(html).toContain("Hello Frank &lt;strong&gt;there&lt;/strong&gt;");
+    expect(html).toContain("Thanks,&lt;br&gt;ISP Co");
+  });
+});
+
+describe("buildWelcomeEmailSubject", () => {
+  it("uses the configured subject and resolves company variables", () => {
+    const subject = buildWelcomeEmailSubject({
+      name: "Eve",
+      email: "eve@example.com",
+      password: "Temp@pass",
+      role: "technician",
+      appUrl: "https://isp.example.com",
+      company: "ISP Co",
+      roleLabel: "Technician (network/equipment)",
+      emailSubject: "{company} staff access for {name}",
+    });
+
+    expect(subject).toBe("ISP Co staff access for Eve");
   });
 });

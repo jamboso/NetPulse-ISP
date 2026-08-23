@@ -4,6 +4,7 @@ import request from "supertest";
 
 const mockExec = vi.hoisted(() => vi.fn());
 const mockSignUp = vi.hoisted(() => vi.fn());
+const mockGetSettings = vi.hoisted(() => vi.fn());
 
 vi.mock("@workspace/db", () => {
   const chain: Record<string, unknown> = {};
@@ -67,9 +68,24 @@ vi.mock("../lib/auth.js", () => ({
 }));
 
 vi.mock("../lib/sms.js", () => ({
-  getSettings: vi.fn(),
+  getSettings: mockGetSettings,
   sendSms: vi.fn(),
   normalisePhone: vi.fn((p: string) => p),
+}));
+
+vi.mock("../middlewares/companyScope", () => ({
+  resolveCompanyScope: (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    if (!req.user) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    req.companyId = 1;
+    next();
+  },
 }));
 
 const mockSendStaffWelcomeEmail = vi.hoisted(() =>
@@ -96,8 +112,7 @@ type MockUser = {
   updatedAt: Date;
 };
 
-function buildApp(
-  user: MockUser = {
+const adminUser: MockUser = {
     id: "u1",
     email: "admin@test.com",
     name: "Admin",
@@ -106,12 +121,15 @@ function buildApp(
     emailVerified: false,
     createdAt: new Date(),
     updatedAt: new Date(),
-  },
-) {
+  };
+
+function buildApp(user: MockUser | null = adminUser) {
   const app = express();
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    (req as Request & { user: MockUser }).user = user;
+    if (user) {
+      (req as Request & { user: MockUser }).user = user;
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (req as any).log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
     next();
@@ -156,6 +174,76 @@ describe("GET /users", () => {
         updatedAt: new Date(),
       }),
     ).get("/users");
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("welcome email preview", () => {
+  it("returns the generated HTML preview and reports configured SMTP for admins", async () => {
+    mockGetSettings.mockResolvedValue({
+      smtpHost: "smtp.example.com",
+      smtpUser: "mailer@example.com",
+      smtpPass: "secret",
+      companyName: "Acme ISP",
+    });
+
+    const res = await request(buildApp()).get("/users/welcome-email-preview");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ html: "<html/>", smtpConfigured: true });
+    expect(res.body.html).toMatch(/^<html/);
+  });
+
+  it("reports SMTP as unconfigured when any required setting is missing", async () => {
+    mockGetSettings.mockResolvedValue({
+      smtpHost: "smtp.example.com",
+      smtpUser: "mailer@example.com",
+    });
+
+    const res = await request(buildApp()).get("/users/welcome-email-preview");
+
+    expect(res.status).toBe(200);
+    expect(res.body.smtpConfigured).toBe(false);
+    expect(res.body.html).toMatch(/^<html/);
+  });
+
+  it("rejects unauthenticated preview requests", async () => {
+    const res = await request(buildApp(null)).get("/users/welcome-email-preview");
+
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects preview requests from non-admin staff", async () => {
+    const res = await request(buildApp({ ...adminUser, role: "support" }))
+      .get("/users/welcome-email-preview");
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("POST /users/welcome-email-preview/send", () => {
+  it("returns 400 without attempting delivery when SMTP is not configured", async () => {
+    mockGetSettings.mockResolvedValue({
+      smtpHost: "smtp.example.com",
+      smtpUser: "mailer@example.com",
+    });
+
+    const res = await request(buildApp()).post("/users/welcome-email-preview/send");
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/SMTP is not configured/i);
+  });
+
+  it("rejects unauthenticated test-send requests", async () => {
+    const res = await request(buildApp(null)).post("/users/welcome-email-preview/send");
+
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects test-send requests from non-admin staff", async () => {
+    const res = await request(buildApp({ ...adminUser, role: "billing" }))
+      .post("/users/welcome-email-preview/send");
 
     expect(res.status).toBe(403);
   });

@@ -302,6 +302,22 @@ describe("buildWelcomeEmailText", () => {
     expect(text).toContain("https://isp.example.com");
     expect(text).toContain("ISP Co");
   });
+
+  it("keeps login details and the password-change warning readable as plain text", () => {
+    const text = buildWelcomeEmailText({
+      name: "Eve",
+      email: "eve@example.com",
+      password: "Temp@pass",
+      role: "technician",
+      appUrl: "https://isp.example.com",
+      company: "ISP Co",
+      roleLabel: "Technician (network/equipment)",
+    });
+
+    expect(text).toContain("Email:    eve@example.com");
+    expect(text).toContain("Password: Temp@pass");
+    expect(text).toContain("Please log in and change your password immediately.");
+  });
 });
 
 describe("buildWelcomeEmailHtml", () => {
@@ -322,5 +338,21 @@ describe("buildWelcomeEmailHtml", () => {
     expect(html).toContain("Billing (invoices/payments)");
     expect(html).toContain("https://isp.example.com");
     expect(html).toContain("ISP Co");
+  });
+
+  it("returns a complete HTML fragment with a sign-in link", () => {
+    const html = buildWelcomeEmailHtml({
+      name: "Frank",
+      email: "frank@example.com",
+      password: "Temp@pass",
+      role: "billing",
+      appUrl: "https://isp.example.com",
+      company: "ISP Co",
+      roleLabel: "Billing (invoices/payments)",
+    });
+
+    expect(html).toMatch(/<div[\s\S]*<\/div>/);
+    expect(html).toContain('href="https://isp.example.com"');
+    expect(html).toContain("Sign In Now");
   });
 });

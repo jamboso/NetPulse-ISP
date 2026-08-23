@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -106,6 +107,19 @@ describe("Staff page — Last Active column: recent session", () => {
     expect(el).not.toHaveClass("text-gray-400");
   });
 
+  it("shows the full locale timestamp in a styled tooltip on hover", async () => {
+    const lastActiveAt = new Date(Date.now() - 5 * 60_000).toISOString();
+    mockUseListUsers.mockReturnValue({
+      data: { data: [makeUser({ lastActiveAt })] },
+      isLoading: false,
+    });
+
+    await renderStaffPage();
+    await userEvent.setup().hover(screen.getByText("5m ago"));
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(new Date(lastActiveAt).toLocaleString());
+  });
+
   it("shows 'Xm ago' for a session a few minutes ago", async () => {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
     mockUseListUsers.mockReturnValue({
@@ -156,6 +170,18 @@ describe("Staff page — Last Active column: no sessions", () => {
     const el = screen.getByText("Never");
     expect(el).toHaveClass("text-gray-400");
     expect(el).not.toHaveClass("text-gray-700");
+  });
+
+  it("explains the absence of sessions in a styled tooltip on hover", async () => {
+    mockUseListUsers.mockReturnValue({
+      data: { data: [makeUser({ lastActiveAt: null })] },
+      isLoading: false,
+    });
+
+    await renderStaffPage();
+    await userEvent.setup().hover(screen.getByText("Never"));
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("No sessions have been recorded.");
   });
 });
 

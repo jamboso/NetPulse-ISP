@@ -32,6 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserCog, Plus, MoreHorizontal, Search, MessageSquare, Mail, BellOff, UserX, UserCheck, ShieldCheck, ChevronDown, ChevronUp, Check, X, AlertTriangle, Clock, Eye, Send, WifiOff } from "lucide-react";
 
 const ROLES = ["admin", "billing", "support", "technician"] as const;
@@ -384,8 +385,9 @@ export default function StaffPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <TooltipProvider delayDuration={0}>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <UserCog className="w-6 h-6 text-blue-600" />
@@ -489,12 +491,18 @@ export default function StaffPage() {
                   </TableCell>
                   <TableCell className="text-sm">
                     <div className="flex flex-col gap-1">
-                      <span
-                        className={isInactive(user.lastActiveAt) ? "text-gray-400" : "text-gray-700"}
-                        title={user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleString() : "No sessions recorded"}
-                      >
-                        {formatRelativeTime(user.lastActiveAt)}
-                      </span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className={isInactive(user.lastActiveAt) ? "text-gray-400" : "text-gray-700"}>
+                            {formatRelativeTime(user.lastActiveAt)}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {user.lastActiveAt
+                            ? new Date(user.lastActiveAt).toLocaleString()
+                            : "No sessions have been recorded."}
+                        </TooltipContent>
+                      </Tooltip>
                       <InactivityBadge
                         lastActiveAt={user.lastActiveAt}
                         isActive={user.active}
@@ -735,6 +743,7 @@ export default function StaffPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

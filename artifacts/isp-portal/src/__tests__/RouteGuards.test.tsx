@@ -40,6 +40,10 @@ vi.mock("@/pages/mpesa-transactions", () => ({
   default: () => <div>M-Pesa page</div>,
 }));
 
+vi.mock("@/pages/settings", () => ({
+  default: () => <div>Settings page</div>,
+}));
+
 function sessionFor(role: string) {
   return {
     data: { user: { id: "u1", name: "Test User", email: "test@example.com", role } },
@@ -71,6 +75,18 @@ beforeEach(() => {
 });
 
 describe("App route guards", () => {
+  it("shows an access-denied toast and redirects a billing user from Settings to the dashboard", async () => {
+    renderAt("/settings", "billing");
+
+    await expectRedirectedToDashboard();
+    expect(screen.queryByText("Settings page")).not.toBeInTheDocument();
+    expect(mocks.toast).toHaveBeenCalledWith({
+      title: "Access Denied",
+      description: "This page requires one of the following roles: owner, Admin.",
+      variant: "destructive",
+    });
+  });
+
   it("blocks a billing user from the PPPoE router route", async () => {
     renderAt("/network/routers/42/pppoe", "billing");
 

@@ -59,6 +59,7 @@ describe("generateRosScript", () => {
     expect(script).not.toContain("radius-address=");
     expect(script).not.toContain("radius-secret=");
     expect(script).not.toContain('comment="netpulse-hotspot"');
+    expect(script).not.toContain("mac-auth-mode=");
   });
 
   it("only emits the protocol property for UDP clients", () => {

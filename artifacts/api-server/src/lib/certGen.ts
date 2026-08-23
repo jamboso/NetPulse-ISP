@@ -460,8 +460,7 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
   name="netpulse-hs" \\
   hotspot-address=192.168.10.1 \\
   use-radius=yes \\
-  login-by=http-chap,mac \\
-  mac-auth-mode=mac-as-username+password
+  login-by=http-chap,mac
 
 /ip hotspot add \\
   name="netpulse-hotspot" \\

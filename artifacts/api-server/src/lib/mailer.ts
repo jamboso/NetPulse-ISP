@@ -14,6 +14,17 @@ export interface WelcomeEmailOptions {
   companyName?: string;
 }
 
+export interface RouterAlertEmailOptions {
+  to: string;
+  subject: string;
+  text: string;
+  /**
+   * Pass settings already loaded by the monitor so all alert destinations are
+   * evaluated from the same settings snapshot.
+   */
+  settings?: Record<string, string>;
+}
+
 const ROLE_LABELS: Record<string, string> = {
   admin:      "Admin (full access)",
   billing:    "Billing (invoices/payments)",
@@ -126,6 +137,46 @@ export async function sendTestEmail(
     return {
       success: false,
       message: `SMTP error: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+/**
+ * Sends a router status alert to the configured operations mailbox.
+ * Never throws so a failed email cannot prevent another alert channel from
+ * being attempted.
+ */
+export async function sendRouterAlertEmail(
+  opts: RouterAlertEmailOptions,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const s = opts.settings ?? await getSettings();
+
+    if (!s["smtpHost"] || !s["smtpUser"] || !s["smtpPass"]) {
+      return { success: false, message: "SMTP not configured — email skipped" };
+    }
+
+    const from = s["smtpFrom"] ?? s["smtpUser"];
+    const port = Number(s["smtpPort"] ?? 587);
+    const transporter = nodemailer.createTransport({
+      host: s["smtpHost"],
+      port,
+      secure: port === 465,
+      auth: { user: s["smtpUser"], pass: s["smtpPass"] },
+    });
+
+    await transporter.sendMail({
+      from,
+      to: opts.to,
+      subject: opts.subject,
+      text: opts.text,
+    });
+
+    return { success: true, message: "Router alert email sent" };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      message: `Email error: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
 }

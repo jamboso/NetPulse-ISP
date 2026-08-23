@@ -14,6 +14,7 @@ import { db } from "@workspace/db";
 import { routersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getSettings, sendSms, logSms } from "./sms";
+import { sendRouterAlertEmail } from "./mailer";
 import { logger } from "./logger";
 
 const POLL_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
@@ -68,34 +69,107 @@ async function persistState(routerId: number, state: RouterState): Promise<void>
   }
 }
 
-// ── Alert SMS ─────────────────────────────────────────────────────────────────
+// ── Alert delivery ────────────────────────────────────────────────────────────
 
-async function sendRouterAlert(
+export function buildRouterAlertMessage(
+  routerName: string,
+  ipAddress: string,
+  state: "online" | "offline",
+  timezone: string,
+): string {
+  const timestamp = new Date().toLocaleString("en-KE", {
+    timeZone: timezone || "Africa/Nairobi",
+  });
+
+  return state === "offline"
+    ? `[NetPulse ALERT] Router "${routerName}" (${ipAddress}) is OFFLINE. Detected at ${timestamp}. Please investigate immediately.`
+    : `[NetPulse OK] Router "${routerName}" (${ipAddress}) is back ONLINE. Recovered at ${timestamp}.`;
+}
+
+async function sendSlackRouterAlert(
+  webhook: string,
+  message: string,
+  routerName: string,
+  state: "online" | "offline",
+): Promise<void> {
+  try {
+    const response = await fetch(webhook, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: message }),
+    });
+
+    if (!response.ok) {
+      logger.warn(
+        { routerName, state, status: response.status },
+        "Router alert Slack webhook failed",
+      );
+      return;
+    }
+
+    logger.info({ routerName, state }, "Router alert Slack webhook sent");
+  } catch (err) {
+    logger.warn({ err, routerName, state }, "Router alert Slack webhook failed");
+  }
+}
+
+export async function sendRouterAlert(
   routerName: string,
   ipAddress:  string,
   state:      "online" | "offline",
   settings:   Record<string, string>,
 ): Promise<void> {
   const phone = settings.alertPhone?.trim();
-  if (!phone) return;
+  const webhook = settings.alertSlackWebhook?.trim();
+  const email = settings.alertEmail?.trim();
+  const message = buildRouterAlertMessage(routerName, ipAddress, state, settings.timezone ?? "");
+  const subject = state === "offline"
+    ? `Router offline: ${routerName}`
+    : `Router recovered: ${routerName}`;
 
-  const ts  = new Date().toLocaleString("en-KE", { timeZone: settings.timezone || "Africa/Nairobi" });
-  const msg = state === "offline"
-    ? `[NetPulse ALERT] Router "${routerName}" (${ipAddress}) is OFFLINE. Detected at ${ts}. Please investigate immediately.`
-    : `[NetPulse OK] Router "${routerName}" (${ipAddress}) is back ONLINE. Recovered at ${ts}.`;
+  const deliveries: Promise<void>[] = [];
 
-  const result = await sendSms(settings, phone, msg);
+  // Preserve existing SMS behavior: only use the SMS channel when both its
+  // destination and provider are configured.
+  if (phone && settings.smsProvider) {
+    deliveries.push((async () => {
+      const result = await sendSms(settings, phone, message);
 
-  await logSms({
-    customerId:  null,
-    phone,
-    message:     msg,
-    triggerType: state === "offline" ? "router_down" : "router_up",
-    status:      result.success ? "sent" : "failed",
-    error:       result.success ? null : result.message,
-  });
+      try {
+        await logSms({
+          customerId: null,
+          phone,
+          message,
+          triggerType: state === "offline" ? "router_down" : "router_up",
+          status: result.success ? "sent" : "failed",
+          error: result.success ? null : result.message,
+        });
+      } catch (err) {
+        logger.warn({ err, routerName, state }, "Router alert SMS log failed");
+      }
 
-  logger.info({ routerName, state, phone, success: result.success }, "Router alert SMS sent");
+      logger.info({ routerName, state, phone, success: result.success }, "Router alert SMS sent");
+    })());
+  }
+
+  if (webhook) {
+    deliveries.push(sendSlackRouterAlert(webhook, message, routerName, state));
+  }
+
+  if (email) {
+    deliveries.push((async () => {
+      const result = await sendRouterAlertEmail({
+        to: email,
+        subject,
+        text: message,
+        settings,
+      });
+      const logMethod = result.success ? logger.info.bind(logger) : logger.warn.bind(logger);
+      logMethod({ routerName, state, success: result.success }, "Router alert email sent");
+    })());
+  }
+
+  await Promise.all(deliveries);
 }
 
 // ── Seed in-memory state from DB ──────────────────────────────────────────────
@@ -117,10 +191,12 @@ async function seedFromDb(routers: Array<{ id: number; name: string; ipAddress: 
 // ── Poll loop ──────────────────────────────────────────────────────────────────
 
 async function pollRouters(): Promise<void> {
-  const settings   = await getSettings();
-  const alertPhone = settings.alertPhone?.trim();
-  if (!settings.smsProvider || !alertPhone) {
-    logger.info("Router monitor: skipping poll — smsProvider or alertPhone not configured");
+  const settings = await getSettings();
+  const hasSmsAlert = Boolean(settings.smsProvider && settings.alertPhone?.trim());
+  const hasSlackAlert = Boolean(settings.alertSlackWebhook?.trim());
+  const hasEmailAlert = Boolean(settings.alertEmail?.trim());
+  if (!hasSmsAlert && !hasSlackAlert && !hasEmailAlert) {
+    logger.info("Router monitor: skipping poll — no alert destination configured");
     return;
   }
 

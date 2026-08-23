@@ -12,7 +12,12 @@ vi.mock("../lib/sms.js", () => ({
   getSettings: mockGetSettings,
 }));
 
-const { sendStaffWelcomeEmail, buildWelcomeEmailText, buildWelcomeEmailHtml } =
+const {
+  sendRouterAlertEmail,
+  sendStaffWelcomeEmail,
+  buildWelcomeEmailText,
+  buildWelcomeEmailHtml,
+} =
   await import("../lib/mailer.js");
 
 const SMTP_SETTINGS = {
@@ -195,6 +200,44 @@ describe("sendStaffWelcomeEmail — SMTP not configured", () => {
       }),
     ).resolves.not.toThrow();
 
+    expect(mockSendMail).not.toHaveBeenCalled();
+  });
+});
+
+describe("sendRouterAlertEmail", () => {
+  it("sends the supplied router message through the configured SMTP server", async () => {
+    const result = await sendRouterAlertEmail({
+      to: "operations@example.com",
+      subject: "Router offline: Core Router",
+      text: "Core Router is OFFLINE.",
+      settings: SMTP_SETTINGS,
+    });
+
+    expect(result).toEqual({ success: true, message: "Router alert email sent" });
+    expect(mockGetSettings).not.toHaveBeenCalled();
+    expect(mockCreateTransport).toHaveBeenCalledWith(expect.objectContaining({
+      host: "smtp.example.com",
+      port: 587,
+      auth: { user: "user@example.com", pass: "secret" },
+    }));
+    expect(mockSendMail).toHaveBeenCalledWith({
+      from: "noreply@example.com",
+      to: "operations@example.com",
+      subject: "Router offline: Core Router",
+      text: "Core Router is OFFLINE.",
+    });
+  });
+
+  it("does not attempt delivery when the SMTP settings are incomplete", async () => {
+    const result = await sendRouterAlertEmail({
+      to: "operations@example.com",
+      subject: "Router offline: Core Router",
+      text: "Core Router is OFFLINE.",
+      settings: { smtpHost: "smtp.example.com", smtpUser: "user@example.com" },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/SMTP not configured/i);
     expect(mockSendMail).not.toHaveBeenCalled();
   });
 });

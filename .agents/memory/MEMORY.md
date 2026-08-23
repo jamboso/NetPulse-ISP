@@ -15,3 +15,4 @@
 - [Express blanket middleware route leak](express-blanket-middleware-route-leak.md) — unscoped `router.use(requireRole(...))` in a sub-router blocks every request reaching it, not just its own routes; scope per-route instead
 - [Better-auth custom impersonation](better-auth-custom-impersonation.md) — "login as" built via a tiny custom plugin instead of the official admin plugin, to avoid schema/role-system collisions
 - [Per-company M-Pesa Daraja config](multi-tenant-mpesa-config.md) — one-row-per-company creds with company-1 legacy fallback; callbacks route via companies.username in the URL path, not req.companyId
+- [OpenVPN protocol alignment](openvpn-protocol-alignment.md) — MikroTik client and deployed server must agree on TCP/UDP before issuing router profiles.

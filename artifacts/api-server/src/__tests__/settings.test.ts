@@ -54,24 +54,34 @@ type MockUser = {
   updatedAt: Date;
 };
 
-const adminUser: MockUser = {
-  id: "u1", email: "admin@test.com", name: "Admin", role: "owner",
+const ownerUser: MockUser = {
+  id: "u1", email: "owner@test.com", name: "Owner", role: "owner",
   active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date(),
 };
 
-const billingUser: MockUser = {
-  id: "u2", email: "billing@test.com", name: "Billing", role: "billing",
-  active: true, emailVerified: false, createdAt: new Date(), updatedAt: new Date(),
-};
+const restrictedRoles = ["admin", "billing", "support", "technician"] as const;
 
-function buildApp(user: MockUser = adminUser) {
+function buildUser(role: (typeof restrictedRoles)[number]): MockUser {
+  return {
+    id: `${role}-user`,
+    email: `${role}@test.com`,
+    name: role,
+    role,
+    active: true,
+    emailVerified: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+function buildApp(user: MockUser = ownerUser) {
   const app = express();
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
     (req as Request & { user: MockUser }).user = user;
     next();
   });
-  app.use(settingsRouter);
+  app.use("/api", settingsRouter);
   return app;
 }
 
@@ -81,17 +91,17 @@ beforeEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /settings
+// GET /api/settings
 // ---------------------------------------------------------------------------
 
-describe("GET /settings", () => {
-  it("returns all settings keys (admin)", async () => {
+describe("GET /api/settings", () => {
+  it("returns all settings keys for the owner", async () => {
     mockExec.mockResolvedValueOnce([
       { key: "companyName", value: "ACME ISP" },
       { key: "currency", value: "KES" },
     ]);
 
-    const res = await request(buildApp()).get("/settings");
+    const res = await request(buildApp()).get("/api/settings");
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("companyName", "ACME ISP");
@@ -101,7 +111,7 @@ describe("GET /settings", () => {
   it("returns null for settings keys not in the DB", async () => {
     mockExec.mockResolvedValueOnce([]);
 
-    const res = await request(buildApp()).get("/settings");
+    const res = await request(buildApp()).get("/api/settings");
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("companyName", null);
@@ -115,7 +125,7 @@ describe("GET /settings", () => {
       { key: "alertEmail", value: "ops@example.com" },
     ]);
 
-    const res = await request(buildApp()).get("/settings");
+    const res = await request(buildApp()).get("/api/settings");
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -127,16 +137,15 @@ describe("GET /settings", () => {
     });
   });
 
-  it("returns 403 for non-admin role", async () => {
-    const res = await request(buildApp(billingUser)).get("/settings");
-
+  it.each(restrictedRoles)("returns 403 for the %s role", async (role) => {
+    const res = await request(buildApp(buildUser(role))).get("/api/settings");
     expect(res.status).toBe(403);
   });
 
   it("returns an object (not an array)", async () => {
     mockExec.mockResolvedValueOnce([]);
 
-    const res = await request(buildApp()).get("/settings");
+    const res = await request(buildApp()).get("/api/settings");
 
     expect(res.status).toBe(200);
     expect(typeof res.body).toBe("object");
@@ -145,18 +154,18 @@ describe("GET /settings", () => {
 });
 
 // ---------------------------------------------------------------------------
-// PATCH /settings
+// PATCH /api/settings
 // ---------------------------------------------------------------------------
 
-describe("PATCH /settings", () => {
-  it("updates an existing setting and returns all settings (admin)", async () => {
+describe("PATCH /api/settings", () => {
+  it("updates an existing setting and returns all settings for the owner", async () => {
     mockExec
       .mockResolvedValueOnce([{ key: "companyName", value: "Old Name" }])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ key: "companyName", value: "New ISP Name" }]);
 
     const res = await request(buildApp())
-      .patch("/settings")
+      .patch("/api/settings")
       .send({ companyName: "New ISP Name" });
 
     expect(res.status).toBe(200);
@@ -170,7 +179,7 @@ describe("PATCH /settings", () => {
       .mockResolvedValueOnce([{ key: "timezone", value: "Africa/Nairobi" }]);
 
     const res = await request(buildApp())
-      .patch("/settings")
+      .patch("/api/settings")
       .send({ timezone: "Africa/Nairobi" });
 
     expect(res.status).toBe(200);
@@ -183,7 +192,7 @@ describe("PATCH /settings", () => {
       .mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
-      .patch("/settings")
+      .patch("/api/settings")
       .send({ alertSlackWebhook: "https://hooks.slack.com/services/T000/B000/secret" });
 
     expect(res.status).toBe(200);
@@ -194,19 +203,52 @@ describe("PATCH /settings", () => {
     expect(mockValues.mock.calls[0]![0].value).not.toContain("hooks.slack.com");
   });
 
+  it("persists and retrieves both alert destinations", async () => {
+    mockExec
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockImplementationOnce(() => Promise.resolve(
+        mockValues.mock.calls.map(([setting]) => setting),
+      ));
+
+    const res = await request(buildApp())
+      .patch("/api/settings")
+      .send({
+        alertSlackWebhook: "https://hooks.slack.com/services/T000/B000/secret",
+        alertEmail: "ops@example.com",
+      });
+
+    expect(res.status).toBe(200);
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "alertSlackWebhook",
+      value: expect.stringMatching(/^v1:[^:]+:[^:]+:[^:]+$/),
+    }));
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "alertEmail",
+      value: expect.stringMatching(/^v1:[^:]+:[^:]+:[^:]+$/),
+    }));
+    expect(res.body).toMatchObject({
+      alertSlackWebhook: null,
+      alertSlackWebhookConfigured: true,
+      alertEmail: "ops@example.com",
+    });
+  });
+
   it("ignores unknown keys not in the SETTINGS_KEYS list", async () => {
     mockExec.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
-      .patch("/settings")
+      .patch("/api/settings")
       .send({ unknownKey: "some value" });
 
     expect(res.status).toBe(200);
   });
 
-  it("returns 403 for non-admin role", async () => {
-    const res = await request(buildApp(billingUser))
-      .patch("/settings")
+  it.each(restrictedRoles)("returns 403 for the %s role", async (role) => {
+    const res = await request(buildApp(buildUser(role)))
+      .patch("/api/settings")
       .send({ companyName: "Hacker ISP" });
 
     expect(res.status).toBe(403);
@@ -216,7 +258,7 @@ describe("PATCH /settings", () => {
     mockExec.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
-      .patch("/settings")
+      .patch("/api/settings")
       .send({});
 
     expect(res.status).toBe(200);

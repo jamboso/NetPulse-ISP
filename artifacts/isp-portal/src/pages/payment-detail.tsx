@@ -206,7 +206,7 @@ export default function PaymentDetail() {
           </div>
           {canViewAuditHistory && (
             <Button variant="outline" size="sm" asChild>
-              <Link href={`/audit-logs?entityType=payment&entityId=${payment.id}`}>View full history</Link>
+              <Link href={`/audit-logs?entityType=payment&entityId=${payment.id}`}>View audit log</Link>
             </Button>
           )}
         </div>

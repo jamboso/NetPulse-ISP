@@ -7,7 +7,7 @@ import {
   getGetTicketRepliesQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Clock, User, Send } from "lucide-react";
+import { ArrowLeft, Clock, User, Send, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -96,6 +96,11 @@ export default function TicketDetail() {
             #{String(ticket.id).padStart(5, '0')}
           </span>
         </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link href={`/audit-logs?entityType=ticket&entityId=${ticket.id}`}>
+            <ClipboardList className="w-4 h-4 mr-2" /> View audit log
+          </Link>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

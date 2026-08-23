@@ -315,7 +315,7 @@ export default function Invoices() {
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-gray-600">
                           <Download className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" asChild title="View audit history">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" asChild title="View audit log">
                           <Link href={`/audit-logs?entityType=invoice&entityId=${invoice.id}`}>
                             <ClipboardList className="w-3.5 h-3.5" />
                           </Link>

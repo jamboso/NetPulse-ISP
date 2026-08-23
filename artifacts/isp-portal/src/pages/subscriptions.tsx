@@ -365,7 +365,7 @@ export default function Subscriptions() {
                     <TableCell className="text-sm text-gray-600">{formatDate(sub.startDate)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" asChild title="View audit history">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" asChild title="View audit log">
                           <Link href={`/audit-logs?entityType=subscription&entityId=${sub.id}`}>
                             <ClipboardList className="w-3.5 h-3.5" />
                           </Link>

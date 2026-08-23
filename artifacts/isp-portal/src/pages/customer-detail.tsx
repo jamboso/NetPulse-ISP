@@ -1511,7 +1511,7 @@ export default function CustomerDetail() {
                         href={auditHref}
                         className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium"
                       >
-                        View full audit history →
+                        View audit log →
                       </Link>
                     </div>
                     {events.length === 0 ? (
@@ -1561,6 +1561,7 @@ export default function CustomerDetail() {
                       <TableHead>MAC</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1584,11 +1585,24 @@ export default function CustomerDetail() {
                               {eq.status}
                             </Badge>
                           </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-gray-400 hover:text-blue-600"
+                              asChild
+                              title="View audit log"
+                            >
+                              <Link href={`/audit-logs?entityType=equipment&entityId=${eq.id}`}>
+                                <ClipboardList className="w-3.5 h-3.5" />
+                              </Link>
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={7} className="py-12 text-center">
+                        <TableCell colSpan={8} className="py-12 text-center">
                           <HardDrive className="w-8 h-8 text-gray-200 mx-auto mb-2" />
                           <p className="text-sm text-gray-400">No equipment assigned to this customer.</p>
                           <p className="text-xs text-gray-400 mt-1">Go to Network → Equipment and assign a device to this customer.</p>

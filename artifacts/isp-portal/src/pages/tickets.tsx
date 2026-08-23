@@ -322,7 +322,7 @@ export default function Tickets() {
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-red-600" onClick={() => handleDelete(ticket.id)}>
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" asChild title="View audit history">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600" asChild title="View audit log">
                           <Link href={`/audit-logs?entityType=ticket&entityId=${ticket.id}`}>
                             <ClipboardList className="w-3.5 h-3.5" />
                           </Link>

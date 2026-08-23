@@ -15,7 +15,7 @@ import {
   Plus, Server, Route, Wifi, Pencil, Trash2, ChevronDown,
   CheckCircle2, Circle, WrenchIcon, AlertTriangle, LayoutDashboard, FileCode2,
   KeyRound, Shield, Download, X as XIcon, BarChart2, RefreshCw,
-  Globe, TrendingUp, Copy, Check, Zap, Loader2, Radio, RotateCcw,
+  Globe, TrendingUp, Copy, Check, Zap, Loader2, Radio, RotateCcw, ClipboardList,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar,
@@ -1571,6 +1571,17 @@ export default function Network() {
                       <TableCell className="text-gray-500 text-sm">{item.location || "—"}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-gray-400 hover:text-blue-600"
+                            asChild
+                            title="View audit log"
+                          >
+                            <Link href={`/audit-logs?entityType=equipment&entityId=${item.id}`}>
+                              <ClipboardList className="w-3.5 h-3.5" />
+                            </Link>
+                          </Button>
                           {canManageNetwork && (
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-blue-600"
                               onClick={() => setEquipDialog({

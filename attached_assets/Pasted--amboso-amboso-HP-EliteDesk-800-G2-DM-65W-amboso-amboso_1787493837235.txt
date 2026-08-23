@@ -1,0 +1,27 @@
+
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ whoami
+pm2 ls
+sudo pm2 ls
+systemctl --no-pager --type=service | grep -Ei 'netpulse|pm2|node'
+amboso
+[PM2] Spawning PM2 daemon with pm2_home=/home/amboso/.pm2
+[PM2] PM2 Successfully daemonized
+┌────┬───────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name      │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+└────┴───────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[sudo] password for amboso:
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 10873    │ 3h     │ 19   │ online    │ 0%       │ 248.0mb  │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+  kmod-static-nodes.service                             loaded active     exited        Create List of Static Device Nodes
+  pm2-root.service                                      loaded active     running       PM2 process manager
+  systemd-tmpfiles-setup-dev-early.service              loaded active     exited        Create Static Device Nodes in /dev gracefully
+  systemd-tmpfiles-setup-dev.service                    loaded active     exited        Create Static Device Nodes in /dev
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

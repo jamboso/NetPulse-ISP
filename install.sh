@@ -662,7 +662,8 @@ mkdir -p "${OVPN_DIR}/ccd"
 if [[ ! -f "${OVPN_DIR}/server.conf" ]]; then
   cat > "${OVPN_DIR}/server.conf" <<OVPN_CONF
 port 1194
-proto udp
+# RouterOS v6 OpenVPN clients support TCP only.
+proto tcp-server
 dev tun
 
 ca   /etc/openvpn/ca.crt
@@ -713,7 +714,7 @@ sysctl -p --quiet
 
 systemctl enable openvpn@server --quiet
 systemctl restart openvpn@server
-ok "OpenVPN server running on UDP 1194"
+ok "OpenVPN server running on TCP 1194"
 
 # ── VPN management helpers ────────────────────────────────────────────────────
 banner "VPN management helpers"
@@ -745,7 +746,7 @@ TA=$(cat "$OVPN_DIR/ta.key")
 cat <<OVPN
 client
 dev tun
-proto udp
+proto tcp-client
 remote ${SERVER_IP} 1194
 resolv-retry infinite
 nobind
@@ -809,11 +810,11 @@ ufw default allow outgoing >/dev/null
 ufw allow 22/tcp    comment "SSH"            >/dev/null
 ufw allow 80/tcp    comment "HTTP"           >/dev/null
 ufw allow 443/tcp   comment "HTTPS"          >/dev/null
-ufw allow 1194/udp  comment "OpenVPN"        >/dev/null
+ufw allow 1194/tcp  comment "OpenVPN"        >/dev/null
 ufw allow 1812/udp  comment "RADIUS auth"    >/dev/null
 ufw allow 1813/udp  comment "RADIUS acct"    >/dev/null
 ufw --force enable  >/dev/null
-ok "Firewall active (22, 80, 443, 1194/udp, 1812-1813/udp)"
+ok "Firewall active (22, 80, 443, 1194/tcp, 1812-1813/udp)"
 
 # ── Post-install summary ──────────────────────────────────────────────────────
 echo ""

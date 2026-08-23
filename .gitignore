@@ -55,3 +55,7 @@ Thumbs.db
 
 # Generated router profiles contain private VPN credentials.
 attached_assets/*.rsc
+
+# Playwright browser-test output
+/playwright-report/
+/test-results/

@@ -25,12 +25,148 @@ export interface RouterAlertEmailOptions {
   settings?: Record<string, string>;
 }
 
+export interface StaffInactivityDigestUser {
+  name: string;
+  email: string;
+  role: string;
+  createdAt: Date;
+  lastActiveAt: Date | null;
+}
+
+export interface StaffInactivityDigestEmailOptions {
+  to: string | string[];
+  companyName: string;
+  staffPageUrl: string;
+  inactiveUsers: StaffInactivityDigestUser[];
+  settings?: Record<string, string>;
+}
+
 const ROLE_LABELS: Record<string, string> = {
   admin:      "Admin (full access)",
   billing:    "Billing (invoices/payments)",
   support:    "Support (customers/tickets)",
   technician: "Technician (network/equipment)",
 };
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function formatLastLogin(lastActiveAt: Date | null): string {
+  return lastActiveAt
+    ? lastActiveAt.toISOString().slice(0, 10)
+    : "Never logged in";
+}
+
+/** Build the plain-text body for a daily staff-inactivity digest. */
+export function buildStaffInactivityDigestText(
+  opts: Omit<StaffInactivityDigestEmailOptions, "settings" | "to">,
+): string {
+  const count = opts.inactiveUsers.length;
+  const label = count === 1 ? "account" : "accounts";
+  const accounts = opts.inactiveUsers.map((user) =>
+    `• ${user.name} (${user.email}) — ${formatLastLogin(user.lastActiveAt)}`,
+  );
+
+  return [
+    `Staff inactivity alert for ${opts.companyName}`,
+    "",
+    `${count} active staff ${label} have not logged in for 30 days or more:`,
+    "",
+    ...accounts,
+    "",
+    `Review staff accounts: ${opts.staffPageUrl}`,
+    "",
+    `— ${opts.companyName}`,
+  ].join("\n");
+}
+
+/** Build the HTML body for a daily staff-inactivity digest. */
+export function buildStaffInactivityDigestHtml(
+  opts: Omit<StaffInactivityDigestEmailOptions, "settings" | "to">,
+): string {
+  const count = opts.inactiveUsers.length;
+  const label = count === 1 ? "account" : "accounts";
+  const rows = opts.inactiveUsers.map((user) => `
+    <tr>
+      <td style="padding:8px 12px;border:1px solid #e2e8f0">${escapeHtml(user.name)}</td>
+      <td style="padding:8px 12px;border:1px solid #e2e8f0">${escapeHtml(user.email)}</td>
+      <td style="padding:8px 12px;border:1px solid #e2e8f0">${escapeHtml(formatLastLogin(user.lastActiveAt))}</td>
+    </tr>`).join("");
+
+  return `
+<div style="font-family:sans-serif;max-width:620px;margin:0 auto;color:#111827">
+  <h2 style="color:#b45309;margin-bottom:4px">Staff inactivity alert</h2>
+  <p style="color:#6b7280;margin-top:0">${escapeHtml(opts.companyName)}</p>
+  <p><strong>${count}</strong> active staff ${label} have not logged in for 30 days or more.</p>
+  <table style="border-collapse:collapse;width:100%;margin:16px 0">
+    <thead>
+      <tr style="background:#f8fafc">
+        <th style="padding:8px 12px;border:1px solid #e2e8f0;text-align:left">Name</th>
+        <th style="padding:8px 12px;border:1px solid #e2e8f0;text-align:left">Email</th>
+        <th style="padding:8px 12px;border:1px solid #e2e8f0;text-align:left">Last login</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <a href="${escapeHtml(opts.staffPageUrl)}"
+     style="display:inline-block;padding:10px 20px;background:#1e40af;color:#fff;text-decoration:none;border-radius:6px;font-weight:600">
+    Review staff accounts
+  </a>
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
+  <p style="font-size:0.8em;color:#9ca3af">— ${escapeHtml(opts.companyName)}</p>
+</div>`;
+}
+
+/**
+ * Sends a tenant's daily list of active staff who have been dormant for at
+ * least 30 days. Never throws so the scheduler can retain a retryable claim.
+ */
+export async function sendStaffInactivityDigestEmail(
+  opts: StaffInactivityDigestEmailOptions,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const s = opts.settings ?? await getSettings();
+    if (!s["smtpHost"] || !s["smtpUser"] || !s["smtpPass"]) {
+      return { success: false, message: "SMTP not configured — email skipped" };
+    }
+
+    const from = s["smtpFrom"] ?? s["smtpUser"];
+    const port = Number(s["smtpPort"] ?? 587);
+    const transporter = nodemailer.createTransport({
+      host: s["smtpHost"],
+      port,
+      secure: port === 465,
+      auth: { user: s["smtpUser"], pass: s["smtpPass"] },
+    });
+
+    const messageOptions = {
+      companyName: opts.companyName,
+      staffPageUrl: opts.staffPageUrl,
+      inactiveUsers: opts.inactiveUsers,
+    };
+
+    await transporter.sendMail({
+      from,
+      to: opts.to,
+      subject: `${opts.companyName} — Staff inactivity alert (${opts.inactiveUsers.length})`,
+      text: buildStaffInactivityDigestText(messageOptions),
+      html: buildStaffInactivityDigestHtml(messageOptions),
+    });
+
+    return { success: true, message: "Staff inactivity digest sent" };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      message: `Email error: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
 
 /** Build the plain-text body for the welcome email. */
 export function buildWelcomeEmailText(opts: WelcomeEmailOptions & { company: string; roleLabel: string }): string {

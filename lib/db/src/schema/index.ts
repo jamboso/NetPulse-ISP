@@ -22,6 +22,7 @@ export * from "./infrastructure";
 export * from "./users";
 export * from "./auditLogs";
 export * from "./auditPurgeLog";
+export * from "./staffInactivityDigestLog";
 export * from "./radius";
 export * from "./vpnConfigs";
 export * from "./securityEvents";

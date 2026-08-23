@@ -15,6 +15,7 @@ vi.mock("../lib/sms.js", () => ({
 const {
   sendRouterAlertEmail,
   sendStaffWelcomeEmail,
+  sendStaffInactivityDigestEmail,
   buildWelcomeEmailText,
   buildWelcomeEmailHtml,
 } =
@@ -239,6 +240,46 @@ describe("sendRouterAlertEmail", () => {
     expect(result.success).toBe(false);
     expect(result.message).toMatch(/SMTP not configured/i);
     expect(mockSendMail).not.toHaveBeenCalled();
+  });
+});
+
+describe("sendStaffInactivityDigestEmail", () => {
+  it("sends every admin a digest with the inactive accounts and direct Staff-page link", async () => {
+    const result = await sendStaffInactivityDigestEmail({
+      to: ["admin-one@example.com", "admin-two@example.com"],
+      companyName: "Acme ISP",
+      staffPageUrl: "https://portal.example.com/staff",
+      inactiveUsers: [
+        {
+          name: "Stale Staff",
+          email: "stale@example.com",
+          role: "support",
+          createdAt: new Date("2026-06-01T00:00:00Z"),
+          lastActiveAt: new Date("2026-07-01T00:00:00Z"),
+        },
+        {
+          name: "Never Logged In",
+          email: "never@example.com",
+          role: "technician",
+          createdAt: new Date("2026-06-01T00:00:00Z"),
+          lastActiveAt: null,
+        },
+      ],
+      settings: SMTP_SETTINGS,
+    });
+
+    expect(result).toEqual({ success: true, message: "Staff inactivity digest sent" });
+    expect(mockSendMail).toHaveBeenCalledWith(expect.objectContaining({
+      to: ["admin-one@example.com", "admin-two@example.com"],
+      subject: "Acme ISP — Staff inactivity alert (2)",
+      text: expect.stringContaining("Stale Staff"),
+      html: expect.stringContaining("https://portal.example.com/staff"),
+    }));
+
+    const { text, html } = mockSendMail.mock.calls[0][0] as { text: string; html: string };
+    expect(text).toContain("Never logged in");
+    expect(text).toContain("https://portal.example.com/staff");
+    expect(html).toContain("Never Logged In");
   });
 });
 

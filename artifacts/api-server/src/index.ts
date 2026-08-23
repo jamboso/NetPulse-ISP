@@ -5,6 +5,7 @@ import { startSmsScheduler } from "./lib/smsScheduler";
 import { startRouterMonitor } from "./lib/routerMonitor";
 import { startAuditLogPurgeScheduler } from "./lib/auditLogPurge";
 import { startAuditExportScheduler } from "./lib/auditExportScheduler";
+import { startStaffInactivityDigestScheduler } from "./lib/staffInactivityDigest";
 import { startDnsPoller } from "./lib/dnsPoller";
 import { ensureCompanyBackfill } from "./lib/companyBackfill";
 import { migrateLegacyNotificationSettings } from "./lib/notificationSettingsMigration";
@@ -53,6 +54,7 @@ prepareStartup()
       startRouterMonitor();
       startAuditLogPurgeScheduler();
       startAuditExportScheduler();
+      startStaffInactivityDigestScheduler();
       startDnsPoller();
     });
   })

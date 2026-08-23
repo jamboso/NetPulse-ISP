@@ -1,0 +1,55 @@
+: 2026-08-15T16:17:33.731Z ERROR [Better Auth]: Invalid password
+2026-08-15 19:17:49: 2026-08-15T16:17:49.205Z ERROR [Better Auth]: Invalid password
+2026-08-15 19:34:06: 2026-08-15T16:34:06.645Z ERROR [Better Auth]: Invalid password
+2026-08-15 19:34:07: 2026-08-15T16:34:07.285Z ERROR [Better Auth]: Invalid password
+2026-08-15 19:34:34: 2026-08-15T16:34:34.654Z ERROR [Better Auth]: Invalid password
+2026-08-15 19:34:46: 2026-08-15T16:34:46.937Z ERROR [Better Auth]: Invalid password
+2026-08-15 19:35:12: 2026-08-15T16:35:12.931Z ERROR [Better Auth]: Invalid password
+2026-08-15 19:35:14: 2026-08-15T16:35:14.704Z ERROR [Better Auth]: Invalid password
+2026-08-15 19:35:16: 2026-08-15T16:35:16.002Z ERROR [Better Auth]: Invalid password
+2026-08-15 20:01:46: 2026-08-15T17:01:46.448Z ERROR [Better Auth]: Invalid password
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo -H bash -lc '
+echo "=== API session endpoint ==="
+curl -sS -o /dev/null -w "HTTP %{http_code}\n" http://127.0.0.1:8080/api/auth/get-session
+
+echo
+echo "=== Current PM2 state ==="
+pm2 ls
+
+echo
+echo "=== New process messages only ==="
+grep "\"pid\":12705" /var/log/netpulse/out-0.log | tail -n 30 || true
+grep "\"pid\":12705" /var/log/netpulse/error-0.log | tail -n 30 || true
+'
+=== API session endpoint ===
+HTTP 200
+
+=== Current PM2 state ===
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 12705    │ 90s    │ 20   │ online    │ 0%       │ 260.5mb  │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+
+=== New process messages only ===
+grep: /var/log/netpulse/out-0.log: binary file matches
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo grep -a "\"pid\":12705" /var/log/netpulse/out-0.log | tail -n 30
+sudo grep -a "\"pid\":12705" /var/log/netpulse/error-0.log | tail -n 30
+2026-08-23 17:12:02: {"level":30,"time":1787494322945,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","frontendDist":"/opt/netpulse/artifacts/isp-portal/dist/public","msg":"Serving frontend static files"}
+2026-08-23 17:12:02: {"level":30,"time":1787494322972,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","port":8080,"msg":"Server listening"}
+2026-08-23 17:12:02: {"level":30,"time":1787494322972,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","intervalMs":300000,"msg":"Session poller started"}
+2026-08-23 17:12:02: {"level":30,"time":1787494322973,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","intervalMs":3600000,"msg":"SMS scheduler started"}
+2026-08-23 17:12:02: {"level":30,"time":1787494322973,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","intervalMs":180000,"msg":"Router monitor started"}
+2026-08-23 17:12:02: {"level":30,"time":1787494322973,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","intervalMs":86400000,"msg":"Audit log purge scheduler started"}
+2026-08-23 17:12:02: {"level":30,"time":1787494322973,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","checkIntervalMs":3600000,"msg":"Audit export scheduler started"}
+2026-08-23 17:12:02: {"level":30,"time":1787494322973,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","checkIntervalMs":3600000,"msg":"Staff inactivity digest scheduler started"}
+2026-08-23 17:12:02: {"level":30,"time":1787494322974,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","intervalMs":300000,"msg":"DNS poller started"}
+2026-08-23 17:12:02: {"level":30,"time":1787494322976,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","count":6,"msg":"Session poller: polling routers"}
+2026-08-23 17:12:02: {"level":40,"time":1787494322999,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"Stored notification setting has an invalid encrypted format","stack":"Error: Stored notification setting has an invalid encrypted format\n    at decryptNotificationSetting (/opt/netpulse/artifacts/api-server/src/lib/settingsEncryption.ts:71:11)\n    at getSettings (/opt/netpulse/artifacts/api-server/src/lib/sms.ts:15:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async runStaffInactivityDigest (/opt/netpulse/artifacts/api-server/src/lib/staffInactivityDigest.ts:164:20)"},"msg":"Staff inactivity digest: initial check failed"}
+2026-08-23 17:12:03: {"level":40,"time":1787494323000,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"Stored notification setting has an invalid encrypted format","stack":"Error: Stored notification setting has an invalid encrypted format\n    at decryptNotificationSetting (/opt/netpulse/artifacts/api-server/src/lib/settingsEncryption.ts:71:11)\n    at getSettings (/opt/netpulse/artifacts/api-server/src/lib/sms.ts:15:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async runExportIfDue (/opt/netpulse/artifacts/api-server/src/lib/auditExportScheduler.ts:103:13)"},"msg":"Audit export scheduler: initial check failed"}
+2026-08-23 17:12:48: {"level":30,"time":1787494368614,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":1,"method":"GET","url":"/api/routers/20/ros/live"},"res":{"statusCode":200},"responseTime":1858,"msg":"request completed"}
+2026-08-23 17:13:02: {"level":40,"time":1787494382988,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"Stored notification setting has an invalid encrypted format","stack":"Error: Stored notification setting has an invalid encrypted format\n    at decryptNotificationSetting (/opt/netpulse/artifacts/api-server/src/lib/settingsEncryption.ts:71:11)\n    at getSettings (/opt/netpulse/artifacts/api-server/src/lib/sms.ts:15:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async pollRouters (/opt/netpulse/artifacts/api-server/src/lib/routerMonitor.ts:194:20)"},"msg":"Router monitor: first poll failed"}
+2026-08-23 17:13:32: {"level":30,"time":1787494412419,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":2,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":11,"msg":"request completed"}
+2026-08-23 17:13:48: {"level":30,"time":1787494428054,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":3,"method":"GET","url":"/api/routers/20/ros/live"},"res":{"statusCode":200},"responseTime":1312,"msg":"request completed"}
+2026-08-23 17:14:47: {"level":30,"time":1787494487647,"pid":12705,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":4,"method":"GET","url":"/api/routers/20/ros/live"},"res":{"statusCode":200},"responseTime":886,"msg":"request completed"}
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

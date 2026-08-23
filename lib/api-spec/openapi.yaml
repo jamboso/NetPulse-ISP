@@ -3409,6 +3409,20 @@ components:
           type: ["string", "null"]
         auditLogRetentionDays:
           type: ["string", "null"]
+        exportScheduleEnabled:
+          type: ["string", "null"]
+        exportScheduleFrequency:
+          type: ["string", "null"]
+        exportScheduleEmail:
+          type: ["string", "null"]
+        exportScheduleEntityType:
+          type: ["string", "null"]
+          enum: [all, customer, invoice, payment, subscription, user, equipment, ip_pool, company, company_mpesa_config, olt, onu, olt_service_profile, olt_provisioning_job, tr069_acs_config, tr069_device, tr069_command, null]
+        exportScheduleWindowDays:
+          type: ["string", "null"]
+          enum: [all, "7", "30", "90", null]
+        exportScheduleLastSentAt:
+          type: ["string", "null"]
 
     SettingsInput:
       type: object
@@ -3483,6 +3497,18 @@ components:
           type: string
         auditLogRetentionDays:
           type: string
+        exportScheduleEnabled:
+          type: ["string", "null"]
+        exportScheduleFrequency:
+          type: ["string", "null"]
+        exportScheduleEmail:
+          type: ["string", "null"]
+        exportScheduleEntityType:
+          type: ["string", "null"]
+          enum: [all, customer, invoice, payment, subscription, user, equipment, ip_pool, company, company_mpesa_config, olt, onu, olt_service_profile, olt_provisioning_job, tr069_acs_config, tr069_device, tr069_command, null]
+        exportScheduleWindowDays:
+          type: ["string", "null"]
+          enum: [all, "7", "30", "90", null]
 
     CompanyMpesaConfig:
       type: object

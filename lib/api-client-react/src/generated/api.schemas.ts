@@ -1193,6 +1193,45 @@ export interface IpPoolUpdate {
   description?: string | null;
 }
 
+/**
+ * @nullable
+ */
+export type SettingsExportScheduleEntityType = typeof SettingsExportScheduleEntityType[keyof typeof SettingsExportScheduleEntityType] | null;
+
+
+export const SettingsExportScheduleEntityType = {
+  all: 'all',
+  customer: 'customer',
+  invoice: 'invoice',
+  payment: 'payment',
+  subscription: 'subscription',
+  user: 'user',
+  equipment: 'equipment',
+  ip_pool: 'ip_pool',
+  company: 'company',
+  company_mpesa_config: 'company_mpesa_config',
+  olt: 'olt',
+  onu: 'onu',
+  olt_service_profile: 'olt_service_profile',
+  olt_provisioning_job: 'olt_provisioning_job',
+  tr069_acs_config: 'tr069_acs_config',
+  tr069_device: 'tr069_device',
+  tr069_command: 'tr069_command',
+} as const;
+
+/**
+ * @nullable
+ */
+export type SettingsExportScheduleWindowDays = typeof SettingsExportScheduleWindowDays[keyof typeof SettingsExportScheduleWindowDays] | null;
+
+
+export const SettingsExportScheduleWindowDays = {
+  all: 'all',
+  NUMBER_7: '7',
+  NUMBER_30: '30',
+  NUMBER_90: '90',
+} as const;
+
 export interface Settings {
   /** @nullable */
   companyName?: string | null;
@@ -1269,7 +1308,58 @@ export interface Settings {
   mpesaAllowedIps?: string | null;
   /** @nullable */
   auditLogRetentionDays?: string | null;
+  /** @nullable */
+  exportScheduleEnabled?: string | null;
+  /** @nullable */
+  exportScheduleFrequency?: string | null;
+  /** @nullable */
+  exportScheduleEmail?: string | null;
+  /** @nullable */
+  exportScheduleEntityType?: SettingsExportScheduleEntityType;
+  /** @nullable */
+  exportScheduleWindowDays?: SettingsExportScheduleWindowDays;
+  /** @nullable */
+  exportScheduleLastSentAt?: string | null;
 }
+
+/**
+ * @nullable
+ */
+export type SettingsInputExportScheduleEntityType = typeof SettingsInputExportScheduleEntityType[keyof typeof SettingsInputExportScheduleEntityType] | null;
+
+
+export const SettingsInputExportScheduleEntityType = {
+  all: 'all',
+  customer: 'customer',
+  invoice: 'invoice',
+  payment: 'payment',
+  subscription: 'subscription',
+  user: 'user',
+  equipment: 'equipment',
+  ip_pool: 'ip_pool',
+  company: 'company',
+  company_mpesa_config: 'company_mpesa_config',
+  olt: 'olt',
+  onu: 'onu',
+  olt_service_profile: 'olt_service_profile',
+  olt_provisioning_job: 'olt_provisioning_job',
+  tr069_acs_config: 'tr069_acs_config',
+  tr069_device: 'tr069_device',
+  tr069_command: 'tr069_command',
+} as const;
+
+/**
+ * @nullable
+ */
+export type SettingsInputExportScheduleWindowDays = typeof SettingsInputExportScheduleWindowDays[keyof typeof SettingsInputExportScheduleWindowDays] | null;
+
+
+export const SettingsInputExportScheduleWindowDays = {
+  all: 'all',
+  NUMBER_7: '7',
+  NUMBER_30: '30',
+  NUMBER_90: '90',
+} as const;
 
 export interface SettingsInput {
   companyName?: string;
@@ -1310,6 +1400,16 @@ export interface SettingsInput {
   mpesaCallbackUrl?: string;
   mpesaAllowedIps?: string;
   auditLogRetentionDays?: string;
+  /** @nullable */
+  exportScheduleEnabled?: string | null;
+  /** @nullable */
+  exportScheduleFrequency?: string | null;
+  /** @nullable */
+  exportScheduleEmail?: string | null;
+  /** @nullable */
+  exportScheduleEntityType?: SettingsInputExportScheduleEntityType;
+  /** @nullable */
+  exportScheduleWindowDays?: SettingsInputExportScheduleWindowDays;
 }
 
 export type CompanyMpesaConfigEnv = typeof CompanyMpesaConfigEnv[keyof typeof CompanyMpesaConfigEnv];

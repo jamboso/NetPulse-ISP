@@ -9,6 +9,8 @@ import { resolveCompanyScope } from "../middlewares/companyScope";
 import { sendTestEmail } from "../lib/mailer";
 import { getCompanyMpesaConfigRow, upsertCompanyMpesaConfig } from "../lib/mpesaConfig";
 import {
+  AUDIT_EXPORT_ENTITY_TYPES,
+  AUDIT_EXPORT_WINDOW_DAYS,
   AuditExportConfigurationError,
   sendAuditLogExport,
 } from "../lib/auditExportScheduler";
@@ -94,6 +96,8 @@ const SETTINGS_KEYS = [
   "exportScheduleEnabled",
   "exportScheduleFrequency",
   "exportScheduleEmail",
+  "exportScheduleEntityType",
+  "exportScheduleWindowDays",
   "exportScheduleLastSentAt",
 ] as const;
 
@@ -111,6 +115,8 @@ const settingsPatchSchema = z.record(
   z.string(),
   z.string().nullable(),
 );
+const scheduledExportEntityTypes = new Set<string>(["all", ...AUDIT_EXPORT_ENTITY_TYPES]);
+const scheduledExportWindowDays = new Set<string>(AUDIT_EXPORT_WINDOW_DAYS);
 
 const welcomeEmailTemplatePatchSchema = z.object({
   emailSubject: z.string().nullable().optional(),
@@ -231,6 +237,24 @@ router.patch("/settings", requireRole("owner"), async (req, res) => {
   const parsed = settingsPatchSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Settings values must use known setting names and contain strings or null" });
+    return;
+  }
+
+  const entityType = parsed.data["exportScheduleEntityType"];
+  if (
+    entityType != null
+    && !scheduledExportEntityTypes.has(entityType)
+  ) {
+    res.status(400).json({ error: "Scheduled export entity type must be a supported audit entity type or 'all'." });
+    return;
+  }
+
+  const windowDays = parsed.data["exportScheduleWindowDays"];
+  if (
+    windowDays != null
+    && !scheduledExportWindowDays.has(windowDays)
+  ) {
+    res.status(400).json({ error: "Scheduled export rolling window must be 7, 30, 90, or 'all'." });
     return;
   }
 

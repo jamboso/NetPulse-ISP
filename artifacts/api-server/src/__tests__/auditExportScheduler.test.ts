@@ -8,6 +8,8 @@ const mockGetSettings = vi.hoisted(() => vi.fn());
 const mockInsertValues = vi.hoisted(() => vi.fn());
 const mockAuditRows = vi.hoisted(() => vi.fn());
 const mockLastSentRows = vi.hoisted(() => vi.fn());
+const mockEq = vi.hoisted(() => vi.fn());
+const mockGte = vi.hoisted(() => vi.fn());
 
 vi.mock("nodemailer", () => ({
   default: { createTransport: mockCreateTransport },
@@ -19,11 +21,13 @@ vi.mock("../lib/sms.js", () => ({
 
 vi.mock("drizzle-orm", () => ({
   desc: vi.fn(),
-  eq: vi.fn(),
+  and: vi.fn(),
+  eq: mockEq,
+  gte: mockGte,
 }));
 
 vi.mock("@workspace/db", () => {
-  const auditLogsTable = { createdAt: {} };
+  const auditLogsTable = { createdAt: {}, entityType: {} };
   const settingsTable = { key: {} };
 
   const query = {
@@ -31,6 +35,16 @@ vi.mock("@workspace/db", () => {
       return {
         orderBy() {
           return {
+            $dynamic() {
+              return {
+                where() {
+                  return {
+                    limit: () => Promise.resolve(mockAuditRows()),
+                  };
+                },
+                limit: () => Promise.resolve(mockAuditRows()),
+              };
+            },
             limit: () => Promise.resolve(table === auditLogsTable ? mockAuditRows() : mockLastSentRows()),
           };
         },
@@ -58,7 +72,7 @@ vi.mock("@workspace/db", () => {
   };
 });
 
-const { isAuditLogExportDue, runAuditLogExportIfDue } =
+const { getAuditExportFilters, isAuditLogExportDue, runAuditLogExportIfDue } =
   await import("../lib/auditExportScheduler.js");
 
 const NOW = Date.parse("2026-08-23T12:00:00.000Z");
@@ -122,6 +136,27 @@ describe("isAuditLogExportDue", () => {
 
   it("treats an invalid last-sent timestamp as due so a bad value cannot block exports", () => {
     expect(isAuditLogExportDue(settings("weekly", "not-a-timestamp"), NOW)).toBe(true);
+  });
+});
+
+describe("getAuditExportFilters", () => {
+  it("uses the configured entity type and a recognized rolling window", () => {
+    const now = new Date("2026-08-23T12:00:00.000Z");
+
+    expect(getAuditExportFilters({
+      exportScheduleEntityType: "payment",
+      exportScheduleWindowDays: "30",
+    }, now)).toEqual({
+      entityType: "payment",
+      from: new Date("2026-07-24T12:00:00.000Z"),
+    });
+  });
+
+  it("leaves the export unfiltered for all or unrecognized values", () => {
+    expect(getAuditExportFilters({
+      exportScheduleEntityType: "all",
+      exportScheduleWindowDays: "365",
+    })).toEqual({});
   });
 });
 
@@ -213,5 +248,21 @@ describe("runAuditLogExportIfDue", () => {
 
     expect(mockSendMail).toHaveBeenCalledOnce();
     expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it("filters scheduled CSV rows by entity type and rolling window", async () => {
+    mockGetSettings.mockResolvedValue({
+      ...SCHEDULED_EXPORT_SETTINGS,
+      exportScheduleEntityType: "payment",
+      exportScheduleWindowDays: "30",
+    });
+
+    await runAuditLogExportIfDue();
+
+    expect(mockEq).toHaveBeenCalledWith(expect.anything(), "payment");
+    expect(mockGte).toHaveBeenCalledWith(
+      expect.anything(),
+      new Date("2026-07-24T12:00:00.000Z"),
+    );
   });
 });

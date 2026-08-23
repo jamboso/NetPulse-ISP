@@ -1550,7 +1550,13 @@ export const GetSettingsResponse = zod.object({
   "mpesaEnv": zod.string().nullish(),
   "mpesaCallbackUrl": zod.string().nullish(),
   "mpesaAllowedIps": zod.string().nullish(),
-  "auditLogRetentionDays": zod.string().nullish()
+  "auditLogRetentionDays": zod.string().nullish(),
+  "exportScheduleEnabled": zod.string().nullish(),
+  "exportScheduleFrequency": zod.string().nullish(),
+  "exportScheduleEmail": zod.string().nullish(),
+  "exportScheduleEntityType": zod.union([zod.literal('all'),zod.literal('customer'),zod.literal('invoice'),zod.literal('payment'),zod.literal('subscription'),zod.literal('user'),zod.literal('equipment'),zod.literal('ip_pool'),zod.literal('company'),zod.literal('company_mpesa_config'),zod.literal('olt'),zod.literal('onu'),zod.literal('olt_service_profile'),zod.literal('olt_provisioning_job'),zod.literal('tr069_acs_config'),zod.literal('tr069_device'),zod.literal('tr069_command'),zod.literal(null)]).nullish(),
+  "exportScheduleWindowDays": zod.union([zod.literal('all'),zod.literal('7'),zod.literal('30'),zod.literal('90'),zod.literal(null)]).nullish(),
+  "exportScheduleLastSentAt": zod.string().nullish()
 })
 
 
@@ -1592,7 +1598,12 @@ export const UpdateSettingsBody = zod.object({
   "mpesaEnv": zod.string().optional(),
   "mpesaCallbackUrl": zod.string().optional(),
   "mpesaAllowedIps": zod.string().optional(),
-  "auditLogRetentionDays": zod.string().optional()
+  "auditLogRetentionDays": zod.string().optional(),
+  "exportScheduleEnabled": zod.string().nullish(),
+  "exportScheduleFrequency": zod.string().nullish(),
+  "exportScheduleEmail": zod.string().nullish(),
+  "exportScheduleEntityType": zod.union([zod.literal('all'),zod.literal('customer'),zod.literal('invoice'),zod.literal('payment'),zod.literal('subscription'),zod.literal('user'),zod.literal('equipment'),zod.literal('ip_pool'),zod.literal('company'),zod.literal('company_mpesa_config'),zod.literal('olt'),zod.literal('onu'),zod.literal('olt_service_profile'),zod.literal('olt_provisioning_job'),zod.literal('tr069_acs_config'),zod.literal('tr069_device'),zod.literal('tr069_command'),zod.literal(null)]).nullish(),
+  "exportScheduleWindowDays": zod.union([zod.literal('all'),zod.literal('7'),zod.literal('30'),zod.literal('90'),zod.literal(null)]).nullish()
 })
 
 export const UpdateSettingsResponse = zod.object({
@@ -1632,7 +1643,13 @@ export const UpdateSettingsResponse = zod.object({
   "mpesaEnv": zod.string().nullish(),
   "mpesaCallbackUrl": zod.string().nullish(),
   "mpesaAllowedIps": zod.string().nullish(),
-  "auditLogRetentionDays": zod.string().nullish()
+  "auditLogRetentionDays": zod.string().nullish(),
+  "exportScheduleEnabled": zod.string().nullish(),
+  "exportScheduleFrequency": zod.string().nullish(),
+  "exportScheduleEmail": zod.string().nullish(),
+  "exportScheduleEntityType": zod.union([zod.literal('all'),zod.literal('customer'),zod.literal('invoice'),zod.literal('payment'),zod.literal('subscription'),zod.literal('user'),zod.literal('equipment'),zod.literal('ip_pool'),zod.literal('company'),zod.literal('company_mpesa_config'),zod.literal('olt'),zod.literal('onu'),zod.literal('olt_service_profile'),zod.literal('olt_provisioning_job'),zod.literal('tr069_acs_config'),zod.literal('tr069_device'),zod.literal('tr069_command'),zod.literal(null)]).nullish(),
+  "exportScheduleWindowDays": zod.union([zod.literal('all'),zod.literal('7'),zod.literal('30'),zod.literal('90'),zod.literal(null)]).nullish(),
+  "exportScheduleLastSentAt": zod.string().nullish()
 })
 
 

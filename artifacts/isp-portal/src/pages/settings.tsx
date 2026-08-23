@@ -88,7 +88,7 @@ function SelectField({
       </div>
       <div className="col-span-8">
         <Select value={value || ""} onValueChange={(v) => onChange(name, v)}>
-          <SelectTrigger className="text-sm">
+            <SelectTrigger className="text-sm" aria-label={label}>
             <SelectValue placeholder="Select..." />
           </SelectTrigger>
           <SelectContent>
@@ -147,7 +147,13 @@ function SendTestEmailButton() {
   );
 }
 
-function SendAuditLogExportButton({ onSent }: { onSent?: () => Promise<unknown> }) {
+function SendAuditLogExportButton({
+  disabled = false,
+  onSent,
+}: {
+  disabled?: boolean;
+  onSent?: () => Promise<unknown>;
+}) {
   const mutation = useSendAuditLogExportNow();
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -173,7 +179,7 @@ function SendAuditLogExportButton({ onSent }: { onSent?: () => Promise<unknown> 
           size="sm"
           variant="outline"
           onClick={handleSend}
-          disabled={mutation.isPending}
+          disabled={mutation.isPending || disabled}
           className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
         >
           {mutation.isPending
@@ -181,7 +187,11 @@ function SendAuditLogExportButton({ onSent }: { onSent?: () => Promise<unknown> 
             : <Send className="w-3.5 h-3.5" />}
           {mutation.isPending ? "Sending…" : "Send Now"}
         </Button>
-        <span className="text-xs text-gray-400">Immediately emails the CSV to the destination above.</span>
+        <span className="text-xs text-gray-400">
+          {disabled
+            ? "Save export settings before sending."
+            : "Immediately emails the CSV to the destination above."}
+        </span>
       </div>
       {result?.success && (
         <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-green-600">
@@ -510,6 +520,10 @@ function OwnerSettings() {
   };
 
   const f = (name: string) => form[name] ?? "";
+  const scheduleFiltersDirty = [
+    "exportScheduleEntityType",
+    "exportScheduleWindowDays",
+  ].some((key) => changedKeys.has(key));
 
   const handleSave = async () => {
     setSaveError("");
@@ -790,7 +804,47 @@ function OwnerSettings() {
               placeholder="compliance@myisp.co.ke"
               hint="The CSV will be sent as an attachment to this address"
             />
+            <SelectField
+              label="Entity Type"
+              name="exportScheduleEntityType"
+              value={f("exportScheduleEntityType") || "all"}
+              onChange={set}
+              hint="Optionally include only activity for one type of record."
+              options={[
+                { value: "all", label: "All entity types" },
+                { value: "customer", label: "Customer" },
+                { value: "subscription", label: "Subscription" },
+                { value: "invoice", label: "Invoice" },
+                { value: "payment", label: "Payment" },
+                { value: "equipment", label: "Equipment" },
+                { value: "ip_pool", label: "IP Pool" },
+                { value: "user", label: "User" },
+                { value: "company", label: "Company" },
+                { value: "company_mpesa_config", label: "Company M-Pesa Config" },
+                { value: "olt", label: "OLT" },
+                { value: "onu", label: "ONU" },
+                { value: "olt_service_profile", label: "OLT Service Profile" },
+                { value: "olt_provisioning_job", label: "OLT Provisioning Job" },
+                { value: "tr069_acs_config", label: "TR-069 ACS Config" },
+                { value: "tr069_device", label: "TR-069 Device" },
+                { value: "tr069_command", label: "TR-069 Command" },
+              ]}
+            />
+            <SelectField
+              label="Rolling Window"
+              name="exportScheduleWindowDays"
+              value={f("exportScheduleWindowDays") || "all"}
+              onChange={set}
+              hint="Optionally include only activity from this recent period."
+              options={[
+                { value: "all", label: "All activity" },
+                { value: "7", label: "Last 7 days" },
+                { value: "30", label: "Last 30 days" },
+                { value: "90", label: "Last 90 days" },
+              ]}
+            />
             <SendAuditLogExportButton
+              disabled={scheduleFiltersDirty}
               onSent={() => queryClient.invalidateQueries({ queryKey: ["/api/settings"] })}
             />
             {f("exportScheduleLastSentAt") && (

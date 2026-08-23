@@ -43,6 +43,13 @@ vi.mock("@workspace/db", () => {
 });
 
 vi.mock("../lib/auditExportScheduler", () => ({
+  AUDIT_EXPORT_ENTITY_TYPES: [
+    "customer", "invoice", "payment", "subscription", "user", "equipment",
+    "ip_pool", "company", "company_mpesa_config", "olt", "onu",
+    "olt_service_profile", "olt_provisioning_job", "tr069_acs_config",
+    "tr069_device", "tr069_command",
+  ],
+  AUDIT_EXPORT_WINDOW_DAYS: ["all", "7", "30", "90"],
   AuditExportConfigurationError: class AuditExportConfigurationError extends Error {},
   sendAuditLogExport: mockSendAuditLogExport,
 }));
@@ -331,8 +338,12 @@ describe("PATCH /api/settings", () => {
     });
   });
 
-  it("accepts and persists all scheduled audit export settings", async () => {
+  it("accepts and persists all scheduled audit export settings and filters", async () => {
     mockExec
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
@@ -343,6 +354,8 @@ describe("PATCH /api/settings", () => {
         { key: "exportScheduleEnabled", value: "1" },
         { key: "exportScheduleFrequency", value: "daily" },
         { key: "exportScheduleEmail", value: "compliance@example.com" },
+        { key: "exportScheduleEntityType", value: "payment" },
+        { key: "exportScheduleWindowDays", value: "30" },
       ]);
 
     const res = await request(buildApp())
@@ -351,6 +364,8 @@ describe("PATCH /api/settings", () => {
         exportScheduleEnabled: "1",
         exportScheduleFrequency: "daily",
         exportScheduleEmail: "compliance@example.com",
+        exportScheduleEntityType: "payment",
+        exportScheduleWindowDays: "30",
       });
 
     expect(res.status).toBe(200);
@@ -366,11 +381,34 @@ describe("PATCH /api/settings", () => {
       key: "exportScheduleEmail",
       value: "compliance@example.com",
     }));
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "exportScheduleEntityType",
+      value: "payment",
+    }));
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+      key: "exportScheduleWindowDays",
+      value: "30",
+    }));
     expect(res.body).toMatchObject({
       exportScheduleEnabled: "1",
       exportScheduleFrequency: "daily",
       exportScheduleEmail: "compliance@example.com",
+      exportScheduleEntityType: "payment",
+      exportScheduleWindowDays: "30",
     });
+  });
+
+  it("rejects invalid scheduled audit export filters", async () => {
+    const res = await request(buildApp())
+      .patch("/api/settings")
+      .send({
+        exportScheduleEntityType: "not-a-real-entity",
+        exportScheduleWindowDays: "365",
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/entity type/i);
+    expect(mockValues).not.toHaveBeenCalled();
   });
 
   it("encrypts notification channel values before storing them", async () => {

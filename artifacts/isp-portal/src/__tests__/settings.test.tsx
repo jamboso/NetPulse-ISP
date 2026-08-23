@@ -49,13 +49,15 @@ beforeEach(() => {
       exportScheduleEnabled: "0",
       exportScheduleFrequency: "weekly",
       exportScheduleEmail: "",
+      exportScheduleEntityType: "all",
+      exportScheduleWindowDays: "all",
     },
     isLoading: false,
   });
 });
 
 describe("Settings — scheduled audit log export", () => {
-  it("renders in Notifications and saves its schedule settings", async () => {
+  it("renders in Notifications and saves its schedule filters", async () => {
     const mutateAsync = vi.fn().mockResolvedValue({});
     mockUseUpdateSettings.mockReturnValue({ mutateAsync, isPending: false });
 
@@ -67,13 +69,17 @@ describe("Settings — scheduled audit log export", () => {
 
     expect(screen.getByText("Scheduled Audit Log Export")).toBeInTheDocument();
     expect(screen.getByText("Enable Scheduled Export")).toBeInTheDocument();
-    expect(screen.getByRole("combobox")).toHaveTextContent("Weekly");
+    expect(screen.getByRole("combobox", { name: /frequency/i })).toHaveTextContent("Weekly");
 
     await user.click(screen.getByRole("switch"));
     await user.type(
       screen.getByPlaceholderText("compliance@myisp.co.ke"),
       "compliance@example.com",
     );
+    await user.click(screen.getByRole("combobox", { name: /entity type/i }));
+    await user.click(screen.getByRole("option", { name: "Payment" }));
+    await user.click(screen.getByRole("combobox", { name: /rolling window/i }));
+    await user.click(screen.getByRole("option", { name: "Last 30 days" }));
     await user.click(screen.getByRole("button", { name: /save changes/i }));
 
     await waitFor(() => {
@@ -81,6 +87,8 @@ describe("Settings — scheduled audit log export", () => {
         data: {
           exportScheduleEnabled: "1",
           exportScheduleEmail: "compliance@example.com",
+          exportScheduleEntityType: "payment",
+          exportScheduleWindowDays: "30",
         },
       });
     });

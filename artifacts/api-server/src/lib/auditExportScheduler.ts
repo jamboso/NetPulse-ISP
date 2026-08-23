@@ -2,7 +2,8 @@
  * Audit Log CSV Export Scheduler
  *
  * Reads `exportScheduleEnabled`, `exportScheduleFrequency`, `exportScheduleEmail`,
- * and `exportScheduleLastSentAt` from the settings table.
+ * `exportScheduleEntityType`, `exportScheduleWindowDays`, and
+ * `exportScheduleLastSentAt` from the settings table.
  *
  * Frequencies:
  *   daily   — send once every 24 hours
@@ -10,7 +11,7 @@
  *   monthly — send once every 30 days
  *
  * Checks every hour whether an export is due. When due:
- *   1. Queries the last 10,000 audit_log rows
+ *   1. Queries up to the latest 10,000 matching audit_log rows
  *   2. Generates a CSV string
  *   3. Emails it as an attachment via SMTP
  *   4. Updates `exportScheduleLastSentAt` so the next check knows it ran
@@ -18,7 +19,7 @@
 
 import nodemailer from "nodemailer";
 import { db, auditLogsTable, settingsTable } from "@workspace/db";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import { logger } from "./logger";
 import { getSettings } from "./sms.js";
 
@@ -30,9 +31,32 @@ const FREQUENCY_HOURS: Record<string, number> = {
   monthly: 24 * 30,
 };
 
+export const AUDIT_EXPORT_ENTITY_TYPES = [
+  "customer",
+  "invoice",
+  "payment",
+  "subscription",
+  "user",
+  "equipment",
+  "ip_pool",
+  "company",
+  "company_mpesa_config",
+  "olt",
+  "onu",
+  "olt_service_profile",
+  "olt_provisioning_job",
+  "tr069_acs_config",
+  "tr069_device",
+  "tr069_command",
+] as const;
+
+export const AUDIT_EXPORT_WINDOW_DAYS = ["all", "7", "30", "90"] as const;
+
 type AuditExportScheduleSettings = {
   exportScheduleEnabled?: string;
   exportScheduleFrequency?: string;
+  exportScheduleEntityType?: string;
+  exportScheduleWindowDays?: string;
   exportScheduleLastSentAt?: string;
 };
 
@@ -54,6 +78,29 @@ export function isAuditLogExportDue(
 
   const hoursSinceLast = (now - lastSentAt) / (1000 * 60 * 60);
   return hoursSinceLast >= thresholdHours;
+}
+
+type AuditExportFilters = {
+  entityType?: string;
+  from?: Date;
+};
+
+const ROLLING_WINDOW_DAYS = new Set(AUDIT_EXPORT_WINDOW_DAYS.filter((value) => value !== "all").map(Number));
+const AUDIT_EXPORT_ENTITY_TYPE_SET = new Set<string>(AUDIT_EXPORT_ENTITY_TYPES);
+
+export function getAuditExportFilters(
+  settings: AuditExportScheduleSettings,
+  now = new Date(),
+): AuditExportFilters {
+  const entityType = settings.exportScheduleEntityType?.trim();
+  const windowDays = Number(settings.exportScheduleWindowDays);
+
+  return {
+    ...(entityType && AUDIT_EXPORT_ENTITY_TYPE_SET.has(entityType) ? { entityType } : {}),
+    ...(ROLLING_WINDOW_DAYS.has(windowDays)
+      ? { from: new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000) }
+      : {}),
+  };
 }
 
 function escapeCsv(value: string): string {
@@ -81,12 +128,20 @@ function flattenDiff(diff: unknown): string {
   return JSON.stringify(diff);
 }
 
-async function generateCsv(): Promise<string> {
-  const rows = await db
+async function generateCsv(filters: AuditExportFilters): Promise<string> {
+  const conditions = [
+    ...(filters.entityType ? [eq(auditLogsTable.entityType, filters.entityType)] : []),
+    ...(filters.from ? [gte(auditLogsTable.createdAt, filters.from)] : []),
+  ];
+  let query = db
     .select()
     .from(auditLogsTable)
     .orderBy(desc(auditLogsTable.createdAt))
-    .limit(10000);
+    .$dynamic();
+  if (conditions.length > 0) {
+    query = query.where(conditions.length === 1 ? conditions[0]! : and(...conditions));
+  }
+  const rows = await query.limit(10000);
 
   const header = ["Timestamp", "User Email", "User ID", "Action", "Entity Type", "Entity ID", "Diff Summary"];
   const lines: string[] = [header.map(escapeCsv).join(",")];
@@ -141,6 +196,7 @@ export async function sendAuditLogExport(
   const s = await getSettings();
   const frequency = (s["exportScheduleFrequency"] ?? "weekly").toLowerCase();
   const email     = s["exportScheduleEmail"] ?? "";
+  const filters = getAuditExportFilters(s);
 
   if (!email) {
     throw new AuditExportConfigurationError("Configure an audit log export destination email before sending.");
@@ -150,9 +206,9 @@ export async function sendAuditLogExport(
     throw new AuditExportConfigurationError("Configure SMTP before sending an audit log export.");
   }
 
-  logger.info({ trigger, frequency, email }, "Audit log export: generating CSV export");
+  logger.info({ trigger, frequency, email, filters }, "Audit log export: generating CSV export");
 
-  const csv     = await generateCsv();
+  const csv     = await generateCsv(filters);
   const company = s["companyName"] ?? "NetPulse ISP";
   const from    = s["smtpFrom"] ?? s["smtpUser"];
   const port    = Number(s["smtpPort"] ?? 587);
@@ -182,7 +238,7 @@ export async function sendAuditLogExport(
 <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#111827">
   <h2 style="color:#1e40af;margin-bottom:4px">${company} — Audit Log Export</h2>
    <p style="color:#6b7280;margin-top:0">${trigger === "manual" ? "One-off" : `Scheduled ${frequency}`} export attached.</p>
-  <p>Please find the attached CSV containing the latest audit log records.</p>
+  <p>Please find the attached CSV containing the selected audit log records.</p>
   <table style="border-collapse:collapse;width:100%;margin:16px 0">
     <tr>
       <td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;color:#6b7280;width:110px">Generated</td>

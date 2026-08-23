@@ -5,6 +5,8 @@
  * ISP Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { SettingsExportScheduleEntityType } from './settingsExportScheduleEntityType';
+import type { SettingsExportScheduleWindowDays } from './settingsExportScheduleWindowDays';
 
 export interface Settings {
   /** @nullable */
@@ -82,4 +84,16 @@ export interface Settings {
   mpesaAllowedIps?: string | null;
   /** @nullable */
   auditLogRetentionDays?: string | null;
+  /** @nullable */
+  exportScheduleEnabled?: string | null;
+  /** @nullable */
+  exportScheduleFrequency?: string | null;
+  /** @nullable */
+  exportScheduleEmail?: string | null;
+  /** @nullable */
+  exportScheduleEntityType?: SettingsExportScheduleEntityType;
+  /** @nullable */
+  exportScheduleWindowDays?: SettingsExportScheduleWindowDays;
+  /** @nullable */
+  exportScheduleLastSentAt?: string | null;
 }

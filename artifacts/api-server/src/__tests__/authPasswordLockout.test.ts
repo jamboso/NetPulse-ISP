@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const capturedConfig = vi.hoisted(() => ({ value: undefined as Record<string, unknown> | undefined }));
 const mockGetSession = vi.hoisted(() => vi.fn());
 const mockIsLocked = vi.hoisted(() => vi.fn());
+const mockFindUser = vi.hoisted(() => vi.fn());
 const mockRecordFailure = vi.hoisted(() => vi.fn());
 const mockResetAttempts = vi.hoisted(() => vi.fn());
 const mockRadiusSync = vi.hoisted(() => vi.fn());
@@ -38,17 +39,20 @@ vi.mock("nodemailer", () => ({
 }));
 
 vi.mock("../lib/passwordChangeLockout.js", () => ({
-  getPasswordChangeMaxAttempts: vi.fn(() => 5),
+  findPasswordLockoutUser: mockFindUser,
+  getPasswordLockoutMaxAttempts: vi.fn(() => 5),
   isInvalidPasswordError: (result: unknown) =>
     (result as { body?: { code?: string } } | undefined)?.body?.code === "INVALID_PASSWORD",
-  isPasswordChangeLocked: mockIsLocked,
-  isSuccessfulPasswordChange: (result: unknown) =>
+  isInvalidSignInError: (result: unknown) =>
+    (result as { body?: { code?: string } } | undefined)?.body?.code === "INVALID_EMAIL_OR_PASSWORD",
+  isPasswordLocked: mockIsLocked,
+  isSuccessfulPasswordResponse: (result: unknown) =>
     typeof result === "object"
     && result !== null
     && "token" in result
     && "user" in result,
-  recordInvalidPasswordAttempt: mockRecordFailure,
-  resetPasswordChangeAttempts: mockResetAttempts,
+  recordFailedPasswordAttempt: mockRecordFailure,
+  resetPasswordLockout: mockResetAttempts,
   TOO_MANY_PASSWORD_ATTEMPTS_MESSAGE:
     "Too many incorrect password attempts. Your account has been locked. Please contact an administrator.",
 }));
@@ -81,9 +85,18 @@ function changePasswordContext(returned: unknown) {
   };
 }
 
+function signInContext(returned: unknown) {
+  return {
+    path: "/sign-in/email",
+    body: { email: "staff@example.com", password: "wrong-password" },
+    context: { returned, session: null },
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockGetSession.mockResolvedValue({ user: { id: "user-1" } });
+  mockFindUser.mockResolvedValue({ id: "user-1" });
 });
 
 describe("change-password lockout hooks", () => {
@@ -100,6 +113,25 @@ describe("change-password lockout hooks", () => {
 
     expect(mockGetSession).toHaveBeenCalledOnce();
     expect(mockIsLocked).toHaveBeenCalledWith("user-1");
+  });
+
+  it("counts invalid sign-ins for the same account and locks the threshold attempt", async () => {
+    mockRecordFailure.mockResolvedValue(5);
+
+    const result = await hooks().after(
+      signInContext({ body: { code: "INVALID_EMAIL_OR_PASSWORD" } }),
+    ) as unknown as { response: Response };
+
+    expect(mockFindUser).toHaveBeenCalledWith("staff@example.com");
+    expect(mockRecordFailure).toHaveBeenCalledWith("user-1", 5);
+    expect(result.response.status).toBe(429);
+  });
+
+  it("clears the shared account lock after a successful sign-in", async () => {
+    await hooks().after(signInContext({ token: "new-session", user: { id: "user-1" } }));
+
+    expect(mockResetAttempts).toHaveBeenCalledWith("user-1");
+    expect(mockRecordFailure).not.toHaveBeenCalled();
   });
 
   it("counts an invalid password without resetting the counter before the threshold", async () => {

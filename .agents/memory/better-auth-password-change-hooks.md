@@ -3,7 +3,7 @@ name: Better Auth password-change hooks
 description: Error and response semantics that matter when enforcing password-change policy in Better Auth hooks.
 ---
 
-Better Auth exposes an endpoint failure to its `after` hooks as an API error whose application code is under `result.body.code`, not necessarily `result.code`. Treat only the documented `{ token, user }` change-password response as success; do not reset security state or mirror credentials for any other outcome.
+Better Auth exposes an endpoint failure to its `after` hooks as an API error whose application code is under `result.body.code`, not necessarily `result.code`. Treat only the documented `{ token, user }` password success response as success; do not reset account security state or mirror credentials for any other outcome.
 
 **Why:** Misclassifying an API error as a success can clear a lockout counter and synchronize a submitted password to an external credential store even though Better Auth rejected the password change.
 

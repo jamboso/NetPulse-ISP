@@ -8,17 +8,31 @@ import { logger } from "./logger";
 import { impersonatePlugin } from "./impersonatePlugin";
 import { getSettings } from "./sms.js";
 import {
-  getPasswordChangeMaxAttempts,
+  findPasswordLockoutUser,
+  getPasswordLockoutMaxAttempts,
   isInvalidPasswordError,
-  isPasswordChangeLocked,
-  isSuccessfulPasswordChange,
-  recordInvalidPasswordAttempt,
-  resetPasswordChangeAttempts,
+  isInvalidSignInError,
+  isPasswordLocked,
+  isSuccessfulPasswordResponse,
+  recordFailedPasswordAttempt,
+  resetPasswordLockout,
   TOO_MANY_PASSWORD_ATTEMPTS_MESSAGE,
 } from "./passwordChangeLockout";
 
 type AuthSession = { user: { id: string } };
 let getSessionForPasswordChange: ((headers: Headers) => Promise<AuthSession | null>) | undefined;
+
+function tooManyPasswordAttemptsResponse() {
+  return {
+    response: Response.json(
+      {
+        code: "TOO_MANY_PASSWORD_ATTEMPTS",
+        message: TOO_MANY_PASSWORD_ATTEMPTS_MESSAGE,
+      },
+      { status: 429 },
+    ),
+  };
+}
 
 export const auth = betterAuth({
   baseURL: process.env["BETTER_AUTH_URL"] ?? "http://localhost:5000",
@@ -93,14 +107,25 @@ export const auth = betterAuth({
   },
   plugins: [impersonatePlugin()],
   hooks: {
-    // The change-password endpoint requires a valid session. Check that
-    // session's durable lock state before Better Auth reads or verifies the
-    // submitted current password.
+    // Enforce the durable account lock before Better Auth verifies a password,
+    // whether it is a regular sign-in or a self-service password change.
     before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/sign-in/email") {
+        const email = (ctx.body as { email?: string } | undefined)?.email;
+        if (!email) return;
+        const user = await findPasswordLockoutUser(email);
+        if (user && await isPasswordLocked(user.id)) {
+          throw APIError.fromStatus("TOO_MANY_REQUESTS", {
+            message: TOO_MANY_PASSWORD_ATTEMPTS_MESSAGE,
+          });
+        }
+        return;
+      }
+
       if (ctx.path !== "/change-password") return;
 
       const session = await getSessionForPasswordChange?.(ctx.headers ?? new Headers());
-      if (session && await isPasswordChangeLocked(session.user.id)) {
+      if (session && await isPasswordLocked(session.user.id)) {
         throw APIError.fromStatus("TOO_MANY_REQUESTS", {
           message: TOO_MANY_PASSWORD_ATTEMPTS_MESSAGE,
         });
@@ -114,6 +139,28 @@ export const auth = betterAuth({
     // sign up/change password again must use the self-service sync endpoint
     // (POST /api/radius/staff-login/sync) instead.
     after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/sign-in/email") {
+        const email = (ctx.body as { email?: string } | undefined)?.email;
+        if (!email) return undefined;
+        const user = await findPasswordLockoutUser(email);
+        if (!user) return undefined;
+
+        if (isInvalidSignInError(ctx.context.returned)) {
+          const attempts = await recordFailedPasswordAttempt(
+            user.id,
+            getPasswordLockoutMaxAttempts(),
+          );
+          return attempts !== null && attempts >= getPasswordLockoutMaxAttempts()
+            ? tooManyPasswordAttemptsResponse()
+            : undefined;
+        }
+
+        if (isSuccessfulPasswordResponse(ctx.context.returned)) {
+          await resetPasswordLockout(user.id);
+        }
+        return undefined;
+      }
+
       if (ctx.path !== "/change-password") {
         try {
           if (ctx.path === "/sign-up/email") {
@@ -132,32 +179,24 @@ export const auth = betterAuth({
       if (!userId || !session) return undefined;
 
       if (isInvalidPasswordError(ctx.context.returned)) {
-        const attempts = await recordInvalidPasswordAttempt(
+        const attempts = await recordFailedPasswordAttempt(
           userId,
-          getPasswordChangeMaxAttempts(),
+          getPasswordLockoutMaxAttempts(),
         );
-        if (attempts !== null && attempts >= getPasswordChangeMaxAttempts()) {
+        if (attempts !== null && attempts >= getPasswordLockoutMaxAttempts()) {
           // Better Auth retains the endpoint's original 400 status when an
           // after hook replaces an APIError. Return a concrete Response so
           // the threshold attempt itself is an HTTP 429 as well.
-          return {
-            response: Response.json(
-              {
-                code: "TOO_MANY_PASSWORD_ATTEMPTS",
-                message: TOO_MANY_PASSWORD_ATTEMPTS_MESSAGE,
-              },
-              { status: 429 },
-            ),
-          };
+          return tooManyPasswordAttemptsResponse();
         }
         return undefined;
       }
 
       // Only a completed password change clears the counter and updates the
       // router's credential. Failed requests must never update either.
-      if (!isSuccessfulPasswordChange(ctx.context.returned)) return undefined;
+      if (!isSuccessfulPasswordResponse(ctx.context.returned)) return undefined;
 
-      await resetPasswordChangeAttempts(userId);
+      await resetPasswordLockout(userId);
       try {
         const email = session.user.email;
         const newPassword = (ctx.body as { newPassword?: string } | undefined)?.newPassword;

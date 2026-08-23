@@ -624,9 +624,9 @@ END $$;
 --> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "company_id" integer;
 --> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "password_change_failed_attempts" integer NOT NULL DEFAULT 0;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "failed_password_attempts" integer NOT NULL DEFAULT 0;
 --> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "password_change_locked_at" timestamp;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "password_locked_at" timestamp;
 --> statement-breakpoint
 ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "company_id" integer NOT NULL DEFAULT 1;
 --> statement-breakpoint

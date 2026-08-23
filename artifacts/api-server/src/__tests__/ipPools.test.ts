@@ -274,6 +274,34 @@ describe("POST /ip-pools — validation", () => {
     expect(res.body).toHaveProperty("fields");
   });
 
+  it("returns 400 when subnetMask is not contiguous", async () => {
+    const res = await request(buildApp())
+      .post("/ip-pools")
+      .send({ name: "Main Pool", network: "10.0.0.0/24", gateway: "10.0.0.1", subnetMask: "255.0.255.0" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when subnetMask does not match the network CIDR", async () => {
+    const res = await request(buildApp())
+      .post("/ip-pools")
+      .send({ name: "Main Pool", network: "10.0.0.0/24", gateway: "10.0.0.1", subnetMask: "255.255.0.0" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it.each([
+    "10.0.1.1",
+    "10.0.0.0",
+    "10.0.0.255",
+  ])("returns 400 when gateway is outside the usable pool range (%s)", async (gateway) => {
+    const res = await request(buildApp())
+      .post("/ip-pools")
+      .send({ name: "Main Pool", network: "10.0.0.0/24", gateway, subnetMask: "255.255.255.0" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
   it("returns 400 when name is an empty string", async () => {
     const res = await request(buildApp())
       .post("/ip-pools")
@@ -294,7 +322,7 @@ describe("POST /ip-pools — validation", () => {
 describe("PATCH /ip-pools/:id", () => {
   it("updates an IP pool and returns 200 (admin)", async () => {
     const updated = { ...samplePool, gateway: "192.168.1.254" };
-    mockExec.mockResolvedValueOnce([updated]);
+    mockExec.mockResolvedValueOnce([samplePool]).mockResolvedValueOnce([updated]);
 
     const res = await request(buildApp())
       .patch("/ip-pools/1")
@@ -312,6 +340,32 @@ describe("PATCH /ip-pools/:id", () => {
       .send({ gateway: "192.168.1.254" });
 
     expect(res.status).toBe(404);
+  });
+
+  it("accepts the portal's complete network edit payload and recalculates capacity", async () => {
+    const updated = {
+      ...samplePool,
+      network: "192.168.2.0/25",
+      gateway: "192.168.2.1",
+      subnetMask: "255.255.255.128",
+      totalIps: 126,
+    };
+    mockExec.mockResolvedValueOnce([samplePool]).mockResolvedValueOnce([updated]);
+
+    const res = await request(buildApp())
+      .patch("/ip-pools/1")
+      .send({
+        name: "Main Pool",
+        network: "192.168.2.0/25",
+        gateway: "192.168.2.1",
+        subnetMask: "255.255.255.128",
+        dns1: "8.8.8.8",
+        dns2: null,
+        description: null,
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ network: "192.168.2.0/25", totalIps: 126 });
   });
 });
 
@@ -344,6 +398,32 @@ describe("PATCH /ip-pools/:id — validation", () => {
     const res = await request(buildApp())
       .patch("/ip-pools/1")
       .send({ gateway: 123 });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when a gateway-only update is outside the existing network", async () => {
+    mockExec.mockResolvedValueOnce([samplePool]);
+
+    const res = await request(buildApp())
+      .patch("/ip-pools/1")
+      .send({ gateway: "10.0.0.1" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when a network or subnet mask is changed without the other", async () => {
+    const res = await request(buildApp())
+      .patch("/ip-pools/1")
+      .send({ network: "192.168.2.0/24" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("fields");
+  });
+
+  it("returns 400 when subnetMask is not contiguous", async () => {
+    const res = await request(buildApp())
+      .patch("/ip-pools/1")
+      .send({ network: "192.168.2.0/24", subnetMask: "255.0.255.0" });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("fields");
   });
@@ -398,7 +478,7 @@ describe("Audit log — ip_pool", () => {
 
   it("writes an audit record with entityType 'ip_pool' and action 'update' on PATCH /ip-pools/:id", async () => {
     const updated = { ...samplePool, gateway: "192.168.1.254" };
-    mockExec.mockResolvedValueOnce([updated]);
+    mockExec.mockResolvedValueOnce([samplePool]).mockResolvedValueOnce([updated]);
 
     await request(buildApp())
       .patch("/ip-pools/1")

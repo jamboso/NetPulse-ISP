@@ -272,6 +272,36 @@ export function generateRosScript(params: {
   const now = new Date().toISOString();
   const subnetBase = params.vpnSubnet.split(".").slice(0, 3).join(".");
   const serverVpnIp = `${subnetBase}.1`;
+  const certificateFetchBlock = params.token && params.serverUrl
+    ? `:put "[2/8] Downloading certificates..."
+
+:do {
+  /tool fetch \\
+    url="${params.serverUrl}/api/provision/${params.token}/certificate/ca.pem" \\
+    dst-path="netpulse-ca.pem" \\
+    mode=https
+} on-error={ :error "NetPulse: failed to download CA certificate" }
+
+:do {
+  /tool fetch \\
+    url="${params.serverUrl}/api/provision/${params.token}/certificate/client.pem" \\
+    dst-path="netpulse-client.pem" \\
+    mode=https
+} on-error={ :error "NetPulse: failed to download client certificate" }
+
+:do {
+  /tool fetch \\
+    url="${params.serverUrl}/api/provision/${params.token}/certificate/client.key" \\
+    dst-path="netpulse-client.key" \\
+    mode=https
+} on-error={ :error "NetPulse: failed to download client private key" }
+:delay 2s`
+    : `:put "[2/8] Writing certificates..."
+
+/file add name="netpulse-ca.pem"     contents="${escapePem(params.caCertPem)}"
+/file add name="netpulse-client.pem" contents="${escapePem(params.clientCertPem)}"
+/file add name="netpulse-client.key" contents="${escapePem(params.clientKeyPem)}"
+:delay 2s`;
 
   const callbackBlock = params.token && params.serverUrl
     ? `
@@ -318,13 +348,8 @@ ${params.vpnIp ? `# VPN IP:    ${params.vpnIp}` : ""}
 :do { /file remove [find name~"netpulse-"] } on-error={}
 :delay 1s
 
-# ── 2/8  Write certificate + key files ───────────────────────────────────────
-:put "[2/8] Writing certificates..."
-
-/file add name="netpulse-ca.pem"     contents="${escapePem(params.caCertPem)}"
-/file add name="netpulse-client.pem" contents="${escapePem(params.clientCertPem)}"
-/file add name="netpulse-client.key" contents="${escapePem(params.clientKeyPem)}"
-:delay 2s
+# ── 2/8  Retrieve certificate + key files ────────────────────────────────────
+${certificateFetchBlock}
 
 # ── 3/8  Import certificates ──────────────────────────────────────────────────
 :put "[3/8] Importing certificates (~15 seconds)..."

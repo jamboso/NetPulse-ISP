@@ -391,6 +391,8 @@ router.get("/routers/:id/ros-script", async (req, res) => {
 
     const secretRows = await db.select().from(settingsTable).where(eq(settingsTable.key, "radiusSecret"));
     const radiusSecret = secretRows[0]?.value ?? "change-me-in-settings";
+    const protocol = req.get("x-forwarded-proto") ?? req.protocol;
+    const host = req.get("x-forwarded-host") ?? req.get("host") ?? "localhost";
 
     const script = generateRosScript({
       routerName: router_.name,
@@ -402,6 +404,8 @@ router.get("/routers/:id/ros-script", async (req, res) => {
       clientCertPem: certEntry.clientCert!,
       clientKeyPem: certEntry.clientKey!,
       radiusSecret,
+      token: router_.provisionToken ?? undefined,
+      serverUrl: `${protocol}://${host}`,
     });
 
     const safeName = router_.name.replace(/[^a-zA-Z0-9_-]/g, "-").toLowerCase();

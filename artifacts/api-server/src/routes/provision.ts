@@ -95,7 +95,45 @@ router.get("/provision/:token/register", async (req, res) => {
 });
 
 // ── GET /api/provision/:token/setup.rsc ──────────────────────────────────────
-// PUBLIC — Stage 2 full config. Served fresh each time; includes certs + callback.
+// PUBLIC — Stage 2 full config. Served fresh each time; retrieves certs + callback.
+router.get("/provision/:token/certificate/:file", async (req, res) => {
+  try {
+    const [router_] = await db
+      .select({ id: routersTable.id })
+      .from(routersTable)
+      .where(eq(routersTable.provisionToken, req.params.token));
+    if (!router_) return res.status(404).type("text/plain").send("Not found");
+
+    const [vpnCfg] = await db.select({ caCert: vpnConfigTable.caCert }).from(vpnConfigTable).limit(1);
+    const [certRow] = await db
+      .select({
+        clientCert: routerVpnCertsTable.clientCert,
+        clientKey: routerVpnCertsTable.clientKey,
+        revokedAt: routerVpnCertsTable.revokedAt,
+      })
+      .from(routerVpnCertsTable)
+      .where(eq(routerVpnCertsTable.routerId, router_.id));
+
+    if (!vpnCfg?.caCert || !certRow?.clientCert || !certRow.clientKey || certRow.revokedAt) {
+      return res.status(503).type("text/plain").send("VPN credentials unavailable");
+    }
+
+    const files = {
+      "ca.pem": vpnCfg.caCert,
+      "client.pem": certRow.clientCert,
+      "client.key": certRow.clientKey,
+    } as const;
+    const contents = files[req.params.file as keyof typeof files];
+    if (!contents) return res.status(404).type("text/plain").send("Not found");
+
+    res.setHeader("Cache-Control", "no-store");
+    return res.type("application/x-pem-file").send(contents);
+  } catch (err) {
+    req.log.error(err, "provision certificate download error");
+    return res.status(500).type("text/plain").send("Unable to retrieve credential");
+  }
+});
+
 router.get("/provision/:token/setup.rsc", async (req, res) => {
   try {
     const mac = String(req.query.mac ?? "").trim();

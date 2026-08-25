@@ -109,25 +109,6 @@ describe("generateRosScript", () => {
     expect(script).toContain("mode=ip protocol=udp certificate=netpulse-client");
   });
 
-  it("moves management SSH to the configured VPN-only port after the tunnel connects", () => {
-    const defaultPortScript = generateRosScript({
-      ...params,
-      caCertPem: "CA",
-      clientCertPem: "CLIENT-CERT",
-      clientKeyPem: "CLIENT-KEY",
-    });
-    const customPortScript = generateRosScript({
-      ...params,
-      sshPort: 3022,
-      caCertPem: "CA",
-      clientCertPem: "CLIENT-CERT",
-      clientKeyPem: "CLIENT-KEY",
-    });
-
-    expect(defaultPortScript).toContain('/ip service set ssh port=2222 address="10.8.0.0/24"');
-    expect(customPortScript).toContain('/ip service set ssh port=3022 address="10.8.0.0/24"');
-  });
-
   it("uses the OpenVPN cipher name supported by the reported RouterOS generation", () => {
     const routerOs6Script = generateRosScript({
       ...params,

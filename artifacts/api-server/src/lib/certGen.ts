@@ -274,13 +274,10 @@ export function generateRosScript(params: {
   token?: string;
   serverUrl?: string;
   vpnIp?: string;
-  sshPort?: number;
 }): string {
   const now = new Date().toISOString();
   const subnetBase = params.vpnSubnet.split(".").slice(0, 3).join(".");
   const serverVpnIp = `${subnetBase}.1`;
-  const vpnCidr = params.vpnSubnet.includes("/") ? params.vpnSubnet : `${params.vpnSubnet}/24`;
-  const sshPort = params.sshPort ?? 2222;
   // RouterOS 6 uses the legacy `aes128` name while RouterOS 7 requires the
   // OpenVPN-standard `aes128-cbc` name. Stage 1 reports the version before
   // Stage 2 is generated, so the router receives syntax its importer accepts.
@@ -449,11 +446,6 @@ ${ovpnClientBlock}
 
 # ── 5/8  Configure RADIUS over VPN ───────────────────────────────────────────
 :put "[5/8] Configuring RADIUS..."
-
-# The console is reachable only inside the NetPulse VPN. Configure the requested
-# management SSH port after the tunnel is up, leaving any explicitly configured
-# custom port intact.
-/ip service set ssh port=${sshPort} address="${vpnCidr}"
 
 :do { /radius remove [find address="${serverVpnIp}" and service~"ppp"] } on-error={}
 

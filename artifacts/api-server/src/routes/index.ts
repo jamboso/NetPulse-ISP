@@ -44,7 +44,6 @@ import passwordResetRouter from "./password-reset";
 import companiesRouter from "./companies";
 import oltsRouter from "./olts";
 import tr069Router from "./tr069";
-import routerConsoleRouter from "./router-console";
 
 const router: IRouter = Router();
 
@@ -97,7 +96,6 @@ router.use(equipmentRouter);
 router.use(ipPoolsRouter);
 router.use(settingsRouter);
 router.use(routersRouter);
-  router.use(routerConsoleRouter);
 router.use(rosRouter);
 router.use(pppoeRouter);
 router.use(hotspotAdminRouter);

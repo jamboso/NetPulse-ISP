@@ -41,7 +41,7 @@ const provisionInfo = {
 describe("RouterProvisionPanel VPN repair", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    mockCurrentUser.mockReturnValue({ isAdmin: false, isOwner: true });
+    mockCurrentUser.mockReturnValue({ isOwner: true });
     vi.stubGlobal("confirm", vi.fn(() => true));
   });
 
@@ -75,35 +75,14 @@ describe("RouterProvisionPanel VPN repair", () => {
     expect(screen.getByText("Repair details")).toBeInTheDocument();
   });
 
-  it("shows the service-restart control to an administrator", async () => {
-    mockCurrentUser.mockReturnValue({ isAdmin: true, isOwner: false });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => provisionInfo }));
-
-    render(<RouterProvisionPanel routerId={17} routerName="MAJE_TEMP" />);
-
-    await screen.findByText("Awaiting provisioning");
-    expect(screen.getByRole("button", { name: "Repair VPN Service" })).toBeEnabled();
-  });
-
-  it("does not show the service-restart control to a technician", async () => {
-    mockCurrentUser.mockReturnValue({ isAdmin: false, isOwner: false });
+  it("does not show the service-restart control to non-owners", async () => {
+    mockCurrentUser.mockReturnValue({ isOwner: false });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => provisionInfo }));
 
     render(<RouterProvisionPanel routerId={17} routerName="MAJE_TEMP" />);
 
     await screen.findByText("Awaiting provisioning");
     expect(screen.queryByRole("button", { name: "Repair VPN Service" })).not.toBeInTheDocument();
-  });
-
-  it("shows the locked command console and explains the VPN requirement while pending", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => provisionInfo }));
-
-    render(<RouterProvisionPanel routerId={17} routerName="MAJE_TEMP" />);
-
-    await screen.findByText("Awaiting provisioning");
-    expect(screen.getByText("Command console locked")).toBeInTheDocument();
-    expect(screen.getByText(/Connect this router’s private management VPN/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Command Console" })).toBeDisabled();
   });
 
   it("requires confirmation before calling the central repair service", async () => {
@@ -118,28 +97,6 @@ describe("RouterProvisionPanel VPN repair", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(window.confirm).toHaveBeenCalledOnce();
-  });
-
-  it("renders an API error response without crashing the provisioning panel", async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => provisionInfo })
-      .mockResolvedValueOnce({
-        ok: false,
-        json: async () => ({
-          state: "unavailable",
-          error: "The NetPulse VPN repair helper is not installed or not authorized on this server.",
-        }),
-      });
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<RouterProvisionPanel routerId={17} routerName="MAJE_TEMP" />);
-
-    await screen.findByText("Awaiting provisioning");
-    fireEvent.click(screen.getByRole("button", { name: "Repair VPN Service" }));
-
-    expect(await screen.findByText("The NetPulse VPN repair helper is not installed or not authorized on this server.")).toBeInTheDocument();
-    expect(screen.getByText(/VPN repair helper unavailable or not authorized/i)).toBeInTheDocument();
-    expect(screen.queryByText("Something went wrong on this page.")).not.toBeInTheDocument();
   });
 
   it("explains the safe legacy migration when a dedicated VPN service is unavailable", async () => {

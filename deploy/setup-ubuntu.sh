@@ -523,11 +523,9 @@ SCHEMA_SQL="$APP_DIR/deploy/schema.sql"
 if [[ ! -f "$SCHEMA_SQL" ]]; then
   die "deploy/schema.sql not found in $APP_DIR. Ensure the repo is fully cloned."
 fi
-# This baseline is for a fresh installation only. Run it as the application
-# database role so the recorded release migrations can alter these tables later.
-# Upgrade releases use the recorded migration runner below and must never replay
-# this file.
-psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$SCHEMA_SQL" >/dev/null
+# This baseline is for a fresh installation only. Upgrade releases use the
+# recorded migration runner below and must never replay this file.
+sudo -u postgres psql -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -f "$SCHEMA_SQL" >/dev/null
 ok "Fresh database baseline applied"
 # Grant permissions on the newly created objects
 sudo -u postgres psql -d "$DB_NAME" \

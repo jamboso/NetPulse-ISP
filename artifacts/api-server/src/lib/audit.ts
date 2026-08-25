@@ -26,8 +26,7 @@ export type AuditEntityType =
   | "olt_provisioning_job"
   | "tr069_acs_config"
   | "tr069_device"
-  | "tr069_command"
-  | "router";
+  | "tr069_command";
 
 interface AuditParams {
   companyId?: number | null;

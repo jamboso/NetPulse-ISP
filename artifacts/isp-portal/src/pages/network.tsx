@@ -33,7 +33,6 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { RouterCommandConsole } from "@/components/router-command-console";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type RouterFormData = {
@@ -100,7 +99,6 @@ type ProvisionInfo = {
   macAddress: string | null;
   rosVersion: string | null;
   vpnConnected: boolean;
-  sshHostKey: string | null;
   vpnIp: string | null;
   lastCallbackAt: string | null;
 };
@@ -112,31 +110,8 @@ type VpnRepairResult = {
   events: string[];
 };
 
-function normalizeVpnRepairResult(payload: unknown, responseOk: boolean): VpnRepairResult {
-  const record = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
-  const allowedStates: VpnRepairResult["state"][] = ["healthy", "repaired", "blocked", "failed", "unavailable"];
-  const state = allowedStates.includes(record.state as VpnRepairResult["state"])
-    ? record.state as VpnRepairResult["state"]
-    : "failed";
-  const events = Array.isArray(record.events)
-    ? record.events.filter((event): event is string => typeof event === "string")
-    : [];
-
-  return {
-    success: responseOk && record.success === true,
-    state,
-    message: typeof record.message === "string"
-      ? record.message
-      : typeof record.error === "string"
-        ? record.error
-        : "The VPN repair service returned an unreadable response.",
-    events,
-  };
-}
-
 export function RouterProvisionPanel({ routerId, routerName }: { routerId: number; routerName: string }) {
-  const { isAdmin, isOwner } = useCurrentUser();
-  const canRepairVpnService = isAdmin || isOwner;
+  const { isOwner } = useCurrentUser();
   const [info, setInfo] = useState<ProvisionInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [reprovisioning, setReprovisioning] = useState(false);
@@ -181,7 +156,12 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
         credentials: "include",
       });
       const payload = await response.json().catch(() => null);
-      setRepairResult(normalizeVpnRepairResult(payload, response.ok));
+      setRepairResult(payload ?? {
+        success: false,
+        state: "failed",
+        message: "The VPN repair service returned an unreadable response.",
+        events: [],
+      });
       if (response.ok) await load();
     } catch {
       setRepairResult({
@@ -246,13 +226,12 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
             </Badge>
           )}
           <Button size="sm" variant="outline"
-            className="h-8 border-emerald-400 bg-white text-xs font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100 gap-1"
-            title="Generate a fresh provisioning command for this router"
+            className="h-7 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100 gap-1"
             onClick={reprovision} disabled={reprovisioning}>
             {reprovisioning ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
             Reprovision
           </Button>
-          {canRepairVpnService && (
+          {isOwner && (
             <Button
               size="sm"
               variant="outline"
@@ -264,11 +243,6 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
               {repairing ? <Loader2 className="w-3 h-3 animate-spin" /> : <WrenchIcon className="w-3 h-3" />}
               Repair VPN Service
             </Button>
-          )}
-          {!canRepairVpnService && (
-            <span className="text-[11px] text-amber-700">
-              Central VPN repair is available to administrators and the account owner only.
-            </span>
           )}
         </div>
       </div>
@@ -288,9 +262,7 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
             <div className="mt-2 rounded border border-amber-200 bg-white/70 px-2 py-1.5 text-[11px]">
               {repairResult.message.includes("Dedicated NetPulse VPN configuration")
                 ? <>This server still uses the legacy generic VPN instance. After verifying that it is NetPulse—not Tabana-VPN—run <code className="font-mono">sudo bash /opt/netpulse/deploy/migrate-legacy-routeros-vpn.sh --confirm-legacy-netpulse-vpn</code> over SSH once.</>
-                : repairResult.state === "unavailable"
-                  ? <>VPN repair helper unavailable or not authorized. Run <code className="font-mono">sudo /usr/local/bin/netpulse-vpn-repair --json</code> over SSH, then check <code className="font-mono">journalctl -u openvpn-server@netpulse -n 50</code>.</>
-                  : <>The VPN repair helper did not complete. Check <code className="font-mono">journalctl -u openvpn-server@netpulse -n 50</code> for the dedicated NetPulse service.</>}
+                : <>Portal unavailable? Run <code className="font-mono">sudo /usr/local/bin/netpulse-vpn-repair</code> over SSH, then check <code className="font-mono">journalctl -u openvpn-server@netpulse -n 50</code>.</>}
             </div>
           )}
         </div>
@@ -365,7 +337,6 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
                     <Radio className="w-3 h-3" /> PPPoE Setup
                   </Link>
                 </Button>
-                <RouterCommandConsole routerId={routerId} routerName={routerName} vpnConnected={connected} sshHostKey={info?.sshHostKey} />
                 <Button size="sm" variant="outline" className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-100" asChild>
                   <Link href={`/network/routers/${routerId}/hotspot`}>
                     <Wifi className="w-3 h-3" /> Hotspot Config
@@ -374,15 +345,6 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
               </div>
               {/* NETPULSE Bridge port manager */}
               <BridgePortsManager routerId={routerId} />
-            </div>
-          )}
-          {!loading && !connected && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-              <div>
-                <p className="text-sm font-semibold text-amber-900">Command console locked</p>
-                <p className="text-xs text-amber-800">Connect this router’s private management VPN to enable SSH commands.</p>
-              </div>
-              <RouterCommandConsole routerId={routerId} routerName={routerName} vpnConnected={false} sshHostKey={info?.sshHostKey} />
             </div>
           )}
         </>

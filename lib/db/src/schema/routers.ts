@@ -17,8 +17,6 @@ export const routersTable = pgTable("routers", {
   apiSsl: boolean("api_ssl").default(false),
   // Juniper / EdgeRouter
   sshPort: integer("ssh_port"),
-  // SHA256 fingerprint of the router's SSH host key, explicitly enrolled by an admin.
-  sshHostKey: text("ssh_host_key"),
   netconfPort: integer("netconf_port"),
   // Status
   enabled: boolean("enabled").notNull().default(true),

@@ -199,7 +199,6 @@ router.get("/provision/:token/setup.rsc", async (req, res) => {
       token: req.params.token,
       serverUrl,
       vpnIp: certRow.vpnIp ?? router_.vpnIp ?? undefined,
-      sshPort: router_.sshPort ?? 2222,
     });
 
     res.setHeader("Content-Type", "text/plain; charset=utf-8");

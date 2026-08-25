@@ -25,8 +25,6 @@ export interface RouterDevice {
   /** @nullable */
   sshPort?: number | null;
   /** @nullable */
-  sshHostKey?: string | null;
-  /** @nullable */
   netconfPort?: number | null;
   enabled: boolean;
   /** @nullable */
@@ -36,7 +34,4 @@ export interface RouterDevice {
   /** @nullable */
   radiusPort?: number | null;
   createdAt: string;
-  /** @nullable */
-  vpnIp?: string | null;
-  vpnConnected?: boolean;
 }

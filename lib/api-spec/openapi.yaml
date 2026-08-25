@@ -3586,8 +3586,6 @@ components:
           type: ["boolean", "null"]
         sshPort:
           type: ["integer", "null"]
-        sshHostKey:
-          type: ["string", "null"]
         netconfPort:
           type: ["integer", "null"]
         enabled:
@@ -3600,10 +3598,6 @@ components:
           type: ["integer", "null"]
         createdAt:
           type: string
-        vpnIp:
-          type: ["string", "null"]
-        vpnConnected:
-          type: boolean
 
     RouterDeviceInput:
       type: object
@@ -3666,10 +3660,6 @@ components:
           type: ["string", "null"]
         checkedAt:
           type: string
-        vpnIp:
-          type: ["string", "null"]
-        vpnConnected:
-          type: boolean
 
     RouterDeviceUpdate:
       type: object

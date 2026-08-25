@@ -11,6 +11,7 @@
 - [PM2 sudo dual-daemon](pm2-sudo-dual-daemon.md) — pm2 daemons are per-user; mixing sudo/non-sudo invocations creates two competing processes fighting over the same port
 - [Replit-to-GitHub push is manual](repo-github-sync.md) — checkpoints commit locally only; self-hosted deploys pull from GitHub, so unpushed fixes never reach them
 - [Self-hosted dirty checkout recovery](self-hosted-update-dirty-checkout-recovery.md) — archive local edits, restore to HEAD, then let the updater fast-forward and run its full release flow.
+- [Self-hosted updater bootstrap](self-hosted-updater-bootstrap.md) — new updater-managed helpers require a fetch pass, then a retry pass to install them.
 - [Multi-tenant company scoping](multi-tenant-company-scoping.md) — companyId app-level isolation pattern, owner bypass, and suspended/expired access enforcement for the ISP reseller SaaS
 - [Monitoring route missing company scope](monitoring-route-missing-company-scope.md) — aggregate/dashboard endpoints must be individually audited for companyId filtering; middleware doesn't auto-scope queries
 - [Express blanket middleware route leak](express-blanket-middleware-route-leak.md) — unscoped `router.use(requireRole(...))` in a sub-router blocks every request reaching it, not just its own routes; scope per-route instead

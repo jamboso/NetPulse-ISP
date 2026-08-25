@@ -1,0 +1,26 @@
+netpulse.co.ke:1194/TCP is publicly reachable and the OpenVPN server is running.
+Flags: X - disabled; R - running; H - hw-crypto; Ta - tls-auth; Tc - tls-crypt 
+ 1         name="netpulse-vpn" mac-address=FE:97:8C:86:95:B0 max-mtu=1500 connect-to=netpulse.co.ke port=1194 mode=ip protocol=tcp user="netpulse" 
+           password="" profile=default certificate=netpulse-client verify-server-certificate=no tls-version=any auth=sha1 cipher=aes128-cbc 
+           use-peer-dns=no add-default-route=no route-nopull=yes 
+Script Error: NetPulse: VPN unavailable     verify endpoint, TCP port 1194, server service, and certificate (:error; line 104)
+[THETHER@MGR] > /interface ovpn-client monitor netpulse-vpn once
+  status: terminating... - peer disconnected
+[THETHER@MGR] > 
+[THETHER@MGR] > /certificate print detail where name~"netpulse"
+Flags: K - private-key; L - crl; C - smart-card-key; A - authority; I - issued, R - revoked; E - expired; T - trusted 
+ 0       T name="netpulse-ca" digest-algorithm=sha256 trusted=yes common-name="NetPulse CA" organization="NetPulse ISP" country="KE" subject-alt-name="" 
+           issuer=C=KE,O=NetPulse ISP,CN=NetPulse CA key-type=rsa key-size=2048 days-valid=3650 invalid-before=2026-07-21 06:06:59 
+           invalid-after=2036-07-18 06:06:59 serial-number="2bbc0b61ff13276ac62f4e79fdf535332c0403e2" akid=66A4B37133FF482B22E78FF6A0110AC7FBA1840E 
+           skid=66A4B37133FF482B22E78FF6A0110AC7FBA1840E fingerprint="038bb88b6756c86ffd3dabf63eb464ee63fbea84b8667ad9387015594a04cc1c" 
+           expires-after=516w2d5h9m10s 
+
+ 1 K     T name="netpulse-client" digest-algorithm=sha256 trusted=yes common-name="netpulse-mgr" organization="NetPulse ISP" subject-alt-name="" 
+           issuer=C=KE,O=NetPulse ISP,CN=NetPulse CA key-type=rsa key-size=2048 key-usage=digital-signature,tls-client days-valid=3653 
+           invalid-before=2026-08-26 00:53:09 invalid-after=2036-08-26 00:53:09 serial-number="16a981624da0093257f453df169fd8d3" akid="" 
+           skid=BC7CE47CF105F575DF2794DE8D4FD1289176CCB5 fingerprint="3335c08b2432dd0bdbbd2c84ff39a33c9e527e080c5a5a9396a25072950d8704" 
+           expires-after=521w5d23h55m20s 
+[THETHER@MGR] > 
+[THETHER@MGR] > /tool telnet address=netpulse.co.ke port=1194
+bad command name telnet (line 1 column 7)
+[THETHER@MGR] > 

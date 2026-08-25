@@ -1,0 +1,83 @@
+
+Aug 26 00:56:39 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48786 Sent fatal SSL alert: unknown CA
+Aug 26 00:56:39 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48786 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+Aug 26 00:56:39 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48786 TLS_ERROR: BIO read tls_read_plaintext error
+Aug 26 00:56:39 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48786 TLS Error: TLS object -> incoming plaintext read error
+Aug 26 00:56:39 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48786 TLS Error: TLS handshake failed
+Aug 26 00:56:39 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48786 Fatal TLS error (check_tls_errors_co), restarting
+Aug 26 00:56:39 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48786 SIGUSR1[soft,tls-error] received, client-instance restarting
+Aug 26 00:56:43 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: TCP connection established with [AF_INET]10.10.15.254:41431
+Aug 26 00:56:43 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41431 TLS: Initial packet from [AF_INET]10.10.15.254:41431, sid=cc572ff9 792563b0
+Aug 26 00:56:43 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41431 VERIFY ERROR: depth=1, error=self-signed certificate in certificate chain: CN=NetPulse-CA, serial=75692327902744870440625435478712270587905758977
+Aug 26 00:56:43 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41431 Sent fatal SSL alert: unknown CA
+Aug 26 00:56:43 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41431 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+Aug 26 00:56:43 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41431 TLS_ERROR: BIO read tls_read_plaintext error
+Aug 26 00:56:43 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41431 TLS Error: TLS object -> incoming plaintext read error
+Aug 26 00:56:43 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41431 TLS Error: TLS handshake failed
+Aug 26 00:56:43 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41431 Fatal TLS error (check_tls_errors_co), restarting
+Aug 26 00:56:43 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41431 SIGUSR1[soft,tls-error] received, client-instance restarting
+Aug 26 00:56:46 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: TCP connection established with [AF_INET]10.10.15.254:34268
+Aug 26 00:56:46 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 TLS: Initial packet from [AF_INET]10.10.15.254:34268, sid=1d6375c3 544f17b5
+Aug 26 00:56:47 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 VERIFY OK: depth=1, C=KE, O=NetPulse ISP, CN=NetPulse CA
+Aug 26 00:56:47 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 VERIFY OK: depth=0, CN=netpulse-mgr, O=NetPulse ISP
+Aug 26 00:56:47 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 peer info: IV_PROTO=2
+Aug 26 00:56:47 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 WARNING: Failed running command (--auth-user-pass-verify): disallowed by script-security setting
+Aug 26 00:56:47 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 TLS Auth Error: Auth Username/Password verification failed for peer
+Aug 26 00:56:47 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 TLS: move_session: dest=TM_ACTIVE src=TM_INITIAL reinit_src=1
+Aug 26 00:56:47 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 TLS: tls_multi_process: initial untrusted session promoted to semi-trusted
+Aug 26 00:56:47 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 Delayed exit in 5 seconds
+Aug 26 00:56:47 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 SENT CONTROL [UNDEF]: 'AUTH_FAILED' (status=1)
+Aug 26 00:56:47 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 SENT CONTROL [netpulse-mgr]: 'AUTH_FAILED' (status=1)
+Aug 26 00:56:47 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 Control Channel: TLSv1.2, cipher TLSv1.2 ECDHE-RSA-AES256-GCM-SHA384, peer certificate: 2048 bits RSA, signature: RSA-SHA256
+Aug 26 00:56:47 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 [netpulse-mgr] Peer Connection Initiated with [AF_INET]10.10.15.254:34268
+Aug 26 00:56:47 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 PUSH: Received control message: 'PUSH_REQUEST'
+Aug 26 00:56:49 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: TCP connection established with [AF_INET]10.10.15.254:48788
+Aug 26 00:56:49 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48788 TLS: Initial packet from [AF_INET]10.10.15.254:48788, sid=ed0bc680 f9316783
+Aug 26 00:56:49 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48788 VERIFY ERROR: depth=1, error=self-signed certificate in certificate chain: CN=NetPulse-CA, serial=75692327902744870440625435478712270587905758977
+Aug 26 00:56:49 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48788 Sent fatal SSL alert: unknown CA
+Aug 26 00:56:49 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48788 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+Aug 26 00:56:49 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48788 TLS_ERROR: BIO read tls_read_plaintext error
+Aug 26 00:56:49 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48788 TLS Error: TLS object -> incoming plaintext read error
+Aug 26 00:56:49 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48788 TLS Error: TLS handshake failed
+Aug 26 00:56:49 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48788 Fatal TLS error (check_tls_errors_co), restarting
+Aug 26 00:56:49 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48788 SIGUSR1[soft,tls-error] received, client-instance restarting
+Aug 26 00:56:52 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34268 SIGTERM[soft,delayed-exit] received, client-instance exiting
+Aug 26 00:56:53 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: TCP connection established with [AF_INET]10.10.15.254:41432
+Aug 26 00:56:53 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41432 TLS: Initial packet from [AF_INET]10.10.15.254:41432, sid=283a6665 0ba0795a
+Aug 26 00:56:53 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41432 VERIFY ERROR: depth=1, error=self-signed certificate in certificate chain: CN=NetPulse-CA, serial=75692327902744870440625435478712270587905758977
+Aug 26 00:56:53 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41432 Sent fatal SSL alert: unknown CA
+Aug 26 00:56:53 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41432 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+Aug 26 00:56:53 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41432 TLS_ERROR: BIO read tls_read_plaintext error
+Aug 26 00:56:53 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41432 TLS Error: TLS object -> incoming plaintext read error
+Aug 26 00:56:53 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41432 TLS Error: TLS handshake failed
+Aug 26 00:56:53 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41432 Fatal TLS error (check_tls_errors_co), restarting
+Aug 26 00:56:53 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41432 SIGUSR1[soft,tls-error] received, client-instance restarting
+Aug 26 00:57:00 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: TCP connection established with [AF_INET]10.10.15.254:48790
+Aug 26 00:57:00 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48790 TLS: Initial packet from [AF_INET]10.10.15.254:48790, sid=5810aa72 9ad11598
+Aug 26 00:57:00 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48790 VERIFY ERROR: depth=1, error=self-signed certificate in certificate chain: CN=NetPulse-CA, serial=75692327902744870440625435478712270587905758977
+Aug 26 00:57:00 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48790 Sent fatal SSL alert: unknown CA
+Aug 26 00:57:00 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48790 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+Aug 26 00:57:00 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48790 TLS_ERROR: BIO read tls_read_plaintext error
+Aug 26 00:57:00 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48790 TLS Error: TLS object -> incoming plaintext read error
+Aug 26 00:57:00 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48790 TLS Error: TLS handshake failed
+Aug 26 00:57:00 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48790 Fatal TLS error (check_tls_errors_co), restarting
+Aug 26 00:57:00 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:48790 SIGUSR1[soft,tls-error] received, client-instance restarting
+Aug 26 00:57:02 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: TCP connection established with [AF_INET]10.10.15.254:34270
+Aug 26 00:57:02 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 TLS: Initial packet from [AF_INET]10.10.15.254:34270, sid=32a2959d db1281d0
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 VERIFY OK: depth=1, C=KE, O=NetPulse ISP, CN=NetPulse CA
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 VERIFY OK: depth=0, CN=netpulse-mgr, O=NetPulse ISP
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 peer info: IV_PROTO=2
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 WARNING: Failed running command (--auth-user-pass-verify): disallowed by script-security setting
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 TLS Auth Error: Auth Username/Password verification failed for peer
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 TLS: move_session: dest=TM_ACTIVE src=TM_INITIAL reinit_src=1
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 TLS: tls_multi_process: initial untrusted session promoted to semi-trusted
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 Delayed exit in 5 seconds
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 SENT CONTROL [UNDEF]: 'AUTH_FAILED' (status=1)
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 SENT CONTROL [netpulse-mgr]: 'AUTH_FAILED' (status=1)
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 Control Channel: TLSv1.2, cipher TLSv1.2 ECDHE-RSA-AES256-GCM-SHA384, peer certificate: 2048 bits RSA, signature: RSA-SHA256
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 [netpulse-mgr] Peer Connection Initiated with [AF_INET]10.10.15.254:34270
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:34270 PUSH: Received control message: 'PUSH_REQUEST'
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: TCP connection established with [AF_INET]10.10.15.254:41433
+Aug 26 00:57:03 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:41433 TLS: Initial packet from [AF_INET]10.10.15.254:41433, sid=fa62d2ff 3c694e26
+tail: cannot open '/var/log/openvpn/netpulse-server.log' for reading: No such file or directory
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$

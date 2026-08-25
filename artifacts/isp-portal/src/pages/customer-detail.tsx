@@ -45,6 +45,7 @@ import {
 } from "recharts";
 import { formatDate } from "@/lib/formatDate";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { CustomerWorkspaceSidebar } from "@/components/customer-workspace-sidebar";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -760,7 +761,9 @@ export default function CustomerDetail() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="grid items-start gap-6 lg:grid-cols-[190px_minmax(0,1fr)]">
+      <CustomerWorkspaceSidebar />
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" asChild className="h-8 w-8">
@@ -1822,6 +1825,7 @@ export default function CustomerDetail() {
 
           </Tabs>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDate } from "@/lib/formatDate";
+import { CustomerWorkspaceSidebar } from "@/components/customer-workspace-sidebar";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -332,8 +333,10 @@ export default function Customers() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="grid items-start gap-6 lg:grid-cols-[190px_minmax(0,1fr)]">
+      <CustomerWorkspaceSidebar />
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Customers</h1>
           <p className="text-gray-500 text-sm">Manage your customer base and their accounts.</p>
@@ -343,7 +346,7 @@ export default function Customers() {
             <Plus className="w-4 h-4 mr-2" /> Add Customer
           </Button>
         )}
-      </div>
+        </div>
 
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between gap-4">
@@ -506,13 +509,14 @@ export default function Customers() {
         </div>
       </div>
 
-      <CustomerDialog
-        key={dialog.open ? (dialog.id ?? "new") : "closed"}
-        open={dialog.open}
-        onClose={() => setDialog({ open: false })}
-        initial={dialog.initial}
-        customerId={dialog.id}
-      />
+        <CustomerDialog
+          key={dialog.open ? (dialog.id ?? "new") : "closed"}
+          open={dialog.open}
+          onClose={() => setDialog({ open: false })}
+          initial={dialog.initial}
+          customerId={dialog.id}
+        />
+      </div>
     </div>
   );
 }

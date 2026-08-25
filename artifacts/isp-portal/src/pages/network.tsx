@@ -288,7 +288,9 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
             <div className="mt-2 rounded border border-amber-200 bg-white/70 px-2 py-1.5 text-[11px]">
               {repairResult.message.includes("Dedicated NetPulse VPN configuration")
                 ? <>This server still uses the legacy generic VPN instance. After verifying that it is NetPulse—not Tabana-VPN—run <code className="font-mono">sudo bash /opt/netpulse/deploy/migrate-legacy-routeros-vpn.sh --confirm-legacy-netpulse-vpn</code> over SSH once.</>
-                : <>Portal unavailable? Run <code className="font-mono">sudo /usr/local/bin/netpulse-vpn-repair</code> over SSH, then check <code className="font-mono">journalctl -u openvpn-server@netpulse -n 50</code>.</>}
+                : repairResult.state === "unavailable"
+                  ? <>VPN repair helper unavailable or not authorized. Run <code className="font-mono">sudo /usr/local/bin/netpulse-vpn-repair --json</code> over SSH, then check <code className="font-mono">journalctl -u openvpn-server@netpulse -n 50</code>.</>
+                  : <>The VPN repair helper did not complete. Check <code className="font-mono">journalctl -u openvpn-server@netpulse -n 50</code> for the dedicated NetPulse service.</>}
             </div>
           )}
         </div>

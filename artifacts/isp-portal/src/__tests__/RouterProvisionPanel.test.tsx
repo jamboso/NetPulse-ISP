@@ -125,7 +125,10 @@ describe("RouterProvisionPanel VPN repair", () => {
       .mockResolvedValueOnce({ ok: true, json: async () => provisionInfo })
       .mockResolvedValueOnce({
         ok: false,
-        json: async () => ({ error: "Forbidden: insufficient permissions" }),
+        json: async () => ({
+          state: "unavailable",
+          error: "The NetPulse VPN repair helper is not installed or not authorized on this server.",
+        }),
       });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -134,7 +137,8 @@ describe("RouterProvisionPanel VPN repair", () => {
     await screen.findByText("Awaiting provisioning");
     fireEvent.click(screen.getByRole("button", { name: "Repair VPN Service" }));
 
-    expect(await screen.findByText("Forbidden: insufficient permissions")).toBeInTheDocument();
+    expect(await screen.findByText("The NetPulse VPN repair helper is not installed or not authorized on this server.")).toBeInTheDocument();
+    expect(screen.getByText(/VPN repair helper unavailable or not authorized/i)).toBeInTheDocument();
     expect(screen.queryByText("Something went wrong on this page.")).not.toBeInTheDocument();
   });
 

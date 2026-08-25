@@ -84,26 +84,103 @@ This pulls latest code, rebuilds everything, runs DB migrations, and restarts.
 
 ## TR-069 / GenieACS configuration
 
-Fiber Access connects to the **GenieACS NBI** endpoint, not to the CPE's web
-login and not to the CWMP inform port. The endpoint must be an approved
-HTTPS hostname on port 443. Add the hostname to `/opt/netpulse/.env`:
+GenieACS is installed separately on the same Ubuntu control-plane server so
+the existing NetPulse PostgreSQL database and application installation remain
+untouched. After NetPulse is already working and the DNS record
+`acs.netpulse.co.ke` points to the server, run:
 
 ```bash
-sudo sh -c 'printf "\nTR069_ACS_ALLOWED_HOSTS=acs.example.com\n" >> /opt/netpulse/.env'
-sudo pm2 restart netpulse --update-env
+sudo GENIEACS_CWMP_ALLOWED_CIDRS='YOUR_CPE_NAT_RANGE/24' \
+  CERTBOT_EMAIL='ops@example.com' \
+  bash /opt/netpulse/deploy/setup-genieacs.sh
 ```
+
+Replace `YOUR_CPE_NAT_RANGE/24` with the public IPv4 CIDR used by the
+customer CPEs (or a comma-separated list of approved CPE/NAT ranges).
+Whole-internet CWMP exposure is intentionally rejected. The installer is safe
+to rerun. It installs MongoDB and GenieACS as dedicated systemd services,
+stores GenieACS data/configuration under `/opt/genieacs` and `/etc/genieacs`,
+exposes only the source-restricted CPE-facing CWMP port, and adds an
+authenticated HTTPS-only NBI virtual host. It does not replace the existing
+NetPulse nginx site, `.env` secrets, PostgreSQL database, or OpenVPN setup.
+
+The script writes the generated NBI details to a root-only file. Retrieve them
+on the server; never put the password in chat or in a ticket:
+
+```bash
+sudo cat /etc/genieacs/nbi-credentials
+```
+
+Fiber Access connects to the **GenieACS NBI** endpoint, not to the CPE's web
+login and not to the CWMP inform port. The endpoint must be an approved
+HTTPS hostname on port 443. The installer adds `acs.netpulse.co.ke` to
+`TR069_ACS_ALLOWED_HOSTS`, restarts the intended PM2 process, confirms the
+running process received the allowlist, and rolls the environment change back
+if that fails. Do not append a second value manually.
 
 Then open **Network → Fiber Access → ACS Settings** and enter:
 
 - **Name:** a descriptive label such as `GenieACS Primary`
-- **Base URL:** `https://acs.example.com`
+- **Base URL:** `https://acs.netpulse.co.ke`
 - **NBI Username / Password:** the GenieACS NBI credentials
 - **Enable TR-069 Management:** on
 
 The hostname must resolve to an approved public IPv4 address. If GenieACS and
-NetPulse run on the same Ubuntu server, place the NBI behind the server's
-HTTPS reverse proxy and use its approved hostname; do not enter a raw internal
-NBI port or a Huawei factory web-login password.
+NetPulse run on the same Ubuntu server, use the authenticated NBI behind the
+server's HTTPS reverse proxy; do not enter a raw internal NBI port or a Huawei
+factory web-login password.
+
+### Ports and service health
+
+| Port | Exposure | Purpose |
+|------|----------|---------|
+| `7547/tcp` | Public from approved CPE source CIDRs only | CPE CWMP endpoint |
+| `443/tcp` | Public | Authenticated GenieACS NBI at `acs.netpulse.co.ke` |
+| `7557/tcp` | Localhost only | GenieACS NBI upstream |
+| `7567/tcp` | Localhost only | GenieACS file server |
+| `3001/tcp` | Localhost only | GenieACS UI |
+| `27017/tcp` | Localhost only | MongoDB |
+
+The NBI health check used by the installer is:
+
+```bash
+sudo bash -c 'source /etc/genieacs/nbi-credentials && \
+  curl --fail --user "$GENIEACS_NBI_USERNAME:$GENIEACS_NBI_PASSWORD" \
+  "$GENIEACS_NBI_URL/devices/?limit=1"'
+```
+
+Check process logs with:
+
+```bash
+systemctl status mongod genieacs-cwmp genieacs-nbi genieacs-fs genieacs-ui
+journalctl -u genieacs-cwmp -u genieacs-nbi -u genieacs-fs -u genieacs-ui -n 100
+tail -f /var/log/nginx/genieacs-nbi-error.log
+```
+
+The installer also adds a Let's Encrypt deploy hook that validates and reloads
+nginx after each certificate renewal. Verify a renewal safely with:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+### First CPE onboarding
+
+1. Confirm the CPE can reach `http://SERVER_PUBLIC_IP:7547` and configure its
+   documented CWMP/ACS URL, usually `http://SERVER_PUBLIC_IP:7547`.
+2. Use the CPE's documented TR-069 connection-request credentials or configure
+   them according to its vendor manual. A Huawei factory web username/password
+   is not automatically a CWMP credential and must never be assumed to be one.
+3. Wait for the first Inform, then identify the device in GenieACS.
+4. From a trusted administrative workstation (for example, through an SSH
+   tunnel to local port `3001`), configure GenieACS `cwmp.auth` with the
+   documented CPE CWMP credentials. Do not leave a broad source rule in place
+   as a substitute for device authentication.
+5. Confirm the reported data model (`TR-098` or `TR-181`) and the device-specific
+   authentication policy before enrolling it in NetPulse.
+6. In NetPulse, select the customer company, open **Fiber Access → Enroll CPE**,
+   and only enroll after the ACS authentication marker and data model have been
+   verified.
 
 ---
 

@@ -30,6 +30,10 @@ NGINX_COMMITTED=false
 INSTALL_COMMITTED=false
 GENIEACS_PREEXISTING=false
 CWMP_ALLOW_RULES_APPLIED=false
+FIREWALL_TRANSACTION_OPEN=false
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=deploy/lib/genieacs-firewall.sh
+source "${SCRIPT_DIR}/lib/genieacs-firewall.sh"
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Run as root: sudo bash $0" >&2
@@ -87,13 +91,13 @@ cleanup_unfinished_install() {
   fi
   [[ -n "${NGINX_BACKUP_DIR}" ]] && rm -rf "${NGINX_BACKUP_DIR}"
 
+  if [[ "${FIREWALL_TRANSACTION_OPEN:-false}" == "true" ]]; then
+    # Never remove the candidate protection while a public CWMP listener is
+    # running. On a failed rerun, restore the preexisting service after its
+    # original firewall state is back in place.
+    firewall_rollback_around_cwmp_service "${GENIEACS_PREEXISTING}"
+  fi
   if [[ "${INSTALL_COMMITTED}" != "true" && "${GENIEACS_PREEXISTING}" != "true" ]]; then
-    if [[ "${CWMP_ALLOW_RULES_APPLIED}" == "true" ]] && command -v ufw >/dev/null 2>&1; then
-      for cidr in "${CWMP_CIDR_ARRAY[@]:-}"; do
-        cidr="${cidr//[[:space:]]/}"
-        [[ -n "${cidr}" ]] && ufw --force delete allow from "${cidr}" to any port "${CWMP_PORT}" proto tcp >/dev/null 2>&1 || true
-      done
-    fi
     for service in genieacs-cwmp genieacs-nbi genieacs-fs genieacs-ui; do
       systemctl disable --now "${service}" >/dev/null 2>&1 || true
     done
@@ -164,7 +168,7 @@ assert_loopback_listener() {
 }
 
 if [[ -z "${CWMP_ALLOWED_CIDRS}" ]]; then
-  die "Set GENIEACS_CWMP_ALLOWED_CIDRS to the public IPv4 ranges used by your CPEs. CWMP will not be opened to the whole internet."
+  die "Set GENIEACS_CWMP_ALLOWED_CIDRS to the approved IPv4 ranges used by your CPEs (private CIDRs are allowed for isolated tests). CWMP will not be opened to the whole internet."
 fi
 IFS=',' read -r -a CWMP_CIDR_ARRAY <<< "${CWMP_ALLOWED_CIDRS}"
 for cidr in "${CWMP_CIDR_ARRAY[@]}"; do
@@ -182,6 +186,9 @@ for cidr in "${CWMP_CIDR_ARRAY[@]}"; do
     );
   ' "${cidr}" || die "Invalid CPE source range: ${cidr}. Use an IPv4 CIDR from /8 through /32."
 done
+# A managed port is immutable. Reject a changed rerun before package installs,
+# environment rewrites, unit-file writes, or any service mutation.
+firewall_reject_port_change "${CWMP_PORT}"
 
 log "Checking DNS for ${ACS_DOMAIN}..."
 DNS_ADDRESSES="$(getent ahostsv4 "${ACS_DOMAIN}" 2>/dev/null | awk '{print $1}' | sort -u || true)"
@@ -218,7 +225,7 @@ if { command -v mongod >/dev/null 2>&1 || systemctl list-unit-files --no-legend 
   die "An existing MongoDB deployment was detected. Refusing to alter another application's datastore."
 fi
 apt-get update -qq
-apt-get install -y -qq ca-certificates curl gnupg apache2-utils certbot logrotate ufw
+apt-get install -y -qq ca-certificates curl gnupg apache2-utils certbot logrotate
 
 install -d -m 0755 /etc/apt/keyrings
 MONGO_KEYRING="/etc/apt/keyrings/mongodb-server-${MONGODB_MAJOR}.gpg"
@@ -418,18 +425,11 @@ ${LOG_DIR}/*.log ${LOG_DIR}/*.yaml {
 EOF
 chmod 0644 /etc/logrotate.d/genieacs
 
-if ! ufw status 2>/dev/null | grep -q "^Status: active"; then
-  die "UFW must be active before GenieACS starts. Configure its default-deny policy and rerun; this installer will not expose CWMP without source restrictions."
-fi
-
-# Place a port-wide deny before launching CWMP. Source-specific allow rules
-# are intentionally deferred until HTTPS NBI and NetPulse validation pass.
-if ! ufw status numbered | grep -q "GenieACS CWMP deny by default"; then
-  ufw insert 1 deny in to any port "${CWMP_PORT}" proto tcp comment "GenieACS CWMP deny by default" >/dev/null
-fi
-UFW_CWMP_RULES="$(ufw status numbered)"
-UFW_DENY_LINE="$(printf '%s\n' "${UFW_CWMP_RULES}" | grep -nE "${CWMP_PORT}(/tcp)?[[:space:]].*DENY IN.*Anywhere" | head -n 1 | cut -d: -f1)"
-[[ -n "${UFW_DENY_LINE}" ]] || die "Could not verify the deny-by-default UFW rule for TCP ${CWMP_PORT}."
+# Do this before CWMP starts. The transaction never changes the host's default
+# policy and installs a source-restricted dispatch before any public listener.
+firewall_require_backend
+firewall_recover_interrupted_transaction
+firewall_apply_cwmp
 systemctl daemon-reload
 for service in genieacs-cwmp genieacs-nbi genieacs-fs genieacs-ui; do
   systemctl enable "${service}" >/dev/null
@@ -555,7 +555,7 @@ nginx -t
 systemctl reload nginx
 ok "HTTPS NBI proxy installed at https://${ACS_DOMAIN}"
 
-ok "UFW allows TCP ${CWMP_PORT} only from the approved CPE ranges"
+ok "netfilter-persistent restricts TCP ${CWMP_PORT} to the approved CPE ranges"
 
 log "Updating NetPulse's approved ACS hostname..."
 EXISTING_ACS_HOSTS="$(grep -E '^TR069_ACS_ALLOWED_HOSTS=' /opt/netpulse/.env | tail -n 1 | cut -d= -f2- | tr -d '\r' || true)"
@@ -617,18 +617,10 @@ printf '%s' "${NBI_HEALTH}" | grep -q '^\[' \
   || die "NBI health check returned an unexpected response."
 ok "Authenticated NBI health check passed"
 
-# The listener has been deny-by-default throughout setup. Permit only the
-# approved CPE/NAT ranges now that all local and HTTPS checks have passed.
-CWMP_ALLOW_RULES_APPLIED=true
-for cidr in "${CWMP_CIDR_ARRAY[@]}"; do
-  cidr="${cidr//[[:space:]]/}"
-  if ! ufw status numbered | grep -F "${cidr}" | grep -q "GenieACS CWMP CPE range"; then
-    ufw insert 1 allow from "${cidr}" to any port "${CWMP_PORT}" proto tcp comment "GenieACS CWMP CPE range" >/dev/null
-  fi
-done
-ok "UFW allows TCP ${CWMP_PORT} only from the approved CPE ranges"
+firewall_commit_cwmp
 NGINX_COMMITTED=true
 INSTALL_COMMITTED=true
+ok "CWMP firewall transaction committed with netfilter-persistent"
 
 cat <<EOF
 

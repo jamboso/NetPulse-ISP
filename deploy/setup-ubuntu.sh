@@ -224,14 +224,31 @@ echo ""
 step "Installing system packages"
 # ─────────────────────────────────────────────────────────────────────────────
 export DEBIAN_FRONTEND=noninteractive
+FIREWALL_PERSISTENCE_MODE="untouched"
 info "Updating package lists..."
 apt-get update -qq
 
-info "Installing: git, nginx, postgresql, openssl, curl, ufw..."
+info "Installing: git, nginx, postgresql, openssl, curl..."
 apt-get install -y -qq \
   git nginx postgresql postgresql-contrib \
   openssl curl wget ca-certificates gnupg \
-  software-properties-common ufw
+  software-properties-common
+if [[ "$UPGRADE" != "true" ]]; then
+  if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q '^Status: active'; then
+    die "UFW is active. Refusing to mix firewall owners; disable or migrate UFW before a fresh install."
+  fi
+  info "Installing iptables-persistent and netfilter-persistent..."
+  apt-get install -y -qq iptables-persistent netfilter-persistent
+  FIREWALL_PERSISTENCE_MODE="fresh-netfilter"
+elif command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q '^Status: active'; then
+  FIREWALL_PERSISTENCE_MODE="existing-ufw"
+  info "Active UFW detected during upgrade; leaving its firewall ownership and rules untouched."
+elif command -v netfilter-persistent >/dev/null 2>&1; then
+  FIREWALL_PERSISTENCE_MODE="existing-netfilter"
+  info "Existing netfilter-persistent detected; its current rules will be saved without policy changes."
+else
+  info "No managed firewall backend detected during upgrade; leaving firewall state untouched."
+fi
 ok "Core system packages installed"
 
 if [[ "$INSTALL_RADIUS" == "true" ]]; then
@@ -371,6 +388,14 @@ if [[ -n "$REPO_URL" ]]; then
     EXISTING_OWNER="$(stat -c '%U' "$APP_DIR")"
     [[ "$EXISTING_OWNER" == "root" ]] && EXISTING_OWNER="$REAL_USER"
     configure_update_launcher "$APP_DIR/.env" "$EXISTING_OWNER"
+    if [[ "$FIREWALL_PERSISTENCE_MODE" == "existing-netfilter" ]]; then
+      if systemctl enable --now netfilter-persistent; then
+        netfilter-persistent save \
+          || warn "Could not save existing netfilter rules during upgrade; application upgrade remains unchanged."
+      else
+        warn "Could not activate existing netfilter-persistent during upgrade; leaving firewall state untouched."
+      fi
+    fi
     ok "Portal update launcher configured. Use the owner-only Updates page for reviewed releases."
     exit 0
   else
@@ -888,23 +913,16 @@ chmod 440 /etc/sudoers.d/netpulse-vpn
 ok "sudoers rule for VPN helpers"
 fi
 
-# ── Firewall ──────────────────────────────────────────────────────────────────
-if command -v ufw &>/dev/null; then
-  ufw allow 22/tcp   comment "SSH"          >/dev/null 2>&1 || true
-  ufw allow 80/tcp   comment "HTTP"         >/dev/null 2>&1 || true
-  ufw allow 443/tcp  comment "HTTPS"        >/dev/null 2>&1 || true
-  if [[ "$INSTALL_VPN" == "true" ]]; then
-    ufw allow 1194/udp comment "OpenVPN"    >/dev/null 2>&1 || true
-  fi
-  if [[ "$INSTALL_RADIUS" == "true" ]]; then
-    ufw allow 1812/udp comment "RADIUS"     >/dev/null 2>&1 || true
-    ufw allow 1813/udp comment "RADIUS-Acct" >/dev/null 2>&1 || true
-  fi
-  echo "y" | ufw enable >/dev/null 2>&1 || true
-  _fw_ports="22, 80, 443"
-  [[ "$INSTALL_VPN"    == "true" ]] && _fw_ports+=" + 1194/udp (OpenVPN)"
-  [[ "$INSTALL_RADIUS" == "true" ]] && _fw_ports+=" + 1812-1813/udp (RADIUS)"
-  ok "Firewall configured (${_fw_ports})"
+# ── Firewall persistence ───────────────────────────────────────────────────────
+# Preserve the host's current rules exactly. The base installer deliberately
+# does not change default policies or add broad service rules; optional modules
+# must install narrowly scoped rules through their own reviewed transactions.
+if [[ "$FIREWALL_PERSISTENCE_MODE" == "fresh-netfilter" ]]; then
+  systemctl enable --now netfilter-persistent
+  systemctl is-active --quiet netfilter-persistent \
+    || die "netfilter-persistent did not become active."
+  netfilter-persistent save
+  ok "Current firewall rules persisted without changing host-wide policy"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────

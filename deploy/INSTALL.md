@@ -22,16 +22,20 @@ The script runs for ~5–8 minutes then prints your server URL. Open it in a bro
 | Step | What happens |
 |------|-------------|
 | **[1/9] Pre-flight** | Checks OS (Ubuntu 20.04+), RAM ≥ 1 GB, disk ≥ 5 GB, internet |
-| **[2/9] System packages** | `git nginx postgresql openssl ufw curl` |
+| **[2/9] System packages** | `git nginx postgresql openssl curl iptables-persistent netfilter-persistent` |
 | **[3/9] Node.js 24** | Via NodeSource apt repo; skips if already installed |
 | **[4/9] PostgreSQL** | Creates `netpulse` database + user, auto-generates password |
 | **[5/9] Code** | Clones repo to `/opt/netpulse`; detects existing install and runs upgrade mode |
 | **[6/9] .env** | Writes production config with auto-generated `SESSION_SECRET`, `BETTER_AUTH_SECRET`, and `DATABASE_URL` |
 | **[7/9] Build** | `pnpm install` → libs → API → frontend |
 | **[8/9] PM2** | Starts app as `netpulse` process, enables systemd auto-start |
-| **[9/9] nginx + UFW** | Reverse proxy on port 80; opens 22, 80, 443, 1194, 1812, 1813 |
+| **[9/9] nginx + firewall persistence** | Reverse proxy on port 80; enables `netfilter-persistent` and saves existing rules without changing default policy or adding broad allow rules |
 
 Ends with a health check (`curl /api/healthz`) and a summary box with the URL + next steps.
+Fresh installs reject active UFW and use `netfilter-persistent` as the single
+firewall owner. App upgrades preserve an existing active UFW setup; otherwise
+they reuse an available `netfilter-persistent`, and do not fail when neither
+firewall backend is installed.
 
 ---
 
@@ -96,13 +100,25 @@ sudo GENIEACS_CWMP_ALLOWED_CIDRS='YOUR_CPE_NAT_RANGE/24' \
 ```
 
 Replace `YOUR_CPE_NAT_RANGE/24` with the public IPv4 CIDR used by the
-customer CPEs (or a comma-separated list of approved CPE/NAT ranges).
-Whole-internet CWMP exposure is intentionally rejected. The installer is safe
-to rerun. It installs MongoDB and GenieACS as dedicated systemd services,
+customer CPEs (or a comma-separated list of approved CPE/NAT ranges). Private
+CIDRs are accepted for an isolated/local lab test, but should not be used for
+internet CPEs. Whole-internet CWMP exposure is intentionally rejected. The
+installer requires an already-active `netfilter-persistent` service and
+refuses to run while UFW is active; it does not install, enable, or mix UFW
+rules. It is safe to rerun. It installs MongoDB and GenieACS as dedicated systemd services,
 stores GenieACS data/configuration under `/opt/genieacs` and `/etc/genieacs`,
 exposes only the source-restricted CPE-facing CWMP port, and adds an
 authenticated HTTPS-only NBI virtual host. It does not replace the existing
 NetPulse nginx site, `.env` secrets, PostgreSQL database, or OpenVPN setup.
+
+Before running it, configure and validate the host's existing
+`netfilter-persistent` installation. The GenieACS setup creates only
+source-restricted CWMP dispatch rules; it never changes a host-wide INPUT
+default policy. It snapshots active and persisted IPv4/IPv6 rules before a
+change, rolls both back if persistence fails, and leaves a root-only recovery
+marker for an interrupted transaction. Changing an already managed CWMP port
+is intentionally rejected; remove/review the managed firewall state manually
+as part of a planned port migration.
 
 The script writes the generated NBI details to a root-only file. Retrieve them
 on the server; never put the password in chat or in a ticket:

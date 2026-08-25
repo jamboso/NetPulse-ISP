@@ -1,0 +1,50 @@
+mboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$ # Stop the crash-looping replacement process first
+sudo -u amboso -H pm2 stop netpulse || true
+
+# Stop only the old NetPulse process holding port 8080
+sudo kill -TERM 1358 2>/dev/null || true
+
+sleep 3
+
+echo '--- port after stopping old process ---'
+sudo ss -ltnp | grep ':8080' || true
+
+# Start the current deployed build
+sudo -u amboso -H pm2 restart netpulse --update-env
+
+sleep 5
+
+echo '--- PM2 status ---'
+sudo -u amboso -H pm2 status
+
+echo '--- health check ---'
+curl -fsS http://127.0.0.1:8080/api/healthz
+echo
+[PM2] Applying action stopProcessId on app [netpulse](ids: [ 0 ])
+[PM2] [netpulse](0) ✓
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 0        │ 0      │ 24   │ stopped   │ 0%       │ 0b       │ amboso   │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+--- port after stopping old process ---
+[PM2] Applying action restartProcessId on app [netpulse](ids: [ 0 ])
+[PM2] [netpulse](0) ✓
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 25811    │ 0s     │ 24   │ online    │ 0%       │ 17.3mb   │ amboso   │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+--- PM2 status ---
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 25846    │ 0      │ 25   │ ▒▒ │ 0%       │ 0b       │ amboso   │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+--- health check ---
+{"status":"ok"}
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$ sudo ss -ltnp | grep ':8080'
+LISTEN 0      511                *:8080            *:*    users:(("node /opt/netpu",pid=25789,fd=22))                                                        
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$

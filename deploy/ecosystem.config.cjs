@@ -49,6 +49,7 @@ module.exports = {
         BETTER_AUTH_SECRET: envFromFile.BETTER_AUTH_SECRET || "",
         BETTER_AUTH_URL:    envFromFile.BETTER_AUTH_URL    || "http://localhost",
         SESSION_SECRET:     envFromFile.SESSION_SECRET     || "",
+         TR069_ACS_ALLOWED_HOSTS: envFromFile.TR069_ACS_ALLOWED_HOSTS || "",
         FRONTEND_DIST_PATH: envFromFile.FRONTEND_DIST_PATH
                             || path.join(APP_DIR, "artifacts/isp-portal/dist/public"),
       },

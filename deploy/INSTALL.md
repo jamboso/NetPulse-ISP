@@ -82,6 +82,31 @@ This pulls latest code, rebuilds everything, runs DB migrations, and restarts.
 
 ---
 
+## TR-069 / GenieACS configuration
+
+Fiber Access connects to the **GenieACS NBI** endpoint, not to the CPE's web
+login and not to the CWMP inform port. The endpoint must be an approved
+HTTPS hostname on port 443. Add the hostname to `/opt/netpulse/.env`:
+
+```bash
+sudo sh -c 'printf "\nTR069_ACS_ALLOWED_HOSTS=acs.example.com\n" >> /opt/netpulse/.env'
+sudo pm2 restart netpulse --update-env
+```
+
+Then open **Network → Fiber Access → ACS Settings** and enter:
+
+- **Name:** a descriptive label such as `GenieACS Primary`
+- **Base URL:** `https://acs.example.com`
+- **NBI Username / Password:** the GenieACS NBI credentials
+- **Enable TR-069 Management:** on
+
+The hostname must resolve to an approved public IPv4 address. If GenieACS and
+NetPulse run on the same Ubuntu server, place the NBI behind the server's
+HTTPS reverse proxy and use its approved hostname; do not enter a raw internal
+NBI port or a Huawei factory web-login password.
+
+---
+
 ## Useful commands
 
 ```bash

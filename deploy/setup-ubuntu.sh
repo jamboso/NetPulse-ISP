@@ -430,6 +430,11 @@ SERVER_DOMAIN=${SERVER_IP}
 
 # ── Optional modules ──────────────────────────────────────────────────────────
 OPENVPN_ENABLED=${INSTALL_VPN}
+
+# ── TR-069 / GenieACS (optional) ──────────────────────────────────────────────
+# Comma-separated HTTPS hostnames approved for the GenieACS NBI endpoint.
+# The endpoint must be exposed over HTTPS on port 443.
+TR069_ACS_ALLOWED_HOSTS=
 EOF
 
   ok ".env written to $ENV_FILE"

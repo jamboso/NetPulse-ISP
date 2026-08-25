@@ -1,0 +1,73 @@
+
+Aug 25 23:37:31 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:47946 VERIFY ERROR: depth=1, error=self-signed certificate in certificate chain: CN=NetPulse-CA, serial=75692327902744870440625435478712270587905758977
+Aug 25 23:37:31 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:47946 Sent fatal SSL alert: unknown CA
+Aug 25 23:37:31 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:47946 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+Aug 25 23:37:31 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:47946 TLS_ERROR: BIO read tls_read_plaintext error
+Aug 25 23:37:31 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:47946 TLS Error: TLS object -> incoming plaintext read error
+Aug 25 23:37:31 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:47946 TLS Error: TLS handshake failed
+Aug 25 23:37:31 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:47946 Fatal TLS error (check_tls_errors_co), restarting
+Aug 25 23:37:31 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:47946 SIGUSR1[soft,tls-error] received, client-instance restarting
+tail: cannot open '/var/log/openvpn/netpulse-server.log' for reading: No such file or directory
+LISTEN 0      32           0.0.0.0:1194      0.0.0.0:*    users:(("openvpn",pid=1403,fd=6))                                                                  
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo systemctl list-units --type=service 'openvpn*' --all
+sudo systemctl status openvpn-server@netpulse --no-pager
+sudo ps -fp 1403
+sudo tr '\0' ' ' </proc/1403/cmdline
+echo
+
+sudo grep -E '^(port|proto|ca|cert|key|server|log|log-append)' \
+  /etc/openvpn/server/netpulse.conf
+
+sudo openssl x509 \
+  -in /etc/openvpn/netpulse/ca.crt \
+  -noout -subject -fingerprint -sha256
+  UNIT                            LOAD   ACTIVE     SUB          DESCRIPTION
+  openvpn-server@netpulse.service loaded active     running      OpenVPN service for netpulse
+  openvpn.service                 loaded active     exited       OpenVPN service
+  openvpn@server.service          loaded activating auto-restart OpenVPN connection to server
+
+Legend: LOAD   → Reflects whether the unit definition was properly loaded.
+        ACTIVE → The high-level unit activation state, i.e. generalization of SUB.
+        SUB    → The low-level unit activation state, values depend on unit type.
+
+3 loaded units listed.
+To show all installed unit files use 'systemctl list-unit-files'.
+● openvpn-server@netpulse.service - OpenVPN service for netpulse
+     Loaded: loaded (/usr/lib/systemd/system/openvpn-server@.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-08-25 22:37:48 EAT; 1h 1min ago
+       Docs: man:openvpn(8)
+             https://openvpn.net/community-resources/reference-manual-for-openvpn-2-6/
+             https://community.openvpn.net/openvpn/wiki/HOWTO
+   Main PID: 1403 (openvpn)
+     Status: "Initialization Sequence Completed"
+      Tasks: 1 (limit: 7827)
+     Memory: 3.3M (peak: 3.5M)
+        CPU: 4.410s
+     CGroup: /system.slice/system-openvpn\x2dserver.slice/openvpn-server@netpulse.service
+             └─1403 /usr/sbin/openvpn --status /run/openvpn-server/status-netpulse.log --status-version 2 --suppress-timestamps --config netpulse.conf
+
+Aug 25 23:39:22 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:40966 VERIFY ERROR: depth=1, error=self-signed certificate in certifi…905758977
+Aug 25 23:39:22 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:40966 Sent fatal SSL alert: unknown CA
+Aug 25 23:39:22 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:40966 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+Aug 25 23:39:22 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:40966 TLS_ERROR: BIO read tls_read_plaintext error
+Aug 25 23:39:22 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:40966 TLS Error: TLS object -> incoming plaintext read error
+Aug 25 23:39:22 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:40966 TLS Error: TLS handshake failed
+Aug 25 23:39:22 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:40966 Fatal TLS error (check_tls_errors_co), restarting
+Aug 25 23:39:22 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:40966 SIGUSR1[soft,tls-error] received, client-instance restarting
+Aug 25 23:39:32 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: TCP connection established with [AF_INET]10.10.15.254:40967
+Aug 25 23:39:32 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[1403]: 10.10.15.254:40967 TLS: Initial packet from [AF_INET]10.10.15.254:40967, sid=1d4a0… 692fc27f
+Hint: Some lines were ellipsized, use -l to show in full.
+UID          PID    PPID  C STIME TTY          TIME CMD
+nobody      1403       1  0 22:37 ?        00:00:04 /usr/sbin/openvpn --status /run/openvpn-server/status-netpulse.log --status-version 2 --suppress-timestam
+/usr/sbin/openvpn --status /run/openvpn-server/status-netpulse.log --status-version 2 --suppress-timestamps --config netpulse.conf
+port 1194
+proto tcp
+ca /etc/openvpn/server/certs/ca.crt
+cert /etc/openvpn/server/certs/server.crt
+key /etc/openvpn/server/certs/server.key
+server 10.8.0.0 255.255.255.0
+Could not open file or uri for loading certificate from /etc/openvpn/netpulse/ca.crt
+4077ACE80E750000:error:16000069:STORE routines:ossl_store_get0_loader_int:unregistered scheme:../crypto/store/store_register.c:237:scheme=file
+4077ACE80E750000:error:80000002:system library:file_open:No such file or directory:../providers/implementations/storemgmt/file_store.c:267:calling stat(/etc/openvpn/netpulse/ca.crt)
+Unable to load certificate
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

@@ -112,6 +112,28 @@ type VpnRepairResult = {
   events: string[];
 };
 
+function normalizeVpnRepairResult(payload: unknown, responseOk: boolean): VpnRepairResult {
+  const record = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+  const allowedStates: VpnRepairResult["state"][] = ["healthy", "repaired", "blocked", "failed", "unavailable"];
+  const state = allowedStates.includes(record.state as VpnRepairResult["state"])
+    ? record.state as VpnRepairResult["state"]
+    : "failed";
+  const events = Array.isArray(record.events)
+    ? record.events.filter((event): event is string => typeof event === "string")
+    : [];
+
+  return {
+    success: responseOk && record.success === true,
+    state,
+    message: typeof record.message === "string"
+      ? record.message
+      : typeof record.error === "string"
+        ? record.error
+        : "The VPN repair service returned an unreadable response.",
+    events,
+  };
+}
+
 export function RouterProvisionPanel({ routerId, routerName }: { routerId: number; routerName: string }) {
   const { isAdmin, isOwner } = useCurrentUser();
   const canRepairVpnService = isAdmin || isOwner;
@@ -159,12 +181,7 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
         credentials: "include",
       });
       const payload = await response.json().catch(() => null);
-      setRepairResult(payload ?? {
-        success: false,
-        state: "failed",
-        message: "The VPN repair service returned an unreadable response.",
-        events: [],
-      });
+      setRepairResult(normalizeVpnRepairResult(payload, response.ok));
       if (response.ok) await load();
     } catch {
       setRepairResult({

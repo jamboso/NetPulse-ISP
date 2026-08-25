@@ -120,6 +120,24 @@ describe("RouterProvisionPanel VPN repair", () => {
     expect(window.confirm).toHaveBeenCalledOnce();
   });
 
+  it("renders an API error response without crashing the provisioning panel", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => provisionInfo })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: "Forbidden: insufficient permissions" }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<RouterProvisionPanel routerId={17} routerName="MAJE_TEMP" />);
+
+    await screen.findByText("Awaiting provisioning");
+    fireEvent.click(screen.getByRole("button", { name: "Repair VPN Service" }));
+
+    expect(await screen.findByText("Forbidden: insufficient permissions")).toBeInTheDocument();
+    expect(screen.queryByText("Something went wrong on this page.")).not.toBeInTheDocument();
+  });
+
   it("explains the safe legacy migration when a dedicated VPN service is unavailable", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => provisionInfo })

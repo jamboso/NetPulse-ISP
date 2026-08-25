@@ -287,8 +287,8 @@ router.post("/infrastructure/vpn/sync-installed-certs", requireRole("owner"), as
 
 // ── POST /api/infrastructure/vpn/repair-service ───────────────────────────────
 // The root-owned helper only handles NetPulse's exact OpenVPN service/config.
-// This stays owner-only because it can restart a shared system service.
-router.post("/infrastructure/vpn/repair-service", requireRole("owner"), async (req, res) => {
+// Administrator access is required because it can restart a shared system service.
+router.post("/infrastructure/vpn/repair-service", requireRole("admin"), async (req, res) => {
   const result = await repairOpenVpnService();
   req.log.info(
     { state: result.state, success: result.success, eventCount: result.events.length },

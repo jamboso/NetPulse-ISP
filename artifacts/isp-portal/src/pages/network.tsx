@@ -113,7 +113,8 @@ type VpnRepairResult = {
 };
 
 export function RouterProvisionPanel({ routerId, routerName }: { routerId: number; routerName: string }) {
-  const { isOwner } = useCurrentUser();
+  const { isAdmin, isOwner } = useCurrentUser();
+  const canRepairVpnService = isAdmin || isOwner;
   const [info, setInfo] = useState<ProvisionInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [reprovisioning, setReprovisioning] = useState(false);
@@ -234,7 +235,7 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
             {reprovisioning ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
             Reprovision
           </Button>
-          {isOwner && (
+          {canRepairVpnService && (
             <Button
               size="sm"
               variant="outline"
@@ -247,9 +248,9 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
               Repair VPN Service
             </Button>
           )}
-          {!isOwner && (
+          {!canRepairVpnService && (
             <span className="text-[11px] text-amber-700">
-              Central VPN repair is available to the account owner only.
+              Central VPN repair is available to administrators and the account owner only.
             </span>
           )}
         </div>

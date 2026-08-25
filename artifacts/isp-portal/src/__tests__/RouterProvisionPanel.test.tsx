@@ -41,7 +41,7 @@ const provisionInfo = {
 describe("RouterProvisionPanel VPN repair", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    mockCurrentUser.mockReturnValue({ isOwner: true });
+    mockCurrentUser.mockReturnValue({ isAdmin: false, isOwner: true });
     vi.stubGlobal("confirm", vi.fn(() => true));
   });
 
@@ -75,8 +75,18 @@ describe("RouterProvisionPanel VPN repair", () => {
     expect(screen.getByText("Repair details")).toBeInTheDocument();
   });
 
-  it("does not show the service-restart control to non-owners", async () => {
-    mockCurrentUser.mockReturnValue({ isOwner: false });
+  it("shows the service-restart control to an administrator", async () => {
+    mockCurrentUser.mockReturnValue({ isAdmin: true, isOwner: false });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => provisionInfo }));
+
+    render(<RouterProvisionPanel routerId={17} routerName="MAJE_TEMP" />);
+
+    await screen.findByText("Awaiting provisioning");
+    expect(screen.getByRole("button", { name: "Repair VPN Service" })).toBeEnabled();
+  });
+
+  it("does not show the service-restart control to a technician", async () => {
+    mockCurrentUser.mockReturnValue({ isAdmin: false, isOwner: false });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => provisionInfo }));
 
     render(<RouterProvisionPanel routerId={17} routerName="MAJE_TEMP" />);

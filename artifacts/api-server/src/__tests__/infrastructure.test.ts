@@ -191,7 +191,7 @@ describe("infrastructure write operations", () => {
     expect(mockLoadInstalledOpenVpnCertificates).not.toHaveBeenCalled();
   });
 
-  it("repairs the NetPulse VPN service for an owner and returns its safe status", async () => {
+  it("repairs the NetPulse VPN service for an administrator and returns its safe status", async () => {
     mockRepairOpenVpnService.mockResolvedValueOnce({
       success: true,
       state: "repaired",
@@ -199,7 +199,7 @@ describe("infrastructure write operations", () => {
       events: ["Stopping stale NetPulse OpenVPN listener PID 1404."],
     });
 
-    const response = await request(buildApp()).post("/infrastructure/vpn/repair-service");
+    const response = await request(buildApp("admin")).post("/infrastructure/vpn/repair-service");
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(expect.objectContaining({
@@ -210,8 +210,8 @@ describe("infrastructure write operations", () => {
     expect(mockRepairOpenVpnService).toHaveBeenCalledOnce();
   });
 
-  it("does not expose the VPN repair action to non-owners", async () => {
-    const response = await request(buildApp("admin")).post("/infrastructure/vpn/repair-service");
+  it("does not expose the VPN repair action to non-administrators", async () => {
+    const response = await request(buildApp("technician")).post("/infrastructure/vpn/repair-service");
 
     expect(response.status).toBe(403);
     expect(mockRepairOpenVpnService).not.toHaveBeenCalled();

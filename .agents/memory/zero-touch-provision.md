@@ -29,6 +29,13 @@ POST /routers automatically:
 1. Generates a UUID provisionToken
 2. Calls autoProvision() which generates a VPN client cert if VPN certs exist
 
+## RouterOS-version fallback
+The Stage 2 script must select the OpenVPN cipher on the router itself when the bootstrap has not reported a RouterOS version.
+
+**Why:** RouterOS 7 needs `aes128-cbc`, while RouterOS 6 needs `aes128`. A missing version report otherwise produces a RouterOS 6 profile for a RouterOS 7 device and causes a generic tunnel timeout.
+
+**How to apply:** Preserve the server-side version optimization when a version is reported, but keep an import-time RouterOS major-version check as the safe fallback. On a tunnel timeout, abort before RADIUS, PPPoE, hotspot, or customer-traffic configuration.
+
 ## UI
 RouterProvisionPanel component in network.tsx:
 - Polls /api/routers/:id/provision-info every 5s

@@ -284,12 +284,42 @@ export function generateRosScript(params: {
   // Stage 2 is generated, so the router receives syntax its importer accepts.
   const routerOsMajor = Number.parseInt(params.routerOsVersion?.match(/^\s*(\d+)/)?.[1] ?? "", 10);
   const ovpnCipher = routerOsMajor >= 7 ? "aes128-cbc" : "aes128";
+  const hasReportedRouterOsVersion = Number.isFinite(routerOsMajor);
+  const ovpnCipherLabel = hasReportedRouterOsVersion
+    ? ovpnCipher
+    : "auto-detect at import time";
   // RouterOS v6 OpenVPN clients are TCP-only and reject an explicit
   // `protocol=tcp` property. TCP is their default and remains the default on
   // current RouterOS releases, so only emit the property when UDP is requested.
   const ovpnProtocolLine = params.vpnProtocol.toLowerCase() === "udp"
     ? "    protocol=udp \\\n"
     : "";
+  const ovpnProtocolParam = params.vpnProtocol.toLowerCase() === "udp"
+    ? " protocol=udp"
+    : "";
+  const ovpnClientBlock = hasReportedRouterOsVersion
+    ? `/interface ovpn-client add \\
+    name="netpulse-vpn" \\
+    connect-to="${params.serverIp}" \\
+    port=${params.vpnPort} \\
+    mode=ip \\
+${ovpnProtocolLine}    certificate="netpulse-client" \\
+    user="netpulse" \\
+    password="" \\
+    cipher=${ovpnCipher} \\
+    auth=sha1 \\
+    add-default-route=no \\
+    route-nopull=yes \\
+    use-peer-dns=no \\
+    disabled=no`
+    : `# The bootstrap normally reports the RouterOS version. If that request was
+# blocked or stripped by an upstream proxy, select a compatible cipher locally.
+:local netpulseRosMajor [:tonum [:pick [/system resource get version] 0 1]]
+:local netpulseOvpnCipher "aes128"
+:if ($netpulseRosMajor >= 7) do={ :set netpulseOvpnCipher "aes128-cbc" }
+
+:local addNetpulseOvpn [:parse ("/interface ovpn-client add name=netpulse-vpn connect-to=${params.serverIp} port=${params.vpnPort} mode=ip${ovpnProtocolParam} certificate=netpulse-client user=netpulse password=\\"\\" cipher=" . $netpulseOvpnCipher . " auth=sha1 add-default-route=no route-nopull=yes use-peer-dns=no disabled=no")]
+:do { $addNetpulseOvpn } on-error={ :error "NetPulse: could not create an OpenVPN profile compatible with this RouterOS version" }`;
   const certificateFetchBlock = params.token && params.serverUrl
     ? `:put "[2/8] Downloading certificates..."
 
@@ -346,7 +376,7 @@ export function generateRosScript(params: {
 # NetPulse ISP Manager — RouterOS Full Setup (Stage 2)
 # Router:    ${params.routerName}
 # RouterOS:  ${params.routerOsVersion ?? "version-not-reported"}
-# OVPN cipher: ${ovpnCipher}
+# OVPN cipher: ${ovpnCipherLabel}
 # Generated: ${now}
 # Server:    ${params.serverIp}:${params.vpnPort}/${params.vpnProtocol.toUpperCase()}
 ${params.vpnIp ? `# VPN IP:    ${params.vpnIp}` : ""}
@@ -396,28 +426,21 @@ ${certificateFetchBlock}
 # ── 4/8  Create OpenVPN tunnel interface ──────────────────────────────────────
 :put "[4/8] Creating OpenVPN tunnel..."
 
-/interface ovpn-client add \\
-    name="netpulse-vpn" \\
-    connect-to="${params.serverIp}" \\
-    port=${params.vpnPort} \\
-    mode=ip \\
-${ovpnProtocolLine}    certificate="netpulse-client" \\
-    user="netpulse" \\
-    password="" \\
-    cipher=${ovpnCipher} \\
-    auth=sha1 \\
-    add-default-route=no \\
-    route-nopull=yes \\
-    use-peer-dns=no \\
-    disabled=no
+${ovpnClientBlock}
 
-:put "Waiting 20 seconds for tunnel..."
-:delay 20s
+:put "Waiting up to 60 seconds for the management tunnel..."
 :local vpnRunning false
-:do { :set vpnRunning [/interface ovpn-client get [find name="netpulse-vpn"] running] } on-error={}
+:for vpnAttempt from=1 to=12 do={
+  :delay 5s
+  :do { :set vpnRunning [/interface ovpn-client get [find name="netpulse-vpn"] running] } on-error={}
+  :if ($vpnRunning = true) do={ :set vpnAttempt 12 }
+}
 :if ($vpnRunning = false) do={
-  :log error "NetPulse: OpenVPN tunnel did not connect"
-  :error "NetPulse: OpenVPN tunnel did not connect"
+  :put "ERROR: NetPulse VPN did not connect. RADIUS and customer traffic settings were not changed."
+  :put "Check that ${params.serverIp}:${params.vpnPort}/TCP is publicly reachable and the OpenVPN server is running."
+  :do { /interface ovpn-client print detail where name="netpulse-vpn" } on-error={}
+  :log error "NetPulse: OpenVPN tunnel did not connect after 60 seconds"
+  :error "NetPulse: VPN unavailable — verify endpoint, TCP port ${params.vpnPort}, server service, and certificate"
 }
 
 # ── 5/8  Configure RADIUS over VPN ───────────────────────────────────────────

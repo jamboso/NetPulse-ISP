@@ -48,7 +48,8 @@ describe("generateRosScript", () => {
     expect(script).not.toContain("CLIENT-KEY-SECRET");
     expect(script).toContain('/file remove [find name="netpulse-client.key"]');
     expect(script).not.toContain("protocol=tcp");
-    expect(script).toContain('mode=ip \\\n    certificate="netpulse-client"');
+    expect(script).toContain(":local addNetpulseOvpn");
+    expect(script).toContain("mode=ip certificate=netpulse-client");
     expect(script).toContain(
       'one-session-per-host=yes \\\n  disabled=no \\\n  authentication=mschap2,mschap1,chap,pap',
     );
@@ -62,12 +63,13 @@ describe("generateRosScript", () => {
     expect(script).not.toContain("radius-secret=");
     expect(script).not.toContain('comment="netpulse-hotspot"');
     expect(script).not.toContain("mac-auth-mode=");
-    expect(script).toContain('user="netpulse"');
+    expect(script).toContain("user=netpulse");
     expect(script).not.toContain('user=""');
-    expect(script).toContain('password=""');
-    expect(script).toContain('cipher=aes128');
+    expect(script).toContain('password=\\"\\"');
+    expect(script).toContain(':local netpulseOvpnCipher "aes128"');
+    expect(script).toContain(':set netpulseOvpnCipher "aes128-cbc"');
     expect(script).toContain('auth=sha1');
-    expect(script).toContain('add-default-route=no \\\n    route-nopull=yes \\\n    use-peer-dns=no');
+    expect(script).toContain('add-default-route=no route-nopull=yes use-peer-dns=no disabled=no');
     expect(script).toContain("timeout=3s");
     expect(script).not.toContain("timeout=3000");
     expect(script).toContain(':parse "/interface ethernet set ether2 master-port=none"');
@@ -75,6 +77,21 @@ describe("generateRosScript", () => {
     expect(script).toContain('/interface bridge port remove [find where interface="ether2"]');
     expect(script).toContain('NetPulse: OpenVPN tunnel did not connect');
     expect(script).not.toContain('on-error={ :log warning "NetPulse: ovpn-client already exists" }');
+  });
+
+  it("detects the cipher on the router when the bootstrap cannot report its version", () => {
+    const script = generateRosScript({
+      ...params,
+      caCertPem: "CA",
+      clientCertPem: "CLIENT-CERT",
+      clientKeyPem: "CLIENT-KEY",
+    });
+
+    expect(script).toContain("# OVPN cipher: auto-detect at import time");
+    expect(script).toContain('[:pick [/system resource get version] 0 1]');
+    expect(script).toContain('cipher=" . $netpulseOvpnCipher');
+    expect(script).toContain("Waiting up to 60 seconds for the management tunnel");
+    expect(script).toContain("RADIUS and customer traffic settings were not changed.");
   });
 
   it("only emits the protocol property for UDP clients", () => {
@@ -87,7 +104,7 @@ describe("generateRosScript", () => {
     });
 
     expect(script).toContain("protocol=udp");
-    expect(script).toContain('mode=ip \\\n    protocol=udp \\\n    certificate="netpulse-client"');
+    expect(script).toContain("mode=ip protocol=udp certificate=netpulse-client");
   });
 
   it("uses the OpenVPN cipher name supported by the reported RouterOS generation", () => {

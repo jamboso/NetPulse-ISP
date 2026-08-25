@@ -1,0 +1,110 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  MMM      MMM       KKK                          TTTTTTTTTTT      KKK
+  MMMM    MMMM       KKK                          TTTTTTTTTTT      KKK
+  MMM MMMM MMM  III  KKK  KKK  RRRRRR     OOOOOO      TTT     III  KKK  KKK
+  MMM  MM  MMM  III  KKKKK     RRR  RRR  OOO  OOO     TTT     III  KKKKK
+  MMM      MMM  III  KKK KKK   RRRRRR    OOO  OOO     TTT     III  KKK KKK
+  MMM      MMM  III  KKK  KKK  RRR  RRR   OOOOOO      TTT     III  KKK  KKK
+
+  MikroTik RouterOS 7.19.6 (c) 1999-2025       https://www.mikrotik.com/
+
+
+Press F1 for help
+
+
+[admin@MikroTik] > /tool fetch url="https://netpulse.co.ke/api/provision/2e5ed79a-62d9-435c-89f9-1ab73ae63a7b/bootstrap.rsc" dst-path="np-boot.rsc" mode=ht
+tps; /import file-name=np-boot.rsc
+      status: finished
+  downloaded: 1KiB    
+       total: 1KiB    
+    duration: 0s      
+
+======================================
+  NetPulse Zero-Touch Provisioning
+======================================
+  Router:  MikroTik
+  MAC:     04:F4:1C:F2:5C:58
+  ROS:     7.19.6 (stable)
+
+  Step 1/3: Registering with NetPulse...
+      status: finished
+  downloaded: 0KiB    
+       total: 0KiB    
+    duration: 0s      
+  Step 2/3: Downloading secure configuration...
+      status: finished
+  downloaded: 8KiB    
+       total: 8KiB    
+    duration: 0s      
+  Step 3/3: Applying configuration...
+
+
+======================================
+  NetPulse Full Configuration
+  Router: MABERA
+======================================
+[1/8] Cleaning old config...
+[2/8] Downloading certificates...
+      status: finished
+  downloaded: 1KiB    
+       total: 1KiB    
+    duration: 1s      
+      status: finished
+  downloaded: 1KiB    
+       total: 1KiB    
+    duration: 1s      
+      status: finished
+  downloaded: 1KiB    
+       total: 1KiB    
+    duration: 1s      
+[3/8] Importing certificates (~15 seconds)...
+     certificates-imported: 1
+     private-keys-imported: 0
+            files-imported: 0
+       decryption-failures: 0
+  keys-with-no-certificate: 0
+
+     certificates-imported: 1
+     private-keys-imported: 0
+            files-imported: 0
+       decryption-failures: 0
+  keys-with-no-certificate: 0
+
+     certificates-imported: 0
+     private-keys-imported: 1
+            files-imported: 1
+       decryption-failures: 0
+  keys-with-no-certificate: 0
+
+[4/8] Creating OpenVPN tunnel...
+Waiting 20 seconds for tunnel...
+Script Error: NetPulse: OpenVPN tunnel did not connect (:error; line 96)
+[admin@MikroTik] > 

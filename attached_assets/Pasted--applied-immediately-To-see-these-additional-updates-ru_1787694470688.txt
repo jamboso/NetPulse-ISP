@@ -1,0 +1,111 @@
+ applied immediately.
+To see these additional updates run: apt list --upgradable
+
+7 additional security updates can be applied with ESM Apps.
+Learn more about enabling ESM Apps service at https://ubuntu.com/esm
+
+Last login: Tue Aug 25 22:52:31 2026 from 10.16.14.239
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo -u amboso -H pm2 logs netpulse --err --lines 100
+[TAILING] Tailing last 100 lines for [netpulse] process (change the value with --lines option)
+/var/log/netpulse/error-0.log last 100 lines:
+0|netpulse | 2026-07-25 13:41:36: 2026-07-25T10:41:36.944Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.com/reset-password
+0|netpulse | 2026-07-25 13:42:44: 2026-07-25T10:42:44.478Z ERROR [Better Auth]: User not found { email: 'kemichitoluo@gmail.com' }
+0|netpulse | 2026-07-25 13:43:05: 2026-07-25T10:43:05.963Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:43:15: 2026-07-25T10:43:15.759Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:46:55: 2026-07-25T10:46:55.131Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:48:22: 2026-07-25T10:48:22.500Z ERROR [Better Auth]: User not found { email: 'karimiefridah@gmail.com' }
+0|netpulse | 2026-07-25 13:49:44: 2026-07-25T10:49:44.995Z ERROR [Better Auth]: User not found { email: 'kinyuavictor03@gmail.com' }
+0|netpulse | 2026-07-25 13:52:55: 2026-07-25T10:52:55.429Z ERROR [Better Auth]: User not found { email: 'mwendanicollins@gmail.com' }
+0|netpulse | 2026-07-25 13:53:07: 2026-07-25T10:53:07.796Z ERROR [Better Auth]: User not found { email: 'mwendanicollins@gmail.com' }
+0|netpulse | 2026-07-25 13:53:21: 2026-07-25T10:53:21.807Z ERROR [Better Auth]: User not found { email: 'John@myisp.co.ke' }
+0|netpulse | 2026-07-25 13:53:47: 2026-07-25T10:53:47.665Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:53:49: 2026-07-25T10:53:49.436Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:53:59: 2026-07-25T10:53:59.237Z ERROR [Better Auth]: User not found { email: 'njeruleon162@gmail.com' }
+0|netpulse | 2026-07-25 13:54:22: 2026-07-25T10:54:22.569Z ERROR [Better Auth]: User not found { email: 'njeruleon162@gmail.com' }
+0|netpulse | 2026-07-25 13:58:10: 2026-07-25T10:58:10.015Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:58:18: 2026-07-25T10:58:18.866Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:59:33: 2026-07-25T10:59:33.593Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:59:55: 2026-07-25T10:59:55.275Z ERROR [Better Auth]: User not found { email: 'mwendanicollins@gmail.com' }
+0|netpulse | 2026-07-25 13:59:57: 2026-07-25T10:59:57.514Z ERROR [Better Auth]: Invalid redirectURL: http://www.google.us/reset-password
+0|netpulse | 2026-07-25 14:00:00: 2026-07-25T11:00:00.204Z ERROR [Better Auth]: Invalid redirectURL: http://www.google.us/reset-password
+0|netpulse | 2026-07-25 14:00:05: 2026-07-25T11:00:05.860Z ERROR [Better Auth]: User not found { email: 'mwendanicollins@gmail.com' }
+0|netpulse | 2026-07-25 14:04:24: 2026-07-25T11:04:24.395Z ERROR [Better Auth]: User not found { email: 'njerumonica44@gmail.com' }
+0|netpulse | 2026-07-25 14:04:27: 2026-07-25T11:04:27.377Z ERROR [Better Auth]: User not found { email: 'njerumonica44@gmail.com' }
+0|netpulse | 2026-07-25 14:09:40: 2026-07-25T11:09:40.193Z ERROR [Better Auth]: User not found { email: 'kamiiswabby@gmail.com' }
+0|netpulse | 2026-07-25 14:10:15: 2026-07-25T11:10:15.665Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:11:23: 2026-07-25T11:11:23.022Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:11:30: 2026-07-25T11:11:30.836Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:11:34: 2026-07-25T11:11:34.495Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:12:49: 2026-07-25T11:12:49.794Z ERROR [Better Auth]: User not found { email: 'njukiivy4@gmail.com' }
+0|netpulse | 2026-07-25 14:12:58: 2026-07-25T11:12:58.422Z ERROR [Better Auth]: User not found { email: 'njukiivy4@gmail.com' }
+0|netpulse | 2026-07-25 14:18:19: 2026-07-25T11:18:19.340Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:18:33: 2026-07-25T11:18:33.329Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:18:36: 2026-07-25T11:18:36.727Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:19:34: 2026-07-25T11:19:34.990Z ERROR [Better Auth]: User not found { email: 'mwalimu@myisp.co.ke' }
+0|netpulse | 2026-07-25 14:19:47: 2026-07-25T11:19:47.633Z ERROR [Better Auth]: User not found { email: 'mwalimu@myisp.co.ke' }
+0|netpulse | 2026-07-25 14:19:55: 2026-07-25T11:19:55.043Z ERROR [Better Auth]: User not found { email: 'mwalimu@myisp.co.ke' }
+0|netpulse | 2026-07-25 14:20:01: 2026-07-25T11:20:01.661Z ERROR [Better Auth]: User not found { email: 'mwalimu@myisp.co.ke' }
+0|netpulse | 2026-07-25 14:22:45: 2026-07-25T11:22:45.323Z ERROR [Better Auth]: User not found { email: 'samuelmurith050@gmail.com' }
+0|netpulse | 2026-07-25 14:23:24: 2026-07-25T11:23:24.100Z ERROR [Better Auth]: User not found { email: 'samuelmurith05s0@gmail.com' }
+0|netpulse | 2026-07-25 14:24:37: 2026-07-25T11:24:37.638Z ERROR [Better Auth]: User not found { email: 'karimiefridah@gmail.com' }
+0|netpulse | 2026-07-25 14:25:13: 2026-07-25T11:25:13.199Z ERROR [Better Auth]: User not found { email: 'simonkithu2@gmail.com' }
+0|netpulse | 2026-07-25 14:25:47: 2026-07-25T11:25:47.012Z ERROR [Better Auth]: User not found { email: 'paulinemwende362@gmail.com' }
+0|netpulse | 2026-07-25 14:26:17: 2026-07-25T11:26:17.531Z ERROR [Better Auth]: User not found { email: 'simonkithu2@gmail.com' }
+0|netpulse | 2026-07-25 14:34:59: 2026-07-25T11:34:59.429Z ERROR [Better Auth]: User not found { email: 'njagigerald256@gmail.com' }
+0|netpulse | 2026-07-25 14:35:06: 2026-07-25T11:35:06.609Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:35:35: 2026-07-25T11:35:35.083Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:35:35: 2026-07-25T11:35:35.605Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:37:03: 2026-07-25T11:37:03.724Z ERROR [Better Auth]: User not found { email: 'anold9390@gmail.com' }
+0|netpulse | 2026-07-25 14:38:23: 2026-07-25T11:38:23.004Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:40:58: 2026-07-25T11:40:58.093Z ERROR [Better Auth]: User not found { email: 'jmunyi453@gmail.com' }
+0|netpulse | 2026-07-25 14:41:24: 2026-07-25T11:41:24.835Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:41:34: 2026-07-25T11:41:34.113Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:41:42: 2026-07-25T11:41:42.449Z ERROR [Better Auth]: User not found { email: 'wycliff4@gmail.com' }
+0|netpulse | 2026-07-25 14:42:35: 2026-07-25T11:42:35.594Z ERROR [Better Auth]: User not found { email: 'njagigerald256@gmail.com' }
+0|netpulse | 2026-07-25 14:42:56: 2026-07-25T11:42:56.765Z ERROR [Better Auth]: User not found { email: 'njagigerald256@gmail.com' }
+0|netpulse | 2026-07-25 14:43:54: 2026-07-25T11:43:54.982Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:43:55: 2026-07-25T11:43:55.393Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:43:55: 2026-07-25T11:43:55.993Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:44:53: 2026-07-25T11:44:53.886Z ERROR [Better Auth]: User not found { email: 'njokicaroline164@gmail.com' }
+0|netpulse | 2026-07-25 14:44:58: 2026-07-25T11:44:58.694Z ERROR [Better Auth]: User not found { email: 'k55461264@gmail.com' }
+0|netpulse | 2026-07-25 14:45:00: 2026-07-25T11:45:00.383Z ERROR [Better Auth]: User not found { email: 'k55461264@gmail.com' }
+0|netpulse | 2026-07-25 14:45:19: 2026-07-25T11:45:19.018Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:45:21: 2026-07-25T11:45:21.668Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:45:23: 2026-07-25T11:45:23.257Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:46:32: 2026-07-25T11:46:32.728Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:46:49: 2026-07-25T11:46:49.042Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:46:49: 2026-07-25T11:46:49.724Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:47:06: 2026-07-25T11:47:06.044Z ERROR [Better Auth]: User not found { email: 'mwendakingsley0@gmail.com' }
+0|netpulse | 2026-07-25 14:48:40: 2026-07-25T11:48:40.164Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:48:45: 2026-07-25T11:48:45.578Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:49:11: 2026-07-25T11:49:11.210Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:53:54: 2026-07-25T11:53:54.561Z ERROR [Better Auth]: User not found { email: 'njukiivy4@gmail.com' }
+0|netpulse | 2026-07-25 15:11:38: 2026-07-25T12:11:38.578Z ERROR [Better Auth]: Invalid redirectURL: http://captive.apple.com/reset-password
+0|netpulse | 2026-07-25 15:11:46: 2026-07-25T12:11:46.459Z ERROR [Better Auth]: Invalid redirectURL: http://captive.apple.com/reset-password
+0|netpulse | 2026-07-25 15:11:49: 2026-07-25T12:11:49.058Z ERROR [Better Auth]: Invalid redirectURL: http://captive.apple.com/reset-password
+0|netpulse | 2026-08-09 01:00:07: 2026-08-08T22:00:07.278Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-09 01:00:19: 2026-08-08T22:00:19.991Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-09 01:00:27: 2026-08-08T22:00:27.324Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-09 01:00:28: 2026-08-08T22:00:28.556Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:16:53: 2026-08-15T16:16:53.358Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:17:30: 2026-08-15T16:17:30.124Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:17:33: 2026-08-15T16:17:33.731Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:17:49: 2026-08-15T16:17:49.205Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:34:06: 2026-08-15T16:34:06.645Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:34:07: 2026-08-15T16:34:07.285Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:34:34: 2026-08-15T16:34:34.654Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:34:46: 2026-08-15T16:34:46.937Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:35:12: 2026-08-15T16:35:12.931Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:35:14: 2026-08-15T16:35:14.704Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:35:16: 2026-08-15T16:35:16.002Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 20:01:46: 2026-08-15T17:01:46.448Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-23 17:13:32: 2026-08-23T14:13:32.413Z WARN [Better Auth]: Rate limiting skipped: could not determine client IP address. Ensure your runtime forwards a trusted client IP header and configure `advanced.ipAddress.ipAddressHeaders` if needed.
+0|netpulse | 2026-08-23 18:34:41: 2026-08-23T15:34:41.953Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-23 18:34:53: 2026-08-23T15:34:53.727Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-23 18:35:01: 2026-08-23T15:35:01.082Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-23 18:35:02: 2026-08-23T15:35:02.447Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-25 00:18:11: fatal: could not read Username for 'https://github.com': No such device or address
+0|netpulse | 2026-08-25 09:16:02: fatal: could not read Username for 'https://github.com': No such device or address
+0|netpulse | 2026-08-25 09:16:18: fatal: could not read Username for 'https://github.com': No such device or address
+0|netpulse | 2026-08-25 16:51:06: 2026-08-25T13:51:06.547Z ERROR [Better Auth]: Invalid password
+

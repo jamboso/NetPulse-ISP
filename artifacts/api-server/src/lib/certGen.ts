@@ -147,12 +147,13 @@ export function generateOpenVpnServerConf(opts: {
   serverCert: string;
   serverKey: string;
 }): string {
-  return `# NetPulse OpenVPN Server Configuration
+  return `# Managed by NetPulse: RouterOS management VPN
+# NetPulse OpenVPN Server Configuration
 # Save to: /etc/openvpn/server/netpulse.conf
 # Start:   systemctl enable --now openvpn-server@netpulse
 
 port ${opts.port}
-proto ${opts.protocol}
+proto tcp-server
 dev tun
 
 # Certificates (inline — no external files needed)
@@ -171,10 +172,8 @@ dh none
 ecdh-curve prime256v1
 
 server ${opts.subnet} ${opts.subnetMask}
-ifconfig-pool-persist /var/log/openvpn/ipp.txt
-
-push "route ${opts.subnet} ${opts.subnetMask}"
-push "dhcp-option DNS ${opts.dns}"
+ifconfig-pool-persist /var/log/openvpn/netpulse-ipp.txt
+writepid /run/openvpn/netpulse-routeros.pid
 
 client-to-client
 keepalive 10 120
@@ -189,8 +188,8 @@ tls-version-min 1.2
 persist-key
 persist-tun
 
-status /var/log/openvpn/status.log
-log-append /var/log/openvpn/server.log
+status /var/log/openvpn/netpulse-status.log
+log-append /var/log/openvpn/netpulse-server.log
 verb 3
 
 # Enable management interface for status queries

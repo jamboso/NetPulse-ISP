@@ -103,10 +103,20 @@ type ProvisionInfo = {
   lastCallbackAt: string | null;
 };
 
-function RouterProvisionPanel({ routerId, routerName }: { routerId: number; routerName: string }) {
+type VpnRepairResult = {
+  success: boolean;
+  state: "healthy" | "repaired" | "blocked" | "failed" | "unavailable";
+  message: string;
+  events: string[];
+};
+
+export function RouterProvisionPanel({ routerId, routerName }: { routerId: number; routerName: string }) {
+  const { isOwner } = useCurrentUser();
   const [info, setInfo] = useState<ProvisionInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [reprovisioning, setReprovisioning] = useState(false);
+  const [repairing, setRepairing] = useState(false);
+  const [repairResult, setRepairResult] = useState<VpnRepairResult | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -133,6 +143,35 @@ function RouterProvisionPanel({ routerId, routerName }: { routerId: number; rout
       await load();
     } finally {
       setReprovisioning(false);
+    }
+  };
+
+  const repairVpnService = async () => {
+    if (!confirm("Repair the central NetPulse VPN service? This may briefly reconnect VPN clients, but it will not change this router, Tabana-VPN, RADIUS, or customer traffic.")) return;
+    setRepairing(true);
+    setRepairResult(null);
+    try {
+      const response = await fetch("/api/infrastructure/vpn/repair-service", {
+        method: "POST",
+        credentials: "include",
+      });
+      const payload = await response.json().catch(() => null);
+      setRepairResult(payload ?? {
+        success: false,
+        state: "failed",
+        message: "The VPN repair service returned an unreadable response.",
+        events: [],
+      });
+      if (response.ok) await load();
+    } catch {
+      setRepairResult({
+        success: false,
+        state: "failed",
+        message: "Could not reach the VPN repair service.",
+        events: [],
+      });
+    } finally {
+      setRepairing(false);
     }
   };
 
@@ -192,8 +231,42 @@ function RouterProvisionPanel({ routerId, routerName }: { routerId: number; rout
             {reprovisioning ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
             Reprovision
           </Button>
+          {isOwner && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs border-amber-300 text-amber-800 hover:bg-amber-100 gap-1"
+              onClick={repairVpnService}
+              disabled={repairing}
+              title="Repair the central NetPulse OpenVPN service; this never changes the router itself"
+            >
+              {repairing ? <Loader2 className="w-3 h-3 animate-spin" /> : <WrenchIcon className="w-3 h-3" />}
+              Repair VPN Service
+            </Button>
+          )}
         </div>
       </div>
+
+      {repairResult && (
+        <div className={`rounded-lg border px-4 py-3 text-xs ${repairResult.success ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+          <p className="font-semibold">{repairResult.message}</p>
+          {repairResult.events.length > 0 && (
+            <details className="mt-2">
+              <summary className="cursor-pointer font-medium">Repair details</summary>
+              <ul className="mt-1 list-disc space-y-1 pl-4 font-mono text-[11px]">
+                {repairResult.events.map((event, index) => <li key={`${event}-${index}`}>{event}</li>)}
+              </ul>
+            </details>
+          )}
+          {!repairResult.success && (
+            <div className="mt-2 rounded border border-amber-200 bg-white/70 px-2 py-1.5 text-[11px]">
+              {repairResult.message.includes("Dedicated NetPulse VPN configuration")
+                ? <>This server still uses the legacy generic VPN instance. After verifying that it is NetPulse—not Tabana-VPN—run <code className="font-mono">sudo bash /opt/netpulse/deploy/migrate-legacy-routeros-vpn.sh --confirm-legacy-netpulse-vpn</code> over SSH once.</>
+                : <>Portal unavailable? Run <code className="font-mono">sudo /usr/local/bin/netpulse-vpn-repair</code> over SSH, then check <code className="font-mono">journalctl -u openvpn-server@netpulse -n 50</code>.</>}
+            </div>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <Skeleton className="h-20 w-full" />

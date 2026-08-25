@@ -34,6 +34,31 @@ ok()   { echo -e "  ${GREEN}✓${NC}  $*"; }
 info() { echo -e "  ${CYAN}→${NC}  $*"; }
 warn() { echo -e "  ${YELLOW}⚠${NC}  $*"; }
 
+lock_release_control_files() {
+  chown -R root:root "$APP_DIR/.git" "$APP_DIR/deploy"
+  find "$APP_DIR/.git" "$APP_DIR/deploy" -type d -exec chmod 755 {} +
+  find "$APP_DIR/.git" "$APP_DIR/deploy" -type f -exec chmod go-w {} +
+}
+
+install_vpn_repair_helper() {
+  local helper="$APP_DIR/deploy/repair-openvpn.sh"
+  local app_user="${NETPULSE_PM2_USER:-root}"
+  [[ -f "$helper" ]] || die "VPN repair helper is missing from the verified release."
+  [[ "$app_user" =~ ^[a-z_][a-z0-9_-]*$ ]] || die "Configured PM2 user is invalid."
+  [[ "$(stat -c '%U:%a' "$APP_DIR/deploy")" == "root:755" ]] \
+    || die "Deployment scripts are not root-owned; refusing to install a privileged helper."
+  [[ "$(stat -c '%U' "$helper")" == "root" ]] \
+    || die "VPN repair helper source is not root-owned."
+
+  install -o root -g root -m 0755 "$helper" /usr/local/bin/.netpulse-vpn-repair.new
+  mv -f /usr/local/bin/.netpulse-vpn-repair.new /usr/local/bin/netpulse-vpn-repair
+  printf '%s ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke, /usr/local/bin/netpulse-vpn-repair\n' "$app_user" \
+    > /etc/sudoers.d/netpulse-vpn
+  chmod 440 /etc/sudoers.d/netpulse-vpn
+  visudo -cf /etc/sudoers.d/netpulse-vpn >/dev/null || die "VPN helper sudo rule is invalid."
+  ok "Root-owned VPN repair helper refreshed"
+}
+
 json_escape() {
   local value="$1"
   value="${value//\\/\\\\}"
@@ -141,6 +166,7 @@ else
   CURRENT_PHASE="updating"
   write_status "updating" "$CURRENT_PHASE" "Fast-forwarding the verified production branch."
   git merge --ff-only "$TARGET_COMMIT"
+  lock_release_control_files
   ok "Updated $(git rev-parse --short "$PREVIOUS_COMMIT") → $(git rev-parse --short "$TARGET_COMMIT")"
 fi
 
@@ -161,6 +187,7 @@ pnpm run typecheck:libs
 pnpm --filter @workspace/api-server run build
 PORT=3000 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/isp-portal run build
 ok "Release built successfully"
+install_vpn_repair_helper
 
 CURRENT_PHASE="migrating"
 write_status "migrating" "$CURRENT_PHASE" "Applying outstanding recorded database migrations."

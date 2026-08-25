@@ -8,6 +8,7 @@ const mockGenerateClientCert = vi.hoisted(() => vi.fn());
 const mockGenerateServerConf = vi.hoisted(() => vi.fn());
 const mockGenerateRosScript = vi.hoisted(() => vi.fn());
 const mockLoadInstalledOpenVpnCertificates = vi.hoisted(() => vi.fn());
+const mockRepairOpenVpnService = vi.hoisted(() => vi.fn());
 
 vi.mock("@workspace/db", () => {
   const chain: Record<string, unknown> = {};
@@ -35,6 +36,9 @@ vi.mock("../lib/certGen.js", () => ({
 }));
 vi.mock("../lib/systemVpnCerts.js", () => ({
   loadInstalledOpenVpnCertificates: mockLoadInstalledOpenVpnCertificates,
+}));
+vi.mock("../lib/openVpnRepair.js", () => ({
+  repairOpenVpnService: mockRepairOpenVpnService,
 }));
 
 const { default: infrastructureRouter } = await import("../routes/infrastructure.js");
@@ -131,6 +135,16 @@ describe("infrastructure write operations", () => {
     expect(response.body).toEqual({ success: true });
   });
 
+  it("rejects a non-TCP management VPN configuration before it can mismatch RouterOS", async () => {
+    const response = await request(buildApp())
+      .post("/infrastructure/vpn/config")
+      .send({ serverPublicIp: "vpn.example.test", vpnPort: 443, vpnProtocol: "udp" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("TCP only");
+    expect(mockExec).not.toHaveBeenCalled();
+  });
+
   it("requires a VPN configuration before generating certificates", async () => {
     mockExec.mockResolvedValueOnce([]);
 
@@ -175,6 +189,46 @@ describe("infrastructure write operations", () => {
 
     expect(response.status).toBe(403);
     expect(mockLoadInstalledOpenVpnCertificates).not.toHaveBeenCalled();
+  });
+
+  it("repairs the NetPulse VPN service for an owner and returns its safe status", async () => {
+    mockRepairOpenVpnService.mockResolvedValueOnce({
+      success: true,
+      state: "repaired",
+      message: "NetPulse VPN service is ready for RouterOS onboarding.",
+      events: ["Stopping stale NetPulse OpenVPN listener PID 1404."],
+    });
+
+    const response = await request(buildApp()).post("/infrastructure/vpn/repair-service");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(expect.objectContaining({
+      success: true,
+      state: "repaired",
+      events: ["Stopping stale NetPulse OpenVPN listener PID 1404."],
+    }));
+    expect(mockRepairOpenVpnService).toHaveBeenCalledOnce();
+  });
+
+  it("does not expose the VPN repair action to non-owners", async () => {
+    const response = await request(buildApp("admin")).post("/infrastructure/vpn/repair-service");
+
+    expect(response.status).toBe(403);
+    expect(mockRepairOpenVpnService).not.toHaveBeenCalled();
+  });
+
+  it("returns an actionable service-unavailable result when the helper is missing", async () => {
+    mockRepairOpenVpnService.mockResolvedValueOnce({
+      success: false,
+      state: "unavailable",
+      message: "The NetPulse VPN repair helper is not installed or not authorized on this server.",
+      events: [],
+    });
+
+    const response = await request(buildApp()).post("/infrastructure/vpn/repair-service");
+
+    expect(response.status).toBe(503);
+    expect(response.body.message).toContain("not installed");
   });
 
   it("revokes a router client certificate", async () => {

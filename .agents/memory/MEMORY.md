@@ -19,6 +19,7 @@
 - [OpenVPN protocol alignment](openvpn-protocol-alignment.md) — MikroTik client and deployed server must agree on TCP/UDP before issuing router profiles.
 - [OpenVPN stale listener recovery](openvpn-stale-listener.md) — an orphaned OpenVPN process can retain TCP 1194 while systemd enters a bind-failure restart loop.
 - [OpenVPN certificate authority synchronization](openvpn-certificate-authority-sync.md) — router certs must share the CA the running OpenVPN service trusts; sync before reprovisioning legacy installs.
+- [Dedicated RouterOS VPN boundary](dedicated-routeros-vpn-boundary.md) — only a marked, dedicated NetPulse OpenVPN instance may be repaired; generic services need explicit migration.
 - [Notification settings encryption](notification-settings-encryption.md) — legacy notification values must encrypt before API traffic is accepted; a failed migration is fail-closed.
 - [Playwright Chromium on Nix](playwright-chromium-nix.md) — downloaded Playwright browsers still need their shared-library runtime declared for this Replit environment.
 - [Better Auth password-change hooks](better-auth-password-change-hooks.md) — after hooks receive API errors via `body.code`; return a concrete Response to replace an endpoint’s status.

@@ -7,6 +7,7 @@ import {
 import { generateVpnServerCerts, generateClientCert, generateOpenVpnServerConf, generateRosScript } from "../lib/certGen";
 import { requireRole } from "../middlewares/requireRole";
 import { loadInstalledOpenVpnCertificates } from "../lib/systemVpnCerts";
+import { repairOpenVpnService } from "../lib/openVpnRepair";
 
 const router = Router();
 
@@ -185,12 +186,19 @@ router.get("/infrastructure/vpn/config", async (req, res) => {
 router.post("/infrastructure/vpn/config", async (req, res) => {
   try {
     const { serverPublicIp, vpnPort, vpnProtocol, vpnSubnet, vpnSubnetMask, vpnDns } = req.body as Record<string, string | number>;
+    const port = Number(vpnPort ?? 1194);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      return res.status(400).json({ error: "VPN port must be between 1 and 65535." });
+    }
+    if (String(vpnProtocol ?? "tcp").toLowerCase() !== "tcp") {
+      return res.status(400).json({ error: "RouterOS management VPN supports TCP only." });
+    }
 
     const existing = await db.select().from(vpnConfigTable).limit(1);
     const data = {
       serverPublicIp: String(serverPublicIp ?? ""),
-      vpnPort: Number(vpnPort ?? 1194),
-      vpnProtocol: String(vpnProtocol ?? "tcp"),
+      vpnPort: port,
+      vpnProtocol: "tcp",
       vpnSubnet: String(vpnSubnet ?? "10.8.0.0"),
       vpnSubnetMask: String(vpnSubnetMask ?? "255.255.255.0"),
       vpnDns: String(vpnDns ?? "8.8.8.8"),
@@ -275,6 +283,23 @@ router.post("/infrastructure/vpn/sync-installed-certs", requireRole("owner"), as
       error: "Could not sync the installed OpenVPN certificates. Confirm OpenVPN was installed with NetPulse's deployment script.",
     });
   }
+});
+
+// ── POST /api/infrastructure/vpn/repair-service ───────────────────────────────
+// The root-owned helper only handles NetPulse's exact OpenVPN service/config.
+// This stays owner-only because it can restart a shared system service.
+router.post("/infrastructure/vpn/repair-service", requireRole("owner"), async (req, res) => {
+  const result = await repairOpenVpnService();
+  req.log.info(
+    { state: result.state, success: result.success, eventCount: result.events.length },
+    "OpenVPN repair helper completed",
+  );
+
+  if (result.success) {
+    return res.json(result);
+  }
+
+  return res.status(result.state === "unavailable" ? 503 : 409).json(result);
 });
 
 // ── GET /api/infrastructure/vpn/server-conf ─────────────────────────────────

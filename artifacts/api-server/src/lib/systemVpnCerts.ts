@@ -2,10 +2,10 @@ import { createPrivateKey, X509Certificate } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 export const INSTALLED_OPENVPN_CERTIFICATE_PATHS = {
-  caCert: "/etc/openvpn/ca.crt",
-  caKey: "/etc/openvpn/easy-rsa/pki/private/ca.key",
-  serverCert: "/etc/openvpn/server.crt",
-  serverKey: "/etc/openvpn/server.key",
+  caCert: "/etc/openvpn/netpulse/ca.crt",
+  caKey: "/etc/openvpn/netpulse-easy-rsa/pki/private/ca.key",
+  serverCert: "/etc/openvpn/netpulse/server.crt",
+  serverKey: "/etc/openvpn/netpulse/server.key",
 } as const;
 
 export interface InstalledOpenVpnCertificates {

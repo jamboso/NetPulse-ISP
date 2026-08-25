@@ -3,7 +3,7 @@
 # ║  NetPulse ISP Manager — Enable OpenVPN (post-install)                        ║
 # ║                                                                              ║
 # ║  Run this if you skipped OpenVPN during initial setup.                       ║
-# ║  Sets up a full PKI, OpenVPN server on UDP 1194, and wires the               ║
+# ║  Sets up a full PKI, OpenVPN server on TCP 1194, and wires the               ║
 # ║  cert-issue/revoke helpers used by the NetPulse dashboard.                   ║
 # ║                                                                              ║
 # ║  Usage: sudo bash /opt/netpulse/deploy/enable-vpn.sh                         ║
@@ -11,8 +11,10 @@
 set -euo pipefail
 
 APP_DIR="${NETPULSE_DIR:-/opt/netpulse}"
-EASYRSA_DIR="/etc/openvpn/easy-rsa"
-OVPN_DIR="/etc/openvpn"
+EASYRSA_DIR="/etc/openvpn/netpulse-easy-rsa"
+OVPN_DIR="/etc/openvpn/netpulse"
+CONFIG_DIR="/etc/openvpn/server"
+CONFIG_FILE="${CONFIG_DIR}/netpulse.conf"
 
 BOLD='\033[1m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 ok()   { echo -e "  ${GREEN}✓${NC}  $*"; }
@@ -21,6 +23,10 @@ warn() { echo -e "  ${YELLOW}⚠${NC}  $*"; }
 die()  { echo -e "  ${RED}✗  $*${NC}"; exit 1; }
 
 [[ $EUID -ne 0 ]] && die "Run as root: sudo bash $0"
+[[ "$(stat -c '%U:%a' "$APP_DIR/deploy" 2>/dev/null || true)" == "root:755" ]] \
+  || die "NetPulse deployment scripts are not root-owned. Run the verified production updater before enabling VPN."
+[[ "$(stat -c '%U' "$APP_DIR/deploy/repair-openvpn.sh" 2>/dev/null || true)" == "root" ]] \
+  || die "VPN repair helper source is not root-owned."
 
 echo ""
 echo -e "${BOLD}NetPulse — Enable OpenVPN — $(date '+%Y-%m-%d %H:%M:%S')${NC}"
@@ -34,7 +40,7 @@ apt-get install -y -qq openvpn easy-rsa
 ok "Packages installed"
 
 # ── 2. Initialise PKI (skip if already done) ──────────────────────────────────
-mkdir -p /var/log/openvpn
+mkdir -p /var/log/openvpn "$OVPN_DIR" "$CONFIG_DIR"
 
 if [[ ! -d "${EASYRSA_DIR}/pki" ]]; then
   info "Initialising PKI — CA, server cert, DH params (~2 min)..."
@@ -70,7 +76,7 @@ else
   info "PKI already exists — skipping init"
 fi
 
-# ── 3. Copy PKI files into /etc/openvpn ───────────────────────────────────────
+# ── 3. Copy PKI files into NetPulse's dedicated directory ─────────────────────
 cp -f "${EASYRSA_DIR}/pki/ca.crt"             "$OVPN_DIR/ca.crt"
 cp -f "${EASYRSA_DIR}/pki/issued/server.crt"  "$OVPN_DIR/server.crt"
 cp -f "${EASYRSA_DIR}/pki/private/server.key" "$OVPN_DIR/server.key"
@@ -79,24 +85,26 @@ mkdir -p "${OVPN_DIR}/ccd"
 ok "PKI files copied"
 
 # ── 4. Write server config ────────────────────────────────────────────────────
-if [[ ! -f "${OVPN_DIR}/server.conf" ]]; then
-  cat > "${OVPN_DIR}/server.conf" <<OVPN_CONF
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  cat > "$CONFIG_FILE" <<OVPN_CONF
+# Managed by NetPulse: RouterOS management VPN
 port 1194
 # RouterOS v6 OpenVPN clients support TCP only.
 proto tcp-server
 dev tun
 
-ca   /etc/openvpn/ca.crt
-cert /etc/openvpn/server.crt
-key  /etc/openvpn/server.key
-dh   /etc/openvpn/dh.pem
+ca   ${OVPN_DIR}/ca.crt
+cert ${OVPN_DIR}/server.crt
+key  ${OVPN_DIR}/server.key
+dh   ${OVPN_DIR}/dh.pem
 # RouterOS v6 clients cannot present a tls-auth static key.
 # Client certificates remain required for every connection.
 
 server 10.8.0.0 255.255.255.0
-ifconfig-pool-persist /var/log/openvpn/ipp.txt
-client-config-dir /etc/openvpn/ccd
-crl-verify /etc/openvpn/crl.pem
+ifconfig-pool-persist /var/log/openvpn/netpulse-ipp.txt
+client-config-dir ${OVPN_DIR}/ccd
+crl-verify ${OVPN_DIR}/crl.pem
+writepid /run/openvpn/netpulse-routeros.pid
 
 keepalive 10 120
 # RouterOS 6.49 supports only CBC ciphers and SHA1 for OpenVPN.
@@ -111,13 +119,15 @@ group nogroup
 persist-key
 persist-tun
 
-status /var/log/openvpn/status.log 60
-log    /var/log/openvpn/openvpn.log
+status /var/log/openvpn/netpulse-status.log 60
+log    /var/log/openvpn/netpulse-server.log
 verb 3
 OVPN_CONF
-  ok "server.conf written"
+  ok "Dedicated NetPulse server config written"
+elif ! grep -Fxq "# Managed by NetPulse: RouterOS management VPN" "$CONFIG_FILE"; then
+  die "Refusing to use unmarked $CONFIG_FILE. It may belong to another OpenVPN deployment."
 else
-  info "server.conf already exists — skipping"
+  info "Dedicated NetPulse server config already exists — skipping"
 fi
 
 # ── 5. Initial CRL ────────────────────────────────────────────────────────────
@@ -136,15 +146,18 @@ sysctl -p --quiet
 ok "IP forwarding enabled"
 
 # ── 7. Start OpenVPN ──────────────────────────────────────────────────────────
-systemctl enable openvpn@server --quiet
-if systemctl restart openvpn@server 2>/tmp/ovpn_start.err; then
+systemctl enable openvpn-server@netpulse --quiet
+if systemctl restart openvpn-server@netpulse 2>/tmp/ovpn_start.err; then
   ok "OpenVPN server running on TCP 1194"
 else
-  warn "OpenVPN failed to start — check: journalctl -u openvpn@server"
+  warn "OpenVPN failed to start — check: journalctl -u openvpn-server@netpulse"
   head -10 /tmp/ovpn_start.err >&2 || true
 fi
 
-# ── 8. Write cert-issue helper ────────────────────────────────────────────────
+# ── 8. Write VPN helpers ──────────────────────────────────────────────────────
+install -o root -g root -m 0755 "$APP_DIR/deploy/repair-openvpn.sh" /usr/local/bin/netpulse-vpn-repair
+ok "netpulse-vpn-repair helper installed"
+
 cat > /usr/local/bin/netpulse-vpn-issue <<'VPN_ISSUE'
 #!/usr/bin/env bash
 # Usage: netpulse-vpn-issue <common-name>
@@ -154,8 +167,8 @@ set -euo pipefail
 CN="${1:-}"
 [[ "$CN" =~ ^[a-zA-Z0-9_.-]{2,64}$ ]] || { echo "Invalid CN: $CN" >&2; exit 1; }
 
-EASYRSA_DIR="/etc/openvpn/easy-rsa"
-OVPN_DIR="/etc/openvpn"
+EASYRSA_DIR="/etc/openvpn/netpulse-easy-rsa"
+OVPN_DIR="/etc/openvpn/netpulse"
 
 cd "$EASYRSA_DIR"
 ./easyrsa gen-req   "$CN" nopass 2>/dev/null
@@ -205,13 +218,13 @@ set -euo pipefail
 CN="${1:-}"
 [[ "$CN" =~ ^[a-zA-Z0-9_.-]{2,64}$ ]] || { echo "Invalid CN: $CN" >&2; exit 1; }
 
-EASYRSA_DIR="/etc/openvpn/easy-rsa"
+EASYRSA_DIR="/etc/openvpn/netpulse-easy-rsa"
 cd "$EASYRSA_DIR"
 ./easyrsa revoke "$CN" 2>/dev/null
 ./easyrsa gen-crl       2>/dev/null
-cp -f "${EASYRSA_DIR}/pki/crl.pem" /etc/openvpn/crl.pem
-chmod 644 /etc/openvpn/crl.pem
-systemctl reload openvpn@server
+cp -f "${EASYRSA_DIR}/pki/crl.pem" /etc/openvpn/netpulse/crl.pem
+chmod 644 /etc/openvpn/netpulse/crl.pem
+systemctl reload openvpn-server@netpulse
 echo "Revoked $CN and reloaded CRL"
 VPN_REVOKE
 chmod 755 /usr/local/bin/netpulse-vpn-revoke
@@ -219,15 +232,16 @@ ok "netpulse-vpn-revoke helper installed"
 
 # ── 10. Sudoers rule (API runs as non-root, helpers need root) ────────────────
 REAL_USER="${SUDO_USER:-$(logname 2>/dev/null || echo root)}"
-echo "${REAL_USER} ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke" \
+echo "${REAL_USER} ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke, /usr/local/bin/netpulse-vpn-repair" \
   > /etc/sudoers.d/netpulse-vpn
 chmod 440 /etc/sudoers.d/netpulse-vpn
+visudo -cf /etc/sudoers.d/netpulse-vpn >/dev/null || die "Could not validate the NetPulse VPN sudo rule."
 ok "Sudoers rule written for ${REAL_USER}"
 
 # ── 11. Open firewall port ────────────────────────────────────────────────────
 if command -v ufw &>/dev/null; then
-  ufw allow 1194/udp comment "OpenVPN" >/dev/null 2>&1 || true
-  ok "Firewall: UDP 1194 open"
+  ufw allow 1194/tcp comment "OpenVPN" >/dev/null 2>&1 || true
+  ok "Firewall: TCP 1194 open"
 fi
 
 # ── 12. Enable in .env and restart app ───────────────────────────────────────
@@ -254,8 +268,8 @@ echo -e "  ${CYAN}1.${NC} Go to NetPulse → Customer detail page → VPN tab"
 echo -e "  ${CYAN}2.${NC} Click 'Issue VPN Config' — downloads a .ovpn file and a .rsc script"
 echo -e "  ${CYAN}3.${NC} On your MikroTik: open Terminal and import the .rsc file"
 echo -e "       /import file=netpulse-vpn-router-<id>.rsc"
-echo -e "  ${CYAN}4.${NC} The router will connect to this server on UDP 1194 automatically"
+echo -e "  ${CYAN}4.${NC} The router will connect to this server on TCP 1194 automatically"
 echo ""
 echo -e "  Server VPN subnet: ${CYAN}10.8.0.0/24${NC}  (routers get IPs in this range)"
-echo -e "  OpenVPN log:       ${CYAN}sudo journalctl -u openvpn@server -f${NC}"
+echo -e "  OpenVPN log:       ${CYAN}sudo journalctl -u openvpn-server@netpulse -f${NC}"
 echo ""

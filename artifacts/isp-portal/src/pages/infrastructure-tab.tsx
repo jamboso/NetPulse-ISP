@@ -497,21 +497,9 @@ radtest testuser testpass localhost 0 ${f("radiusSecret") || "your-secret"}`} />
               className="text-sm"
             />
           </Field>
-          <Field label="Protocol" hint="TCP is more reliable through NAT; UDP is faster">
-            <div className="flex gap-2">
-              {["tcp", "udp"].map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setVpnForm((v) => ({ ...v, vpnProtocol: p }))}
-                  className={`flex-1 py-1.5 rounded text-sm font-medium border transition-colors ${
-                    vpnForm.vpnProtocol === p
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white text-gray-700 border-gray-300 hover:border-blue-400"
-                  }`}
-                >
-                  {p.toUpperCase()}
-                </button>
-              ))}
+          <Field label="Protocol" hint="TCP is required for RouterOS 6.49 and RouterOS 7 management tunnels.">
+            <div className="rounded border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800">
+              TCP
             </div>
           </Field>
           <Field label="VPN Subnet" hint="Private subnet assigned to VPN clients (e.g. 10.8.0.0)">

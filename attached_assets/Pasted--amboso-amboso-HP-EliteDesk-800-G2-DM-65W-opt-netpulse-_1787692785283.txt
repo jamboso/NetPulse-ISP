@@ -1,0 +1,34 @@
+
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$ sudo systemctl disable --now netpulse-api 2>/dev/null || true
+
+sudo -u amboso -H pm2 restart netpulse --update-env
+
+sleep 5
+
+echo '--- PM2 status ---'
+sudo -u amboso -H pm2 status
+
+echo '--- port owner ---'
+sudo ss -ltnp | grep ':8080' || true
+
+echo '--- health check ---'
+curl -fsS http://127.0.0.1:8080/api/healthz
+echo
+[PM2] Applying action restartProcessId on app [netpulse](ids: [ 0 ])
+[PM2] [netpulse](0) ✓
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 26114    │ 0s     │ 28   │ online    │ 0%       │ 14.7mb   │ amboso   │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+--- PM2 status ---
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 26129    │ 0      │ 29   │ ▒▒ │ 0%       │ 0b       │ amboso   │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+--- port owner ---
+LISTEN 0      511                *:8080            *:*    users:(("node /opt/netpu",pid=25789,fd=22))                                                        
+--- health check ---
+{"status":"ok"}

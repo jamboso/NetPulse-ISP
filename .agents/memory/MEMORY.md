@@ -29,3 +29,4 @@
 - [Owner tenant workspace scope](owner-tenant-workspace-scope.md) — owner-operated tenant tools require explicit company selection; never infer a fallback tenant.
 - [Ubuntu firewall persistence](netfilter-persistent-firewall.md) — this control plane uses iptables-nft with netfilter-persistent; UFW is absent and INPUT policy is ACCEPT.
 - [GenieACS firewall transactions](genieacs-firewall-transactions.md) — CWMP changes must retain staged source restrictions and rollback snapshots through full install validation.
+- [Production migration ownership](production-migration-ownership.md) — fresh baseline tables must be owned by the application role used by release migrations.

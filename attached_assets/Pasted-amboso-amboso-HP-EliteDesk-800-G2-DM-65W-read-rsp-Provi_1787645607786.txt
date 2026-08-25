@@ -1,0 +1,59 @@
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ read -rsp "Provision token: " TOKEN
+echo
+
+curl -fsS --get \
+  --data-urlencode "ver=7.24" \
+  "http://127.0.0.1:8080/api/provision/${9fc3b03d-17e0-4762-9aa4-fdeeeb1016fd
+}/setup.rsc" \
+  | grep -E 'RouterOS:|OVPN cipher:|cipher='
+
+unset TOKEN
+Provision token:
+-bash: http://127.0.0.1:8080/api/provision/${9fc3b03d-17e0-4762-9aa4-fdeeeb1016fd
+}/setup.rsc: bad substitution
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ read -rsp "Provision token: " TOKEN
+echo
+
+curl -fsS --get \
+  --data-urlencode "ver=7.24" \
+  "http://127.0.0.1:8080/api/provision/${TOKEN}/setup.rsc" \
+  | grep -E 'RouterOS:|OVPN cipher:|cipher='
+
+unset TOKEN
+Provision token:
+    cipher=aes128 \
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ grep -o 'aes128-cbc' /opt/netpulse/artifacts/api-server/dist/index.mjs | head
+grep -o 'OVPN cipher' /opt/netpulse/artifacts/api-server/dist/index.mjs | head
+aes128-cbc
+OVPN cipher
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ ps -eo user,pid,ppid,lstart,args | grep '[n]ode.*dist/index.mjs'
+
+echo "--- port 8080 ---"
+sudo ss -ltnp | grep ':8080'
+
+echo "--- current-user PM2 ---"
+pm2 list
+
+echo "--- root PM2 ---"
+sudo pm2 list
+root      123181    1334 Tue Aug 25 09:44:20 2026 node /opt/netpulse/artifacts/api-server/dist/index.mjs
+--- port 8080 ---
+[sudo] password for amboso:
+Sorry, try again.
+[sudo] password for amboso:
+Sorry, try again.
+[sudo] password for amboso:
+LISTEN 0      511                *:8080            *:*    users:(("node /opt/netpu",pid=123181,fd=22))                                                       
+--- current-user PM2 ---
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 0        │ 0      │ 16   │ ▒▒ │ 0%       │ 0b       │ amboso   │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+--- root PM2 ---
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 123181   │ 88m    │ 1    │ online    │ 0%       │ 254.1mb  │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

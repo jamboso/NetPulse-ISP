@@ -21,6 +21,27 @@ describe("loadInstalledOpenVpnCertificates", () => {
     expect(bundle.serverCert).toBe(certs.server.cert);
   });
 
+  it("accepts the earlier /etc/openvpn/server/certs layout", async () => {
+    const certs = await generateVpnServerCerts();
+    const files = new Map<string, string>([
+      ["/etc/openvpn/server/certs/ca.crt", certs.ca.cert],
+      ["/etc/openvpn/server/certs/ca.key", certs.ca.key],
+      ["/etc/openvpn/server/certs/server.crt", certs.server.cert],
+      ["/etc/openvpn/server/certs/server.key", certs.server.key],
+    ]);
+
+    const bundle = await loadInstalledOpenVpnCertificates(async (path) => {
+      const value = files.get(path);
+      if (!value) throw new Error("ENOENT");
+      return value;
+    });
+
+    expect(bundle.caCert).toBe(certs.ca.cert);
+    expect(bundle.caKey).toBe(certs.ca.key);
+    expect(bundle.serverCert).toBe(certs.server.cert);
+    expect(bundle.serverKey).toBe(certs.server.key);
+  });
+
   it("rejects a server certificate issued by a different certificate authority", async () => {
     const trusted = await generateVpnServerCerts();
     const other = await generateVpnServerCerts();

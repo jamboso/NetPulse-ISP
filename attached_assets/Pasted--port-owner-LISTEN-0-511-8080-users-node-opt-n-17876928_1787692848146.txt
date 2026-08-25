@@ -1,0 +1,29 @@
+
+--- port owner ---
+LISTEN 0      511                *:8080            *:*    users:(("node /opt/netpu",pid=25789,fd=22))                                                        
+--- health check ---
+{"status":"ok"}
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$ echo '--- root PM2 ---'
+sudo -H pm2 status
+
+echo '--- amboso PM2 ---'
+sudo -u amboso -H pm2 status
+
+echo '--- process owner ---'
+sudo ps -o pid,ppid,user,lstart,args -p 25789
+--- root PM2 ---
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 25789    │ 2m     │ 1    │ online    │ 0%       │ 207.3mb  │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+--- amboso PM2 ---
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 0        │ 0      │ 32   │ ▒▒ │ 0%       │ 0b       │ amboso   │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+--- process owner ---
+    PID    PPID USER                      STARTED COMMAND
+  25789    1338 root     Wed Aug 26 00:18:19 2026 node /opt/netpulse/artifacts/api-server/dist/index.mjs
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$

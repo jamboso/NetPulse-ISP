@@ -33,6 +33,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { RouterCommandConsole } from "@/components/router-command-console";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type RouterFormData = {
@@ -99,6 +100,7 @@ type ProvisionInfo = {
   macAddress: string | null;
   rosVersion: string | null;
   vpnConnected: boolean;
+  sshHostKey: string | null;
   vpnIp: string | null;
   lastCallbackAt: string | null;
 };
@@ -226,7 +228,8 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
             </Badge>
           )}
           <Button size="sm" variant="outline"
-            className="h-7 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100 gap-1"
+            className="h-8 border-emerald-400 bg-white text-xs font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100 gap-1"
+            title="Generate a fresh provisioning command for this router"
             onClick={reprovision} disabled={reprovisioning}>
             {reprovisioning ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
             Reprovision
@@ -243,6 +246,11 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
               {repairing ? <Loader2 className="w-3 h-3 animate-spin" /> : <WrenchIcon className="w-3 h-3" />}
               Repair VPN Service
             </Button>
+          )}
+          {!isOwner && (
+            <span className="text-[11px] text-amber-700">
+              Central VPN repair is available to the account owner only.
+            </span>
           )}
         </div>
       </div>
@@ -337,6 +345,7 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
                     <Radio className="w-3 h-3" /> PPPoE Setup
                   </Link>
                 </Button>
+                <RouterCommandConsole routerId={routerId} routerName={routerName} vpnConnected={connected} sshHostKey={info?.sshHostKey} />
                 <Button size="sm" variant="outline" className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-100" asChild>
                   <Link href={`/network/routers/${routerId}/hotspot`}>
                     <Wifi className="w-3 h-3" /> Hotspot Config

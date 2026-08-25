@@ -23,4 +23,7 @@ export interface RouterStatus {
   /** @nullable */
   lastSeen?: string | null;
   checkedAt?: string;
+  /** @nullable */
+  vpnIp?: string | null;
+  vpnConnected?: boolean;
 }

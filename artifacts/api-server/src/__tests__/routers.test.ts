@@ -19,7 +19,7 @@ vi.mock("@workspace/db", () => {
     routersTable: {
       id: {}, companyId: {}, name: {}, createdAt: {}, ipAddress: {}, radiusSecret: {},
       bridgePorts: {}, routerType: {}, provisionToken: {}, provisionStatus: {}, macAddress: {},
-      rosVersion: {}, vpnConnected: {}, vpnIp: {}, lastCallbackAt: {},
+      rosVersion: {}, vpnConnected: {}, vpnIp: {}, sshHostKey: {}, lastCallbackAt: {},
     },
     routerVpnCertsTable: { routerId: {}, vpnIp: {} },
     vpnConfigTable: {},
@@ -127,6 +127,32 @@ describe("router CRUD", () => {
 
     expect(response.status).toBe(204);
     await vi.waitFor(() => expect(mockRemoveRadnas).toHaveBeenCalledWith("203.0.113.4"));
+  });
+});
+
+describe("router provisioning information", () => {
+  it("returns an enrolled SSH host key so console access remains trusted after refresh", async () => {
+    mockExec.mockResolvedValueOnce([{
+      id: 4,
+      name: "MAJE_TEMP",
+      routerType: "routeros",
+      provisionToken: "provision-token",
+      provisionStatus: "connected",
+      macAddress: null,
+      rosVersion: "7.20",
+      vpnConnected: true,
+      vpnIp: "10.8.0.4",
+      sshHostKey: "SHA256:verifiedRouterKey",
+      lastCallbackAt: null,
+    }]);
+
+    const response = await request(buildApp()).get("/routers/4/provision-info");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      vpnConnected: true,
+      sshHostKey: "SHA256:verifiedRouterKey",
+    });
   });
 });
 

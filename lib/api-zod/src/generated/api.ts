@@ -1713,7 +1713,9 @@ export const GetRoutersStatusResponseItem = zod.object({
   "reachable": zod.boolean(),
   "latencyMs": zod.number().nullish(),
   "lastSeen": zod.string().nullish(),
-  "checkedAt": zod.string().optional()
+  "checkedAt": zod.string().optional(),
+  "vpnIp": zod.string().nullish(),
+  "vpnConnected": zod.boolean().optional()
 })
 export const GetRoutersStatusResponse = zod.array(GetRoutersStatusResponseItem)
 
@@ -1733,12 +1735,15 @@ export const ListRoutersResponseItem = zod.object({
   "location": zod.string().nullish(),
   "apiSsl": zod.boolean().nullish(),
   "sshPort": zod.number().nullish(),
+  "sshHostKey": zod.string().nullish(),
   "netconfPort": zod.number().nullish(),
   "enabled": zod.boolean(),
   "lastSeen": zod.string().nullish(),
   "radiusSecret": zod.string().nullish(),
   "radiusPort": zod.number().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "vpnIp": zod.string().nullish(),
+  "vpnConnected": zod.boolean().optional()
 })
 export const ListRoutersResponse = zod.array(ListRoutersResponseItem)
 
@@ -1808,12 +1813,15 @@ export const GetRouterResponse = zod.object({
   "location": zod.string().nullish(),
   "apiSsl": zod.boolean().nullish(),
   "sshPort": zod.number().nullish(),
+  "sshHostKey": zod.string().nullish(),
   "netconfPort": zod.number().nullish(),
   "enabled": zod.boolean(),
   "lastSeen": zod.string().nullish(),
   "radiusSecret": zod.string().nullish(),
   "radiusPort": zod.number().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "vpnIp": zod.string().nullish(),
+  "vpnConnected": zod.boolean().optional()
 })
 
 
@@ -1853,12 +1861,15 @@ export const UpdateRouterResponse = zod.object({
   "location": zod.string().nullish(),
   "apiSsl": zod.boolean().nullish(),
   "sshPort": zod.number().nullish(),
+  "sshHostKey": zod.string().nullish(),
   "netconfPort": zod.number().nullish(),
   "enabled": zod.boolean(),
   "lastSeen": zod.string().nullish(),
   "radiusSecret": zod.string().nullish(),
   "radiusPort": zod.number().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "vpnIp": zod.string().nullish(),
+  "vpnConnected": zod.boolean().optional()
 })
 
 

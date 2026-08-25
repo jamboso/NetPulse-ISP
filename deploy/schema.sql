@@ -142,6 +142,7 @@ CREATE TABLE "routers" (
         "location" text,
         "api_ssl" boolean DEFAULT false,
         "ssh_port" integer,
+        "ssh_host_key" text,
         "netconf_port" integer,
         "enabled" boolean DEFAULT true NOT NULL,
         "last_seen" timestamp,

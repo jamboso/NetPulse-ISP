@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { RouterCommandConsole } from "@/components/router-command-console";
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, Cell,
@@ -243,12 +244,18 @@ export default function RouterOSDashboard() {
             )}
           </div>
           <p className="text-sm text-gray-500">
-            {routerMeta?.ipAddress} {res?.version ? `· v${res.version}` : ""}
+            {routerMeta?.vpnIp ?? routerMeta?.ipAddress} {res?.version ? `· v${res.version}` : ""}
             {res?.["board-name"] ? ` · ${res["board-name"]}` : ""}
             {res?.["architecture-name"] ? ` · ${res["architecture-name"]}` : ""}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <RouterCommandConsole
+            routerId={routerId}
+            routerName={routerMeta?.name ?? "RouterOS router"}
+            vpnConnected={Boolean(routerMeta?.vpnConnected)}
+            sshHostKey={routerMeta?.sshHostKey}
+          />
           <Button variant="outline" size="sm" className="gap-1.5 border-orange-200 text-orange-700 hover:bg-orange-50" asChild>
             <Link href={`/network/routers/${routerId}/pppoe`}>
               <Settings className="w-3.5 h-3.5" /> PPPoE Server

@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import {
   Users, CreditCard, AlertTriangle, DollarSign, LifeBuoy,
   ServerCrash, Activity, Wifi, WifiOff, RefreshCw, Clock,
-  ShieldAlert, ShieldCheck, Zap, Download, Trash2, Ban, Unlock,
+  ShieldAlert, ShieldCheck, Zap, Download, Trash2, Ban, Unlock, Terminal,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/formatDate";
 import { formatDistanceToNow, isValid } from "date-fns";
+import { Link } from "wouter";
 import {
   LineChart, Line, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -423,7 +424,7 @@ function RouterCard({ router: r }: { router: RouterStatus }) {
           {ROUTER_TYPE_LABELS[r.routerType] ?? r.routerType}
         </Badge>
         <code className="text-xs text-gray-500 font-mono bg-white/70 px-1.5 py-0.5 rounded border border-gray-200/80">
-          {r.ipAddress}{r.port ? `:${r.port}` : ""}
+          {r.routerType === "routeros" ? (r.vpnIp ?? "VPN pending") : r.ipAddress}{r.routerType !== "routeros" && r.port ? `:${r.port}` : ""}
         </code>
       </div>
 
@@ -443,7 +444,7 @@ function RouterCard({ router: r }: { router: RouterStatus }) {
           </span>
         ) : (
           <span className="text-red-600 flex items-center gap-1">
-            <WifiOff className="w-3 h-3" /> Unreachable
+            <WifiOff className="w-3 h-3" /> {r.routerType === "routeros" && !r.vpnConnected ? "VPN pending" : "Unreachable"}
           </span>
         )}
         {r.lastSeen && (
@@ -452,6 +453,15 @@ function RouterCard({ router: r }: { router: RouterStatus }) {
           </span>
         )}
       </div>
+      {r.routerType === "routeros" && (
+        <div className="mt-3 border-t border-black/5 pt-2">
+          <Button size="sm" variant="ghost" className="h-7 px-1.5 text-xs text-blue-700 hover:bg-blue-100" asChild>
+            <Link href={`/network/routers/${r.id}`}>
+              <Terminal className="mr-1.5 h-3.5 w-3.5" /> Open router
+            </Link>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

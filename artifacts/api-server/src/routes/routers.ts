@@ -201,7 +201,7 @@ router.post("/routers", async (req, res) => {
     description: body.description ?? null,
     location: body.location ?? null,
     apiSsl: body.apiSsl ?? false,
-    sshPort: body.sshPort ?? null,
+    sshPort: body.sshPort ?? (body.routerType === "routeros" ? 2222 : null),
     netconfPort: body.netconfPort ?? null,
     enabled: body.enabled !== undefined ? body.enabled : true,
     radiusSecret: body.radiusSecret ?? null,
@@ -243,6 +243,7 @@ router.get("/routers/:id/provision-info", async (req, res) => {
     rosVersion: routersTable.rosVersion,
     vpnConnected: routersTable.vpnConnected,
     vpnIp: routersTable.vpnIp,
+    sshHostKey: routersTable.sshHostKey,
     lastCallbackAt: routersTable.lastCallbackAt,
   }).from(routersTable).where(scopedRouterWhere(req, id));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }

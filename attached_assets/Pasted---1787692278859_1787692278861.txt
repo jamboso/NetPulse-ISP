@@ -1,0 +1,286 @@
+────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 23847    │ 0s     │ 16   │ online    │ 0%       │ 14.8mb   │ amboso   │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+  ✓  Deployment completed in 17s and health check passed
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$ echo '--- helper files ---'
+sudo stat -c '%U:%G %a %n' \
+  /usr/local/bin/netpulse-vpn-read-certificates \
+  /etc/sudoers.d/netpulse-vpn
+
+echo '--- active certificate paths ---'
+sudo awk '$1 == "ca" || $1 == "cert" || $1 == "key" { print }' \
+  /etc/openvpn/server/netpulse.conf
+
+echo '--- sudo authorization ---'
+sudo grep -n 'netpulse-vpn' /etc/sudoers.d/netpulse-vpn
+
+echo '--- helper test ---'
+sudo -u amboso sudo -n \
+  /usr/local/bin/netpulse-vpn-read-certificates --json \
+  >/dev/null
+echo "helper_exit_code=$?"
+
+echo '--- recent API errors ---'
+sudo tail -n 100 /var/log/netpulse/error.log
+--- helper files ---
+root:root 755 /usr/local/bin/netpulse-vpn-read-certificates
+root:root 440 /etc/sudoers.d/netpulse-vpn
+--- active certificate paths ---
+ca /etc/openvpn/server/certs/ca.crt
+cert /etc/openvpn/server/certs/server.crt
+key /etc/openvpn/server/certs/server.key
+--- sudo authorization ---
+1:amboso ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke, /usr/local/bin/netpulse-vpn-repair, /usr/local/bin/netpulse-vpn-read-certificates
+--- helper test ---
+helper_exit_code=0
+--- recent API errors ---
+tail: cannot open '/var/log/netpulse/error.log' for reading: No such file or directory
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$ sudo -u amboso pm2 logs netpulse --lines 200 --nostream 2>&1 \
+  | grep -E -A 15 -B 5 \
+  'installed OpenVPN certificate sync error|certificate reader|ERROR'
+0|netpulse | 2026-07-10 19:04:27:       at async Object.findOne (/opt/netpulse/node_modules/.pnpm/@better-auth+core@1.6.11_@better-auth+utils@0.4.0_@better-fetch+fetch@1.1.21_better-cal_90e7d2cb715d3338ca39f1d23262e011/node_modules/@better-auth/core/dist/db/adapter/factory.mjs:554:16)
+0|netpulse | 2026-07-10 19:04:27:       at async Object.findUserByEmail (/opt/netpulse/node_modules/.pnpm/better-auth@1.6.11_drizzle-kit@0.31.10_drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28._e59a9066bc8e8b5ecc5b7f6cfe976fa8/node_modules/better-auth/dist/db/internal-adapter.mjs:463:19)
+0|netpulse | 2026-07-10 19:04:27:       at async <anonymous> (/opt/netpulse/node_modules/.pnpm/better-auth@1.6.11_drizzle-kit@0.31.10_drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28._e59a9066bc8e8b5ecc5b7f6cfe976fa8/node_modules/better-auth/dist/api/routes/sign-in.mjs:204:15)
+0|netpulse | 2026-07-10 19:04:27:       at async wrapped (/opt/netpulse/node_modules/.pnpm/@better-auth+core@1.6.11_@better-auth+utils@0.4.0_@better-fetch+fetch@1.1.21_better-cal_90e7d2cb715d3338ca39f1d23262e011/node_modules/@better-auth/core/dist/api/index.mjs:40:11) {
+0|netpulse | 2026-07-10 19:04:27:     length: 110,
+0|netpulse | 2026-07-10 19:04:27:     severity: 'ERROR',
+0|netpulse | 2026-07-10 19:04:27:     code: '42703',
+0|netpulse | 2026-07-10 19:04:27:     detail: undefined,
+0|netpulse | 2026-07-10 19:04:27:     hint: undefined,
+0|netpulse | 2026-07-10 19:04:27:     position: '85',
+0|netpulse | 2026-07-10 19:04:27:     internalPosition: undefined,
+0|netpulse | 2026-07-10 19:04:27:     internalQuery: undefined,
+0|netpulse | 2026-07-10 19:04:27:     where: undefined,
+0|netpulse | 2026-07-10 19:04:27:     schema: undefined,
+0|netpulse | 2026-07-10 19:04:27:     table: undefined,
+0|netpulse | 2026-07-10 19:04:27:     column: undefined,
+0|netpulse | 2026-07-10 19:04:27:     dataType: undefined,
+0|netpulse | 2026-07-10 19:04:27:     constraint: undefined,
+0|netpulse | 2026-07-10 19:04:27:     file: 'parse_relation.c',
+0|netpulse | 2026-07-10 19:04:27:     line: '3722',
+0|netpulse | 2026-07-10 19:04:27:     routine: 'errorMissingColumn'
+0|netpulse | 2026-07-10 19:04:27:   }
+0|netpulse | 2026-07-10 19:04:27: }
+0|netpulse | 2026-07-10 19:04:27: # SERVER_ERROR:  _DrizzleQueryError: Failed query: select "id", "email", "name", "email_verified", "image", "role", "active", "phone", "company_id", "created_at", "updated_at" from "users" where "users"."email" = $1
+0|netpulse | 2026-07-10 19:04:27: params: admin@netpulse.co.ke
+0|netpulse | 2026-07-10 19:04:27:     at NodePgPreparedQuery.queryWithCache (/opt/netpulse/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.20.0/node_modules/src/pg-core/session.ts:73:11)
+0|netpulse | 2026-07-10 19:04:27:     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+0|netpulse | 2026-07-10 19:04:27:     at async <anonymous> (/opt/netpulse/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.20.0/node_modules/src/node-postgres/session.ts:154:19)
+0|netpulse | 2026-07-10 19:04:27:     ... 4 lines matching cause stack trace ...
+0|netpulse | 2026-07-10 19:04:27:     at async wrapped (/opt/netpulse/node_modules/.pnpm/@better-auth+core@1.6.11_@better-auth+utils@0.4.0_@better-fetch+fetch@1.1.21_better-cal_90e7d2cb715d3338ca39f1d23262e011/node_modules/@better-auth/core/dist/api/index.mjs:40:11)
+0|netpulse | 2026-07-10 19:04:27:     at async internalHandler (/opt/netpulse/node_modules/.pnpm/better-call@1.3.5_zod@4.4.3/node_modules/better-call/src/endpoint.ts:607:20)
+0|netpulse | 2026-07-10 19:04:27:     at async <anonymous> (/opt/netpulse/node_modules/.pnpm/better-auth@1.6.11_drizzle-kit@0.31.10_drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28._e59a9066bc8e8b5ecc5b7f6cfe976fa8/node_modules/better-auth/dist/api/to-auth-endpoints.mjs:97:21) {
+0|netpulse | 2026-07-10 19:04:27:   query: 'select "id", "email", "name", "email_verified", "image", "role", "active", "phone", "company_id", "created_at", "updated_at" from "users" where "users"."email" = $1',
+0|netpulse | 2026-07-10 19:04:27:   params: [ 'admin@netpulse.co.ke' ],
+0|netpulse | 2026-07-10 19:04:27:   cause: error: column "company_id" does not exist
+0|netpulse | 2026-07-10 19:04:27:       at <anonymous> (/opt/netpulse/node_modules/.pnpm/pg-pool@3.13.0_pg@8.20.0/node_modules/pg-pool/index.js:45:11)
+0|netpulse | 2026-07-10 19:04:27:       at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+0|netpulse | 2026-07-10 19:04:27:       at async <anonymous> (/opt/netpulse/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.20.0/node_modules/src/node-postgres/session.ts:161:13)
+0|netpulse | 2026-07-10 19:04:27:       at async NodePgPreparedQuery.queryWithCache (/opt/netpulse/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28.17_pg@8.20.0/node_modules/src/pg-core/session.ts:71:12)
+--
+0|netpulse | 2026-07-10 19:04:27:       at async Object.findOne (/opt/netpulse/node_modules/.pnpm/@better-auth+core@1.6.11_@better-auth+utils@0.4.0_@better-fetch+fetch@1.1.21_better-cal_90e7d2cb715d3338ca39f1d23262e011/node_modules/@better-auth/core/dist/db/adapter/factory.mjs:554:16)
+0|netpulse | 2026-07-10 19:04:27:       at async Object.findUserByEmail (/opt/netpulse/node_modules/.pnpm/better-auth@1.6.11_drizzle-kit@0.31.10_drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28._e59a9066bc8e8b5ecc5b7f6cfe976fa8/node_modules/better-auth/dist/db/internal-adapter.mjs:463:19)
+0|netpulse | 2026-07-10 19:04:27:       at async <anonymous> (/opt/netpulse/node_modules/.pnpm/better-auth@1.6.11_drizzle-kit@0.31.10_drizzle-orm@0.45.2_@types+pg@8.20.0_kysely@0.28._e59a9066bc8e8b5ecc5b7f6cfe976fa8/node_modules/better-auth/dist/api/routes/sign-in.mjs:204:15)
+0|netpulse | 2026-07-10 19:04:27:       at async wrapped (/opt/netpulse/node_modules/.pnpm/@better-auth+core@1.6.11_@better-auth+utils@0.4.0_@better-fetch+fetch@1.1.21_better-cal_90e7d2cb715d3338ca39f1d23262e011/node_modules/@better-auth/core/dist/api/index.mjs:40:11) {
+0|netpulse | 2026-07-10 19:04:27:     length: 110,
+0|netpulse | 2026-07-10 19:04:27:     severity: 'ERROR',
+0|netpulse | 2026-07-10 19:04:27:     code: '42703',
+0|netpulse | 2026-07-10 19:04:27:     detail: undefined,
+0|netpulse | 2026-07-10 19:04:27:     hint: undefined,
+0|netpulse | 2026-07-10 19:04:27:     position: '85',
+0|netpulse | 2026-07-10 19:04:27:     internalPosition: undefined,
+0|netpulse | 2026-07-10 19:04:27:     internalQuery: undefined,
+0|netpulse | 2026-07-10 19:04:27:     where: undefined,
+0|netpulse | 2026-07-10 19:04:27:     schema: undefined,
+0|netpulse | 2026-07-10 19:04:27:     table: undefined,
+0|netpulse | 2026-07-10 19:04:27:     column: undefined,
+0|netpulse | 2026-07-10 19:04:27:     dataType: undefined,
+0|netpulse | 2026-07-10 19:04:27:     constraint: undefined,
+0|netpulse | 2026-07-10 19:04:27:     file: 'parse_relation.c',
+0|netpulse | 2026-07-10 19:04:27:     line: '3722',
+0|netpulse | 2026-07-10 19:04:27:     routine: 'errorMissingColumn'
+0|netpulse | 2026-07-10 19:04:27:   }
+0|netpulse | 2026-07-10 19:04:27: }
+0|netpulse | 2026-07-10 19:17:39: 2026-07-10T16:17:39.517Z ERROR [Better Auth]: User not found { email: 'admin@netpulse.co.ke' }
+0|netpulse | 2026-07-18 10:02:11: 2026-07-18T07:02:11.713Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-07-25 13:25:32: 2026-07-25T10:25:32.554Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:29:36: 2026-07-25T10:29:36.989Z ERROR [Better Auth]: Invalid redirectURL: http://mini5.opera-mini.net/reset-password
+0|netpulse | 2026-07-25 13:29:45: 2026-07-25T10:29:45.095Z ERROR [Better Auth]: Invalid redirectURL: http://mini5.opera-mini.net/reset-password
+0|netpulse | 2026-07-25 13:29:47: 2026-07-25T10:29:47.202Z ERROR [Better Auth]: Invalid redirectURL: http://mini5.opera-mini.net/reset-password
+0|netpulse | 2026-07-25 13:31:49: 2026-07-25T10:31:49.762Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 13:31:57: 2026-07-25T10:31:57.988Z ERROR [Better Auth]: User not found { email: 'murimiw430@gmail.com' }
+0|netpulse | 2026-07-25 13:32:04: 2026-07-25T10:32:04.853Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 13:32:08: 2026-07-25T10:32:08.800Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 13:32:23: 2026-07-25T10:32:23.472Z ERROR [Better Auth]: User not found { email: 'yorkieyork501@gmail.com' }
+0|netpulse | 2026-07-25 13:32:57: 2026-07-25T10:32:57.648Z ERROR [Better Auth]: User not found { email: 'mwendakingsley0@gmail.com' }
+0|netpulse | 2026-07-25 13:33:03: 2026-07-25T10:33:03.561Z ERROR [Better Auth]: User not found { email: 'mwendakingsley0@gmail.com' }
+0|netpulse | 2026-07-25 13:33:06: 2026-07-25T10:33:06.621Z ERROR [Better Auth]: User not found { email: 'gracemukamingari@gmail.com' }
+0|netpulse | 2026-07-25 13:33:39: 2026-07-25T10:33:39.131Z ERROR [Better Auth]: User not found { email: 'gracemukamingari@gmail.com' }
+0|netpulse | 2026-07-25 13:36:57: 2026-07-25T10:36:57.048Z ERROR [Better Auth]: User not found { email: 'fridaymwaniki@gmail.com' }
+0|netpulse | 2026-07-25 13:37:00: 2026-07-25T10:37:00.835Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 13:38:44: 2026-07-25T10:38:44.272Z ERROR [Better Auth]: User not found { email: 'njukiivy4@gmail.com' }
+0|netpulse | 2026-07-25 13:40:00: 2026-07-25T10:40:00.918Z ERROR [Better Auth]: Invalid redirectURL: http://captive.apple.com/reset-password
+0|netpulse | 2026-07-25 13:40:21: 2026-07-25T10:40:21.058Z ERROR [Better Auth]: Invalid redirectURL: http://www.google.us/reset-password
+0|netpulse | 2026-07-25 13:40:24: 2026-07-25T10:40:24.683Z ERROR [Better Auth]: Invalid redirectURL: http://www.google.us/reset-password
+0|netpulse | 2026-07-25 13:41:33: 2026-07-25T10:41:33.931Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.com/reset-password
+0|netpulse | 2026-07-25 13:41:36: 2026-07-25T10:41:36.944Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.com/reset-password
+0|netpulse | 2026-07-25 13:42:44: 2026-07-25T10:42:44.478Z ERROR [Better Auth]: User not found { email: 'kemichitoluo@gmail.com' }
+0|netpulse | 2026-07-25 13:43:05: 2026-07-25T10:43:05.963Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:43:15: 2026-07-25T10:43:15.759Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:46:55: 2026-07-25T10:46:55.131Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:48:22: 2026-07-25T10:48:22.500Z ERROR [Better Auth]: User not found { email: 'karimiefridah@gmail.com' }
+0|netpulse | 2026-07-25 13:49:44: 2026-07-25T10:49:44.995Z ERROR [Better Auth]: User not found { email: 'kinyuavictor03@gmail.com' }
+0|netpulse | 2026-07-25 13:52:55: 2026-07-25T10:52:55.429Z ERROR [Better Auth]: User not found { email: 'mwendanicollins@gmail.com' }
+0|netpulse | 2026-07-25 13:53:07: 2026-07-25T10:53:07.796Z ERROR [Better Auth]: User not found { email: 'mwendanicollins@gmail.com' }
+0|netpulse | 2026-07-25 13:53:21: 2026-07-25T10:53:21.807Z ERROR [Better Auth]: User not found { email: 'John@myisp.co.ke' }
+0|netpulse | 2026-07-25 13:53:47: 2026-07-25T10:53:47.665Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:53:49: 2026-07-25T10:53:49.436Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:53:59: 2026-07-25T10:53:59.237Z ERROR [Better Auth]: User not found { email: 'njeruleon162@gmail.com' }
+0|netpulse | 2026-07-25 13:54:22: 2026-07-25T10:54:22.569Z ERROR [Better Auth]: User not found { email: 'njeruleon162@gmail.com' }
+0|netpulse | 2026-07-25 13:58:10: 2026-07-25T10:58:10.015Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:58:18: 2026-07-25T10:58:18.866Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:59:33: 2026-07-25T10:59:33.593Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 13:59:55: 2026-07-25T10:59:55.275Z ERROR [Better Auth]: User not found { email: 'mwendanicollins@gmail.com' }
+0|netpulse | 2026-07-25 13:59:57: 2026-07-25T10:59:57.514Z ERROR [Better Auth]: Invalid redirectURL: http://www.google.us/reset-password
+0|netpulse | 2026-07-25 14:00:00: 2026-07-25T11:00:00.204Z ERROR [Better Auth]: Invalid redirectURL: http://www.google.us/reset-password
+0|netpulse | 2026-07-25 14:00:05: 2026-07-25T11:00:05.860Z ERROR [Better Auth]: User not found { email: 'mwendanicollins@gmail.com' }
+0|netpulse | 2026-07-25 14:04:24: 2026-07-25T11:04:24.395Z ERROR [Better Auth]: User not found { email: 'njerumonica44@gmail.com' }
+0|netpulse | 2026-07-25 14:04:27: 2026-07-25T11:04:27.377Z ERROR [Better Auth]: User not found { email: 'njerumonica44@gmail.com' }
+0|netpulse | 2026-07-25 14:09:40: 2026-07-25T11:09:40.193Z ERROR [Better Auth]: User not found { email: 'kamiiswabby@gmail.com' }
+0|netpulse | 2026-07-25 14:10:15: 2026-07-25T11:10:15.665Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:11:23: 2026-07-25T11:11:23.022Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:11:30: 2026-07-25T11:11:30.836Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:11:34: 2026-07-25T11:11:34.495Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:12:49: 2026-07-25T11:12:49.794Z ERROR [Better Auth]: User not found { email: 'njukiivy4@gmail.com' }
+0|netpulse | 2026-07-25 14:12:58: 2026-07-25T11:12:58.422Z ERROR [Better Auth]: User not found { email: 'njukiivy4@gmail.com' }
+0|netpulse | 2026-07-25 14:18:19: 2026-07-25T11:18:19.340Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:18:33: 2026-07-25T11:18:33.329Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:18:36: 2026-07-25T11:18:36.727Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:19:34: 2026-07-25T11:19:34.990Z ERROR [Better Auth]: User not found { email: 'mwalimu@myisp.co.ke' }
+0|netpulse | 2026-07-25 14:19:47: 2026-07-25T11:19:47.633Z ERROR [Better Auth]: User not found { email: 'mwalimu@myisp.co.ke' }
+0|netpulse | 2026-07-25 14:19:55: 2026-07-25T11:19:55.043Z ERROR [Better Auth]: User not found { email: 'mwalimu@myisp.co.ke' }
+0|netpulse | 2026-07-25 14:20:01: 2026-07-25T11:20:01.661Z ERROR [Better Auth]: User not found { email: 'mwalimu@myisp.co.ke' }
+0|netpulse | 2026-07-25 14:22:45: 2026-07-25T11:22:45.323Z ERROR [Better Auth]: User not found { email: 'samuelmurith050@gmail.com' }
+0|netpulse | 2026-07-25 14:23:24: 2026-07-25T11:23:24.100Z ERROR [Better Auth]: User not found { email: 'samuelmurith05s0@gmail.com' }
+0|netpulse | 2026-07-25 14:24:37: 2026-07-25T11:24:37.638Z ERROR [Better Auth]: User not found { email: 'karimiefridah@gmail.com' }
+0|netpulse | 2026-07-25 14:25:13: 2026-07-25T11:25:13.199Z ERROR [Better Auth]: User not found { email: 'simonkithu2@gmail.com' }
+0|netpulse | 2026-07-25 14:25:47: 2026-07-25T11:25:47.012Z ERROR [Better Auth]: User not found { email: 'paulinemwende362@gmail.com' }
+0|netpulse | 2026-07-25 14:26:17: 2026-07-25T11:26:17.531Z ERROR [Better Auth]: User not found { email: 'simonkithu2@gmail.com' }
+0|netpulse | 2026-07-25 14:34:59: 2026-07-25T11:34:59.429Z ERROR [Better Auth]: User not found { email: 'njagigerald256@gmail.com' }
+0|netpulse | 2026-07-25 14:35:06: 2026-07-25T11:35:06.609Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:35:35: 2026-07-25T11:35:35.083Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:35:35: 2026-07-25T11:35:35.605Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:37:03: 2026-07-25T11:37:03.724Z ERROR [Better Auth]: User not found { email: 'anold9390@gmail.com' }
+0|netpulse | 2026-07-25 14:38:23: 2026-07-25T11:38:23.004Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:40:58: 2026-07-25T11:40:58.093Z ERROR [Better Auth]: User not found { email: 'jmunyi453@gmail.com' }
+0|netpulse | 2026-07-25 14:41:24: 2026-07-25T11:41:24.835Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:41:34: 2026-07-25T11:41:34.113Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:41:42: 2026-07-25T11:41:42.449Z ERROR [Better Auth]: User not found { email: 'wycliff4@gmail.com' }
+0|netpulse | 2026-07-25 14:42:35: 2026-07-25T11:42:35.594Z ERROR [Better Auth]: User not found { email: 'njagigerald256@gmail.com' }
+0|netpulse | 2026-07-25 14:42:56: 2026-07-25T11:42:56.765Z ERROR [Better Auth]: User not found { email: 'njagigerald256@gmail.com' }
+0|netpulse | 2026-07-25 14:43:54: 2026-07-25T11:43:54.982Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:43:55: 2026-07-25T11:43:55.393Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:43:55: 2026-07-25T11:43:55.993Z ERROR [Better Auth]: Invalid redirectURL: http://connectivitycheck.gstatic.com/reset-password
+0|netpulse | 2026-07-25 14:44:53: 2026-07-25T11:44:53.886Z ERROR [Better Auth]: User not found { email: 'njokicaroline164@gmail.com' }
+0|netpulse | 2026-07-25 14:44:58: 2026-07-25T11:44:58.694Z ERROR [Better Auth]: User not found { email: 'k55461264@gmail.com' }
+0|netpulse | 2026-07-25 14:45:00: 2026-07-25T11:45:00.383Z ERROR [Better Auth]: User not found { email: 'k55461264@gmail.com' }
+0|netpulse | 2026-07-25 14:45:19: 2026-07-25T11:45:19.018Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:45:21: 2026-07-25T11:45:21.668Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:45:23: 2026-07-25T11:45:23.257Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:46:32: 2026-07-25T11:46:32.728Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:46:49: 2026-07-25T11:46:49.042Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:46:49: 2026-07-25T11:46:49.724Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:47:06: 2026-07-25T11:47:06.044Z ERROR [Better Auth]: User not found { email: 'mwendakingsley0@gmail.com' }
+0|netpulse | 2026-07-25 14:48:40: 2026-07-25T11:48:40.164Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:48:45: 2026-07-25T11:48:45.578Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:49:11: 2026-07-25T11:49:11.210Z ERROR [Better Auth]: Invalid redirectURL: http://www.googleapis.cn/reset-password
+0|netpulse | 2026-07-25 14:53:54: 2026-07-25T11:53:54.561Z ERROR [Better Auth]: User not found { email: 'njukiivy4@gmail.com' }
+0|netpulse | 2026-07-25 15:11:38: 2026-07-25T12:11:38.578Z ERROR [Better Auth]: Invalid redirectURL: http://captive.apple.com/reset-password
+0|netpulse | 2026-07-25 15:11:46: 2026-07-25T12:11:46.459Z ERROR [Better Auth]: Invalid redirectURL: http://captive.apple.com/reset-password
+0|netpulse | 2026-07-25 15:11:49: 2026-07-25T12:11:49.058Z ERROR [Better Auth]: Invalid redirectURL: http://captive.apple.com/reset-password
+0|netpulse | 2026-08-09 01:00:07: 2026-08-08T22:00:07.278Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-09 01:00:19: 2026-08-08T22:00:19.991Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-09 01:00:27: 2026-08-08T22:00:27.324Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-09 01:00:28: 2026-08-08T22:00:28.556Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:16:53: 2026-08-15T16:16:53.358Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:17:30: 2026-08-15T16:17:30.124Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:17:33: 2026-08-15T16:17:33.731Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:17:49: 2026-08-15T16:17:49.205Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:34:06: 2026-08-15T16:34:06.645Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:34:07: 2026-08-15T16:34:07.285Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:34:34: 2026-08-15T16:34:34.654Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:34:46: 2026-08-15T16:34:46.937Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:35:12: 2026-08-15T16:35:12.931Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:35:14: 2026-08-15T16:35:14.704Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 19:35:16: 2026-08-15T16:35:16.002Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-15 20:01:46: 2026-08-15T17:01:46.448Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-23 17:13:32: 2026-08-23T14:13:32.413Z WARN [Better Auth]: Rate limiting skipped: could not determine client IP address. Ensure your runtime forwards a trusted client IP header and configure `advanced.ipAddress.ipAddressHeaders` if needed.
+0|netpulse | 2026-08-23 18:34:41: 2026-08-23T15:34:41.953Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-23 18:34:53: 2026-08-23T15:34:53.727Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-23 18:35:01: 2026-08-23T15:35:01.082Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-23 18:35:02: 2026-08-23T15:35:02.447Z ERROR [Better Auth]: Invalid password
+0|netpulse | 2026-08-25 00:18:11: fatal: could not read Username for 'https://github.com': No such device or address
+0|netpulse | 2026-08-25 09:16:02: fatal: could not read Username for 'https://github.com': No such device or address
+0|netpulse | 2026-08-25 09:16:18: fatal: could not read Username for 'https://github.com': No such device or address
+0|netpulse | 2026-08-25 16:51:06: 2026-08-25T13:51:06.547Z ERROR [Better Auth]: Invalid password
+
+/var/log/netpulse/out-0.log last 200 lines:
+0|netpulse | },"responseTime":12,"msg":"request completed"}
+0|netpulse | 2026-08-25 23:51:26: {"level":30,"time":1787691086963,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":792,"method":"GET","url":"/api/provision/6e1ac047-eb6c-45cb-914f-4de3c03e73a9/bootstrap.rsc"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}
+0|netpulse | 2026-08-25 23:51:27: {"level":30,"time":1787691087750,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":793,"method":"GET","url":"/api/provision/6e1ac047-eb6c-45cb-914f-4de3c03e73a9/register"},"mac":"48:8F:5A:FD:9C:08","ver":"7","name":"MGR","msg":"provision register"}
+0|netpulse | 2026-08-25 23:51:27: {"level":30,"time":1787691087751,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":793,"method":"GET","url":"/api/provision/6e1ac047-eb6c-45cb-914f-4de3c03e73a9/register"},"res":{"statusCode":200},"responseTime":22,"msg":"request completed"}
+0|netpulse | 2026-08-25 23:51:31: {"level":30,"time":1787691091529,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":794,"method":"GET","url":"/api/routers/26/provision-info"},"res":{"statusCode":200},"responseTime":22,"msg":"request completed"}
+0|netpulse | 2026-08-25 23:51:31: {"level":30,"time":1787691091745,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":795,"method":"GET","url":"/api/provision/6e1ac047-eb6c-45cb-914f-4de3c03e73a9/setup.rsc"},"res":{"statusCode":200},"responseTime":36,"msg":"request completed"}
+0|netpulse | 2026-08-25 23:51:36: {"level":30,"time":1787691096534,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":796,"method":"GET","url":"/api/routers/26/provision-info"},"res":{"statusCode":200},"responseTime":11,"msg":"request completed"}
+0|netpulse | 2026-08-25 23:51:38: {"level":30,"time":1787691098685,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":797,"method":"GET","url":"/api/provision/6e1ac047-eb6c-45cb-914f-4de3c03e73a9/certificate/ca.pem"},"res":{"statusCode":200},"responseTime":5,"msg":"request completed"}
+0|netpulse | 2026-08-25 23:51:39: {"level":30,"time":1787691099781,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":798,"method":"GET","url":"/api/provision/6e1ac047-eb6c-45cb-914f-4de3c03e73a9/certificate/client.pem"},"res":{"statusCode":200},"responseTime":5,"msg":"request completed"}
+0|netpulse | 2026-08-25 23:51:40: {"level":30,"time":1787691100739,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":799,"method":"GET","url":"/api/provision/6e1ac047-eb6c-45cb-914f-4de3c03e73a9/certificate/client-private"},"res":{"statusCode":200},"responseTime":4,"msg":"request completed"}
+0|netpulse | 2026-08-25 23:51:41: {"level":30,"time":1787691101534,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":800,"method":"GET","url":"/api/routers/26/provision-info"},"res":{"statusCode":200},"responseTime":21,"msg":"request completed"}
+0|netpulse | 2026-08-25 23:51:46: {"level":30,"time":1787691106544,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":801,"method":"GET","url":"/api/routers/26/provision-info"},"res":{"statusCode":200},"responseTime":21,"msg":"request completed"}
+0|netpulse | 2026-08-25 23:51:51: {"level":30,"time":1787691111529,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":802,"method":"GET","url":"/api/routers/26/provision-info"},"res":{"statusCode":200},"responseTime":11,"msg":"request completed"}
+--
+0|netpulse | 2026-08-26 00:00:00: {"level":30,"time":1787691600698,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":853,"method":"GET","url":"/api/routers/status"},"res":{"statusCode":200},"responseTime":7,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:00:12: {"level":30,"time":1787691612968,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":854,"method":"GET","url":"/api/settings"},"res":{"statusCode":200},"responseTime":11,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:00:14: {"level":30,"time":1787691614038,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":855,"method":"GET","url":"/api/infrastructure/status"},"res":{"statusCode":200},"responseTime":9,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:00:14: {"level":30,"time":1787691614042,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":856,"method":"GET","url":"/api/routers"},"res":{"statusCode":200},"responseTime":11,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:00:14: {"level":30,"time":1787691614107,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":857,"method":"GET","url":"/api/routers"},"res":{"statusCode":200},"responseTime":7,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:00:28: {"level":50,"time":1787691628619,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":858,"method":"POST","url":"/api/infrastructure/vpn/sync-installed-certs"},"err":{"type":"Error","message":"Unable to use the installed OpenVPN certificates: ENOENT: no such file or directory, open '/etc/openvpn/netpulse/ca.crt'","stack":"Error: Unable to use the installed OpenVPN certificates: ENOENT: no such file or directory, open '/etc/openvpn/netpulse/ca.crt'\n    at loadInstalledOpenVpnCertificates (/opt/netpulse/artifacts/api-server/src/lib/systemVpnCerts.ts:64:11)\n    at async <anonymous> (/opt/netpulse/artifacts/api-server/src/routes/infrastructure.ts:265:23)"},"msg":"installed OpenVPN certificate sync error"}
+0|netpulse | 2026-08-26 00:00:28: {"level":30,"time":1787691628620,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":858,"method":"POST","url":"/api/infrastructure/vpn/sync-installed-certs"},"res":{"statusCode":400},"responseTime":20,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:01:15: {"level":30,"time":1787691675793,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":859,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":6,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:01:15: {"level":30,"time":1787691675877,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":860,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":7,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:02:46: {"level":30,"time":1787691766314,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","count":4,"msg":"Session poller: polling routers"}
+0|netpulse | 2026-08-26 00:02:46: {"level":30,"time":1787691766319,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MBALE","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:02:46: {"level":30,"time":1787691766319,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MABERA","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:02:46: {"level":30,"time":1787691766319,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MGR","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:02:46: {"level":30,"time":1787691766319,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MAJENGO","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:05:46: {"level":30,"time":1787691946325,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MBALE","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:05:46: {"level":30,"time":1787691946325,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MABERA","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:05:46: {"level":30,"time":1787691946325,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MGR","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:05:46: {"level":30,"time":1787691946325,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MAJENGO","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:07:27: {"level":30,"time":1787692047485,"pid":23285,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","frontendDist":"/opt/netpulse/artifacts/isp-portal/dist/public","msg":"Serving frontend static files"}
+0|netpulse | 2026-08-26 00:07:27: {"level":50,"time":1787692047512,"pid":23285,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"listen EADDRINUSE: address already in use :::8080","stack":"Error: listen EADDRINUSE: address already in use :::8080\n    at Server.setupListenHandle [as _listen2] (node:net:2008:16)\n    at listenInCluster (node:net:2065:12)\n    at Server.listen (node:net:2170:7)\n    at app2.listen (/opt/netpulse/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/application.js:605:24)\n    at <anonymous> (/opt/netpulse/artifacts/api-server/src/index.ts:46:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)","code":"EADDRINUSE","errno":-98,"syscall":"listen","address":"::","port":8080},"msg":"Error listening on port"}
+0|netpulse | 2026-08-26 00:07:31: {"level":30,"time":1787692051283,"pid":23332,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","frontendDist":"/opt/netpulse/artifacts/isp-portal/dist/public","msg":"Serving frontend static files"}
+--
+0|netpulse | 2026-08-26 00:08:58: {"level":50,"time":1787692138716,"pid":23943,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"listen EADDRINUSE: address already in use :::8080","stack":"Error: listen EADDRINUSE: address already in use :::8080\n    at Server.setupListenHandle [as _listen2] (node:net:2008:16)\n    at listenInCluster (node:net:2065:12)\n    at Server.listen (node:net:2170:7)\n    at app2.listen (/opt/netpulse/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/application.js:605:24)\n    at <anonymous> (/opt/netpulse/artifacts/api-server/src/index.ts:46:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)","code":"EADDRINUSE","errno":-98,"syscall":"listen","address":"::","port":8080},"msg":"Error listening on port"}
+0|netpulse | 2026-08-26 00:09:02: {"level":30,"time":1787692142465,"pid":23970,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","frontendDist":"/opt/netpulse/artifacts/isp-portal/dist/public","msg":"Serving frontend static files"}
+0|netpulse | 2026-08-26 00:09:02: {"level":50,"time":1787692142491,"pid":23970,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"listen EADDRINUSE: address already in use :::8080","stack":"Error: listen EADDRINUSE: address already in use :::8080\n    at Server.setupListenHandle [as _listen2] (node:net:2008:16)\n    at listenInCluster (node:net:2065:12)\n    at Server.listen (node:net:2170:7)\n    at app2.listen (/opt/netpulse/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/application.js:605:24)\n    at <anonymous> (/opt/netpulse/artifacts/api-server/src/index.ts:46:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)","code":"EADDRINUSE","errno":-98,"syscall":"listen","address":"::","port":8080},"msg":"Error listening on port"}
+0|netpulse | 2026-08-26 00:09:08: {"level":30,"time":1787692148323,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":861,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":13,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:08: {"level":30,"time":1787692148365,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":862,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":7,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:12: {"level":50,"time":1787692152195,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":863,"method":"POST","url":"/api/infrastructure/vpn/sync-installed-certs"},"err":{"type":"Error","message":"Unable to use the installed OpenVPN certificates: ENOENT: no such file or directory, open '/etc/openvpn/netpulse/ca.crt'","stack":"Error: Unable to use the installed OpenVPN certificates: ENOENT: no such file or directory, open '/etc/openvpn/netpulse/ca.crt'\n    at loadInstalledOpenVpnCertificates (/opt/netpulse/artifacts/api-server/src/lib/systemVpnCerts.ts:64:11)\n    at async <anonymous> (/opt/netpulse/artifacts/api-server/src/routes/infrastructure.ts:265:23)"},"msg":"installed OpenVPN certificate sync error"}
+0|netpulse | 2026-08-26 00:09:12: {"level":30,"time":1787692152196,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":863,"method":"POST","url":"/api/infrastructure/vpn/sync-installed-certs"},"res":{"statusCode":400},"responseTime":5,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:15: {"level":30,"time":1787692155015,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":864,"method":"GET","url":"/settings"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:15: {"level":30,"time":1787692155211,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":865,"method":"GET","url":"/assets/index-DdAAPav3.js"},"res":{"statusCode":200},"responseTime":9,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:15: {"level":30,"time":1787692155240,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":866,"method":"GET","url":"/assets/index-DFg1vOR8.css"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:15: {"level":30,"time":1787692155721,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":867,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":5,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:15: {"level":30,"time":1787692155736,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":868,"method":"GET","url":"/favicon.svg"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:15: {"level":30,"time":1787692155763,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":869,"method":"GET","url":"/api/setup/status"},"res":{"statusCode":200},"responseTime":4,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:15: {"level":30,"time":1787692155831,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":870,"method":"GET","url":"/api/settings"},"res":{"statusCode":200},"responseTime":7,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:17: {"level":30,"time":1787692157163,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":871,"method":"GET","url":"/api/routers"},"res":{"statusCode":200},"responseTime":7,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:17: {"level":30,"time":1787692157171,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":872,"method":"GET","url":"/api/infrastructure/status"},"res":{"statusCode":200},"responseTime":13,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:17: {"level":30,"time":1787692157252,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":873,"method":"GET","url":"/api/routers"},"res":{"statusCode":200},"responseTime":8,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:26: {"level":30,"time":1787692166385,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":874,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":5,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:26: {"level":30,"time":1787692166427,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":875,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":7,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:30: {"level":50,"time":1787692170683,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":876,"method":"POST","url":"/api/infrastructure/vpn/sync-installed-certs"},"err":{"type":"Error","message":"Unable to use the installed OpenVPN certificates: ENOENT: no such file or directory, open '/etc/openvpn/netpulse-easy-rsa/pki/private/ca.key'","stack":"Error: Unable to use the installed OpenVPN certificates: ENOENT: no such file or directory, open '/etc/openvpn/netpulse-easy-rsa/pki/private/ca.key'\n    at loadInstalledOpenVpnCertificates (/opt/netpulse/artifacts/api-server/src/lib/systemVpnCerts.ts:64:11)\n    at async <anonymous> (/opt/netpulse/artifacts/api-server/src/routes/infrastructure.ts:265:23)"},"msg":"installed OpenVPN certificate sync error"}
+0|netpulse | 2026-08-26 00:09:30: {"level":30,"time":1787692170683,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":876,"method":"POST","url":"/api/infrastructure/vpn/sync-installed-certs"},"res":{"statusCode":400},"responseTime":10,"msg":"request completed"}
+
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$

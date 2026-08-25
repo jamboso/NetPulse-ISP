@@ -1,0 +1,122 @@
+git diff --binary HEAD > "$BACKUP_DIR/netpulse-local-diff-$STAMP.patch"
+
+# 2. Save every untracked file, including the local documents and test files.
+git ls-files --others --exclude-standard -z > "$BACKUP_DIR/netpulse-untracked-$STAMP.list"
+if [[ -s "$BACKUP_DIR/netpulse-untracked-$STAMP.list" ]]; then
+  tar --null \
+    --files-from="$BACKUP_DIR/netpulse-untracked-$STAMP.list" \
+    -czf "$BACKUP_DIR/netpulse-untracked-$STAMP.tar.gz"
+else
+  tar -czf "$BACKUP_DIR/netpulse-untracked-$STAMP.tar.gz" --files-from=/dev/null
+fi
+
+# 3. Remove only the server-local Git edits and untracked files.
+#    This does NOT remove .env, ignored runtime files, or database data.
+git restore --source=HEAD --staged --worktree .
+git clean -fd
+
+# 4. Confirm the source tree is clean.
+git status --short
+
+echo
+echo "Backup patch: $BACKUP_DIR/netpulse-local-diff-$STAMP.patch"
+echo "Backup archive: $BACKUP_DIR/netpulse-untracked-$STAMP.tar.gz"
+BASH
+Removing .githooks/
+Removing artifacts/api-server/src/__tests__/auditExportScheduler.test.ts
+Removing artifacts/api-server/src/__tests__/genieAcsClient.test.ts
+Removing artifacts/api-server/src/__tests__/hiosoEponAdapter.test.ts
+Removing artifacts/api-server/src/__tests__/oltCredentials.test.ts
+Removing artifacts/api-server/src/__tests__/oltTargetSecurity.test.ts
+Removing artifacts/api-server/src/__tests__/olts.test.ts
+Removing artifacts/api-server/src/__tests__/tr069.test.ts
+Removing artifacts/api-server/src/lib/genieAcsClient.ts
+Removing artifacts/api-server/src/lib/hiosoEponAdapter.ts
+Removing artifacts/api-server/src/lib/oltAdapters.ts
+Removing artifacts/api-server/src/lib/oltCapabilities.ts
+Removing artifacts/api-server/src/lib/oltCredentials.ts
+Removing artifacts/api-server/src/lib/oltDiscovery.ts
+Removing artifacts/api-server/src/lib/oltTargetSecurity.ts
+Removing artifacts/api-server/src/lib/snmpV2c.ts
+Removing artifacts/api-server/src/lib/tr069CommandReconciler.ts
+Removing artifacts/api-server/src/lib/tr069Credentials.ts
+Removing artifacts/api-server/src/lib/vendorStandardSnmpIdentityAdapter.ts
+Removing artifacts/api-server/src/routes/olts.ts
+Removing artifacts/api-server/src/routes/tr069.ts
+Removing artifacts/isp-portal/src/__tests__/RouteGuards.test.tsx
+Removing artifacts/isp-portal/src/__tests__/api-email-hooks.test.ts
+Removing artifacts/isp-portal/src/__tests__/settings.test.tsx
+Removing artifacts/isp-portal/src/components/fiber-access-workspace.tsx
+Removing attached_assets/0_EPON_SNMP_USER_MANUAL_(1)_1787484677468.pdf
+Removing attached_assets/0_HIOSO-MIB_1787484598961.mib
+Removing attached_assets/Pasted--2026-08-15T16-17-33-731Z-ERROR-Better-Auth-Invalid-pas_1787494498809.txt
+Removing attached_assets/Pasted--alertEmail-malformed-encrypted-format-alertSlackWebhoo_1787494907024.txt
+Removing attached_assets/Pasted--amboso-amboso-HP-EliteDesk-800-G2-DM-65W-amboso-amboso_1787493837235.txt
+Removing attached_assets/Pasted-ist-public-assets-index-mfH5udMI-css-155-82-kB-gzip-29-_1787494345284.txt
+Removing attached_assets/Pasted-mboso-amboso-HP-EliteDesk-800-G2-DM-65W-amboso-amboso-H_1787494763476.txt
+Removing attached_assets/Pasted-me-namespace-version-mode-pid-uptime-status-cpu-mem--17_1787493923471.txt
+Removing attached_assets/Pasted-nt-Loop-Latency-0-64-ms-Event-Loop-Latency-p95-1-52-ms-_1787494179437.txt
+Removing deploy/migrate.sh
+Removing deploy/migrations/
+Removing lib/api-zod/src/generated/types/auditLogExportResult.ts
+Removing lib/api-zod/src/generated/types/createdStaffUser.ts
+Removing lib/api-zod/src/generated/types/listOnusParams.ts
+Removing lib/api-zod/src/generated/types/olt.ts
+Removing lib/api-zod/src/generated/types/oltCapability.ts
+Removing lib/api-zod/src/generated/types/oltCapabilityStatus.ts
+Removing lib/api-zod/src/generated/types/oltCompatibilityProfile.ts
+Removing lib/api-zod/src/generated/types/oltCompatibilityProfilePonTechnologiesItem.ts
+Removing lib/api-zod/src/generated/types/oltCompatibilityProfileStatus.ts
+Removing lib/api-zod/src/generated/types/oltDetail.ts
+Removing lib/api-zod/src/generated/types/oltHealthState.ts
+Removing lib/api-zod/src/generated/types/oltInput.ts
+Removing lib/api-zod/src/generated/types/oltInputManagementProtocol.ts
+Removing lib/api-zod/src/generated/types/oltInputPonTechnology.ts
+Removing lib/api-zod/src/generated/types/oltManagementProtocol.ts
+Removing lib/api-zod/src/generated/types/oltPonPort.ts
+Removing lib/api-zod/src/generated/types/oltPonTechnology.ts
+Removing lib/api-zod/src/generated/types/oltProvisioningJob.ts
+Removing lib/api-zod/src/generated/types/oltProvisioningJobInput.ts
+Removing lib/api-zod/src/generated/types/oltProvisioningJobInputOperation.ts
+Removing lib/api-zod/src/generated/types/oltProvisioningJobOperation.ts
+Removing lib/api-zod/src/generated/types/oltServiceProfile.ts
+Removing lib/api-zod/src/generated/types/oltServiceProfileAccessMode.ts
+Removing lib/api-zod/src/generated/types/oltServiceProfileInput.ts
+Removing lib/api-zod/src/generated/types/oltServiceProfileInputAccessMode.ts
+Removing lib/api-zod/src/generated/types/oltServiceProfileUpdate.ts
+Removing lib/api-zod/src/generated/types/oltServiceProfileUpdateAccessMode.ts
+Removing lib/api-zod/src/generated/types/oltUpdate.ts
+Removing lib/api-zod/src/generated/types/oltUpdateManagementProtocol.ts
+Removing lib/api-zod/src/generated/types/oltUpdatePonTechnology.ts
+Removing lib/api-zod/src/generated/types/onu.ts
+Removing lib/api-zod/src/generated/types/settingsExportScheduleEntityType.ts
+Removing lib/api-zod/src/generated/types/settingsExportScheduleWindowDays.ts
+Removing lib/api-zod/src/generated/types/settingsInputExportScheduleEntityType.ts
+Removing lib/api-zod/src/generated/types/settingsInputExportScheduleWindowDays.ts
+Removing lib/api-zod/src/generated/types/tr069AcsConfig.ts
+Removing lib/api-zod/src/generated/types/tr069AcsConfigInput.ts
+Removing lib/api-zod/src/generated/types/tr069Command.ts
+Removing lib/api-zod/src/generated/types/tr069CommandInput.ts
+Removing lib/api-zod/src/generated/types/tr069CommandStatus.ts
+Removing lib/api-zod/src/generated/types/tr069Device.ts
+Removing lib/api-zod/src/generated/types/tr069DeviceDataModel.ts
+Removing lib/api-zod/src/generated/types/tr069DeviceEnrollment.ts
+Removing lib/api-zod/src/generated/types/tr069DeviceEnrollmentDataModel.ts
+Removing lib/api-zod/src/generated/types/tr069DeviceReportedParameters.ts
+Removing lib/api-zod/src/generated/types/tr069DeviceStatus.ts
+Removing lib/api-zod/src/generated/types/tr069Parameter.ts
+Removing lib/db/src/schema/olts.ts
+Removing lib/db/src/schema/tr069.ts
+Removing main.py
+Removing pyproject.toml
+Removing scripts/github-credential-helper.sh
+Removing scripts/scan-secrets.sh
+Removing scripts/setup-git-hooks.sh
+Removing scripts/test-secret-scan.sh
+Removing test-replace.ts
+Removing test.tsx
+Removing test2.tsx
+
+Backup patch: /var/backups/netpulse/netpulse-local-diff-20260825T064128Z.patch
+Backup archive: /var/backups/netpulse/netpulse-untracked-20260825T064128Z.tar.gz
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

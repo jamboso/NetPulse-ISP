@@ -684,7 +684,7 @@ function RouterDialog({
     try {
       const basePayload = {
         name: form.name,
-        ipAddress: form.ipAddress,
+        ipAddress: form.routerType === "routeros" ? "" : form.ipAddress,
         port: form.port ? parseInt(form.port) : undefined,
         username: form.username,
         password: form.password,
@@ -743,9 +743,19 @@ function RouterDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label>IP Address *</Label>
-              <Input value={form.ipAddress} onChange={(e) => set("ipAddress", e.target.value)}
-                placeholder={form.routerType === "routeros" ? "192.168.88.1" : "192.168.1.1"} />
+              {form.routerType === "routeros" ? (
+                <>
+                  <Label>Private VPN IP</Label>
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                    Assigned automatically after zero-touch provisioning
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Label>IP Address *</Label>
+                  <Input value={form.ipAddress} onChange={(e) => set("ipAddress", e.target.value)} placeholder="192.168.1.1" />
+                </>
+              )}
             </div>
             <div className="space-y-1">
               <Label>
@@ -834,7 +844,7 @@ function RouterDialog({
         {saveError && <p className="text-sm text-red-600 text-center px-1">{saveError}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !form.name || !form.ipAddress || !form.username}
+          <Button onClick={handleSave} disabled={saving || !form.name || !form.username || (form.routerType !== "routeros" && !form.ipAddress)}
             className="bg-blue-600 hover:bg-blue-700 text-white">
             {saving ? "Saving…" : routerId ? "Update" : "Add Router"}
           </Button>
@@ -1310,7 +1320,7 @@ export default function Network() {
                   <TableHead className="w-10"></TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>IP Address</TableHead>
+                  <TableHead>Management IP</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-20">Actions</TableHead>
@@ -1350,7 +1360,9 @@ export default function Network() {
                         </Badge>
                       </TableCell>
                       <TableCell className="font-mono text-sm text-gray-600">
-                        {r.ipAddress}{r.port ? `:${r.port}` : ""}
+                        {r.routerType === "routeros"
+                          ? ((r as any).vpnIp ?? "VPN IP assigned after provisioning")
+                          : `${r.ipAddress}${r.port ? `:${r.port}` : ""}`}
                       </TableCell>
                       <TableCell className="text-gray-500 text-sm">{r.location || "—"}</TableCell>
                       <TableCell>

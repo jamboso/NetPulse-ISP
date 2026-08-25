@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { routersTable, hotspotPackagesTable, hotspotVouchersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
+import { getRouterManagementHost, routerManagementUnavailableMessage } from "../lib/routerManagement";
 
 const router = Router();
 
@@ -47,11 +48,18 @@ async function getRouter(id: number) {
   return r;
 }
 
+function getRouterManagementIp(r: typeof routersTable.$inferSelect): string {
+  const ip = getRouterManagementHost(r);
+  if (!ip) throw new Error(routerManagementUnavailableMessage());
+  return ip;
+}
+
 // ── GET /api/routers/:id/ros/hotspot/status ───────────────────────────────────
 router.get("/routers/:id/ros/hotspot/status", async (req, res) => {
   const r = await getRouter(parseInt(req.params.id!));
   if (!r) { res.status(404).json({ error: "Router not found" }); return; }
-  const { ipAddress: ip, apiSsl: ssl, username: user, password: pass } = r;
+  const ip = getRouterManagementIp(r);
+  const { apiSsl: ssl, username: user, password: pass } = r;
   try {
     const [servers, profiles, activeSessions, userCount, pools] = await Promise.all([
       rosReq(ip, ssl ?? false, user, pass, "GET", "/ip/hotspot"),
@@ -105,7 +113,8 @@ router.post("/routers/:id/ros/hotspot/setup", async (req, res) => {
 
   if (!iface) { res.status(400).json({ error: "interface is required" }); return; }
 
-  const { ipAddress: ip, apiSsl: ssl, username: user, password: pass } = r;
+  const ip = getRouterManagementIp(r);
+  const { apiSsl: ssl, username: user, password: pass } = r;
   const steps: string[] = [];
   const errors: string[] = [];
 
@@ -228,7 +237,7 @@ router.get("/routers/:id/ros/hotspot/active", async (req, res) => {
   const r = await getRouter(parseInt(req.params.id!));
   if (!r) { res.status(404).json({ error: "Router not found" }); return; }
   try {
-    const active = await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "GET", "/ip/hotspot/active");
+    const active = await rosReq(getRouterManagementIp(r), r.apiSsl ?? false, r.username, r.password, "GET", "/ip/hotspot/active");
     res.json(active);
   } catch (err: any) {
     res.status(502).json({ error: err.message });
@@ -240,7 +249,7 @@ router.delete("/routers/:id/ros/hotspot/active/:sessionId", async (req, res) => 
   const r = await getRouter(parseInt(req.params.id!));
   if (!r) { res.status(404).json({ error: "Router not found" }); return; }
   try {
-    await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "DELETE", `/ip/hotspot/active/${req.params.sessionId}`);
+    await rosReq(getRouterManagementIp(r), r.apiSsl ?? false, r.username, r.password, "DELETE", `/ip/hotspot/active/${req.params.sessionId}`);
     res.json({ success: true });
   } catch (err: any) {
     res.status(502).json({ error: err.message });
@@ -311,7 +320,7 @@ router.get("/routers/:id/ros/hotspot/users", async (req, res) => {
   const r = await getRouter(parseInt(req.params.id!));
   if (!r) { res.status(404).json({ error: "Router not found" }); return; }
   try {
-    const users = await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "GET", "/ip/hotspot/user");
+    const users = await rosReq(getRouterManagementIp(r), r.apiSsl ?? false, r.username, r.password, "GET", "/ip/hotspot/user");
     res.json(users);
   } catch (err: any) {
     res.status(502).json({ error: err.message });
@@ -323,7 +332,7 @@ router.delete("/routers/:id/ros/hotspot/users/:rosId", async (req, res) => {
   const r = await getRouter(parseInt(req.params.id!));
   if (!r) { res.status(404).json({ error: "Router not found" }); return; }
   try {
-    await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "DELETE", `/ip/hotspot/user/${req.params.rosId}`);
+    await rosReq(getRouterManagementIp(r), r.apiSsl ?? false, r.username, r.password, "DELETE", `/ip/hotspot/user/${req.params.rosId}`);
     res.json({ success: true });
   } catch (err: any) {
     res.status(502).json({ error: err.message });

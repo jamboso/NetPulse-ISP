@@ -357,12 +357,14 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
 
 :local mac2 [/interface ethernet get 0 mac-address]
 :local ver2 [/system resource get version]
+:local vpnIp2 ""
+:do { :set vpnIp2 [/interface ovpn-client get [find name="netpulse-vpn"] local-address] } on-error={}
 
 :do {
   /tool fetch \\
-    url=("${params.serverUrl}/api/provision/${params.token}/callback?mac=" . $mac2 . "&ver=" . $ver2) \\
+    url=("${params.serverUrl}/api/provision/${params.token}/callback?mac=" . $mac2 . "&ver=" . $ver2 . "&vpnIp=" . $vpnIp2) \\
     http-method=post \\
-    http-data=("mac=" . $mac2 . "&ver=" . $ver2) \\
+    http-data=("mac=" . $mac2 . "&ver=" . $ver2 . "&vpnIp=" . $vpnIp2) \\
     mode=https \\
     keep-result=no
 } on-error={ :log warning "NetPulse: callback failed — tunnel may still be active" }

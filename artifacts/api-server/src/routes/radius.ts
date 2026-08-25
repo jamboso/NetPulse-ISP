@@ -4,7 +4,7 @@ import { radacctTable, subscriptionsTable } from "@workspace/db";
 import { eq, inArray, desc, and } from "drizzle-orm";
 import { syncAllSubscriptions, syncStaffUserRadius } from "../lib/radiusSync";
 import { requireRole } from "../middlewares/requireRole";
-import { getRouter, getRadiusConfig, upsertRos, rosReq } from "./pppoe";
+import { getRouter, getRadiusConfig, getRouterManagementIp, upsertRos, rosReq } from "./pppoe";
 import { auth } from "../lib/auth";
 import { resolveCompanyScope } from "../middlewares/companyScope";
 import { customersTable, db as db2 } from "@workspace/db";
@@ -30,7 +30,8 @@ router.post("/routers/:id/ros/radius/admin-login", requireRole("admin"), async (
     return;
   }
 
-  const { ipAddress: ip, apiSsl: ssl, username: user, password: pass } = r;
+  const ip = getRouterManagementIp(r);
+  const { apiSsl: ssl, username: user, password: pass } = r;
   const steps: string[] = [];
   const errors: string[] = [];
 

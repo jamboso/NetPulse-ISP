@@ -18,6 +18,7 @@ import {
 } from "@workspace/db";
 import { eq, isNull, and, inArray } from "drizzle-orm";
 import { logger } from "./logger";
+import { getRouterManagementHost } from "./routerManagement";
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -64,12 +65,17 @@ function parseUptime(uptime: string): number {
 async function pollRouter(router: {
   id: number;
   name: string;
+  routerType: string;
   ipAddress: string;
+  vpnIp?: string | null;
+  vpnConnected?: boolean | null;
   apiSsl: boolean | null;
   username: string;
   password: string;
 }): Promise<void> {
-  const { id: routerId, name: routerName, ipAddress, apiSsl, username, password } = router;
+  const { id: routerId, name: routerName, apiSsl, username, password } = router;
+  const ipAddress = getRouterManagementHost(router);
+  if (!ipAddress) return;
 
   // Fetch all active sessions from this router in parallel
   const [pppoeList, hotspotList] = await Promise.all([
@@ -209,7 +215,10 @@ async function pollAllRouters(): Promise<void> {
     .select({
       id:        routersTable.id,
       name:      routersTable.name,
+      routerType: routersTable.routerType,
       ipAddress: routersTable.ipAddress,
+      vpnIp: routersTable.vpnIp,
+      vpnConnected: routersTable.vpnConnected,
       apiSsl:    routersTable.apiSsl,
       username:  routersTable.username,
       password:  routersTable.password,

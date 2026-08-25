@@ -10,6 +10,7 @@ import { db } from "@workspace/db";
 import { routersTable, dnsObservationsTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "./logger";
+import { getRouterManagementHost } from "./routerManagement";
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -62,11 +63,13 @@ async function rosGet(
 // ── Poll a single router's DNS cache ──────────────────────────────────────────
 
 async function pollRouterDns(router: {
-  id: number; name: string; ipAddress: string;
+  id: number; name: string; routerType: string; ipAddress: string; vpnIp?: string | null; vpnConnected?: boolean | null;
   apiSsl: boolean | null; username: string; password: string;
 }): Promise<void> {
+  const managementIp = getRouterManagementHost(router);
+  if (!managementIp) return;
   const entries = await rosGet(
-    router.ipAddress, router.apiSsl ?? false, router.username, router.password,
+    managementIp, router.apiSsl ?? false, router.username, router.password,
     "/ip/dns/cache",
   );
   if (!entries.length) return;
@@ -109,6 +112,7 @@ async function pollAllDns(): Promise<void> {
     .select({
       id: routersTable.id, name: routersTable.name,
       ipAddress: routersTable.ipAddress, apiSsl: routersTable.apiSsl,
+      vpnIp: routersTable.vpnIp, vpnConnected: routersTable.vpnConnected,
       username: routersTable.username, password: routersTable.password,
       routerType: routersTable.routerType,
     })

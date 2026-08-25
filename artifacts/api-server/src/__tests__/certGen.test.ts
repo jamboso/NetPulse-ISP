@@ -70,6 +70,8 @@ describe("generateRosScript", () => {
     expect(script).toContain(':set netpulseOvpnCipher "aes128-cbc"');
     expect(script).toContain('auth=sha1');
     expect(script).toContain('add-default-route=no route-nopull=yes use-peer-dns=no disabled=no');
+    expect(script).toContain('local-address] } on-error={}');
+    expect(script).toContain('&vpnIp=" . $vpnIp2');
     expect(script).toContain("timeout=3s");
     expect(script).not.toContain("timeout=3000");
     expect(script).toContain(':parse "/interface ethernet set ether2 master-port=none"');

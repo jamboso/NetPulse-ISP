@@ -16,6 +16,7 @@ import { eq } from "drizzle-orm";
 import { getSettings, sendSms, logSms } from "./sms";
 import { sendRouterAlertEmail } from "./mailer";
 import { logger } from "./logger";
+import { getRouterManagementHost } from "./routerManagement";
 
 const POLL_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
 
@@ -174,7 +175,7 @@ export async function sendRouterAlert(
 
 // ── Seed in-memory state from DB ──────────────────────────────────────────────
 
-async function seedFromDb(routers: Array<{ id: number; name: string; ipAddress: string; monitorState: string | null }>): Promise<void> {
+async function seedFromDb(routers: Array<{ id: number; name: string; managementHost: string | null; monitorState: string | null }>): Promise<void> {
   for (const r of routers) {
     if (stateMap.has(r.id)) continue; // already seeded (e.g. mid-run re-call)
     const saved = r.monitorState as RouterState | null;
@@ -183,7 +184,7 @@ async function seedFromDb(routers: Array<{ id: number; name: string; ipAddress: 
       pending:      null,
       pendingCount: 0,
       name:         r.name,
-      ipAddress:    r.ipAddress,
+      ipAddress:    r.managementHost ?? "VPN pending",
     });
   }
 }
@@ -205,6 +206,8 @@ async function pollRouters(): Promise<void> {
       id:           routersTable.id,
       name:         routersTable.name,
       ipAddress:    routersTable.ipAddress,
+      vpnIp:        routersTable.vpnIp,
+      vpnConnected: routersTable.vpnConnected,
       apiSsl:       routersTable.apiSsl,
       username:     routersTable.username,
       password:     routersTable.password,
@@ -215,15 +218,18 @@ async function pollRouters(): Promise<void> {
     .from(routersTable);
 
   // On first poll, seed confirmed states from DB so restarts don't reset history
+  const routersWithTargets = routers.map(r => ({ ...r, managementHost: getRouterManagementHost(r) }));
   if (!seeded) {
-    await seedFromDb(routers);
+    await seedFromDb(routersWithTargets);
     seeded = true;
   }
 
-  await Promise.all(routers.map(async r => {
+  await Promise.all(routersWithTargets.map(async r => {
     if (!r.enabled || r.routerType !== "routeros") return;
 
-    const reachable = await isReachable(r);
+    const reachable = r.managementHost
+      ? await isReachable({ ...r, ipAddress: r.managementHost })
+      : false;
     const newState: RouterState = reachable ? "online" : "offline";
 
     const existing = stateMap.get(r.id) ?? {
@@ -231,7 +237,7 @@ async function pollRouters(): Promise<void> {
       pending:      null,
       pendingCount: 0,
       name:         r.name,
-      ipAddress:    r.ipAddress,
+        ipAddress:    r.managementHost ?? "VPN pending",
     };
 
     logger.info({ router: r.name, reachable, confirmed: existing.confirmed, pending: existing.pending }, "Router poll result");
@@ -250,7 +256,7 @@ async function pollRouters(): Promise<void> {
 
       if (prevConfirmed !== "unknown") {
         logger.info({ router: r.name, from: prevConfirmed, to: newState }, "Router state change confirmed — sending alert");
-        await sendRouterAlert(r.name, r.ipAddress, newState, settings);
+        await sendRouterAlert(r.name, r.managementHost ?? "VPN pending", newState, settings);
       } else {
         // First-ever detection for this router (no prior DB state)
         logger.info({ router: r.name, state: newState }, "Router initial state confirmed (no alert)");

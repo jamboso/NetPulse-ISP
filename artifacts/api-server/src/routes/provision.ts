@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
+import net from "node:net";
 import { db, routersTable, routerVpnCertsTable, vpnConfigTable, settingsTable } from "@workspace/db";
 import { generateStage1Bootstrap, generateRosScript } from "../lib/certGen";
 import type { RouterVpnCert } from "@workspace/db";
@@ -216,6 +217,7 @@ router.post("/provision/:token/callback", async (req, res) => {
   try {
     const mac = String(req.body?.mac ?? req.query.mac ?? "").trim();
     const ver = String(req.body?.ver ?? req.query.ver ?? "").trim();
+    const reportedVpnIp = String(req.body?.vpnIp ?? req.query.vpnIp ?? "").trim();
 
     const [row] = await db
       .select()
@@ -224,6 +226,7 @@ router.post("/provision/:token/callback", async (req, res) => {
 
     if (!row) return res.status(404).type("text/plain").send("not found");
 
+    const vpnIp = net.isIP(reportedVpnIp) === 4 ? reportedVpnIp : row.vpnIp;
     await db
       .update(routersTable)
       .set({
@@ -233,8 +236,14 @@ router.post("/provision/:token/callback", async (req, res) => {
         vpnConnected: true,
         lastCallbackAt: new Date(),
         lastSeen: new Date(),
+        vpnIp,
       })
       .where(eq(routersTable.provisionToken, req.params.token));
+    if (vpnIp && vpnIp !== row.vpnIp) {
+      await db.update(routerVpnCertsTable)
+        .set({ vpnIp })
+        .where(eq(routerVpnCertsTable.routerId, row.id));
+    }
 
     req.log.info({ routerId: row.id, mac, ver }, "provision callback — router connected");
     return res.type("text/plain").send("ok");

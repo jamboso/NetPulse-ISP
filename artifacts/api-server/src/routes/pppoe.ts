@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { routersTable, settingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { getRouterManagementHost, routerManagementUnavailableMessage } from "../lib/routerManagement";
 
 const router = Router();
 
@@ -47,6 +48,12 @@ export async function rosReq(
 export async function getRouter(id: number) {
   const [r] = await db.select().from(routersTable).where(eq(routersTable.id, id));
   return r;
+}
+
+export function getRouterManagementIp(r: typeof routersTable.$inferSelect): string {
+  const ip = getRouterManagementHost(r);
+  if (!ip) throw new Error(routerManagementUnavailableMessage());
+  return ip;
 }
 
 // Create-or-update a RouterOS object matched by one or more query params (e.g. name,
@@ -101,7 +108,8 @@ export async function getRadiusConfig(r: typeof routersTable.$inferSelect): Prom
 router.get("/routers/:id/ros/pppoe/status", async (req, res) => {
   const r = await getRouter(parseInt(req.params.id!));
   if (!r) { res.status(404).json({ error: "Router not found" }); return; }
-  const { ipAddress: ip, apiSsl: ssl, username: user, password: pass } = r;
+  const ip = getRouterManagementIp(r);
+  const { apiSsl: ssl, username: user, password: pass } = r;
   try {
     const [servers, profiles, pools, activeCount, radiusEntries, aaa] = await Promise.all([
       rosReq(ip, ssl ?? false, user, pass, "GET", "/interface/pppoe-server/server"),
@@ -130,7 +138,7 @@ router.get("/routers/:id/ros/pppoe/secrets", async (req, res) => {
   const r = await getRouter(parseInt(req.params.id!));
   if (!r) { res.status(404).json({ error: "Router not found" }); return; }
   try {
-    const secrets = await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "GET", "/ppp/secret");
+    const secrets = await rosReq(getRouterManagementIp(r), r.apiSsl ?? false, r.username, r.password, "GET", "/ppp/secret");
     res.json(secrets);
   } catch (err: any) {
     res.status(502).json({ error: err.message });
@@ -144,7 +152,7 @@ router.post("/routers/:id/ros/pppoe/secrets", async (req, res) => {
   const { name, password, service, profile, comment, remoteAddress, localAddress } = req.body as Record<string, string>;
   if (!name || !password) { res.status(400).json({ error: "name and password required" }); return; }
   try {
-    const result = await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "PUT", "/ppp/secret", {
+    const result = await rosReq(getRouterManagementIp(r), r.apiSsl ?? false, r.username, r.password, "PUT", "/ppp/secret", {
       name, password, service: service ?? "pppoe",
       profile: profile ?? "default",
       comment: comment ?? "",
@@ -162,7 +170,7 @@ router.delete("/routers/:id/ros/pppoe/secrets/:rosId", async (req, res) => {
   const r = await getRouter(parseInt(req.params.id!));
   if (!r) { res.status(404).json({ error: "Router not found" }); return; }
   try {
-    await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "DELETE", `/ppp/secret/${req.params.rosId}`);
+    await rosReq(getRouterManagementIp(r), r.apiSsl ?? false, r.username, r.password, "DELETE", `/ppp/secret/${req.params.rosId}`);
     res.json({ success: true });
   } catch (err: any) {
     res.status(502).json({ error: err.message });
@@ -195,7 +203,8 @@ router.post("/routers/:id/ros/pppoe/setup", async (req, res) => {
 
   if (!iface) { res.status(400).json({ error: "interface is required" }); return; }
 
-  const { ipAddress: ip, apiSsl: ssl, username: user, password: pass } = r;
+  const ip = getRouterManagementIp(r);
+  const { apiSsl: ssl, username: user, password: pass } = r;
   const steps: string[] = [];
   const errors: string[] = [];
 
@@ -282,7 +291,7 @@ router.get("/routers/:id/ros/pppoe/interfaces", async (req, res) => {
   const r = await getRouter(parseInt(req.params.id!));
   if (!r) { res.status(404).json({ error: "Router not found" }); return; }
   try {
-    const ifaces = await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "GET", "/interface");
+    const ifaces = await rosReq(getRouterManagementIp(r), r.apiSsl ?? false, r.username, r.password, "GET", "/interface");
     res.json(ifaces);
   } catch (err: any) {
     res.status(502).json({ error: err.message });
@@ -294,7 +303,7 @@ router.get("/routers/:id/ros/pppoe/active", async (req, res) => {
   const r = await getRouter(parseInt(req.params.id!));
   if (!r) { res.status(404).json({ error: "Router not found" }); return; }
   try {
-    const active = await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "GET", "/ppp/active");
+    const active = await rosReq(getRouterManagementIp(r), r.apiSsl ?? false, r.username, r.password, "GET", "/ppp/active");
     res.json(active);
   } catch (err: any) {
     res.status(502).json({ error: err.message });
@@ -306,7 +315,7 @@ router.delete("/routers/:id/ros/pppoe/active/:sessionId", async (req, res) => {
   const r = await getRouter(parseInt(req.params.id!));
   if (!r) { res.status(404).json({ error: "Router not found" }); return; }
   try {
-    await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "DELETE", `/ppp/active/${req.params.sessionId}`);
+    await rosReq(getRouterManagementIp(r), r.apiSsl ?? false, r.username, r.password, "DELETE", `/ppp/active/${req.params.sessionId}`);
     res.json({ success: true });
   } catch (err: any) {
     res.status(502).json({ error: err.message });
@@ -321,7 +330,7 @@ router.post("/routers/:id/ros/pppoe/profiles", async (req, res) => {
   if (!name) { res.status(400).json({ error: "name required" }); return; }
   const rateLimit = downloadKbps > 0 ? `${uploadKbps ?? Math.ceil(downloadKbps / 2)}k/${downloadKbps}k` : "";
   try {
-    const result = await upsertRos(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "/ppp/profile", { name }, {
+    const result = await upsertRos(getRouterManagementIp(r), r.apiSsl ?? false, r.username, r.password, "/ppp/profile", { name }, {
       "rate-limit": rateLimit,
       ...(poolName ? { "remote-address": poolName } : {}),
       ...(localAddress ? { "local-address": localAddress } : {}),

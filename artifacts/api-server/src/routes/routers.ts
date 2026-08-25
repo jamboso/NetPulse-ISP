@@ -5,6 +5,7 @@ import { db, routersTable, routerVpnCertsTable, vpnConfigTable } from "@workspac
 import { eq, and } from "drizzle-orm";
 import { upsertRadnas, removeRadnas } from "../lib/radiusSync";
 import { generateClientCert } from "../lib/certGen";
+import { getRouterManagementHost } from "../lib/routerManagement";
 import type { RouterVpnCert } from "@workspace/db";
 import { resolveCompanyScope } from "../middlewares/companyScope";
 
@@ -135,8 +136,11 @@ router.get("/routers/status", async (req, res) => {
         };
       }
 
+      const managementHost = getRouterManagementHost(r);
       const port = probePort(r);
-      const { reachable, latencyMs } = await tcpProbe(r.ipAddress, port);
+      const { reachable, latencyMs } = managementHost
+        ? await tcpProbe(managementHost, port)
+        : { reachable: false, latencyMs: null };
 
       if (reachable) {
         await db.update(routersTable)
@@ -146,7 +150,7 @@ router.get("/routers/status", async (req, res) => {
 
       return {
         id: r.id, name: r.name, routerType: r.routerType,
-        ipAddress: r.ipAddress, port: r.port ?? null,
+        ipAddress: managementHost ?? r.vpnIp ?? "", port: r.port ?? null,
         location: r.location ?? null, enabled: r.enabled,
         reachable, latencyMs,
         lastSeen: reachable ? checkedAt : (r.lastSeen ? r.lastSeen.toISOString() : null),
@@ -188,7 +192,9 @@ router.post("/routers", async (req, res) => {
     companyId: req.companyId,
     name: body.name,
     routerType: body.routerType ?? "routeros",
-    ipAddress: body.ipAddress,
+    // New RouterOS devices initiate their own VPN connection during
+    // zero-touch provisioning, so they do not need a public management IP.
+    ipAddress: body.routerType === "routeros" ? String(body.ipAddress ?? "") : body.ipAddress,
     port: body.port ?? null,
     username: body.username,
     password: body.password,

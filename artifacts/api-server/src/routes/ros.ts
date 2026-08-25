@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { routersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { getRouterManagementHost, routerManagementUnavailableMessage } from "../lib/routerManagement";
 
 const router = Router();
 
@@ -96,7 +97,12 @@ router.get("/routers/:id/ros/live", async (req, res) => {
     return;
   }
 
-  const { ipAddress, username, password } = r;
+  const ipAddress = getRouterManagementHost(r);
+  if (!ipAddress) {
+    res.status(409).json({ error: routerManagementUnavailableMessage() });
+    return;
+  }
+  const { username, password } = r;
   const ssl = r.apiSsl ?? false;
   const fetchedAt = new Date().toISOString();
 
@@ -194,7 +200,12 @@ router.get("/routers/:id/ros/traffic", async (req, res) => {
     return;
   }
 
-  const { ipAddress, username, password } = r;
+  const ipAddress = getRouterManagementHost(r);
+  if (!ipAddress) {
+    res.status(409).json({ error: routerManagementUnavailableMessage() });
+    return;
+  }
+  const { username, password } = r;
   const ssl = r.apiSsl ?? false;
 
   try {

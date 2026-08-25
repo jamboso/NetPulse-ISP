@@ -14,6 +14,7 @@ import {
   syncSubscriptionCancel,
   syncPlanRadiusGroup,
 } from "../lib/radiusSync";
+import { getRouterManagementHost } from "../lib/routerManagement";
 
 const SUBSCRIPTION_STATUSES = ["active", "suspended", "cancelled"] as const;
 
@@ -121,8 +122,10 @@ async function provisionPPPoE(
 ): Promise<boolean> {
   const [r] = await db.select().from(routersTable).where(eq(routersTable.id, routerId));
   if (!r || r.routerType !== "routeros") return false;
+  const managementIp = getRouterManagementHost(r);
+  if (!managementIp) return false;
   try {
-    await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "PUT", "/ppp/secret", {
+    await rosReq(managementIp, r.apiSsl ?? false, r.username, r.password, "PUT", "/ppp/secret", {
       name: username,
       password,
       service: "pppoe",
@@ -144,10 +147,12 @@ async function provisionPPPoE(
 async function disablePPPoESecret(routerId: number, username: string, reqLog?: any): Promise<void> {
   const [r] = await db.select().from(routersTable).where(eq(routersTable.id, routerId));
   if (!r) return;
+  const managementIp = getRouterManagementHost(r);
+  if (!managementIp) return;
   try {
-    const id = await findSecretId(r.ipAddress, r.apiSsl ?? false, r.username, r.password, username);
+    const id = await findSecretId(managementIp, r.apiSsl ?? false, r.username, r.password, username);
     if (id) {
-      await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "PATCH", `/ppp/secret/${id}`, { disabled: "yes" });
+      await rosReq(managementIp, r.apiSsl ?? false, r.username, r.password, "PATCH", `/ppp/secret/${id}`, { disabled: "yes" });
       reqLog?.info({ username, routerId }, "PPPoE secret disabled on RouterOS");
     }
   } catch (e: any) {
@@ -161,10 +166,12 @@ async function disablePPPoESecret(routerId: number, username: string, reqLog?: a
 async function enablePPPoESecret(routerId: number, username: string, reqLog?: any): Promise<void> {
   const [r] = await db.select().from(routersTable).where(eq(routersTable.id, routerId));
   if (!r) return;
+  const managementIp = getRouterManagementHost(r);
+  if (!managementIp) return;
   try {
-    const id = await findSecretId(r.ipAddress, r.apiSsl ?? false, r.username, r.password, username);
+    const id = await findSecretId(managementIp, r.apiSsl ?? false, r.username, r.password, username);
     if (id) {
-      await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "PATCH", `/ppp/secret/${id}`, { disabled: "no" });
+      await rosReq(managementIp, r.apiSsl ?? false, r.username, r.password, "PATCH", `/ppp/secret/${id}`, { disabled: "no" });
       reqLog?.info({ username, routerId }, "PPPoE secret re-enabled on RouterOS");
     }
   } catch (e: any) {
@@ -178,10 +185,12 @@ async function enablePPPoESecret(routerId: number, username: string, reqLog?: an
 async function deletePPPoESecret(routerId: number, username: string, reqLog?: any): Promise<void> {
   const [r] = await db.select().from(routersTable).where(eq(routersTable.id, routerId));
   if (!r) return;
+  const managementIp = getRouterManagementHost(r);
+  if (!managementIp) return;
   try {
-    const id = await findSecretId(r.ipAddress, r.apiSsl ?? false, r.username, r.password, username);
+    const id = await findSecretId(managementIp, r.apiSsl ?? false, r.username, r.password, username);
     if (id) {
-      await rosReq(r.ipAddress, r.apiSsl ?? false, r.username, r.password, "DELETE", `/ppp/secret/${id}`);
+      await rosReq(managementIp, r.apiSsl ?? false, r.username, r.password, "DELETE", `/ppp/secret/${id}`);
       reqLog?.info({ username, routerId }, "PPPoE secret deleted from RouterOS");
     }
   } catch (e: any) {

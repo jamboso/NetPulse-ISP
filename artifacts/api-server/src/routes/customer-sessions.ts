@@ -6,6 +6,7 @@ import {
 } from "@workspace/db";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { resolveCompanyScope } from "../middlewares/companyScope";
+import { getRouterManagementHost, routerManagementUnavailableMessage } from "../lib/routerManagement";
 
 const router = Router();
 router.use(resolveCompanyScope);
@@ -151,10 +152,11 @@ router.get("/customers/:id/sessions", async (req, res) => {
         };
       }
 
-      const { ipAddress: ip, apiSsl: ssl, username: user, password: pass } = router;
-
       // Try PPPoE active first, then Hotspot active
       try {
+        const ip = getRouterManagementHost(router);
+        if (!ip) throw new Error(routerManagementUnavailableMessage());
+        const { apiSsl: ssl, username: user, password: pass } = router;
         const [pppoeActive, hotspotActive] = await Promise.all([
           rosReq(ip, ssl ?? false, user, pass, "GET", `/ppp/active?name=${encodeURIComponent(sub.pppoeUsername)}`).catch(() => []),
           rosReq(ip, ssl ?? false, user, pass, "GET", `/ip/hotspot/active?user=${encodeURIComponent(sub.pppoeUsername)}`).catch(() => []),

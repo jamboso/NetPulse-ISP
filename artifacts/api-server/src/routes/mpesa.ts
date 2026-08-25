@@ -7,6 +7,7 @@ import { eq, ilike, and } from "drizzle-orm";
 import { requireSafaricomIp } from "../middlewares/requireSafaricomIp.js";
 import { requireMpesaWebhookSecret } from "../middlewares/requireMpesaWebhookSecret.js";
 import { resolveMpesaConfig, getCompanyByUsername, getCompanyById } from "../lib/mpesaConfig.js";
+import { getRouterManagementHost } from "../lib/routerManagement.js";
 
 const LEGACY_DEFAULT_COMPANY_ID = 1;
 
@@ -369,12 +370,14 @@ async function handleStkCallback(req: Request, res: Response): Promise<void> {
       // Create hotspot user on RouterOS
       if (r) {
         try {
+          const managementIp = getRouterManagementHost(r);
+          if (!managementIp) throw new Error("Router management VPN is not connected");
           const scheme = r.apiSsl ? "https" : "http";
           const creds = Buffer.from(`${r.username}:${r.password}`).toString("base64");
           const timeLimitSeconds = (pkg?.durationMinutes ?? 60) * 60;
 
           // Create hotspot user (MAC-based auto-login if MAC known)
-          await fetch(`${scheme}://${r.ipAddress}/rest/ip/hotspot/user`, {
+          await fetch(`${scheme}://${managementIp}/rest/ip/hotspot/user`, {
             method: "PUT",
             headers: {
               Authorization: `Basic ${creds}`,

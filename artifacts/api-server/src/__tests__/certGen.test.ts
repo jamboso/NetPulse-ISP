@@ -88,6 +88,28 @@ describe("generateRosScript", () => {
     expect(script).toContain("protocol=udp");
     expect(script).toContain('mode=ip \\\n    protocol=udp \\\n    certificate="netpulse-client"');
   });
+
+  it("uses the OpenVPN cipher name supported by the reported RouterOS generation", () => {
+    const routerOs6Script = generateRosScript({
+      ...params,
+      routerOsVersion: "6.49.20 (stable)",
+      caCertPem: "CA",
+      clientCertPem: "CLIENT-CERT",
+      clientKeyPem: "CLIENT-KEY",
+    });
+    const routerOs7Script = generateRosScript({
+      ...params,
+      routerOsVersion: "7.24 (stable)",
+      caCertPem: "CA",
+      clientCertPem: "CLIENT-CERT",
+      clientKeyPem: "CLIENT-KEY",
+    });
+
+    expect(routerOs6Script).toContain("cipher=aes128 \\\n    auth=sha1");
+    expect(routerOs6Script).not.toContain("cipher=aes128-cbc");
+    expect(routerOs7Script).toContain("cipher=aes128-cbc \\\n    auth=sha1");
+    expect(routerOs7Script).not.toContain("cipher=aes128 \\\n    auth=sha1");
+  });
 });
 
 describe("VPN certificate generation", () => {

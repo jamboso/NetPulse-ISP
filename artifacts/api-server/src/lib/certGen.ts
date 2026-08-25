@@ -266,6 +266,7 @@ export function generateRosScript(params: {
   serverIp: string;
   vpnPort: number;
   vpnProtocol: string;
+  routerOsVersion?: string;
   vpnSubnet: string;
   caCertPem: string;
   clientCertPem: string;
@@ -278,6 +279,11 @@ export function generateRosScript(params: {
   const now = new Date().toISOString();
   const subnetBase = params.vpnSubnet.split(".").slice(0, 3).join(".");
   const serverVpnIp = `${subnetBase}.1`;
+  // RouterOS 6 uses the legacy `aes128` name while RouterOS 7 requires the
+  // OpenVPN-standard `aes128-cbc` name. Stage 1 reports the version before
+  // Stage 2 is generated, so the router receives syntax its importer accepts.
+  const routerOsMajor = Number.parseInt(params.routerOsVersion?.match(/^\s*(\d+)/)?.[1] ?? "", 10);
+  const ovpnCipher = routerOsMajor >= 7 ? "aes128-cbc" : "aes128";
   // RouterOS v6 OpenVPN clients are TCP-only and reject an explicit
   // `protocol=tcp` property. TCP is their default and remains the default on
   // current RouterOS releases, so only emit the property when UDP is requested.
@@ -396,7 +402,7 @@ ${certificateFetchBlock}
 ${ovpnProtocolLine}    certificate="netpulse-client" \\
     user="netpulse" \\
     password="" \\
-    cipher=aes128 \\
+    cipher=${ovpnCipher} \\
     auth=sha1 \\
     add-default-route=no \\
     disabled=no

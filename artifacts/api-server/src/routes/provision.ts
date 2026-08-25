@@ -182,11 +182,13 @@ router.get("/provision/:token/setup.rsc", async (req, res) => {
         .where(eq(routersTable.provisionToken, req.params.token));
     }
 
+    const routerOsVersion = ver || router_.rosVersion || undefined;
     const script = generateRosScript({
       routerName: router_.name,
       serverIp: vpnCfg.serverPublicIp ?? "YOUR_SERVER_IP",
       vpnPort: vpnCfg.vpnPort ?? 1194,
       vpnProtocol: vpnCfg.vpnProtocol ?? "tcp",
+      routerOsVersion,
       vpnSubnet: vpnCfg.vpnSubnet ?? "10.8.0.0",
       caCertPem: vpnCfg.caCert!,
       clientCertPem: certRow.clientCert!,

@@ -1,0 +1,99 @@
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo systemctl status openvpn@server --no-pager; sudo ss -ltnp | grep ':1194'; sudo journalctl -u openvpn@server -n 80 --no-pager; sudo tail -n 40 /var/log/openvpn/status.log
+[sudo] password for amboso:
+Sorry, try again.
+[sudo] password for amboso:
+● openvpn@server.service - OpenVPN connection to server
+     Loaded: loaded (/usr/lib/systemd/system/openvpn@.service; enabled; preset: enabled)
+     Active: activating (auto-restart) (Result: exit-code) since Tue 2026-08-25 15:23:57 EAT; 4s ago
+       Docs: man:openvpn(8)
+             https://community.openvpn.net/openvpn/wiki/Openvpn24ManPage
+             https://community.openvpn.net/openvpn/wiki/HOWTO
+    Process: 182906 ExecStart=/usr/sbin/openvpn --daemon ovpn-server --status /run/openvpn/server.status 10 --cd /etc/openvpn --script-security 2 --config /etc/openvpn/server.conf --writepid /run/openvpn/server.pid (code=exited, status=1/FAILURE)
+   Main PID: 182906 (code=exited, status=1/FAILURE)
+     Status: "Pre-connection initialization successful"
+        CPU: 31ms
+LISTEN 0      32           0.0.0.0:1194      0.0.0.0:*    users:(("openvpn",pid=1392,fd=6))                                                                  
+Aug 25 15:22:43 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12052.
+Aug 25 15:22:43 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:22:43 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:22:43 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:22:43 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:22:48 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12053.
+Aug 25 15:22:48 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:22:48 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:22:48 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:22:48 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:22:54 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12054.
+Aug 25 15:22:54 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:22:54 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:22:54 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:22:54 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:22:59 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12055.
+Aug 25 15:22:59 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:22:59 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:22:59 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:22:59 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:23:04 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12056.
+Aug 25 15:23:04 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:23:04 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:23:04 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:23:04 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:23:09 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12057.
+Aug 25 15:23:09 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:23:09 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:23:09 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:23:09 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:23:15 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12058.
+Aug 25 15:23:15 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:23:15 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:23:15 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:23:15 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:23:20 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12059.
+Aug 25 15:23:20 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:23:20 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:23:20 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:23:20 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:23:25 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12060.
+Aug 25 15:23:25 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:23:25 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:23:25 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:23:25 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:23:30 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12061.
+Aug 25 15:23:30 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:23:30 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:23:30 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:23:30 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:23:36 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12062.
+Aug 25 15:23:36 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:23:36 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:23:36 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:23:36 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:23:41 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12063.
+Aug 25 15:23:41 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:23:41 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:23:41 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:23:41 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:23:46 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12064.
+Aug 25 15:23:46 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:23:46 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:23:46 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:23:46 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:23:51 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12065.
+Aug 25 15:23:51 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:23:51 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:23:51 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:23:51 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:23:57 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12066.
+Aug 25 15:23:57 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:23:57 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:23:57 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:23:57 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+Aug 25 15:24:02 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Scheduled restart job, restart counter is at 12067.
+Aug 25 15:24:02 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn@server.service - OpenVPN connection to server...
+Aug 25 15:24:02 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Started openvpn@server.service - OpenVPN connection to server.
+Aug 25 15:24:02 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Main process exited, code=exited, status=1/FAILURE
+Aug 25 15:24:02 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.service: Failed with result 'exit-code'.
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

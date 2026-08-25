@@ -60,6 +60,7 @@ router.get("/provision/:token/bootstrap.rsc", async (req, res) => {
     });
 
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     res.setHeader("Content-Disposition", `attachment; filename=np-boot-${router_.id}.rsc`);
     return res.send(script);
   } catch (err) {
@@ -200,6 +201,7 @@ router.get("/provision/:token/setup.rsc", async (req, res) => {
     });
 
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     res.setHeader("Content-Disposition", `attachment; filename=netpulse-setup.rsc`);
     return res.send(script);
   } catch (err) {

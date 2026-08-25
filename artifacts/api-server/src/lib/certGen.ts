@@ -345,6 +345,8 @@ export function generateRosScript(params: {
   return `# =================================================================
 # NetPulse ISP Manager — RouterOS Full Setup (Stage 2)
 # Router:    ${params.routerName}
+# RouterOS:  ${params.routerOsVersion ?? "version-not-reported"}
+# OVPN cipher: ${ovpnCipher}
 # Generated: ${now}
 # Server:    ${params.serverIp}:${params.vpnPort}/${params.vpnProtocol.toUpperCase()}
 ${params.vpnIp ? `# VPN IP:    ${params.vpnIp}` : ""}

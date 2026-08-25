@@ -106,8 +106,10 @@ describe("generateRosScript", () => {
     });
 
     expect(routerOs6Script).toContain("cipher=aes128 \\\n    auth=sha1");
+    expect(routerOs6Script).toContain("# OVPN cipher: aes128");
     expect(routerOs6Script).not.toContain("cipher=aes128-cbc");
     expect(routerOs7Script).toContain("cipher=aes128-cbc \\\n    auth=sha1");
+    expect(routerOs7Script).toContain("# OVPN cipher: aes128-cbc");
     expect(routerOs7Script).not.toContain("cipher=aes128 \\\n    auth=sha1");
   });
 });

@@ -1,0 +1,34 @@
+
+
+
+^C^C
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo -u amboso -H pm2 logs netpulse --lines 0
+0|netpulse  | 2026-08-26 00:48:53: {"level":30,"time":1787694533601,"pid":31630,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MBALE","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse  | 2026-08-26 00:48:53: {"level":30,"time":1787694533601,"pid":31630,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MGR","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse  | 2026-08-26 00:48:53: {"level":30,"time":1787694533601,"pid":31630,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MAJENGO","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse  | 2026-08-26 00:49:17: {"level":30,"time":1787694557253,"pid":31630,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":37,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}
+0|netpulse  | 2026-08-26 00:49:17: {"level":30,"time":1787694557270,"pid":31630,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":38,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+0|netpulse  | 2026-08-26 00:49:18: {"level":30,"time":1787694558733,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","frontendDist":"/opt/netpulse/artifacts/isp-portal/dist/public","msg":"Serving frontend static files"}
+0|netpulse  | 2026-08-26 00:49:18: {"level":30,"time":1787694558760,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","port":8080,"msg":"Server listening"}
+0|netpulse  | 2026-08-26 00:49:18: {"level":30,"time":1787694558761,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","intervalMs":300000,"msg":"Session poller started"}
+0|netpulse  | 2026-08-26 00:49:18: {"level":30,"time":1787694558761,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","intervalMs":3600000,"msg":"SMS scheduler started"}
+0|netpulse  | 2026-08-26 00:49:18: {"level":30,"time":1787694558761,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","intervalMs":180000,"msg":"Router monitor started"}
+0|netpulse  | 2026-08-26 00:49:18: {"level":30,"time":1787694558762,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","intervalMs":86400000,"msg":"Audit log purge scheduler started"}
+0|netpulse  | 2026-08-26 00:49:18: {"level":30,"time":1787694558762,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","checkIntervalMs":3600000,"msg":"Audit export scheduler started"}
+0|netpulse  | 2026-08-26 00:49:18: {"level":30,"time":1787694558762,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","checkIntervalMs":3600000,"msg":"Staff inactivity digest scheduler started"}
+0|netpulse  | 2026-08-26 00:49:18: {"level":30,"time":1787694558762,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","intervalMs":300000,"msg":"DNS poller started"}
+0|netpulse  | 2026-08-26 00:49:18: {"level":30,"time":1787694558762,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","intervalMs":60000,"msg":"TR-069 command reconciler started"}
+0|netpulse  | 2026-08-26 00:49:18: {"level":30,"time":1787694558765,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","count":3,"msg":"Session poller: polling routers"}
+0|netpulse  | 2026-08-26 00:50:18: {"level":30,"time":1787694618772,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MBALE","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse  | 2026-08-26 00:50:18: {"level":30,"time":1787694618772,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MGR","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse  | 2026-08-26 00:50:18: {"level":30,"time":1787694618772,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MAJENGO","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+^C
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo -u amboso -H pm2 logs netpulse --lines 0
+0|netpulse  | 2026-08-26 00:51:31: {"level":30,"time":1787694691557,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":1,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":27,"msg":"request completed"}
+0|netpulse  | 2026-08-26 00:51:31: {"level":30,"time":1787694691594,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":2,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":6,"msg":"request completed"}
+0|netpulse  | 2026-08-26 00:51:33: {"level":30,"time":1787694693972,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":3,"method":"POST","url":"/api/infrastructure/vpn/sync-installed-certs"},"msg":"Synced the installed OpenVPN certificate authority into NetPulse"}
+0|netpulse  | 2026-08-26 00:51:33: {"level":30,"time":1787694693975,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":3,"method":"POST","url":"/api/infrastructure/vpn/sync-installed-certs"},"res":{"statusCode":200},"responseTime":170,"msg":"request completed"}
+0|netpulse  | 2026-08-26 00:51:34: {"level":30,"time":1787694694013,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":4,"method":"GET","url":"/api/infrastructure/status"},"res":{"statusCode":200},"responseTime":29,"msg":"request completed"}
+0|netpulse  | 2026-08-26 00:51:34: {"level":30,"time":1787694694062,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":5,"method":"GET","url":"/api/routers"},"res":{"statusCode":200},"responseTime":13,"msg":"request completed"}
+0|netpulse  | 2026-08-26 00:51:53: {"level":30,"time":1787694713483,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":6,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":19,"msg":"request completed"}
+0|netpulse  | 2026-08-26 00:51:53: {"level":30,"time":1787694713521,"pid":32979,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":7,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":9,"msg":"request completed"}

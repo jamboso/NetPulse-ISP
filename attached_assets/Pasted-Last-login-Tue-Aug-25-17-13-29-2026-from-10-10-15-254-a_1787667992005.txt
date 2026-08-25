@@ -1,0 +1,24 @@
+Last login: Tue Aug 25 17:13:29 2026 from 10.10.15.254
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$ sudo systemctl status openvpn@server                                                                              --no-pager
+sudo ss -ltnp 'sport = :1194'
+[sudo] password for amboso:
+○ openvpn@server.service - OpenVPN connection to server
+     Loaded: loaded (/usr/lib/systemd/system/openvpn@.service; enabled; preset:                                                                              enabled)
+     Active: inactive (dead) (Result: exit-code) since Tue 2026-08-25 17:14:17 E                                                                             AT; 9min ago
+   Duration: 20ms
+       Docs: man:openvpn(8)
+             https://community.openvpn.net/openvpn/wiki/Openvpn24ManPage
+             https://community.openvpn.net/openvpn/wiki/HOWTO
+    Process: 5970 ExecStart=/usr/sbin/openvpn --daemon ovpn-server --status /run                                                                             /openvpn/server.status 10 --cd /etc/openvpn --script-security 2 --config /etc/op                                                                             envpn/server.conf --writepid /run/openvpn/server.pid (code=exited, status=1/FAIL                                                                             URE)
+   Main PID: 5970 (code=exited, status=1/FAILURE)
+     Status: "Pre-connection initialization successful"
+        CPU: 30ms
+
+Aug 25 17:14:17 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn@server.…3.
+Aug 25 17:14:17 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Stopped openvpn…r.
+Hint: Some lines were ellipsized, use -l to show in full.
+State    Recv-Q   Send-Q     Local Address:Port     Peer Address:Port  Process
+LISTEN   0        32               0.0.0.0:1194          0.0.0.0:*      users:((                                                                             "openvpn",pid=1404,fd=6))
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

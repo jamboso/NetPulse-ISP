@@ -7,9 +7,10 @@ import { eq } from "drizzle-orm";
  *
  * - "owner" role users are not scoped to a company. Their requests to
  *   regular tenant routes (customers, invoices, etc) are only meaningful if
- *   they pass an explicit `?companyId=` query param (used sparingly, e.g.
- *   support/debug tooling); otherwise this returns null and route handlers
- *   should treat that as "no data" rather than leaking cross-tenant rows.
+ *   they pass an explicit `?companyId=` query param or a trusted
+ *   `x-netpulse-company-id` request header (used sparingly by tenant-aware
+ *   workspace tools); otherwise this returns null and route handlers should
+ *   treat that as "no data" rather than leaking cross-tenant rows.
  * - Every other role must have a companyId on their user record (assigned
  *   at account creation). Requests from users with no companyId are
  *   rejected — this should never happen in practice once all staff
@@ -23,7 +24,8 @@ export async function resolveCompanyScope(req: Request, res: Response, next: Nex
   }
 
   if (user.role === "owner") {
-    const queryCompanyId = Number(req.query["companyId"]);
+    const explicitCompanyScope = req.query["companyId"] ?? req.headers["x-netpulse-company-id"];
+    const queryCompanyId = Number(Array.isArray(explicitCompanyScope) ? explicitCompanyScope[0] : explicitCompanyScope);
     req.companyId = Number.isFinite(queryCompanyId) && queryCompanyId > 0 ? queryCompanyId : null;
     next();
     return;

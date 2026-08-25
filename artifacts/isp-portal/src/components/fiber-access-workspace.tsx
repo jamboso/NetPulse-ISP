@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useCreateOlt, useCreateOltServiceProfile, useDeleteOlt, useDeleteOltServiceProfile,
   useDiscoverOltInventory, useListOltProvisioningJobs, useListOltServiceProfiles,
@@ -11,8 +11,9 @@ import {
   type OltInput, type OltServiceProfileInput,
   type Tr069AcsConfigInput, type Tr069DeviceEnrollment, type Tr069CommandInput,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, Box, Cable, CheckCircle2, Circle, Loader2, Plus, Radio, RefreshCw, ShieldCheck, Trash2, Server, Settings2, Play, AlertCircle, Clock, Wifi, HardDrive } from "lucide-react";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,21 @@ const PROFILE_DEFAULTS: ProfileForm = {
   name: "", vlanId: "", accessMode: "bridge", downstreamKbps: "", upstreamKbps: "", tr069InformIntervalSeconds: "",
 };
 
+type CompanyOption = {
+  id: number;
+  name: string;
+  username: string;
+};
+
+async function fetchOwnerCompanies(): Promise<CompanyOption[]> {
+  const response = await fetch("/api/companies", { credentials: "include" });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.error ?? `Could not load companies (${response.status}).`);
+  }
+  return Array.isArray(payload?.data) ? payload.data : [];
+}
+
 function healthBadge(state: string) {
   if (state === "online") return <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50"><CheckCircle2 className="mr-1 h-3 w-3" />Online</Badge>;
   if (state === "offline") return <Badge className="bg-red-50 text-red-700 border border-red-200 hover:bg-red-50"><Circle className="mr-1 h-3 w-3" />Offline</Badge>;
@@ -64,28 +80,67 @@ function healthBadge(state: string) {
 }
 
 export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords }: { canManageNetwork: boolean; canDeleteNetworkRecords: boolean }) {
+  const { isOwner } = useCurrentUser();
   const queryClient = useQueryClient();
-  const { data: olts, isLoading: oltsLoading, isError: oltsError } = useListOlts();
-  const { data: onus, isLoading: onusLoading } = useListOnus();
-  const { data: profiles, isLoading: profilesLoading } = useListOltServiceProfiles();
-  const { data: jobs, isLoading: jobsLoading } = useListOltProvisioningJobs();
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const { data: ownerCompanies, isLoading: ownerCompaniesLoading, error: ownerCompaniesError } = useQuery({
+    queryKey: ["fiber-access-owner-companies"],
+    queryFn: fetchOwnerCompanies,
+    enabled: isOwner,
+  });
+  const scopeReady = !isOwner || selectedCompanyId.length > 0;
+  const companyScopeRequest = isOwner && selectedCompanyId
+    ? { headers: { "x-netpulse-company-id": selectedCompanyId } }
+    : undefined;
+
+  useEffect(() => {
+    if (isOwner && ownerCompanies?.length === 1 && !selectedCompanyId) {
+      setSelectedCompanyId(String(ownerCompanies[0]!.id));
+    }
+  }, [isOwner, ownerCompanies, selectedCompanyId]);
+
+  const { data: olts, isLoading: oltsLoading, isError: oltsError } = useListOlts({
+    query: { queryKey: [...getListOltsQueryKey(), { companyId: selectedCompanyId }], enabled: scopeReady },
+    request: companyScopeRequest,
+  });
+  const { data: onus, isLoading: onusLoading } = useListOnus(undefined, {
+    query: { queryKey: [...getListOnusQueryKey(), { companyId: selectedCompanyId }], enabled: scopeReady },
+    request: companyScopeRequest,
+  });
+  const { data: profiles, isLoading: profilesLoading } = useListOltServiceProfiles({
+    query: { queryKey: [...getListOltServiceProfilesQueryKey(), { companyId: selectedCompanyId }], enabled: scopeReady },
+    request: companyScopeRequest,
+  });
+  const { data: jobs, isLoading: jobsLoading } = useListOltProvisioningJobs({
+    query: { queryKey: [...getListOltProvisioningJobsQueryKey(), { companyId: selectedCompanyId }], enabled: scopeReady },
+    request: companyScopeRequest,
+  });
   const { data: compatibilityProfiles, isLoading: compatibilityLoading } = useListOltCompatibilityProfiles();
   
-  const { data: acsConfig, isLoading: acsLoading } = useGetTr069AcsConfig();
-  const { data: cpes, isLoading: cpesLoading } = useListTr069Devices();
-  const { data: commands, isLoading: commandsLoading } = useListTr069Commands();
+  const { data: acsConfig, isLoading: acsLoading } = useGetTr069AcsConfig({
+    query: { queryKey: [...getGetTr069AcsConfigQueryKey(), { companyId: selectedCompanyId }], enabled: scopeReady },
+    request: companyScopeRequest,
+  });
+  const { data: cpes, isLoading: cpesLoading } = useListTr069Devices({
+    query: { queryKey: [...getListTr069DevicesQueryKey(), { companyId: selectedCompanyId }], enabled: scopeReady },
+    request: companyScopeRequest,
+  });
+  const { data: commands, isLoading: commandsLoading } = useListTr069Commands({
+    query: { queryKey: [...getListTr069CommandsQueryKey(), { companyId: selectedCompanyId }], enabled: scopeReady },
+    request: companyScopeRequest,
+  });
 
-  const createOlt = useCreateOlt();
-  const deleteOlt = useDeleteOlt();
-  const discoverOlt = useDiscoverOltInventory();
-  const createProfile = useCreateOltServiceProfile();
-  const deleteProfile = useDeleteOltServiceProfile();
+  const createOlt = useCreateOlt({ request: companyScopeRequest });
+  const deleteOlt = useDeleteOlt({ request: companyScopeRequest });
+  const discoverOlt = useDiscoverOltInventory({ request: companyScopeRequest });
+  const createProfile = useCreateOltServiceProfile({ request: companyScopeRequest });
+  const deleteProfile = useDeleteOltServiceProfile({ request: companyScopeRequest });
   
-  const updateAcsConfig = useUpdateTr069AcsConfig();
-  const enrollCpe = useEnrollTr069Onu();
-  const refreshCpe = useRefreshTr069Device();
-  const createCommand = useCreateTr069Command();
-  const retryCommand = useRetryTr069Command();
+  const updateAcsConfig = useUpdateTr069AcsConfig({ request: companyScopeRequest });
+  const enrollCpe = useEnrollTr069Onu({ request: companyScopeRequest });
+  const refreshCpe = useRefreshTr069Device({ request: companyScopeRequest });
+  const createCommand = useCreateTr069Command({ request: companyScopeRequest });
+  const retryCommand = useRetryTr069Command({ request: companyScopeRequest });
 
   const [oltDialogOpen, setOltDialogOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
@@ -102,6 +157,12 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
   const [error, setError] = useState<string | null>(null);
   const [discoveringId, setDiscoveringId] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const requireCompanyScope = () => {
+    if (scopeReady) return true;
+    setError("Select the company whose fiber equipment you want to manage before saving changes.");
+    return false;
+  };
 
   const refresh = async () => {
     await Promise.all([
@@ -121,6 +182,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
   };
 
   const saveOlt = async () => {
+    if (!requireCompanyScope()) return;
     setError(null);
     try {
       await createOlt.mutateAsync({
@@ -130,6 +192,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
           managementPort: Number(oltForm.managementPort),
           managementUsername: oltForm.managementUsername || undefined,
           location: oltForm.location || null,
+          enabled: true,
         } as OltInput,
       });
       await refresh();
@@ -141,6 +204,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
   };
 
   const saveProfile = async () => {
+    if (!requireCompanyScope()) return;
     setError(null);
     try {
       await createProfile.mutateAsync({
@@ -151,6 +215,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
           downstreamKbps: profileForm.downstreamKbps ? Number(profileForm.downstreamKbps) : null,
           upstreamKbps: profileForm.upstreamKbps ? Number(profileForm.upstreamKbps) : null,
           tr069InformIntervalSeconds: profileForm.tr069InformIntervalSeconds ? Number(profileForm.tr069InformIntervalSeconds) : null,
+          enabled: true,
         } as OltServiceProfileInput,
       });
       await refresh();
@@ -162,6 +227,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
   };
 
   const discover = async (id: number) => {
+    if (!requireCompanyScope()) return;
     setError(null);
     setDiscoveringId(id);
     try {
@@ -175,6 +241,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
   };
 
   const removeOlt = async (id: number, name: string) => {
+    if (!requireCompanyScope()) return;
     if (!confirm(`Remove ${name} and its discovered fiber inventory? This cannot be undone.`)) return;
     setError(null);
     try {
@@ -186,6 +253,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
   };
 
   const removeProfile = async (id: number) => {
+    if (!requireCompanyScope()) return;
     if (!confirm("Delete this service profile?")) return;
     setError(null);
     try {
@@ -197,6 +265,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
   };
 
   const saveAcsConfig = async () => {
+    if (!requireCompanyScope()) return;
     setError(null);
     try {
       await updateAcsConfig.mutateAsync({ data: acsForm });
@@ -208,6 +277,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
   };
 
   const saveEnrollment = async () => {
+    if (!requireCompanyScope()) return;
     setError(null);
     try {
       await enrollCpe.mutateAsync({ 
@@ -223,6 +293,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
   };
 
   const saveCommand = async () => {
+    if (!requireCompanyScope()) return;
     setError(null);
     try {
       await createCommand.mutateAsync({ 
@@ -237,6 +308,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
   };
 
   const handleRefreshCpe = async (id: number) => {
+    if (!requireCompanyScope()) return;
     setError(null);
     setActionLoading(`refresh-${id}`);
     try {
@@ -250,6 +322,7 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
   };
 
   const handleRetryCommand = async (id: number) => {
+    if (!requireCompanyScope()) return;
     setError(null);
     setActionLoading(`retry-${id}`);
     try {
@@ -264,6 +337,36 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
 
   return (
     <div className="space-y-5">
+      {isOwner && (
+        <section className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-indigo-950">Choose a customer company</h2>
+              <p className="mt-1 max-w-2xl text-sm text-indigo-800">Fiber Access and TR-069 records belong to one company. Choose the company before viewing or saving its OLTs, ONUs, router settings, or ACS configuration.</p>
+            </div>
+            <div className="w-full sm:w-72">
+              <Label htmlFor="fiber-access-company" className="text-xs text-indigo-900">Company</Label>
+              <Select value={selectedCompanyId || undefined} onValueChange={setSelectedCompanyId} disabled={ownerCompaniesLoading}>
+                <SelectTrigger id="fiber-access-company" className="mt-1 bg-white"><SelectValue placeholder={ownerCompaniesLoading ? "Loading companies…" : "Select a company"} /></SelectTrigger>
+                <SelectContent>
+                  {ownerCompanies?.map((company) => <SelectItem key={company.id} value={String(company.id)}>{company.name} ({company.username})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {ownerCompaniesError && <p className="mt-3 text-sm text-red-700">{ownerCompaniesError.message}</p>}
+          {!ownerCompaniesLoading && !ownerCompaniesError && !ownerCompanies?.length && <p className="mt-3 text-sm text-amber-800">No customer companies are available yet. Create one first, then return here to manage its fiber equipment.</p>}
+        </section>
+      )}
+
+      {!scopeReady ? (
+        <section className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
+          <Cable className="mx-auto h-8 w-8 text-gray-400" />
+          <h2 className="mt-3 font-semibold text-gray-900">Select a company to open Fiber Access</h2>
+          <p className="mx-auto mt-1 max-w-lg text-sm text-gray-600">This prevents OLT, ONU, and TR-069 settings from being created in the wrong customer company.</p>
+        </section>
+      ) : (
+        <>
       <div className="rounded-xl border border-sky-200 bg-gradient-to-r from-sky-50 to-white p-5">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div className="flex gap-3">
@@ -567,6 +670,8 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
           <DialogFooter><Button variant="outline" onClick={() => setCommandDialogOpen(false)}>Cancel</Button><Button className="bg-indigo-700 hover:bg-indigo-800" disabled={createCommand.isPending || !commandForm.onuId || !commandForm.serviceProfileId} onClick={() => void saveCommand()}>{createCommand.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Queue Task</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+        </>
+      )}
     </div>
   );
 }

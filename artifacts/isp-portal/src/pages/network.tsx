@@ -286,9 +286,7 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
           )}
           {!repairResult.success && (
             <div className="mt-2 rounded border border-amber-200 bg-white/70 px-2 py-1.5 text-[11px]">
-              {repairResult.message.includes("unmarked")
-                ? <>The dedicated configuration needs a one-time ownership check before repair can run. Verify that <code className="font-mono">/etc/openvpn/server/netpulse.conf</code> belongs to NetPulse—not Tabana-VPN—then run <code className="font-mono">sudo bash /opt/netpulse/deploy/adopt-existing-netpulse-vpn.sh --confirm-existing-netpulse-vpn</code> over SSH. It creates a backup and only adds the marker; it does not restart OpenVPN.</>
-                : repairResult.message.includes("Dedicated NetPulse VPN configuration")
+              {repairResult.message.includes("Dedicated NetPulse VPN configuration")
                 ? <>This server still uses the legacy generic VPN instance. After verifying that it is NetPulse—not Tabana-VPN—run <code className="font-mono">sudo bash /opt/netpulse/deploy/migrate-legacy-routeros-vpn.sh --confirm-legacy-netpulse-vpn</code> over SSH once.</>
                 : repairResult.state === "unavailable"
                   ? <>VPN repair helper unavailable or not authorized. Run <code className="font-mono">sudo /usr/local/bin/netpulse-vpn-repair --json</code> over SSH, then check <code className="font-mono">journalctl -u openvpn-server@netpulse -n 50</code>.</>

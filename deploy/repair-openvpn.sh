@@ -53,7 +53,7 @@ finish() {
 command -v systemctl >/dev/null 2>&1 || finish false "unavailable" "systemctl is unavailable on this host." 1
 command -v ss >/dev/null 2>&1 || finish false "unavailable" "The ss command is unavailable; install iproute2 before repairing OpenVPN." 1
 grep -Fxq "$MARKER" "$CONFIG" \
-  || finish false "blocked" "The dedicated NetPulse configuration exists but is unmarked. No service or listener was changed; verify it is not Tabana-VPN, then run the one-time adoption command over SSH." 1
+  || finish false "blocked" "Refusing to repair an unmarked OpenVPN configuration. No service or listener was changed." 1
 
 PORT="$(awk '$1 == "port" { print $2; exit }' "$CONFIG")"
 [[ "$PORT" =~ ^[0-9]{1,5}$ ]] && (( 10#$PORT >= 1 && 10#$PORT <= 65535 )) \

@@ -26,3 +26,4 @@
 - [HIOSO compatibility gate](hioso-compatibility-gate.md) — recognized HIOSO series never imply write support; only exact EPON model, firmware, and protocol profiles may enable MIB discovery.
 - [TR-069 ACS verification](tr069-acs-verification.md) — CPE management requires an ACS auth marker plus reported matching data model; staff confirmation alone is never enough.
 - [Owner tenant workspace scope](owner-tenant-workspace-scope.md) — owner-operated tenant tools require explicit company selection; never infer a fallback tenant.
+- [Ubuntu firewall persistence](netfilter-persistent-firewall.md) — this control plane uses iptables-nft with netfilter-persistent; UFW is absent and INPUT policy is ACCEPT.

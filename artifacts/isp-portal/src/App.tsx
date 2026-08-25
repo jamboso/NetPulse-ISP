@@ -5,6 +5,7 @@ import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 
 import { queryClient } from "./lib/queryClient";
 import { useSession, signOut } from "./lib/authClient";
+import { NETWORK_ACCESS_ROLES } from "./hooks/useCurrentUser";
 import { Toaster } from "./components/ui/toaster";
 import Layout from "./components/layout";
 import { RoleRoute } from "./components/RoleRoute";
@@ -131,10 +132,10 @@ function ProtectedRoutes() {
             <Route path="/mpesa">{() => <RoleRoute component={MpesaTransactions} roles={["admin", "billing"]} />}</Route>
             <Route path="/tickets">{() => <RoleRoute component={Tickets} roles={["admin", "support"]} />}</Route>
             <Route path="/tickets/:id">{() => <RoleRoute component={TicketDetail} roles={["admin", "support"]} />}</Route>
-            <Route path="/network">{() => <RoleRoute component={Network} roles={["admin", "technician"]} />}</Route>
-            <Route path="/network/routers/:id">{() => <RoleRoute component={RouterOSDashboard} roles={["admin", "technician"]} />}</Route>
-            <Route path="/network/routers/:id/pppoe">{() => <RoleRoute component={PPPoESetup} roles={["admin", "technician"]} />}</Route>
-            <Route path="/network/routers/:id/hotspot">{() => <RoleRoute component={HotspotManager} roles={["admin", "technician"]} />}</Route>
+            <Route path="/network">{() => <RoleRoute component={Network} roles={NETWORK_ACCESS_ROLES} />}</Route>
+            <Route path="/network/routers/:id">{() => <RoleRoute component={RouterOSDashboard} roles={NETWORK_ACCESS_ROLES} />}</Route>
+            <Route path="/network/routers/:id/pppoe">{() => <RoleRoute component={PPPoESetup} roles={NETWORK_ACCESS_ROLES} />}</Route>
+            <Route path="/network/routers/:id/hotspot">{() => <RoleRoute component={HotspotManager} roles={NETWORK_ACCESS_ROLES} />}</Route>
             <Route path="/settings">{() => <RoleRoute component={Settings} roles={["owner", "admin"]} />}</Route>
             <Route path="/staff">{() => <RoleRoute component={Staff} roles={["admin"]} />}</Route>
             <Route path="/audit-logs">{() => <RoleRoute component={AuditLogs} roles={["owner", "admin", "billing", "support", "technician"]} />}</Route>

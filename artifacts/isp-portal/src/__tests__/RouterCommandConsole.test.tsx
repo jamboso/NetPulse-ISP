@@ -35,4 +35,12 @@ describe("RouterCommandConsole", () => {
     expect(screen.getByRole("heading", { name: "MAJE_TEMP command console" })).toBeInTheDocument();
     expect(screen.getByText(/Commands run over the router’s private management VPN/i)).toBeInTheDocument();
   });
+
+  it("opens for an owner when the VPN is connected", () => {
+    mockCurrentUser.mockReturnValue({ isAdmin: false, isOwner: true });
+    render(<RouterCommandConsole routerId={17} routerName="MAJE_TEMP" vpnConnected sshHostKey="SHA256:verifiedRouterKey" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Command Console" }));
+    expect(screen.getByRole("heading", { name: "MAJE_TEMP command console" })).toBeInTheDocument();
+  });
 });

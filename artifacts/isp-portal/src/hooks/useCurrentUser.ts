@@ -1,6 +1,7 @@
 import { useSession } from "@/lib/authClient";
 
 export type UserRole = "owner" | "admin" | "billing" | "support" | "technician";
+export const NETWORK_ACCESS_ROLES: UserRole[] = ["owner", "admin", "technician"];
 
 export interface CurrentUser {
   id?: string;
@@ -40,7 +41,7 @@ export function useCurrentUser(): CurrentUser {
     canDeleteCustomers:      role === "admin",
     canManageBilling:        role === "admin" || role === "billing",
     canDeleteBillingRecords: role === "admin",
-    canManageNetwork:        role === "admin" || role === "technician",
+    canManageNetwork:        NETWORK_ACCESS_ROLES.includes(role),
     canDeleteNetworkRecords: role === "admin",
     canManageTickets:        role === "admin" || role === "support",
   };

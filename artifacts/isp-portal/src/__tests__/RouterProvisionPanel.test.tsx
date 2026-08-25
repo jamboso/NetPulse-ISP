@@ -85,6 +85,17 @@ describe("RouterProvisionPanel VPN repair", () => {
     expect(screen.queryByRole("button", { name: "Repair VPN Service" })).not.toBeInTheDocument();
   });
 
+  it("shows the locked command console and explains the VPN requirement while pending", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => provisionInfo }));
+
+    render(<RouterProvisionPanel routerId={17} routerName="MAJE_TEMP" />);
+
+    await screen.findByText("Awaiting provisioning");
+    expect(screen.getByText("Command console locked")).toBeInTheDocument();
+    expect(screen.getByText(/Connect this router’s private management VPN/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Command Console" })).toBeDisabled();
+  });
+
   it("requires confirmation before calling the central repair service", async () => {
     vi.stubGlobal("confirm", vi.fn(() => false));
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => provisionInfo });

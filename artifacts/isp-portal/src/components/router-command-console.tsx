@@ -171,8 +171,8 @@ export function RouterCommandConsole({
         title={unavailableReason ?? keyEnrollmentReason ?? "Open command console"}
         onClick={() => trustedHostKey ? setOpen(true) : openHostKeyEnrollment()}
       >
-        {trustedHostKey ? <Terminal className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-        {trustedHostKey ? "Command Console" : "Verify Router Key"}
+        {trustedHostKey || !vpnConnected ? <Terminal className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+        {!vpnConnected ? "Command Console" : trustedHostKey ? "Command Console" : "Verify Router Key"}
       </Button>
       <Dialog open={hostKeyOpen} onOpenChange={setHostKeyOpen}>
         <DialogContent className="max-w-lg">

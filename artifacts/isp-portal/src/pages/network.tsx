@@ -356,6 +356,15 @@ export function RouterProvisionPanel({ routerId, routerName }: { routerId: numbe
               <BridgePortsManager routerId={routerId} />
             </div>
           )}
+          {!loading && !connected && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-amber-900">Command console locked</p>
+                <p className="text-xs text-amber-800">Connect this router’s private management VPN to enable SSH commands.</p>
+              </div>
+              <RouterCommandConsole routerId={routerId} routerName={routerName} vpnConnected={false} sshHostKey={info?.sshHostKey} />
+            </div>
+          )}
         </>
       )}
     </div>

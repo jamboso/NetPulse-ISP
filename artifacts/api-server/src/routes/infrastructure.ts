@@ -6,7 +6,7 @@ import {
 } from "@workspace/db";
 import { generateVpnServerCerts, generateClientCert, generateOpenVpnServerConf, generateRosScript } from "../lib/certGen";
 import { requireRole } from "../middlewares/requireRole";
-import { loadInstalledOpenVpnCertificates } from "../lib/systemVpnCerts";
+import { loadInstalledOpenVpnCertificatesWithHelper } from "../lib/systemVpnCerts";
 import { repairOpenVpnService } from "../lib/openVpnRepair";
 
 const router = Router();
@@ -262,7 +262,7 @@ router.post("/infrastructure/vpn/sync-installed-certs", requireRole("owner"), as
       return res.status(400).json({ error: "Save VPN configuration before syncing installed certificates." });
     }
 
-    const installed = await loadInstalledOpenVpnCertificates();
+    const installed = await loadInstalledOpenVpnCertificatesWithHelper();
     await db
       .update(vpnConfigTable)
       .set({

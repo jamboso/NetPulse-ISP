@@ -80,6 +80,7 @@ uninstall() {
   rm -f /usr/local/bin/netpulse-vpn-issue
   rm -f /usr/local/bin/netpulse-vpn-revoke
   rm -f /usr/local/bin/netpulse-vpn-repair
+  rm -f /usr/local/bin/netpulse-vpn-read-certificates
   rm -f /etc/sudoers.d/netpulse-vpn
 
   # Drop DB and user
@@ -141,7 +142,9 @@ upgrade() {
 
   install -o root -g root -m 0755 "$NETPULSE_DIR/deploy/repair-openvpn.sh" /usr/local/bin/.netpulse-vpn-repair.new
   mv -f /usr/local/bin/.netpulse-vpn-repair.new /usr/local/bin/netpulse-vpn-repair
-  echo "${NETPULSE_USER} ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke, /usr/local/bin/netpulse-vpn-repair" \
+  install -o root -g root -m 0755 "$NETPULSE_DIR/deploy/read-openvpn-certificates.sh" /usr/local/bin/.netpulse-vpn-read-certificates.new
+  mv -f /usr/local/bin/.netpulse-vpn-read-certificates.new /usr/local/bin/netpulse-vpn-read-certificates
+  echo "${NETPULSE_USER} ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke, /usr/local/bin/netpulse-vpn-repair, /usr/local/bin/netpulse-vpn-read-certificates" \
     > /etc/sudoers.d/netpulse-vpn
   chmod 440 /etc/sudoers.d/netpulse-vpn
   visudo -cf /etc/sudoers.d/netpulse-vpn >/dev/null || err "Could not validate the NetPulse VPN sudo rule."
@@ -751,6 +754,8 @@ banner "VPN management helpers"
 
 install -o root -g root -m 0755 "${NETPULSE_DIR}/deploy/repair-openvpn.sh" /usr/local/bin/netpulse-vpn-repair
 ok "/usr/local/bin/netpulse-vpn-repair"
+install -o root -g root -m 0755 "${NETPULSE_DIR}/deploy/read-openvpn-certificates.sh" /usr/local/bin/netpulse-vpn-read-certificates
+ok "/usr/local/bin/netpulse-vpn-read-certificates"
 
 cat > /usr/local/bin/netpulse-vpn-issue <<'VPN_ISSUE'
 #!/usr/bin/env bash
@@ -825,7 +830,7 @@ chmod 755 /usr/local/bin/netpulse-vpn-revoke
 ok "/usr/local/bin/netpulse-vpn-revoke"
 
 # Sudoers: allow netpulse user to run VPN helpers without password
-echo "${NETPULSE_USER} ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke, /usr/local/bin/netpulse-vpn-repair" \
+echo "${NETPULSE_USER} ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke, /usr/local/bin/netpulse-vpn-repair, /usr/local/bin/netpulse-vpn-read-certificates" \
   > /etc/sudoers.d/netpulse-vpn
 chmod 440 /etc/sudoers.d/netpulse-vpn
 visudo -cf /etc/sudoers.d/netpulse-vpn >/dev/null || err "Could not validate the NetPulse VPN sudo rule."

@@ -40,23 +40,28 @@ lock_release_control_files() {
   find "$APP_DIR/.git" "$APP_DIR/deploy" -type f -exec chmod go-w {} +
 }
 
-install_vpn_repair_helper() {
-  local helper="$APP_DIR/deploy/repair-openvpn.sh"
+install_vpn_privileged_helpers() {
+  local helper="$APP_DIR/deploy/repair-openvpn.sh" certificate_reader="$APP_DIR/deploy/read-openvpn-certificates.sh"
   local app_user="${NETPULSE_PM2_USER:-root}"
   [[ -f "$helper" ]] || die "VPN repair helper is missing from the verified release."
+  [[ -f "$certificate_reader" ]] || die "VPN certificate reader is missing from the verified release."
   [[ "$app_user" =~ ^[a-z_][a-z0-9_-]*$ ]] || die "Configured PM2 user is invalid."
   [[ "$(stat -c '%U:%a' "$APP_DIR/deploy")" == "root:755" ]] \
     || die "Deployment scripts are not root-owned; refusing to install a privileged helper."
   [[ "$(stat -c '%U' "$helper")" == "root" ]] \
     || die "VPN repair helper source is not root-owned."
+  [[ "$(stat -c '%U' "$certificate_reader")" == "root" ]] \
+    || die "VPN certificate reader source is not root-owned."
 
   install -o root -g root -m 0755 "$helper" /usr/local/bin/.netpulse-vpn-repair.new
   mv -f /usr/local/bin/.netpulse-vpn-repair.new /usr/local/bin/netpulse-vpn-repair
-  printf '%s ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke, /usr/local/bin/netpulse-vpn-repair\n' "$app_user" \
+  install -o root -g root -m 0755 "$certificate_reader" /usr/local/bin/.netpulse-vpn-read-certificates.new
+  mv -f /usr/local/bin/.netpulse-vpn-read-certificates.new /usr/local/bin/netpulse-vpn-read-certificates
+  printf '%s ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke, /usr/local/bin/netpulse-vpn-repair, /usr/local/bin/netpulse-vpn-read-certificates\n' "$app_user" \
     > /etc/sudoers.d/netpulse-vpn
   chmod 440 /etc/sudoers.d/netpulse-vpn
   visudo -cf /etc/sudoers.d/netpulse-vpn >/dev/null || die "VPN helper sudo rule is invalid."
-  ok "Root-owned VPN repair helper refreshed"
+  ok "Root-owned NetPulse VPN helpers refreshed"
 }
 
 json_escape() {
@@ -187,7 +192,7 @@ pnpm run typecheck:libs
 pnpm --filter @workspace/api-server run build
 PORT=3000 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/isp-portal run build
 ok "Release built successfully"
-install_vpn_repair_helper
+install_vpn_privileged_helpers
 
 CURRENT_PHASE="migrating"
 write_status "migrating" "$CURRENT_PHASE" "Applying outstanding recorded database migrations."

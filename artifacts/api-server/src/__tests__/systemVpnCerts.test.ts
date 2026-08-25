@@ -3,6 +3,7 @@ import { generateVpnServerCerts } from "../lib/certGen.js";
 import {
   INSTALLED_OPENVPN_CERTIFICATE_PATHS,
   loadInstalledOpenVpnCertificates,
+  loadInstalledOpenVpnCertificatesWithHelper,
 } from "../lib/systemVpnCerts.js";
 
 describe("loadInstalledOpenVpnCertificates", () => {
@@ -40,6 +41,21 @@ describe("loadInstalledOpenVpnCertificates", () => {
     expect(bundle.caKey).toBe(certs.ca.key);
     expect(bundle.serverCert).toBe(certs.server.cert);
     expect(bundle.serverKey).toBe(certs.server.key);
+  });
+
+  it("validates an installed bundle returned by the privileged reader", async () => {
+    const certs = await generateVpnServerCerts();
+    const encode = (value: string) => Buffer.from(value, "utf8").toString("base64");
+
+    const bundle = await loadInstalledOpenVpnCertificatesWithHelper(async () => JSON.stringify({
+      caCert: encode(certs.ca.cert),
+      caKey: encode(certs.ca.key),
+      serverCert: encode(certs.server.cert),
+      serverKey: encode(certs.server.key),
+    }));
+
+    expect(bundle.caCert).toBe(certs.ca.cert);
+    expect(bundle.serverCert).toBe(certs.server.cert);
   });
 
   it("rejects a server certificate issued by a different certificate authority", async () => {

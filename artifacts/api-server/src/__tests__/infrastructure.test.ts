@@ -7,7 +7,7 @@ const mockGenerateServerCerts = vi.hoisted(() => vi.fn());
 const mockGenerateClientCert = vi.hoisted(() => vi.fn());
 const mockGenerateServerConf = vi.hoisted(() => vi.fn());
 const mockGenerateRosScript = vi.hoisted(() => vi.fn());
-const mockLoadInstalledOpenVpnCertificates = vi.hoisted(() => vi.fn());
+const mockLoadInstalledOpenVpnCertificatesWithHelper = vi.hoisted(() => vi.fn());
 const mockRepairOpenVpnService = vi.hoisted(() => vi.fn());
 
 vi.mock("@workspace/db", () => {
@@ -35,7 +35,7 @@ vi.mock("../lib/certGen.js", () => ({
   generateRosScript: mockGenerateRosScript,
 }));
 vi.mock("../lib/systemVpnCerts.js", () => ({
-  loadInstalledOpenVpnCertificates: mockLoadInstalledOpenVpnCertificates,
+  loadInstalledOpenVpnCertificatesWithHelper: mockLoadInstalledOpenVpnCertificatesWithHelper,
 }));
 vi.mock("../lib/openVpnRepair.js", () => ({
   repairOpenVpnService: mockRepairOpenVpnService,
@@ -170,7 +170,7 @@ describe("infrastructure write operations", () => {
 
   it("syncs the installed OpenVPN certificate authority for an owner", async () => {
     mockExec.mockResolvedValueOnce([{ id: 1 }]);
-    mockLoadInstalledOpenVpnCertificates.mockResolvedValueOnce({
+    mockLoadInstalledOpenVpnCertificatesWithHelper.mockResolvedValueOnce({
       caCert: "installed-ca",
       caKey: "installed-ca-key",
       serverCert: "installed-server",
@@ -181,14 +181,14 @@ describe("infrastructure write operations", () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(expect.objectContaining({ success: true }));
-    expect(mockLoadInstalledOpenVpnCertificates).toHaveBeenCalledOnce();
+    expect(mockLoadInstalledOpenVpnCertificatesWithHelper).toHaveBeenCalledOnce();
   });
 
   it("refuses to sync installed OpenVPN certificates for non-owners", async () => {
     const response = await request(buildApp("admin")).post("/infrastructure/vpn/sync-installed-certs");
 
     expect(response.status).toBe(403);
-    expect(mockLoadInstalledOpenVpnCertificates).not.toHaveBeenCalled();
+    expect(mockLoadInstalledOpenVpnCertificatesWithHelper).not.toHaveBeenCalled();
   });
 
   it("repairs the NetPulse VPN service for an owner and returns its safe status", async () => {

@@ -9,4 +9,6 @@ NetPulse must issue router certificates from the certificate authority used by t
 
 Older NetPulse installations may keep the active service certificates under `/etc/openvpn/server/certs`, while the current installer uses `/etc/openvpn/netpulse*`. Certificate sync must recognize both approved layouts and locate the corresponding CA signing key before issuing new router credentials.
 
+The API normally runs unprivileged, while the CA signing key must remain root-only. Certificate synchronization therefore needs a fixed, root-owned helper with an exact sudo rule; never weaken key permissions or grant the API a broad root shell.
+
 **How to apply:** Preserve the running OpenVPN configuration, perform the owner-authorized server-local certificate sync, then reprovision each router whose certificate was issued under the previous CA. Never return CA or server private keys in API responses or logs.

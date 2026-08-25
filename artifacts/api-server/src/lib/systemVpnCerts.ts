@@ -1,4 +1,5 @@
 import { createPrivateKey, X509Certificate } from "node:crypto";
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 
 export const INSTALLED_OPENVPN_CERTIFICATE_PATHS = {
@@ -41,9 +42,29 @@ export interface InstalledOpenVpnCertificates {
 }
 
 type ReadPemFile = (path: string) => Promise<string>;
+type RunCertificateReader = () => Promise<string>;
+
+const CERTIFICATE_READER_HELPER = "/usr/local/bin/netpulse-vpn-read-certificates";
 
 async function readPemFile(path: string): Promise<string> {
   return readFile(path, "utf8");
+}
+
+function runCertificateReader(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      "sudo",
+      ["-n", CERTIFICATE_READER_HELPER, "--json"],
+      { encoding: "utf8", timeout: 20_000, maxBuffer: 128 * 1024 },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(new Error(String(stderr).trim() || "The NetPulse certificate reader could not run."));
+          return;
+        }
+        resolve(String(stdout));
+      },
+    );
+  });
 }
 
 async function readFirstAvailable(
@@ -104,6 +125,36 @@ export async function loadInstalledOpenVpnCertificates(
     return bundle;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown certificate validation error.";
+    throw new Error(`Unable to use the installed OpenVPN certificates: ${message}`);
+  }
+}
+
+/**
+ * Reads the certificate bundle through the fixed root-owned helper. The caller
+ * keeps the private material server-side and must never include it in a response.
+ */
+export async function loadInstalledOpenVpnCertificatesWithHelper(
+  runReader: RunCertificateReader = runCertificateReader,
+): Promise<InstalledOpenVpnCertificates> {
+  try {
+    const parsed = JSON.parse(await runReader()) as Partial<Record<keyof InstalledOpenVpnCertificates, string>>;
+    const decode = (value: unknown, label: string): string => {
+      if (typeof value !== "string" || !/^[A-Za-z0-9+/]+={0,2}$/.test(value)) {
+        throw new Error(`The NetPulse certificate reader returned an invalid ${label}.`);
+      }
+      return Buffer.from(value, "base64").toString("utf8");
+    };
+
+    const bundle: InstalledOpenVpnCertificates = {
+      caCert: decode(parsed.caCert, "CA certificate"),
+      caKey: decode(parsed.caKey, "CA signing key"),
+      serverCert: decode(parsed.serverCert, "server certificate"),
+      serverKey: decode(parsed.serverKey, "server private key"),
+    };
+    validateCertificateBundle(bundle);
+    return bundle;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown certificate reader error.";
     throw new Error(`Unable to use the installed OpenVPN certificates: ${message}`);
   }
 }

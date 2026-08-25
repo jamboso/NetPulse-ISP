@@ -53,6 +53,7 @@ describe("RouterOS VPN deployment safety", () => {
 
     for (const script of [safeUpdater, legacyInstaller, ubuntuSetup]) {
       expect(script).toContain("/usr/local/bin/netpulse-vpn-repair");
+      expect(script).toContain("/usr/local/bin/netpulse-vpn-read-certificates");
       expect(script).toContain("visudo -cf /etc/sudoers.d/netpulse-vpn");
     }
     expect(safeUpdater).toContain('Deployment scripts are not root-owned; refusing to install a privileged helper.');

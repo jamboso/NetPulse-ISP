@@ -157,6 +157,8 @@ fi
 # ── 8. Write VPN helpers ──────────────────────────────────────────────────────
 install -o root -g root -m 0755 "$APP_DIR/deploy/repair-openvpn.sh" /usr/local/bin/netpulse-vpn-repair
 ok "netpulse-vpn-repair helper installed"
+install -o root -g root -m 0755 "$APP_DIR/deploy/read-openvpn-certificates.sh" /usr/local/bin/netpulse-vpn-read-certificates
+ok "netpulse-vpn-read-certificates helper installed"
 
 cat > /usr/local/bin/netpulse-vpn-issue <<'VPN_ISSUE'
 #!/usr/bin/env bash
@@ -232,7 +234,7 @@ ok "netpulse-vpn-revoke helper installed"
 
 # ── 10. Sudoers rule (API runs as non-root, helpers need root) ────────────────
 REAL_USER="${SUDO_USER:-$(logname 2>/dev/null || echo root)}"
-echo "${REAL_USER} ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke, /usr/local/bin/netpulse-vpn-repair" \
+echo "${REAL_USER} ALL=(root) NOPASSWD: /usr/local/bin/netpulse-vpn-issue, /usr/local/bin/netpulse-vpn-revoke, /usr/local/bin/netpulse-vpn-repair, /usr/local/bin/netpulse-vpn-read-certificates" \
   > /etc/sudoers.d/netpulse-vpn
 chmod 440 /etc/sudoers.d/netpulse-vpn
 visudo -cf /etc/sudoers.d/netpulse-vpn >/dev/null || die "Could not validate the NetPulse VPN sudo rule."

@@ -44,6 +44,20 @@ describe("RouterOS VPN deployment safety", () => {
     expect(migration).toContain('rm -rf "$NETPULSE_DIR" "$NETPULSE_EASYRSA"');
   });
 
+  it("requires an explicit, backup-first adoption before marking an existing dedicated config", async () => {
+    const adoption = await readFile(repoFile("deploy/adopt-existing-netpulse-vpn.sh"), "utf8");
+
+    expect(adoption).toContain('CONFIG="/etc/openvpn/server/netpulse.conf"');
+    expect(adoption).toContain('--confirm-existing-netpulse-vpn');
+    expect(adoption).toContain('grep -Eqi \'tabana');
+    expect(adoption).toContain('cp -p "$CONFIG" "$backup"');
+    expect(adoption).toContain('printf \'%s\\n\' "$MARKER"');
+    expect(adoption).toContain('No OpenVPN service or listener was changed.');
+    expect(adoption).not.toMatch(/systemctl\s+(start|stop|restart|enable|disable)/);
+    expect(adoption).not.toContain("/etc/openvpn/server.conf");
+    expect(adoption).not.toContain("openvpn@server");
+  });
+
   it("refreshes the fixed root helper through every upgrade path", async () => {
     const [safeUpdater, legacyInstaller, ubuntuSetup] = await Promise.all([
       readFile(repoFile("deploy/update.sh"), "utf8"),

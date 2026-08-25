@@ -584,8 +584,8 @@ radtest testuser testpass localhost 0 ${f("radiusSecret") || "your-secret"}`} />
         )}
 
         <p className="text-xs text-gray-500">
-          If OpenVPN was already installed on this server, sync its certificates before provisioning routers.
-          This does not restart or alter OpenVPN; reprovision routers that used the previous NetPulse certificate authority.
+          If this server already has the dedicated NetPulse OpenVPN service, sync its installed certificates before provisioning or reprovisioning routers.
+          This does not restart or alter OpenVPN. After a sync, use each router’s <strong>Reprovision</strong> action (or regenerate its client certificate and download a fresh <code className="rounded bg-gray-100 px-1 text-gray-700">.rsc</code>) so it trusts the same certificate authority as the server.
         </p>
 
         <InstallGuide title="OpenVPN Server Install Guide (Ubuntu)">

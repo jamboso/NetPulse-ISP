@@ -166,6 +166,30 @@ describe("RouterProvisionPanel VPN repair", () => {
     expect(screen.getByText(/not Tabana-VPN/)).toBeInTheDocument();
   });
 
+  it("explains one-time adoption when the dedicated configuration is unmarked", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => provisionInfo })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          success: false,
+          state: "blocked",
+          message: "The dedicated NetPulse configuration exists but is unmarked. No service or listener was changed; verify it is not Tabana-VPN, then run the one-time adoption command over SSH.",
+          events: [],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<RouterProvisionPanel routerId={17} routerName="MAJE_TEMP" />);
+
+    await screen.findByText("Awaiting provisioning");
+    fireEvent.click(screen.getByRole("button", { name: "Repair VPN Service" }));
+
+    expect(await screen.findByText(/dedicated NetPulse configuration exists but is unmarked/)).toBeInTheDocument();
+    expect(screen.getByText(/adopt-existing-netpulse-vpn\.sh/)).toBeInTheDocument();
+    expect(screen.getByText(/only adds the marker; it does not restart OpenVPN/i)).toBeInTheDocument();
+  });
+
   it("prevents concurrent repair requests while a repair is running", async () => {
     let resolveRepair: (value: unknown) => void = () => undefined;
     const repairResponse = new Promise((resolve) => { resolveRepair = resolve; });

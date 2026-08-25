@@ -1,0 +1,65 @@
+15.254:41047 TLS Error: TLS object -> incoming plaintext read error
+10.10.15.254:41047 TLS Error: TLS handshake failed
+10.10.15.254:41047 Fatal TLS error (check_tls_errors_co), restarting
+10.10.15.254:41047 SIGUSR1[soft,tls-error] received, client-instance restarting
+TCP connection established with [AF_INET]10.10.15.254:48056
+10.10.15.254:48056 TLS: Initial packet from [AF_INET]10.10.15.254:48056, sid=2c228262 7fa482dd
+10.10.15.254:48056 VERIFY ERROR: depth=1, error=self-signed certificate in certificate chain: CN=NetPulse-CA, serial=75692327902744870440625435478712270587905758977
+10.10.15.254:48056 Sent fatal SSL alert: unknown CA
+10.10.15.254:48056 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+10.10.15.254:48056 TLS_ERROR: BIO read tls_read_plaintext error
+10.10.15.254:48056 TLS Error: TLS object -> incoming plaintext read error
+10.10.15.254:48056 TLS Error: TLS handshake failed
+10.10.15.254:48056 Fatal TLS error (check_tls_errors_co), restarting
+10.10.15.254:48056 SIGUSR1[soft,tls-error] received, client-instance restarting
+TCP connection established with [AF_INET]10.10.15.254:33620
+10.10.15.254:33620 TLS: Initial packet from [AF_INET]10.10.15.254:33620, sid=6e1bb05d bf67958e
+10.10.15.254:33620 VERIFY ERROR: depth=1, error=self-signed certificate in certificate chain: CN=NetPulse-CA, serial=75692327902744870440625435478712270587905758977
+10.10.15.254:33620 Sent fatal SSL alert: unknown CA
+10.10.15.254:33620 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+10.10.15.254:33620 TLS_ERROR: BIO read tls_read_plaintext error
+10.10.15.254:33620 TLS Error: TLS object -> incoming plaintext read error
+10.10.15.254:33620 TLS Error: TLS handshake failed
+10.10.15.254:33620 Fatal TLS error (check_tls_errors_co), restarting
+10.10.15.254:33620 SIGUSR1[soft,tls-error] received, client-instance restarting
+TCP connection established with [AF_INET]10.10.15.254:41048
+10.10.15.254:41048 TLS: Initial packet from [AF_INET]10.10.15.254:41048, sid=65ae0b43 663cabdb
+10.10.15.254:41048 VERIFY ERROR: depth=1, error=self-signed certificate in certificate chain: CN=NetPulse-CA, serial=75692327902744870440625435478712270587905758977
+10.10.15.254:41048 Sent fatal SSL alert: unknown CA
+10.10.15.254:41048 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+10.10.15.254:41048 TLS_ERROR: BIO read tls_read_plaintext error
+10.10.15.254:41048 TLS Error: TLS object -> incoming plaintext read error
+10.10.15.254:41048 TLS Error: TLS handshake failed
+10.10.15.254:41048 Fatal TLS error (check_tls_errors_co), restarting
+10.10.15.254:41048 SIGUSR1[soft,tls-error] received, client-instance restarting
+TCP connection established with [AF_INET]10.10.15.254:48058
+10.10.15.254:48058 TLS: Initial packet from [AF_INET]10.10.15.254:48058, sid=5548cc5a d32acd4d
+10.10.15.254:48058 VERIFY ERROR: depth=1, error=self-signed certificate in certificate chain: CN=NetPulse-CA, serial=75692327902744870440625435478712270587905758977
+10.10.15.254:48058 Sent fatal SSL alert: unknown CA
+10.10.15.254:48058 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+10.10.15.254:48058 TLS_ERROR: BIO read tls_read_plaintext error
+10.10.15.254:48058 TLS Error: TLS object -> incoming plaintext read error
+10.10.15.254:48058 TLS Error: TLS handshake failed
+10.10.15.254:48058 Fatal TLS error (check_tls_errors_co), restarting
+10.10.15.254:48058 SIGUSR1[soft,tls-error] received, client-instance restarting
+TCP connection established with [AF_INET]10.10.15.254:33622
+10.10.15.254:33622 TLS: Initial packet from [AF_INET]10.10.15.254:33622, sid=efd47f15 9e87f17c
+10.10.15.254:33622 VERIFY ERROR: depth=1, error=self-signed certificate in certificate chain: CN=NetPulse-CA, serial=75692327902744870440625435478712270587905758977
+10.10.15.254:33622 Sent fatal SSL alert: unknown CA
+10.10.15.254:33622 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+10.10.15.254:33622 TLS_ERROR: BIO read tls_read_plaintext error
+10.10.15.254:33622 TLS Error: TLS object -> incoming plaintext read error
+10.10.15.254:33622 TLS Error: TLS handshake failed
+10.10.15.254:33622 Fatal TLS error (check_tls_errors_co), restarting
+10.10.15.254:33622 SIGUSR1[soft,tls-error] received, client-instance restarting
+TCP connection established with [AF_INET]10.10.15.254:41049
+10.10.15.254:41049 TLS: Initial packet from [AF_INET]10.10.15.254:41049, sid=e836dfcb c6b22b8d
+10.10.15.254:41049 VERIFY ERROR: depth=1, error=self-signed certificate in certificate chain: CN=NetPulse-CA, serial=75692327902744870440625435478712270587905758977
+10.10.15.254:41049 Sent fatal SSL alert: unknown CA
+10.10.15.254:41049 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+10.10.15.254:41049 TLS_ERROR: BIO read tls_read_plaintext error
+10.10.15.254:41049 TLS Error: TLS object -> incoming plaintext read error
+10.10.15.254:41049 TLS Error: TLS handshake failed
+10.10.15.254:41049 Fatal TLS error (check_tls_errors_co), restarting
+10.10.15.254:41049 SIGUSR1[soft,tls-error] received, client-instance restarting
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

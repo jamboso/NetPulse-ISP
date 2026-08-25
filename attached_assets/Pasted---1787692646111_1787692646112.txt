@@ -1,0 +1,92 @@
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$ echo '--- port 8080 ---'
+sudo ss -ltnp | grep ':8080' || true
+
+echo '--- PM2 process details ---'
+sudo -u amboso -H pm2 describe netpulse
+
+echo '--- latest NetPulse errors ---'
+sudo -u amboso -H pm2 logs netpulse --lines 80 --nostream 2>&1 \
+  | grep -E -A 12 -B 5 \
+  'EADDRINUSE|Error|ERR_|uncaught|Server listening|DATABASE|Cannot find'
+--- port 8080 ---
+LISTEN 0      511                *:8080            *:*    users:(("node /opt/netpu",pid=1358,fd=22))                                                         
+--- PM2 process details ---
+ Describing process with id 0 - name netpulse
+┌───────────────────┬───────────────────────────────────────────────────┐
+│ status            │ waiting restart                                   │
+│ name              │ netpulse                                          │
+│ namespace         │ default                                           │
+│ version           │ 0.0.0                                             │
+│ restarts          │ 24                                                │
+│ uptime            │ 0                                                 │
+│ script path       │ /opt/netpulse/artifacts/api-server/dist/index.mjs │
+│ script args       │ N/A                                               │
+│ error log path    │ /var/log/netpulse/error-0.log                     │
+│ out log path      │ /var/log/netpulse/out-0.log                       │
+│ pid path          │ /home/amboso/.pm2/pids/netpulse-0.pid             │
+│ interpreter       │ /usr/bin/node                                     │
+│ interpreter args  │ --enable-source-maps                              │
+│ script id         │ 0                                                 │
+│ exec cwd          │ /opt/netpulse                                     │
+│ exec mode         │ fork_mode                                         │
+│ node.js version   │ 24.15.0                                           │
+│ node env          │ production                                        │
+│ watch & reload    │ ✘                                                 │
+│ unstable restarts │ 0                                                 │
+│ created at        │ N/A                                               │
+└───────────────────┴───────────────────────────────────────────────────┘
+ Divergent env variables from local env
+┌──────────────┬────────────────────────────────────────────┐
+│ SUDO_COMMAND │ /usr/bin/pm2 restart netpulse --update-env │
+└──────────────┴────────────────────────────────────────────┘
+
+ Add your own code metrics: http://bit.ly/code-metrics
+ Use `pm2 logs netpulse [--lines 1000]` to display logs
+ Use `pm2 env 0` to display environment variables
+ Use `pm2 monit` to monitor CPU and Memory usage netpulse
+--- latest NetPulse errors ---
+0|netpulse | 2026-08-26 00:09:17: {"level":30,"time":1787692157163,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":871,"method":"GET","url":"/api/routers"},"res":{"statusCode":200},"responseTime":7,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:17: {"level":30,"time":1787692157171,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":872,"method":"GET","url":"/api/infrastructure/status"},"res":{"statusCode":200},"responseTime":13,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:17: {"level":30,"time":1787692157252,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":873,"method":"GET","url":"/api/routers"},"res":{"statusCode":200},"responseTime":8,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:26: {"level":30,"time":1787692166385,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":874,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":5,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:26: {"level":30,"time":1787692166427,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":875,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":7,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:09:30: {"level":50,"time":1787692170683,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":876,"method":"POST","url":"/api/infrastructure/vpn/sync-installed-certs"},"err":{"type":"Error","message":"Unable to use the installed OpenVPN certificates: ENOENT: no such file or directory, open '/etc/openvpn/netpulse-easy-rsa/pki/private/ca.key'","stack":"Error: Unable to use the installed OpenVPN certificates: ENOENT: no such file or directory, open '/etc/openvpn/netpulse-easy-rsa/pki/private/ca.key'\n    at loadInstalledOpenVpnCertificates (/opt/netpulse/artifacts/api-server/src/lib/systemVpnCerts.ts:64:11)\n    at async <anonymous> (/opt/netpulse/artifacts/api-server/src/routes/infrastructure.ts:265:23)"},"msg":"installed OpenVPN certificate sync error"}
+0|netpulse | 2026-08-26 00:09:30: {"level":30,"time":1787692170683,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":876,"method":"POST","url":"/api/infrastructure/vpn/sync-installed-certs"},"res":{"statusCode":400},"responseTime":10,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:11:46: {"level":30,"time":1787692306326,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MBALE","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:11:46: {"level":30,"time":1787692306326,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MABERA","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:11:46: {"level":30,"time":1787692306326,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MGR","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:11:46: {"level":30,"time":1787692306326,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MAJENGO","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:12:22: {"level":30,"time":1787692342980,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":877,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":6,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:12:23: {"level":30,"time":1787692343042,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":878,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":7,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:12:26: {"level":30,"time":1787692346103,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":879,"method":"GET","url":"/settings"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:12:26: {"level":30,"time":1787692346282,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":880,"method":"GET","url":"/assets/index-DdAAPav3.js"},"res":{"statusCode":200},"responseTime":9,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:12:26: {"level":30,"time":1787692346310,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":881,"method":"GET","url":"/assets/index-DFg1vOR8.css"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:12:26: {"level":30,"time":1787692346848,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":882,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":6,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:12:26: {"level":30,"time":1787692346871,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":883,"method":"GET","url":"/favicon.svg"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+--
+0|netpulse | 2026-08-26 00:12:36: {"level":30,"time":1787692356897,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":889,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":5,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:12:36: {"level":30,"time":1787692356997,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":890,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":7,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:12:46: {"level":30,"time":1787692366317,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","count":4,"msg":"Session poller: polling routers"}
+0|netpulse | 2026-08-26 00:12:51: {"level":30,"time":1787692371951,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":891,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":7,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:12:52: {"level":30,"time":1787692372000,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":892,"method":"GET","url":"/api/auth/get-session"},"res":{"statusCode":200},"responseTime":5,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:12:58: {"level":50,"time":1787692378956,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":893,"method":"POST","url":"/api/infrastructure/vpn/sync-installed-certs"},"err":{"type":"Error","message":"Unable to use the installed OpenVPN certificates: ENOENT: no such file or directory, open '/etc/openvpn/netpulse/ca.crt'","stack":"Error: Unable to use the installed OpenVPN certificates: ENOENT: no such file or directory, open '/etc/openvpn/netpulse/ca.crt'\n    at loadInstalledOpenVpnCertificates (/opt/netpulse/artifacts/api-server/src/lib/systemVpnCerts.ts:64:11)\n    at async <anonymous> (/opt/netpulse/artifacts/api-server/src/routes/infrastructure.ts:265:23)"},"msg":"installed OpenVPN certificate sync error"}
+0|netpulse | 2026-08-26 00:12:58: {"level":30,"time":1787692378957,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":893,"method":"POST","url":"/api/infrastructure/vpn/sync-installed-certs"},"res":{"statusCode":400},"responseTime":10,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:13:47: {"level":30,"time":1787692427697,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":894,"method":"GET","url":"/"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:13:59: {"level":30,"time":1787692439902,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","req":{"id":895,"method":"GET","url":"/favicon.ico"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+0|netpulse | 2026-08-26 00:14:46: {"level":30,"time":1787692486326,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MBALE","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:14:46: {"level":30,"time":1787692486326,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MABERA","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:14:46: {"level":30,"time":1787692486326,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MGR","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:14:46: {"level":30,"time":1787692486326,"pid":1358,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","router":"MAJENGO","reachable":false,"confirmed":"offline","pending":null,"msg":"Router poll result"}
+0|netpulse | 2026-08-26 00:15:20: {"level":30,"time":1787692520105,"pid":25156,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","frontendDist":"/opt/netpulse/artifacts/isp-portal/dist/public","msg":"Serving frontend static files"}
+0|netpulse | 2026-08-26 00:15:20: {"level":50,"time":1787692520132,"pid":25156,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"listen EADDRINUSE: address already in use :::8080","stack":"Error: listen EADDRINUSE: address already in use :::8080\n    at Server.setupListenHandle [as _listen2] (node:net:2008:16)\n    at listenInCluster (node:net:2065:12)\n    at Server.listen (node:net:2170:7)\n    at app2.listen (/opt/netpulse/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/application.js:605:24)\n    at <anonymous> (/opt/netpulse/artifacts/api-server/src/index.ts:46:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)","code":"EADDRINUSE","errno":-98,"syscall":"listen","address":"::","port":8080},"msg":"Error listening on port"}
+0|netpulse | 2026-08-26 00:15:23: {"level":30,"time":1787692523916,"pid":25184,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","frontendDist":"/opt/netpulse/artifacts/isp-portal/dist/public","msg":"Serving frontend static files"}
+0|netpulse | 2026-08-26 00:15:23: {"level":50,"time":1787692523943,"pid":25184,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"listen EADDRINUSE: address already in use :::8080","stack":"Error: listen EADDRINUSE: address already in use :::8080\n    at Server.setupListenHandle [as _listen2] (node:net:2008:16)\n    at listenInCluster (node:net:2065:12)\n    at Server.listen (node:net:2170:7)\n    at app2.listen (/opt/netpulse/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/application.js:605:24)\n    at <anonymous> (/opt/netpulse/artifacts/api-server/src/index.ts:46:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)","code":"EADDRINUSE","errno":-98,"syscall":"listen","address":"::","port":8080},"msg":"Error listening on port"}
+0|netpulse | 2026-08-26 00:15:27: {"level":30,"time":1787692527704,"pid":25208,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","frontendDist":"/opt/netpulse/artifacts/isp-portal/dist/public","msg":"Serving frontend static files"}
+0|netpulse | 2026-08-26 00:15:27: {"level":50,"time":1787692527733,"pid":25208,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"listen EADDRINUSE: address already in use :::8080","stack":"Error: listen EADDRINUSE: address already in use :::8080\n    at Server.setupListenHandle [as _listen2] (node:net:2008:16)\n    at listenInCluster (node:net:2065:12)\n    at Server.listen (node:net:2170:7)\n    at app2.listen (/opt/netpulse/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/application.js:605:24)\n    at <anonymous> (/opt/netpulse/artifacts/api-server/src/index.ts:46:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)","code":"EADDRINUSE","errno":-98,"syscall":"listen","address":"::","port":8080},"msg":"Error listening on port"}
+0|netpulse | 2026-08-26 00:15:31: {"level":30,"time":1787692531485,"pid":25235,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","frontendDist":"/opt/netpulse/artifacts/isp-portal/dist/public","msg":"Serving frontend static files"}
+0|netpulse | 2026-08-26 00:15:31: {"level":50,"time":1787692531512,"pid":25235,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"listen EADDRINUSE: address already in use :::8080","stack":"Error: listen EADDRINUSE: address already in use :::8080\n    at Server.setupListenHandle [as _listen2] (node:net:2008:16)\n    at listenInCluster (node:net:2065:12)\n    at Server.listen (node:net:2170:7)\n    at app2.listen (/opt/netpulse/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/application.js:605:24)\n    at <anonymous> (/opt/netpulse/artifacts/api-server/src/index.ts:46:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)","code":"EADDRINUSE","errno":-98,"syscall":"listen","address":"::","port":8080},"msg":"Error listening on port"}
+0|netpulse | 2026-08-26 00:15:35: {"level":30,"time":1787692535265,"pid":25262,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","frontendDist":"/opt/netpulse/artifacts/isp-portal/dist/public","msg":"Serving frontend static files"}
+0|netpulse | 2026-08-26 00:15:35: {"level":50,"time":1787692535292,"pid":25262,"hostname":"amboso-HP-EliteDesk-800-G2-DM-65W","err":{"type":"Error","message":"listen EADDRINUSE: address already in use :::8080","stack":"Error: listen EADDRINUSE: address already in use :::8080\n    at Server.setupListenHandle [as _listen2] (node:net:2008:16)\n    at listenInCluster (node:net:2065:12)\n    at Server.listen (node:net:2170:7)\n    at app2.listen (/opt/netpulse/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/application.js:605:24)\n    at <anonymous> (/opt/netpulse/artifacts/api-server/src/index.ts:46:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)","code":"EADDRINUSE","errno":-98,"syscall":"listen","address":"::","port":8080},"msg":"Error listening on port"}
+
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$

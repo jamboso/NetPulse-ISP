@@ -676,10 +676,6 @@ ifconfig-pool-persist /var/log/openvpn/ipp.txt
 client-config-dir /etc/openvpn/ccd
 crl-verify /etc/openvpn/crl.pem
 
-push "redirect-gateway def1 bypass-dhcp"
-push "dhcp-option DNS 8.8.8.8"
-push "dhcp-option DNS 8.8.4.4"
-
 keepalive 10 120
 # RouterOS 6.49 supports only CBC ciphers and SHA1 for OpenVPN.
 cipher AES-128-CBC

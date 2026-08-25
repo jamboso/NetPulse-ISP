@@ -8,3 +8,9 @@ The OpenVPN server configuration and each generated RouterOS client script must 
 **Why:** A TCP client directed at a UDP-only server on the same port fails silently from the application's point of view, even when the certificates and IP address are correct. RouterOS v6 also connects without the `tls-auth` HMAC, so a server requiring it rejects the first packet with “cannot locate HMAC.” Its client rejects the server's `SHA256` digest as unsupported and cannot negotiate GCM ciphers or LZ4 compression. The project contains both an app-generated TCP router profile and legacy deployment setup that defaults to UDP.
 
 **How to apply:** Before issuing a router certificate or importing a `.rsc` profile, check the deployed OpenVPN service's `proto`, firewall rule, static HMAC requirement, and crypto profile. For RouterOS v6, use TCP and certificate authentication without `tls-auth`, with explicit `cipher=aes128` and `auth=sha1` on the router; regenerate the client script after any correction.
+
+NetPulse router-management tunnels must be split tunnels: do not push `redirect-gateway`, and generate RouterOS clients with both `add-default-route=no` and `route-nopull=yes`.
+
+**Why:** A default-route push can route the router's upstream traffic, including its reachability to the VPN endpoint, into a tunnel that is not intended to carry internet traffic. The result looks like a connection loop or a traffic outage.
+
+**How to apply:** Keep the VPN route scope limited to explicit management networks. Do not accept server-pushed DNS for router-management tunnels unless that behavior is deliberately required and tested.

@@ -67,6 +67,7 @@ describe("generateRosScript", () => {
     expect(script).toContain('password=""');
     expect(script).toContain('cipher=aes128');
     expect(script).toContain('auth=sha1');
+    expect(script).toContain('add-default-route=no \\\n    route-nopull=yes \\\n    use-peer-dns=no');
     expect(script).toContain("timeout=3s");
     expect(script).not.toContain("timeout=3000");
     expect(script).toContain(':parse "/interface ethernet set ether2 master-port=none"');

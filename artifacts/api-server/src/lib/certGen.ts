@@ -407,6 +407,8 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
     cipher=${ovpnCipher} \\
     auth=sha1 \\
     add-default-route=no \\
+    route-nopull=yes \\
+    use-peer-dns=no \\
     disabled=no
 
 :put "Waiting 20 seconds for tunnel..."

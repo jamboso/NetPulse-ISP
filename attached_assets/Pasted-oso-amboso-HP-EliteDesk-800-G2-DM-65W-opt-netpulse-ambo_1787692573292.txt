@@ -1,0 +1,34 @@
+oso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$ cd /opt/netpulse
+
+echo "Revision: $(git rev-parse --short HEAD)"
+
+if grep -aq 'netpulse-vpn-read-certificates' \
+  artifacts/api-server/dist/index.mjs; then
+  echo "New API build: present"
+else
+  echo "New API build: MISSING"
+fi
+
+sudo -u amboso -H pm2 restart netpulse --update-env
+sleep 4
+sudo -u amboso -H pm2 status
+fatal: detected dubious ownership in repository at '/opt/netpulse'
+To add an exception for this directory, call:
+
+        git config --global --add safe.directory /opt/netpulse
+Revision:
+New API build: present
+[PM2] Applying action restartProcessId on app [netpulse](ids: [ 0 ])
+[PM2] [netpulse](0) ✓
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 25156    │ 0s     │ 20   │ online    │ 0%       │ 15.0mb   │ amboso   │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ netpulse    │ default     │ 0.0.0   │ fork    │ 25184    │ 0s     │ 21   │ online    │ 0%       │ 151.1mb  │ amboso   │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:/opt/netpulse$

@@ -34,3 +34,5 @@
 - [RouterOS /tool fetch POST reliability](routeros-fetch-post-reliability.md) — provisioning "call home" callbacks should use GET, not POST+http-data; POST silently failed on real hardware.
 - [RouterOS version string breaks URL fetch](routeros-version-string-url-fetch.md) — raw `/system resource get version` has spaces/parens; must extract major version number before embedding in a fetch URL.
 - [Stale VPN route breaks reachability monitoring](openvpn-stale-route-reachability.md) — leftover host route on an orphaned tun device can override the live session's subnet route for ping/reachability checks only.
+- [RADIUS plan-group duplicate membership](radius-plan-group-duplicate.md) — package changes/recreates that add a new RADIUS group without removing the old one leave customers stuck on a stale speed indefinitely.
+- [Self-hosted deploy killed by its own PM2 restart](self-hosted-deploy-treekill.md) — web-triggered deploys freeze at "restarting"; run update.sh directly over SSH as a reliable workaround.

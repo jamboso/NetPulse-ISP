@@ -1,0 +1,37 @@
+nformation.
+Aug 26 09:35:03 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn-server@netpulse.service: Main process exited, code=exited, status=1/FAILURE
+Aug 26 09:35:03 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn-server@netpulse.service: Failed with result 'exit-code'.
+Aug 26 09:35:03 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Failed to start openvpn-server@netpulse.service - OpenVPN service for netpulse.
+Aug 26 09:35:08 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn-server@netpulse.service: Scheduled restart job, restart counter is at 5932.
+Aug 26 09:35:09 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn-server@netpulse.service - OpenVPN service for netpulse...
+Aug 26 09:35:09 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[142268]: DEPRECATED OPTION: --cipher set to 'AES-256-CBC' but missing in --data-ciphers (AES-256-GCM:AES-128-GCM:CHACHA20-POLY1305). OpenVPN ignores --cipher for cipher negotiations.
+Aug 26 09:35:09 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[142268]: Note: Kernel support for ovpn-dco missing, disabling data channel offload.
+Aug 26 09:35:09 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[142268]: Options error: --username-as-common-name must be used with --management-client-auth, an --auth-user-pass-verify script, or plugin
+Aug 26 09:35:09 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[142268]: Use --help for more information.
+Aug 26 09:35:09 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn-server@netpulse.service: Main process exited, code=exited, status=1/FAILURE
+Aug 26 09:35:09 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn-server@netpulse.service: Failed with result 'exit-code'.
+Aug 26 09:35:09 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Failed to start openvpn-server@netpulse.service - OpenVPN service for netpulse.
+Aug 26 09:35:14 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn-server@netpulse.service: Scheduled restart job, restart counter is at 5933.
+Aug 26 09:35:14 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Starting openvpn-server@netpulse.service - OpenVPN service for netpulse...
+Aug 26 09:35:14 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[142274]: DEPRECATED OPTION: --cipher set to 'AES-256-CBC' but missing in --data-ciphers (AES-256-GCM:AES-128-GCM:CHACHA20-POLY1305). OpenVPN ignores --cipher for cipher negotiations.
+Aug 26 09:35:14 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[142274]: Note: Kernel support for ovpn-dco missing, disabling data channel offload.
+Aug 26 09:35:14 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[142274]: Options error: --username-as-common-name must be used with --management-client-auth, an --auth-user-pass-verify script, or plugin
+Aug 26 09:35:14 amboso-HP-EliteDesk-800-G2-DM-65W openvpn[142274]: Use --help for more information.
+Aug 26 09:35:14 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn-server@netpulse.service: Main process exited, code=exited, status=1/FAILURE
+Aug 26 09:35:14 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: openvpn-server@netpulse.service: Failed with result 'exit-code'.
+Aug 26 09:35:14 amboso-HP-EliteDesk-800-G2-DM-65W systemd[1]: Failed to start openvpn-server@netpulse.service - OpenVPN service for netpulse.
+--- process ---
+UID          PID    PPID  C STIME TTY          TIME CMD
+nobody     34811       1  0 00:57 ?        00:00:24 /usr/sbin/openvpn --daemon o
+/usr/sbin/openvpn --daemon ovpn-server --status /run/openvpn/server.status 10 --cd /etc/openvpn --script-security 2 --config /etc/openvpn/server.conf --writepid /run/openvpn/server.pid
+--- config directives ---
+1:port 1194
+2:proto tcp
+3:dev tun
+5:ca /etc/openvpn/server/certs/ca.crt
+6:cert /etc/openvpn/server/certs/server.crt
+7:key /etc/openvpn/server/certs/server.key
+8:dh none
+10:server 10.8.0.0 255.255.255.0
+30:status /run/openvpn-server/status-netpulse.log
+amboso@amboso-HP-EliteDesk-800-G2-DM-65W:~$

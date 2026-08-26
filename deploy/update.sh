@@ -27,6 +27,11 @@ RECOVERY_PREVIOUS_COMMIT=""
 RECOVERY_BACKUP_PATH=""
 
 mkdir -p "$(dirname "$LOG_FILE")" "$(dirname "$STATUS_FILE")"
+# The non-root app process reads STATUS_FILE to show live deployment progress.
+# mkdir -p above inherits whatever umask this root-run script was invoked
+# with, which can leave the directory non-traversable by that process even
+# though write_status() below explicitly makes the file itself world-readable.
+chmod 755 "$(dirname "$STATUS_FILE")"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 BOLD='\033[1m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'

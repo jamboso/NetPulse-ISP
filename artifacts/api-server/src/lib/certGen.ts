@@ -356,7 +356,7 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
 :put "[8/8] Calling home to NetPulse..."
 
 :local mac2 [/interface ethernet get 0 mac-address]
-:local ver2 [/system resource get version]
+:local ver2 [:tonum [:pick [/system resource get version] 0 1]]
 :local vpnIp2 ""
 :do { :set vpnIp2 [/interface ovpn-client get [find name="netpulse-vpn"] local-address] } on-error={}
 

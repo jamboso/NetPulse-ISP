@@ -14,3 +14,9 @@ NetPulse router-management tunnels must be split tunnels: do not push `redirect-
 **Why:** A default-route push can route the router's upstream traffic, including its reachability to the VPN endpoint, into a tunnel that is not intended to carry internet traffic. The result looks like a connection loop or a traffic outage.
 
 **How to apply:** Keep the VPN route scope limited to explicit management networks. Do not accept server-pushed DNS for router-management tunnels unless that behavior is deliberately required and tested.
+
+When another OpenVPN service already owns the standard port, compare CA fingerprints before changing anything. If the CAs differ, keep the unrelated service running and align the NetPulse database setting, dedicated config, firewall/NAT, and generated router profiles to a free port instead.
+
+**Why:** An externally open port can belong to the wrong OpenVPN instance. In that state, certificates may appear to fail randomly even though the NetPulse service and router credentials are correct.
+
+**How to apply:** Verify the process and unit behind each listener, then treat the port as a shared deployment value. A port change does not require CA regeneration, but existing routers must be updated or reprovisioned.

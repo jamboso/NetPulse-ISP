@@ -30,3 +30,10 @@ id = "-wHH8RyueZrL9pfz_h0jR"
 uri = "file://screenshots/theme-terracotta.jpg"
 type = "image"
 title = "Terracotta"
+
+[[outputs]]
+id = "j-jPCZWajLUjAmZuQZdm4"
+uri = "file://artifacts/isp-portal/netpulse-openvpn-diagnostics-cheat-sheet.pdf"
+type = "pdf"
+title = "NetPulse OpenVPN Diagnostics Cheat Sheet"
+description = "A4 downloadable runbook covering the dedicated TCP 1195 NetPulse VPN, safe CA and service checks, cipher compatibility, Linux and RouterOS commands, rollback, and multi-router onboarding."

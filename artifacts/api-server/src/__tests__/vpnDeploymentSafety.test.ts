@@ -15,6 +15,8 @@ describe("RouterOS VPN deployment safety", () => {
     expect(helper).toContain('grep -Fxq "$MARKER" "$CONFIG"');
     expect(helper).toContain('PORT="$(awk');
     expect(helper).toContain('[[ "$PROTOCOL" != "tcp" && "$PROTOCOL" != "tcp-server" ]]');
+    expect(helper).toContain("auth-user-pass-verify");
+    expect(helper).toContain("client certificates only");
     expect(helper).not.toContain('openvpn@server');
     expect(helper).not.toContain('/etc/openvpn/server.conf');
   });

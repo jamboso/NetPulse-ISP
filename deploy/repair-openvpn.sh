@@ -80,6 +80,15 @@ if grep -Eqi '^[[:space:]]*push[[:space:]]+"?(redirect-gateway|dhcp-option[[:spa
   config_changed=true
   add_event "Removed legacy default-route or DNS pushes; backup saved as $backup."
 fi
+if grep -Eqi '^[[:space:]]*auth-user-pass-verify([[:space:]]|$)' "$CONFIG"; then
+  if [[ "$config_changed" != "true" ]]; then
+    backup="${CONFIG}.netpulse-repair.$(date +%Y%m%d%H%M%S).bak"
+  fi
+  cp -p "$CONFIG" "$backup"
+  sed -i -E '/^[[:space:]]*auth-user-pass-verify([[:space:]]|$)/Id' "$CONFIG"
+  config_changed=true
+  add_event "Removed legacy password verification; NetPulse RouterOS VPN now uses client certificates only. Backup saved as $backup."
+fi
 
 listener_pids() {
   ss -ltnpH "sport = :${PORT}" 2>/dev/null \

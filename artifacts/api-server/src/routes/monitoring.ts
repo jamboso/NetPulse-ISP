@@ -12,6 +12,7 @@ import { db } from "@workspace/db";
 import { routersTable, sessionLogsTable, subscriptionsTable, customersTable } from "@workspace/db";
 import { gte, desc, isNotNull, and, eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
+import { getRouterManagementHost } from "../lib/routerManagement";
 
 const router = Router();
 
@@ -205,6 +206,8 @@ router.get("/monitoring/overview", async (req, res) => {
           location:  routersTable.location,
           routerType: routersTable.routerType,
           lastSeen:  routersTable.lastSeen,
+          vpnIp:        routersTable.vpnIp,
+          vpnConnected: routersTable.vpnConnected,
         })
         .from(routersTable)
         .where(eq(routersTable.companyId, req.companyId))
@@ -221,6 +224,8 @@ router.get("/monitoring/overview", async (req, res) => {
           location:  routersTable.location,
           routerType: routersTable.routerType,
           lastSeen:  routersTable.lastSeen,
+          vpnIp:        routersTable.vpnIp,
+          vpnConnected: routersTable.vpnConnected,
         })
         .from(routersTable)
         .orderBy(routersTable.name);
@@ -236,7 +241,11 @@ router.get("/monitoring/overview", async (req, res) => {
         if (r.routerType !== "routeros" || !r.enabled) {
           return { ...r, online: false, cpu: null, memory: null, uptime: null, version: null, model: null };
         }
-        const stats = await pingRouter(r);
+        const managementHost = getRouterManagementHost(r);
+        if (!managementHost) {
+          return { ...r, online: false, cpu: null, memory: null, uptime: null, version: null, model: null };
+        }
+        const stats = await pingRouter({ ...r, ipAddress: managementHost });
         return { ...r, ...stats };
       })
     ),

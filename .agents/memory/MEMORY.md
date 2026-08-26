@@ -39,3 +39,4 @@
 - [Owner company-scope picker pattern](owner-company-scope-picker-pattern.md) — reuse the existing scope gate for new owner-facing tenant screens; audit every read AND write call when adding it to one
 - [Company-scope route test mocking](company-scope-route-test-mocking.md) — adding fail-closed tenant scoping to a route silently invalidates its pre-existing tests; re-audit them, don't just chase failures
 - [Cascade delete transaction safety](cascade-delete-transaction-safety.md) — a hard-delete cascade must run in one transaction, with every non-cascading FK-dependent table audited and cleared first
+- [Authenticated response cache-control](authenticated-response-cache-control.md) — `public, max-age` on per-user/tenant JSON responses lets the browser replay another identity's cached data (e.g. after admin "login as" customer)

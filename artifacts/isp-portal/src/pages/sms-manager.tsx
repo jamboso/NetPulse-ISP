@@ -533,7 +533,7 @@ export default function SmsManager() {
               <p className="text-sm mt-1">Sent messages will appear here.</p>
             </div>
           ) : (
-            <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
+            <div className="rounded-xl border bg-white shadow-sm overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-gray-50">

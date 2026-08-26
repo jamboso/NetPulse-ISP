@@ -159,7 +159,7 @@ function SubscriptionDialog({ open, onClose, initial, subId }: {
             </Select>
           </div>
           {!subId && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1"><Label>Start Date *</Label>
                 <Input type="date" value={form.startDate} onChange={e => set("startDate", e.target.value)} />
               </div>
@@ -168,7 +168,7 @@ function SubscriptionDialog({ open, onClose, initial, subId }: {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1"><Label>IP Address</Label>
               <Input value={form.ipAddress} onChange={e => set("ipAddress", e.target.value)} placeholder="192.168.1.100" />
             </div>

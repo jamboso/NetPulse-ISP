@@ -170,6 +170,7 @@ export default function Companies() {
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading...</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -232,6 +233,7 @@ export default function Companies() {
                 )}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

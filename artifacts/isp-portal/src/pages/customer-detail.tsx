@@ -235,7 +235,7 @@ function SessionCard({ session, subPlanName, snapshots }: SessionCardProps) {
         </div>
 
         {/* Credentials */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
             <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
               <KeyRound className="w-3 h-3" /> Username
@@ -387,7 +387,7 @@ function BillingActivityChart({ invoices }: { invoices: any[] }) {
   return (
     <div className="space-y-4">
       {/* KPI strip */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { label: "Total Billed",  value: fmtMoney(totalBilled, 0),   color: "text-gray-900" },
           { label: "Total Paid",    value: fmtMoney(totalPaid, 0),      color: "text-green-600" },
@@ -1211,7 +1211,7 @@ export default function CustomerDetail() {
                     bwData[0]!,
                   );
                   return (
-                    <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                       <div className="bg-blue-50 rounded-lg p-3">
                         <p className="text-[10px] font-medium text-blue-500 uppercase tracking-wide mb-0.5">Total Download</p>
                         <p className="text-sm font-bold text-blue-700">{fmtBytes(totalIn)}</p>
@@ -1362,7 +1362,7 @@ export default function CustomerDetail() {
                 <h3 className="font-semibold text-gray-900 text-sm mb-4 flex items-center gap-2">
                   <Plus className="w-4 h-4 text-blue-500" /> Add Note / Log Communication
                 </h3>
-                <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
                     <select

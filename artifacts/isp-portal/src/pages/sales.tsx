@@ -309,6 +309,7 @@ export default function Sales() {
         ) : staffActivity.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-6">No activity recorded yet. Staff actions (creating customers, subscriptions, payments) appear here once they start working.</p>
         ) : (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50">
@@ -333,6 +334,7 @@ export default function Sales() {
               ))}
             </TableBody>
           </Table>
+          </div>
         )}
         <p className="text-xs text-gray-400 mt-3">
           Counts creation actions logged in audit trail for the selected period. Only admin and billing roles can view this.

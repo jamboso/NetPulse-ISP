@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { signOut } from "@/lib/authClient";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -20,9 +21,11 @@ import {
   TrendingUp,
   ClipboardList,
   Building2,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { CustomerSearch } from "@/components/customer-search";
 
 interface LayoutProps {
@@ -47,6 +50,7 @@ const ROLE_COLORS: Record<string, string> = {
 
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
+  const [navOpen, setNavOpen] = useState(false);
   const { name, email, role, isOwner, isAdmin, canManageBilling, canManageCustomers, canManageTickets, canManageNetwork } = useCurrentUser();
 
   const navItems = [
@@ -75,129 +79,178 @@ export default function Layout({ children }: LayoutProps) {
     },
   ].filter(item => item.show);
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row font-sans">
-      <aside
-        className="w-full md:w-64 flex flex-col shrink-0 sticky top-0 md:h-screen"
-        style={{
-          background: "hsl(var(--sidebar))",
-          color: "hsl(var(--sidebar-foreground))",
-          borderRight: "1px solid hsl(var(--sidebar-border))",
-        }}
+  const sidebarInner = (
+    <>
+      <div
+        className="p-4 flex items-center gap-3"
+        style={{ borderBottom: "1px solid hsl(var(--sidebar-border))" }}
       >
         <div
-          className="p-4 flex items-center gap-3"
-          style={{ borderBottom: "1px solid hsl(var(--sidebar-border))" }}
+          className="w-8 h-8 rounded flex items-center justify-center font-bold text-sm shadow-sm"
+          style={{
+            background: "hsl(var(--app-sidebar-logo-bg, var(--sidebar-primary)))",
+            color: "hsl(var(--app-sidebar-logo-text, var(--sidebar-primary-foreground)))",
+          }}
         >
-          <div
-            className="w-8 h-8 rounded flex items-center justify-center font-bold text-sm shadow-sm"
-            style={{
-              background: "hsl(var(--app-sidebar-logo-bg, var(--sidebar-primary)))",
-              color: "hsl(var(--app-sidebar-logo-text, var(--sidebar-primary-foreground)))",
-            }}
-          >
-            NP
-          </div>
-          <h1 className="font-bold tracking-tight text-lg" style={{ color: "hsl(var(--sidebar-foreground))" }}>
-            NetPulse ISP
-          </h1>
+          NP
         </div>
-        
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto custom-scrollbar">
-          {navItems.map((item) => {
-            const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
-            const Icon = item.icon;
-            
-            return (
-              <Link 
-                key={item.name} 
-                href={item.href}
-                className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors"
-                style={
-                  isActive
-                    ? {
-                        background: "hsl(var(--app-nav-active-bg, var(--sidebar-primary)))",
-                        color: "hsl(var(--app-nav-active-text, var(--sidebar-primary-foreground)))",
-                      }
-                    : {
-                        color: "hsl(var(--sidebar-foreground) / 0.75)",
-                      }
+        <h1 className="font-bold tracking-tight text-lg" style={{ color: "hsl(var(--sidebar-foreground))" }}>
+          NetPulse ISP
+        </h1>
+      </div>
+      
+      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto custom-scrollbar">
+        {navItems.map((item) => {
+          const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+          const Icon = item.icon;
+          
+          return (
+            <Link 
+              key={item.name} 
+              href={item.href}
+              onClick={() => setNavOpen(false)}
+              className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors"
+              style={
+                isActive
+                  ? {
+                      background: "hsl(var(--app-nav-active-bg, var(--sidebar-primary)))",
+                      color: "hsl(var(--app-nav-active-text, var(--sidebar-primary-foreground)))",
+                    }
+                  : {
+                      color: "hsl(var(--sidebar-foreground) / 0.75)",
+                    }
+              }
+              onMouseEnter={e => {
+                if (!isActive) {
+                  (e.currentTarget as HTMLElement).style.background = "hsl(var(--sidebar-accent))";
+                  (e.currentTarget as HTMLElement).style.color = "hsl(var(--sidebar-accent-foreground))";
                 }
-                onMouseEnter={e => {
-                  if (!isActive) {
-                    (e.currentTarget as HTMLElement).style.background = "hsl(var(--sidebar-accent))";
-                    (e.currentTarget as HTMLElement).style.color = "hsl(var(--sidebar-accent-foreground))";
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (!isActive) {
-                    (e.currentTarget as HTMLElement).style.background = "transparent";
-                    (e.currentTarget as HTMLElement).style.color = "hsl(var(--sidebar-foreground) / 0.75)";
-                  }
-                }}
-              >
-                <Icon className="w-4 h-4 shrink-0" />
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
-        
-        <div
-          className="p-4"
-          style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm"
-              style={{
-                background: "hsl(var(--sidebar-primary))",
-                color: "hsl(var(--sidebar-primary-foreground))",
+              }}
+              onMouseLeave={e => {
+                if (!isActive) {
+                  (e.currentTarget as HTMLElement).style.background = "transparent";
+                  (e.currentTarget as HTMLElement).style.color = "hsl(var(--sidebar-foreground) / 0.75)";
+                }
               }}
             >
-              {name?.[0]?.toUpperCase() ?? "A"}
-            </div>
-            <div className="flex flex-col min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium truncate" style={{ color: "hsl(var(--sidebar-foreground))" }}>
-                  {name ?? "Admin"}
-                </span>
-                <Badge className={`text-[10px] px-1.5 py-0 h-4 shrink-0 ${ROLE_COLORS[role] ?? "bg-gray-600 text-white"}`}>
-                  {ROLE_LABELS[role] ?? role}
-                </Badge>
-              </div>
-              <span className="text-xs truncate" style={{ color: "hsl(var(--sidebar-foreground) / 0.5)" }}>
-                {email}
-              </span>
-            </div>
-          </div>
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start h-9 px-3 transition-colors"
-            style={{ color: "hsl(var(--sidebar-foreground) / 0.65)" }}
-            onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/sign-in"; } } })}
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
-        </div>
-      </aside>
-
-      <main className="flex-1 flex flex-col min-w-0">
-        {canManageCustomers && (
+              <Icon className="w-4 h-4 shrink-0" />
+              {item.name}
+            </Link>
+          );
+        })}
+      </nav>
+      
+      <div
+        className="p-4"
+        style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}
+      >
+        <div className="flex items-center gap-3 mb-4">
           <div
-            className="sticky top-0 z-40 px-6 lg:px-8 py-3"
+            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm"
             style={{
-              background: "hsl(var(--app-topbar-bg, var(--background)))",
-              borderBottom: "1px solid hsl(var(--app-topbar-border, var(--border)))",
+              background: "hsl(var(--sidebar-primary))",
+              color: "hsl(var(--sidebar-primary-foreground))",
             }}
           >
-            <div className="mx-auto max-w-6xl flex justify-end">
-              <CustomerSearch />
-            </div>
+            {name?.[0]?.toUpperCase() ?? "A"}
           </div>
-        )}
-        <div className="flex-1 p-6 lg:p-8 overflow-y-auto bg-background">
+          <div className="flex flex-col min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium truncate" style={{ color: "hsl(var(--sidebar-foreground))" }}>
+                {name ?? "Admin"}
+              </span>
+              <Badge className={`text-[10px] px-1.5 py-0 h-4 shrink-0 ${ROLE_COLORS[role] ?? "bg-gray-600 text-white"}`}>
+                {ROLE_LABELS[role] ?? role}
+              </Badge>
+            </div>
+            <span className="text-xs truncate" style={{ color: "hsl(var(--sidebar-foreground) / 0.5)" }}>
+              {email}
+            </span>
+          </div>
+        </div>
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start h-9 px-3 transition-colors"
+          style={{ color: "hsl(var(--sidebar-foreground) / 0.65)" }}
+          onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/sign-in"; } } })}
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Sign Out
+        </Button>
+      </div>
+    </>
+  );
+
+  const sidebarStyle = {
+    background: "hsl(var(--sidebar))",
+    color: "hsl(var(--sidebar-foreground))",
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col md:flex-row font-sans">
+      {/* Desktop sidebar */}
+      <aside
+        className="hidden md:flex md:w-64 flex-col shrink-0 sticky top-0 md:h-screen"
+        style={{ ...sidebarStyle, borderRight: "1px solid hsl(var(--sidebar-border))" }}
+      >
+        {sidebarInner}
+      </aside>
+
+      {/* Mobile drawer nav */}
+      <Sheet open={navOpen} onOpenChange={setNavOpen}>
+        <SheetContent side="left" className="p-0 w-72 flex flex-col" style={sidebarStyle}>
+          <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+          <SheetDescription className="sr-only">Main navigation links for NetPulse ISP</SheetDescription>
+          {sidebarInner}
+        </SheetContent>
+      </Sheet>
+
+      <main className="flex-1 flex flex-col min-w-0">
+        <div className="sticky top-0 z-40">
+          {/* Mobile top bar */}
+          <div
+            className="md:hidden flex items-center gap-3 px-4 py-3"
+            style={{ ...sidebarStyle, borderBottom: "1px solid hsl(var(--sidebar-border))" }}
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              style={{ color: "hsl(var(--sidebar-foreground))" }}
+              onClick={() => setNavOpen(true)}
+              aria-label="Open navigation menu"
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
+            <div
+              className="w-7 h-7 rounded flex items-center justify-center font-bold text-xs shadow-sm shrink-0"
+              style={{
+                background: "hsl(var(--app-sidebar-logo-bg, var(--sidebar-primary)))",
+                color: "hsl(var(--app-sidebar-logo-text, var(--sidebar-primary-foreground)))",
+              }}
+            >
+              NP
+            </div>
+            <h1 className="font-bold tracking-tight text-base truncate" style={{ color: "hsl(var(--sidebar-foreground))" }}>
+              NetPulse ISP
+            </h1>
+          </div>
+
+          {canManageCustomers && (
+            <div
+              className="px-4 md:px-6 lg:px-8 py-3"
+              style={{
+                background: "hsl(var(--app-topbar-bg, var(--background)))",
+                borderBottom: "1px solid hsl(var(--app-topbar-border, var(--border)))",
+              }}
+            >
+              <div className="mx-auto max-w-6xl flex justify-end">
+                <CustomerSearch />
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-background">
           <div className="mx-auto max-w-6xl">
             {children}
           </div>

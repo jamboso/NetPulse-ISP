@@ -121,7 +121,7 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
             <Label>Full Name *</Label>
             <Input value={form.name} onChange={e => set("name", e.target.value)} placeholder="John Doe" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Email *</Label>
               <Input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="john@example.com" />
@@ -166,7 +166,7 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
                 {gpsLoading ? "Getting…" : "Use My Location"}
               </Button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs text-gray-500">Latitude</Label>
                 <Input className="font-mono text-sm h-8" value={form.latitude} onChange={e => set("latitude", e.target.value)} placeholder="-1.286389" />
@@ -198,7 +198,7 @@ function CustomerDialog({ open, onClose, initial, customerId }: {
                 </Button>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs text-gray-500">Username</Label>
                 <Input className="font-mono text-sm h-8" value={form.pppoeUsername}

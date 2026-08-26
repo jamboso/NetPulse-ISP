@@ -441,6 +441,7 @@ export default function StaffPage() {
             ]}
           />
 
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -553,6 +554,7 @@ export default function StaffPage() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 

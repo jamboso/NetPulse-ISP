@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
 import net from "node:net";
 import { db, routersTable, routerVpnCertsTable, vpnConfigTable, settingsTable } from "@workspace/db";
@@ -211,9 +211,14 @@ router.get("/provision/:token/setup.rsc", async (req, res) => {
   }
 });
 
-// ── POST /api/provision/:token/callback ──────────────────────────────────────
+// ── GET|POST /api/provision/:token/callback ───────────────────────────────────
 // PUBLIC — Router calls this after completing setup to signal tunnel is active.
-router.post("/provision/:token/callback", async (req, res) => {
+// Accepts both methods: RouterOS's `/tool fetch` is only proven reliable in this
+// script as a plain GET (see the cert-download steps). The POST+http-data variant
+// silently failed on-error on real hardware for reasons that couldn't be isolated
+// without device-level tracing, so the RouterOS side now always sends a GET and
+// the params travel in the query string. POST is kept working for any other caller.
+const callbackHandler = async (req: Request<{ token: string }>, res: Response) => {
   try {
     const mac = String(req.body?.mac ?? req.query.mac ?? "").trim();
     const ver = String(req.body?.ver ?? req.query.ver ?? "").trim();
@@ -251,6 +256,9 @@ router.post("/provision/:token/callback", async (req, res) => {
     req.log.error(err, "provision callback error");
     return res.status(500).type("text/plain").send("error");
   }
-});
+};
+
+router.get("/provision/:token/callback", callbackHandler);
+router.post("/provision/:token/callback", callbackHandler);
 
 export default router;

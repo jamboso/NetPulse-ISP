@@ -363,11 +363,10 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
 :do {
   /tool fetch \\
     url=("${params.serverUrl}/api/provision/${params.token}/callback?mac=" . $mac2 . "&ver=" . $ver2 . "&vpnIp=" . $vpnIp2) \\
-    http-method=post \\
-    http-data=("mac=" . $mac2 . "&ver=" . $ver2 . "&vpnIp=" . $vpnIp2) \\
-    mode=https \\
-    keep-result=no
+    dst-path="netpulse-callback-result.txt" \\
+    mode=https
 } on-error={ :log warning "NetPulse: callback failed — tunnel may still be active" }
+:do { /file remove [find name="netpulse-callback-result.txt"] } on-error={}
 
 :log info "NetPulse: provisioning complete"
 `

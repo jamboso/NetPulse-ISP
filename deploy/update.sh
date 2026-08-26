@@ -38,6 +38,11 @@ lock_release_control_files() {
   chown -R root:root "$APP_DIR/.git" "$APP_DIR/deploy"
   find "$APP_DIR/.git" "$APP_DIR/deploy" -type d -exec chmod 755 {} +
   find "$APP_DIR/.git" "$APP_DIR/deploy" -type f -exec chmod go-w {} +
+  # Self-heal: a root-owned .git next to a non-root app process needs this
+  # system-wide exception, or every git call the app makes (including the
+  # Updates page's preflight check) fails with "detected dubious ownership".
+  git config --system --get-all safe.directory 2>/dev/null | grep -qxF "$APP_DIR" \
+    || git config --system --add safe.directory "$APP_DIR"
 }
 
 install_vpn_privileged_helpers() {

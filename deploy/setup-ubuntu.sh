@@ -115,6 +115,14 @@ configure_update_launcher() {
   chown -R root:root "$APP_DIR"
   chmod -R go-w "$APP_DIR"
   chmod 0755 "$APP_DIR/deploy/update.sh" "$APP_DIR/deploy/migrate.sh"
+  # Root now owns $APP_DIR/.git, but the app (and its Updates-page git preflight
+  # checks) run as the non-root $app_owner. Without this, every git command
+  # against a repo owned by a different user fails with "detected dubious
+  # ownership", which surfaces to owners as "Could not read the configured
+  # production branch." A system-wide (not per-user) entry covers both the app
+  # process and any admin's interactive shell.
+  git config --system --get-all safe.directory 2>/dev/null | grep -qxF "$APP_DIR" \
+    || git config --system --add safe.directory "$APP_DIR"
   cat > /etc/sudoers.d/netpulse-update <<EOF
 ${app_owner} ALL=(root) NOPASSWD: ${APP_DIR}/deploy/update.sh *
 EOF
@@ -552,6 +560,10 @@ chown -R "$REAL_USER":"$REAL_USER" "$APP_DIR"
 chown -R root:root "$APP_DIR/.git" "$APP_DIR/deploy"
 find "$APP_DIR/.git" "$APP_DIR/deploy" -type d -exec chmod 755 {} +
 find "$APP_DIR/.git" "$APP_DIR/deploy" -type f -exec chmod go-w {} +
+# See the matching comment in configure_update_launcher() — root-owned .git
+# otherwise breaks every git command the (non-root) app process runs.
+git config --system --get-all safe.directory 2>/dev/null | grep -qxF "$APP_DIR" \
+  || git config --system --add safe.directory "$APP_DIR"
 
 configure_update_launcher "$ENV_FILE" "$REAL_USER"
 

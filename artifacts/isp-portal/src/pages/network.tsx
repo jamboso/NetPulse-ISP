@@ -1,17 +1,14 @@
 import { useState, useEffect, useCallback, Fragment, useRef } from "react";
 import { useMacVendor } from "@/hooks/useMacVendor";
 import {
-  useListEquipment, useCreateEquipment, useUpdateEquipment, useDeleteEquipment, getListEquipmentQueryKey,
-  useListIpPools, useCreateIpPool, useUpdateIpPool, useDeleteIpPool, getListIpPoolsQueryKey,
-  useListRouters, useCreateRouter, useUpdateRouter, useDeleteRouter, getListRoutersQueryKey,
-  useListCustomers, getListCustomersQueryKey,
+  useListEquipment, useCreateEquipment, useUpdateEquipment, useDeleteEquipment,
+  useListIpPools, useCreateIpPool, useUpdateIpPool, useDeleteIpPool,
+  useListRouters, useCreateRouter, useUpdateRouter, useDeleteRouter,
   RouterDeviceInputRouterType, RouterDeviceUpdateRouterType,
   EquipmentInput, EquipmentUpdate,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useOwnerCompanyScope } from "@/hooks/useOwnerCompanyScope";
-import { CompanyScopePicker, CompanyScopeEmptyState } from "@/components/company-scope-picker";
 import { FiberAccessWorkspace } from "@/components/fiber-access-workspace";
 import { Link } from "wouter";
 import {
@@ -42,7 +39,7 @@ type RouterFormData = {
   name: string; routerType: string; ipAddress: string; port: string;
   username: string; password: string; description: string; location: string;
   apiSsl: boolean; sshPort: string; netconfPort: string; enabled: boolean;
-  radiusSecret: string; radiusPort: string; customerId: string;
+  radiusSecret: string; radiusPort: string;
 };
 
 type EquipmentFormData = {
@@ -59,7 +56,7 @@ const ROUTER_DEFAULTS: RouterFormData = {
   name: "", routerType: "routeros", ipAddress: "", port: "",
   username: "admin", password: "", description: "", location: "",
   apiSsl: false, sshPort: "", netconfPort: "", enabled: true,
-  radiusSecret: "", radiusPort: "", customerId: "",
+  radiusSecret: "", radiusPort: "",
 };
 
 const EQUIPMENT_DEFAULTS: EquipmentFormData = {
@@ -664,26 +661,19 @@ function RouterVpnPanel({ routerId }: { routerId: number }) {
 
 // ─── Router Dialog ────────────────────────────────────────────────────────────
 function RouterDialog({
-  open, onClose, initial, routerId, companyScopeRequest,
+  open, onClose, initial, routerId,
 }: {
   open: boolean;
   onClose: () => void;
   initial?: RouterFormData;
   routerId?: number;
-  companyScopeRequest?: { headers: { "x-netpulse-company-id": string } };
 }) {
   const qc = useQueryClient();
-  const createMutation = useCreateRouter({ request: companyScopeRequest });
-  const updateMutation = useUpdateRouter({ request: companyScopeRequest });
+  const createMutation = useCreateRouter();
+  const updateMutation = useUpdateRouter();
   const [form, setForm] = useState<RouterFormData>(initial ?? ROUTER_DEFAULTS);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-
-  const { data: customersData } = useListCustomers({ limit: 500 }, {
-    query: { queryKey: [...getListCustomersQueryKey({ limit: 500 }), { scope: companyScopeRequest?.headers["x-netpulse-company-id"] }] },
-    request: companyScopeRequest,
-  });
-  const customerOptions = customersData?.data ?? [];
 
   const set = (k: keyof RouterFormData, v: string | boolean) =>
     setForm((p) => ({ ...p, [k]: v }));
@@ -706,7 +696,6 @@ function RouterDialog({
         enabled: form.enabled,
         radiusSecret: form.radiusSecret || undefined,
         radiusPort: form.radiusPort ? parseInt(form.radiusPort) : undefined,
-        customerId: form.customerId ? parseInt(form.customerId) : null,
       };
       if (routerId) {
         await updateMutation.mutateAsync({
@@ -816,22 +805,6 @@ function RouterDialog({
           </div>
 
           <div className="space-y-1">
-            <Label>Assigned Customer</Label>
-            <Select value={form.customerId || "none"} onValueChange={(v) => set("customerId", v === "none" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Unassigned</SelectItem>
-                {customerOptions.map((c) => (
-                  <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-[11px] text-gray-400">
-              A customer-owned router assigned here is removed automatically if that customer is deleted.
-            </p>
-          </div>
-
-          <div className="space-y-1">
             <Label>Description</Label>
             <Textarea rows={2} value={form.description} onChange={(e) => set("description", e.target.value)} className="resize-none" placeholder="Core BGP router serving Zone A" />
           </div>
@@ -883,14 +856,13 @@ function RouterDialog({
 
 // ─── Equipment Dialog ────────────────────────────────────────────────────────
 function EquipmentDialog({
-  open, onClose, initial, equipmentId, companyScopeRequest,
+  open, onClose, initial, equipmentId,
 }: {
   open: boolean; onClose: () => void; initial?: EquipmentFormData; equipmentId?: number;
-  companyScopeRequest?: { headers: { "x-netpulse-company-id": string } };
 }) {
   const qc = useQueryClient();
-  const createMutation = useCreateEquipment({ request: companyScopeRequest });
-  const updateMutation = useUpdateEquipment({ request: companyScopeRequest });
+  const createMutation = useCreateEquipment();
+  const updateMutation = useUpdateEquipment();
   const [form, setForm] = useState<EquipmentFormData>(initial ?? EQUIPMENT_DEFAULTS);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -1043,14 +1015,13 @@ function EquipmentDialog({
 
 // ─── IP Pool Dialog ───────────────────────────────────────────────────────────
 function IpPoolDialog({
-  open, onClose, initial, poolId, companyScopeRequest,
+  open, onClose, initial, poolId,
 }: {
   open: boolean; onClose: () => void; initial?: IpPoolFormData; poolId?: number;
-  companyScopeRequest?: { headers: { "x-netpulse-company-id": string } };
 }) {
   const qc = useQueryClient();
-  const createMutation = useCreateIpPool({ request: companyScopeRequest });
-  const updateMutation = useUpdateIpPool({ request: companyScopeRequest });
+  const createMutation = useCreateIpPool();
+  const updateMutation = useUpdateIpPool();
   const [form, setForm] = useState<IpPoolFormData>(initial ?? POOL_DEFAULTS);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -1137,32 +1108,13 @@ function IpPoolDialog({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function Network() {
-  const scope = useOwnerCompanyScope("network");
-  const { scopeReady, selectedCompanyId, companyScopeRequest } = scope;
+  const { data: equipmentData, isLoading: loadingEquipment } = useListEquipment();
+  const { data: ipPoolsData, isLoading: loadingIpPools } = useListIpPools();
+  const { data: routersData, isLoading: loadingRouters, isError: isRoutersError, error: routersError, refetch: refetchRouters } = useListRouters();
 
-  const { data: equipmentData, isLoading: loadingEquipment } = useListEquipment(undefined, {
-    query: { queryKey: [...getListEquipmentQueryKey(), { companyId: selectedCompanyId }], enabled: scopeReady },
-    request: companyScopeRequest,
-  });
-  const { data: ipPoolsData, isLoading: loadingIpPools } = useListIpPools({
-    query: { queryKey: [...getListIpPoolsQueryKey(), { companyId: selectedCompanyId }], enabled: scopeReady },
-    request: companyScopeRequest,
-  });
-  const { data: routersData, isLoading: loadingRouters, isError: isRoutersError, error: routersError, refetch: refetchRouters } = useListRouters(undefined, {
-    query: { queryKey: [...getListRoutersQueryKey(), { companyId: selectedCompanyId }], enabled: scopeReady },
-    request: companyScopeRequest,
-  });
-  // Just for showing the assigned customer's name next to each router — not
-  // the source of truth for assignment (that's routersData[].customerId).
-  const { data: customersForRouterList } = useListCustomers({ limit: 500 }, {
-    query: { queryKey: [...getListCustomersQueryKey({ limit: 500 }), { companyId: selectedCompanyId }], enabled: scopeReady },
-    request: companyScopeRequest,
-  });
-  const customerNameById = new Map((customersForRouterList?.data ?? []).map((c) => [c.id, c.name]));
-
-  const deleteEquipment = useDeleteEquipment({ request: companyScopeRequest });
-  const deletePool = useDeleteIpPool({ request: companyScopeRequest });
-  const deleteRouter = useDeleteRouter({ request: companyScopeRequest });
+  const deleteEquipment = useDeleteEquipment();
+  const deletePool = useDeleteIpPool();
+  const deleteRouter = useDeleteRouter();
   const qc = useQueryClient();
   const { canManageNetwork, canDeleteNetworkRecords } = useCurrentUser();
 
@@ -1320,19 +1272,6 @@ export default function Network() {
         <p className="text-gray-500 text-sm">Manage routers, equipment, and IP resources.</p>
       </div>
 
-      <CompanyScopePicker
-        scope={scope}
-        id="network-company"
-        title="Choose a customer company"
-        description="Routers, equipment, and IP pools belong to one company. Choose the company before viewing or changing its network infrastructure."
-      />
-
-      {!scopeReady ? (
-        <CompanyScopeEmptyState
-          title="Select a company to open Network Infrastructure"
-          description="This prevents routers, equipment, and IP pools from being viewed or created in the wrong customer company."
-        />
-      ) : (
       <Tabs defaultValue="routers" className="w-full">
         <TabsList className="bg-gray-100 flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="routers" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
@@ -1383,7 +1322,6 @@ export default function Network() {
                   <TableHead>Type</TableHead>
                   <TableHead>Management IP</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead>Customer</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
@@ -1391,7 +1329,7 @@ export default function Network() {
               <TableBody>
                 {isRoutersError ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center text-red-500">
+                    <TableCell colSpan={7} className="h-32 text-center text-red-500">
                       <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-60" />
                       <p className="text-sm font-medium">Couldn't load routers</p>
                       <p className="text-xs text-gray-500 mt-0.5">{(routersError as any)?.message ?? "Request failed. Your data is safe — this is a connection issue, not data loss."}</p>
@@ -1403,7 +1341,7 @@ export default function Network() {
                 ) : loadingRouters ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 8 }).map((__, j) => (
+                      {Array.from({ length: 7 }).map((__, j) => (
                         <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
                       ))}
                     </TableRow>
@@ -1427,15 +1365,6 @@ export default function Network() {
                           : `${r.ipAddress}${r.port ? `:${r.port}` : ""}`}
                       </TableCell>
                       <TableCell className="text-gray-500 text-sm">{r.location || "—"}</TableCell>
-                      <TableCell className="text-sm">
-                        {(r as any).customerId != null ? (
-                          <Link href={`/customers/${(r as any).customerId}`} className="text-blue-600 hover:underline">
-                            {customerNameById.get((r as any).customerId) ?? `#${(r as any).customerId}`}
-                          </Link>
-                        ) : (
-                          <span className="text-gray-400 italic">Unassigned</span>
-                        )}
-                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <Badge variant="outline" className={r.enabled ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-100 text-gray-500"}>
@@ -1534,7 +1463,6 @@ export default function Network() {
                                   enabled: r.enabled,
                                   radiusSecret: (r as any).radiusSecret ?? "",
                                   radiusPort: (r as any).radiusPort?.toString() ?? "",
-                                  customerId: (r as any).customerId != null ? String((r as any).customerId) : "",
                                 },
                               })}>
                               <Pencil className="w-3.5 h-3.5" />
@@ -2137,7 +2065,6 @@ export default function Network() {
           )}
         </TabsContent>
       </Tabs>
-      )}
 
       {/* Dialogs */}
       <RouterDialog
@@ -2146,7 +2073,6 @@ export default function Network() {
         onClose={() => setRouterDialog({ open: false })}
         initial={routerDialog.initial}
         routerId={routerDialog.id}
-        companyScopeRequest={companyScopeRequest}
       />
       <EquipmentDialog
         key={equipDialog.open ? (equipDialog.id ?? "new") : "closed"}
@@ -2154,7 +2080,6 @@ export default function Network() {
         onClose={() => setEquipDialog({ open: false })}
         initial={equipDialog.initial}
         equipmentId={equipDialog.id}
-        companyScopeRequest={companyScopeRequest}
       />
       <IpPoolDialog
         key={poolDialog.open ? (poolDialog.id ?? "new") : "closed"}
@@ -2162,7 +2087,6 @@ export default function Network() {
         onClose={() => setPoolDialog({ open: false })}
         initial={poolDialog.initial}
         poolId={poolDialog.id}
-        companyScopeRequest={companyScopeRequest}
       />
     </div>
   );

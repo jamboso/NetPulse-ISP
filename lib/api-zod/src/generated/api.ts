@@ -1721,10 +1721,6 @@ export const GetRoutersStatusResponse = zod.array(GetRoutersStatusResponseItem)
 /**
  * @summary List all managed routers
  */
-export const ListRoutersQueryParams = zod.object({
-  "customerId": zod.coerce.number().optional().describe('Filter to routers assigned to this customer.')
-})
-
 export const ListRoutersResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
@@ -1742,7 +1738,6 @@ export const ListRoutersResponseItem = zod.object({
   "lastSeen": zod.string().nullish(),
   "radiusSecret": zod.string().nullish(),
   "radiusPort": zod.number().nullish(),
-  "customerId": zod.number().nullish().describe('Customer this router is assigned to, or null if unassigned.'),
   "createdAt": zod.string()
 })
 export const ListRoutersResponse = zod.array(ListRoutersResponseItem)
@@ -1765,8 +1760,7 @@ export const CreateRouterBody = zod.object({
   "netconfPort": zod.number().optional(),
   "enabled": zod.boolean().optional(),
   "radiusSecret": zod.string().optional(),
-  "radiusPort": zod.number().optional(),
-  "customerId": zod.number().nullish().describe('Customer this router is assigned to, or null\/omitted to leave it unassigned.')
+  "radiusPort": zod.number().optional()
 })
 
 
@@ -1819,7 +1813,6 @@ export const GetRouterResponse = zod.object({
   "lastSeen": zod.string().nullish(),
   "radiusSecret": zod.string().nullish(),
   "radiusPort": zod.number().nullish(),
-  "customerId": zod.number().nullish().describe('Customer this router is assigned to, or null if unassigned.'),
   "createdAt": zod.string()
 })
 
@@ -1845,8 +1838,7 @@ export const UpdateRouterBody = zod.object({
   "netconfPort": zod.number().nullish(),
   "enabled": zod.boolean().optional(),
   "radiusSecret": zod.string().nullish(),
-  "radiusPort": zod.number().nullish(),
-  "customerId": zod.number().nullish().describe('Customer this router is assigned to, or null to unassign it.')
+  "radiusPort": zod.number().nullish()
 })
 
 export const UpdateRouterResponse = zod.object({
@@ -1866,7 +1858,6 @@ export const UpdateRouterResponse = zod.object({
   "lastSeen": zod.string().nullish(),
   "radiusSecret": zod.string().nullish(),
   "radiusPort": zod.number().nullish(),
-  "customerId": zod.number().nullish().describe('Customer this router is assigned to, or null if unassigned.'),
   "createdAt": zod.string()
 })
 

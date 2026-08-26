@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
   db, vpnConfigTable, routerVpnCertsTable, routersTable,
   settingsTable, type RouterVpnCert,
@@ -8,26 +8,8 @@ import { generateVpnServerCerts, generateClientCert, generateOpenVpnServerConf, 
 import { requireRole } from "../middlewares/requireRole";
 import { loadInstalledOpenVpnCertificatesWithHelper } from "../lib/systemVpnCerts";
 import { repairOpenVpnService } from "../lib/openVpnRepair";
-import { resolveCompanyScope } from "../middlewares/companyScope";
 
 const router = Router();
-router.use(resolveCompanyScope);
-
-// Confirms `routerId` belongs to the requesting company. Returns the router
-// row on success, or null after already writing a 403/404 response.
-async function requireOwnedRouter(req: import("express").Request, res: import("express").Response, routerId: number) {
-  if (req.companyId == null) {
-    res.status(403).json({ error: "Forbidden: no company scope for this account" });
-    return null;
-  }
-  const [router_] = await db.select().from(routersTable)
-    .where(and(eq(routersTable.id, routerId), eq(routersTable.companyId, req.companyId)));
-  if (!router_) {
-    res.status(404).json({ error: "Router not found" });
-    return null;
-  }
-  return router_;
-}
 
 // ── GET /api/infrastructure/status ──────────────────────────────────────────
 router.get("/infrastructure/status", async (req, res) => {
@@ -47,19 +29,8 @@ router.get("/infrastructure/status", async (req, res) => {
       .where(eq(settingsTable.key, "radiusSecret"));
     const radiusSecret = radiusSecretRows[0]?.value ?? null;
 
-    // Router/cert counts are per-tenant data — never show cross-company
-    // rows, and show nothing (not everything) when an owner hasn't picked
-    // a company yet.
-    const allRouters = req.companyId != null
-      ? await db.select().from(routersTable).where(eq(routersTable.companyId, req.companyId))
-      : [];
-    const vpnCerts = req.companyId != null
-      ? await db.select({ cert: routerVpnCertsTable })
-          .from(routerVpnCertsTable)
-          .innerJoin(routersTable, eq(routerVpnCertsTable.routerId, routersTable.id))
-          .where(eq(routersTable.companyId, req.companyId))
-          .then(rows => rows.map(r => r.cert))
-      : [];
+    const allRouters = await db.select().from(routersTable);
+    const vpnCerts = await db.select().from(routerVpnCertsTable);
 
     return res.json({
       radius: {
@@ -124,11 +95,6 @@ router.post("/infrastructure/radius/test", async (req, res) => {
 // ── POST /api/infrastructure/radius/export-users ────────────────────────────
 router.post("/infrastructure/radius/export-users", async (req, res) => {
   try {
-    if (req.companyId == null) {
-      return res.status(403).json({ error: "Forbidden: no company scope for this account" });
-    }
-    const companyId = req.companyId;
-
     const { subscriptionsTable, customersTable, plansTable } = await import("@workspace/db");
 
     const subs = await db
@@ -143,7 +109,7 @@ router.post("/infrastructure/radius/export-users", async (req, res) => {
       .from(subscriptionsTable)
       .innerJoin(customersTable, eq(subscriptionsTable.customerId, customersTable.id))
       .innerJoin(plansTable, eq(subscriptionsTable.planId, plansTable.id))
-      .where(and(eq(subscriptionsTable.status, "active"), eq(subscriptionsTable.companyId, companyId)));
+      .where(eq(subscriptionsTable.status, "active"));
 
     const lines: string[] = [
       "-- NetPulse RADIUS User Export",
@@ -174,7 +140,7 @@ router.post("/infrastructure/radius/export-users", async (req, res) => {
     const secretRows = await db.select().from(settingsTable).where(eq(settingsTable.key, "radiusSecret"));
     const secret = secretRows[0]?.value ?? "change-me";
 
-    const nasRows = await db.select().from(routersTable).where(eq(routersTable.companyId, companyId));
+    const nasRows = await db.select().from(routersTable);
     lines.push("", "-- NAS (Router) entries");
     for (const r of nasRows) {
       lines.push(`INSERT INTO nas (nasname, shortname, type, secret, description)`);
@@ -369,13 +335,7 @@ router.get("/infrastructure/vpn/server-conf", async (req, res) => {
 // ── GET /api/infrastructure/vpn/clients ─────────────────────────────────────
 router.get("/infrastructure/vpn/clients", async (req, res) => {
   try {
-    const certs = req.companyId != null
-      ? await db.select({ cert: routerVpnCertsTable })
-          .from(routerVpnCertsTable)
-          .innerJoin(routersTable, eq(routerVpnCertsTable.routerId, routersTable.id))
-          .where(eq(routersTable.companyId, req.companyId))
-          .then(rows => rows.map(r => r.cert))
-      : [];
+    const certs = await db.select().from(routerVpnCertsTable);
     return res.json(
       certs.map((c: RouterVpnCert) => ({
         id: c.id,
@@ -396,14 +356,15 @@ router.get("/infrastructure/vpn/clients", async (req, res) => {
 router.post("/infrastructure/vpn/client/:routerId/generate", async (req, res) => {
   const routerId = parseInt(req.params.routerId, 10);
   try {
-    const router_ = await requireOwnedRouter(req, res, routerId);
-    if (!router_) return;
-
     const vpnRows = await db.select().from(vpnConfigTable).limit(1);
     const vpnCfg = vpnRows[0];
     if (!vpnCfg || !vpnCfg.caCert || !vpnCfg.caKey) {
       return res.status(400).json({ error: "VPN certificates not yet generated. Generate them first in Settings → Infrastructure." });
     }
+
+    const routerRows = await db.select().from(routersTable).where(eq(routersTable.id, routerId));
+    if (!routerRows.length) return res.status(404).json({ error: "Router not found" });
+    const router_ = routerRows[0];
 
     const cn = `netpulse-${router_.name.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase()}`;
     req.log.info(`Generating client cert for router ${routerId} (${cn})`);
@@ -455,9 +416,6 @@ router.post("/infrastructure/vpn/client/:routerId/generate", async (req, res) =>
 router.delete("/infrastructure/vpn/client/:routerId", async (req, res) => {
   const routerId = parseInt(req.params.routerId, 10);
   try {
-    const router_ = await requireOwnedRouter(req, res, routerId);
-    if (!router_) return;
-
     await db
       .update(routerVpnCertsTable)
       .set({ revokedAt: new Date() })
@@ -473,8 +431,9 @@ router.delete("/infrastructure/vpn/client/:routerId", async (req, res) => {
 router.get("/routers/:id/ros-script", async (req, res) => {
   const routerId = parseInt(req.params.id, 10);
   try {
-    const router_ = await requireOwnedRouter(req, res, routerId);
-    if (!router_) return;
+    const routerRows = await db.select().from(routersTable).where(eq(routersTable.id, routerId));
+    if (!routerRows.length) return res.status(404).json({ error: "Router not found" });
+    const router_ = routerRows[0];
 
     const vpnRows = await db.select().from(vpnConfigTable).limit(1);
     const vpnCfg = vpnRows[0];

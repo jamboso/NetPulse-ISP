@@ -13,8 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { CompanyScopeEmptyState, CompanyScopePicker } from "@/components/company-scope-picker";
-import { useOwnerCompanyScope, type OwnerCompanyScope } from "@/hooks/useOwnerCompanyScope";
 
 // Leaflet dynamic import (avoids SSR issues + fixes Vite icon paths)
 import L from "leaflet";
@@ -216,10 +214,9 @@ interface SplitterFormProps {
   onClose: () => void;
   initial?: Partial<SplitterRow>;
   pickingCoords?: { lat: number; lng: number } | null;
-  companyScopeRequest: OwnerCompanyScope["companyScopeRequest"];
 }
 
-function SplitterFormDialog({ open, onClose, initial, pickingCoords, companyScopeRequest }: SplitterFormProps) {
+function SplitterFormDialog({ open, onClose, initial, pickingCoords }: SplitterFormProps) {
   const qc = useQueryClient();
   const isEdit = !!initial?.id;
   const [name,        setName]        = useState(initial?.name        ?? "");
@@ -245,11 +242,7 @@ function SplitterFormDialog({ open, onClose, initial, pickingCoords, companyScop
       const body = { name, description: description || null, location: location || null, capacity: parseInt(capacity) || 8, fiberColor: fiberColor || null, latitude: lat ? parseFloat(lat) : null, longitude: lng ? parseFloat(lng) : null };
       const url    = isEdit ? `${API}/api/splitters/${initial!.id}` : `${API}/api/splitters`;
       const method = isEdit ? "PUT" : "POST";
-      const r = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json", ...companyScopeRequest?.headers },
-        body: JSON.stringify(body),
-      });
+      const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error((await r.json()).error ?? "Save failed");
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["network-map"] }); qc.invalidateQueries({ queryKey: ["splitters"] }); onClose(); },
@@ -312,14 +305,7 @@ function SplitterFormDialog({ open, onClose, initial, pickingCoords, companyScop
 
 // ── Customer Location Picker ───────────────────────────────────────────────────
 
-function CustomerLocModal({
-  open, onClose, pickingCoords, companyScopeRequest,
-}: {
-  open: boolean;
-  onClose: () => void;
-  pickingCoords: { lat: number; lng: number; customerId: number } | null;
-  companyScopeRequest: OwnerCompanyScope["companyScopeRequest"];
-}) {
+function CustomerLocModal({ open, onClose, pickingCoords }: { open: boolean; onClose: () => void; pickingCoords: { lat: number; lng: number; customerId: number } | null }) {
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
 
@@ -327,8 +313,7 @@ function CustomerLocModal({
     if (!pickingCoords) return;
     setSaving(true);
     await fetch(`${API}/api/customers/${pickingCoords.customerId}/location`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", ...companyScopeRequest?.headers },
+      method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ latitude: pickingCoords.lat, longitude: pickingCoords.lng }),
     });
     setSaving(false);
@@ -473,7 +458,6 @@ function SidePanel({
 
 export default function NetworkMap() {
   const qc = useQueryClient();
-  const scope = useOwnerCompanyScope("network-map");
   const [filter,         setFilter]        = useState("all");
   const [showSplitter,   setShowSplitter]  = useState(false);
   const [editSplitter,   setEditSplitter]  = useState<MapSplitter | undefined>(undefined);
@@ -483,24 +467,17 @@ export default function NetworkMap() {
   const defaultCenter: [number, number] = [-1.286389, 36.817223];
 
   const { data, isLoading, isFetching, refetch } = useQuery<MapData>({
-    queryKey: ["network-map", scope.selectedCompanyId],
+    queryKey: ["network-map"],
     queryFn: async () => {
-      const r = await fetch(`${API}/api/network-map`, {
-        credentials: "include",
-        headers: { ...scope.companyScopeRequest?.headers },
-      });
+      const r = await fetch(`${API}/api/network-map`, { credentials: "include" });
       if (!r.ok) throw new Error(`Failed to load map data (${r.status})`);
       return r.json() as Promise<MapData>;
     },
-    enabled: scope.scopeReady,
     refetchInterval: 30_000,
   });
 
   const deleteSplitter = useMutation({
-    mutationFn: async (id: number) => fetch(`${API}/api/splitters/${id}`, {
-      method: "DELETE",
-      headers: { ...scope.companyScopeRequest?.headers },
-    }),
+    mutationFn: async (id: number) => fetch(`${API}/api/splitters/${id}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["network-map"] }),
   });
 
@@ -508,19 +485,6 @@ export default function NetworkMap() {
   const splitters = data?.splitters ?? [];
 
   return (
-    <div className="space-y-5">
-      <CompanyScopePicker
-        scope={scope}
-        id="network-map-company-scope"
-        title="Choose a customer company"
-        description="Choose the company whose network map, customers, and splitters you want to view or manage."
-      />
-      {!scope.scopeReady ? (
-        <CompanyScopeEmptyState
-          title="Choose a company to view its network map"
-          description="Select a customer company above before viewing its mapped customers and splitters."
-        />
-      ) : (
     <div className="h-[calc(100vh-120px)] flex flex-col" style={{ minHeight: 500 }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3 shrink-0">
@@ -630,10 +594,7 @@ export default function NetworkMap() {
           onClose={() => { setShowSplitter(false); setPickedCoords(null); }}
           initial={editSplitter}
           pickingCoords={pickedCoords}
-          companyScopeRequest={scope.companyScopeRequest}
         />
-      )}
-    </div>
       )}
     </div>
   );

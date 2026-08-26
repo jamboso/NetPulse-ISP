@@ -11,8 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { useOwnerCompanyScope } from "@/hooks/useOwnerCompanyScope";
-import { CompanyScopeEmptyState, CompanyScopePicker } from "@/components/company-scope-picker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface VpnStatus {
@@ -142,8 +140,6 @@ export function InfrastructureTab({
   f: (k: string) => string;
   set: (k: string, v: string) => void;
 }) {
-  const scope = useOwnerCompanyScope("infrastructure");
-  const { selectedCompanyId, scopeReady, companyScopeRequest } = scope;
   const [status, setStatus] = useState<InfraStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
 
@@ -163,16 +159,9 @@ export function InfrastructureTab({
   const [clientCertMsg, setClientCertMsg] = useState<Record<number, string>>({});
 
   const loadStatus = useCallback(async () => {
-    if (!scopeReady) {
-      setStatus(null);
-      setLoadingStatus(false);
-      return;
-    }
     setLoadingStatus(true);
     try {
-      const res = await fetch("/api/infrastructure/status", {
-        headers: { ...companyScopeRequest?.headers },
-      });
+      const res = await fetch("/api/infrastructure/status");
       const data = await res.json() as InfraStatus;
       setStatus(data);
       if (data.vpn) {
@@ -190,7 +179,7 @@ export function InfrastructureTab({
     } finally {
       setLoadingStatus(false);
     }
-  }, [scopeReady, selectedCompanyId]);
+  }, []);
 
   useEffect(() => { loadStatus(); }, [loadStatus]);
 
@@ -199,7 +188,7 @@ export function InfrastructureTab({
     try {
       await fetch("/api/infrastructure/vpn/config", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...companyScopeRequest?.headers },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...vpnForm,
           vpnPort: Number(vpnForm.vpnPort),
@@ -215,10 +204,7 @@ export function InfrastructureTab({
     setGeneratingCerts(true);
     setCertMsg("Generating certificates — this takes 20–40 seconds…");
     try {
-      const res = await fetch("/api/infrastructure/vpn/generate-certs", {
-        method: "POST",
-        headers: { ...companyScopeRequest?.headers },
-      });
+      const res = await fetch("/api/infrastructure/vpn/generate-certs", { method: "POST" });
       const data = await res.json() as { success?: boolean; message?: string; error?: string };
       setCertMsg(data.message ?? data.error ?? "Done");
       await loadStatus();
@@ -240,10 +226,7 @@ export function InfrastructureTab({
     setSyncingInstalledCerts(true);
     setCertMsg("Syncing the installed OpenVPN certificates…");
     try {
-      const res = await fetch("/api/infrastructure/vpn/sync-installed-certs", {
-        method: "POST",
-        headers: { ...companyScopeRequest?.headers },
-      });
+      const res = await fetch("/api/infrastructure/vpn/sync-installed-certs", { method: "POST" });
       const data = await res.json() as { success?: boolean; message?: string; error?: string };
       setCertMsg(data.message ?? data.error ?? "Certificate sync complete.");
       if (res.ok) await loadStatus();
@@ -258,10 +241,7 @@ export function InfrastructureTab({
     setTestingRadius(true);
     setRadiusResult(null);
     try {
-      const res = await fetch("/api/infrastructure/radius/test", {
-        method: "POST",
-        headers: { ...companyScopeRequest?.headers },
-      });
+      const res = await fetch("/api/infrastructure/radius/test", { method: "POST" });
       const data = await res.json() as { success: boolean; message: string };
       setRadiusResult(data);
     } catch {
@@ -274,10 +254,7 @@ export function InfrastructureTab({
   const exportUsers = async () => {
     setExportingUsers(true);
     try {
-      const res = await fetch("/api/infrastructure/radius/export-users", {
-        method: "POST",
-        headers: { ...companyScopeRequest?.headers },
-      });
+      const res = await fetch("/api/infrastructure/radius/export-users", { method: "POST" });
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -294,10 +271,7 @@ export function InfrastructureTab({
     setGeneratingClientCert(routerId);
     setClientCertMsg((prev) => ({ ...prev, [routerId]: "Generating…" }));
     try {
-      const res = await fetch(`/api/infrastructure/vpn/client/${routerId}/generate`, {
-        method: "POST",
-        headers: { ...companyScopeRequest?.headers },
-      });
+      const res = await fetch(`/api/infrastructure/vpn/client/${routerId}/generate`, { method: "POST" });
       const data = await res.json() as { success?: boolean; message?: string; error?: string; vpnIp?: string };
       setClientCertMsg((prev) => ({ ...prev, [routerId]: data.message ?? data.error ?? "Done" }));
       await loadStatus();
@@ -308,41 +282,26 @@ export function InfrastructureTab({
     }
   };
 
-  const downloadRosScript = async (routerId: number) => {
-    const res = await fetch(`/api/routers/${routerId}/ros-script`, {
-      headers: { ...companyScopeRequest?.headers },
-    });
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+  const downloadRosScript = (routerId: number) => {
     const a = document.createElement("a");
-    a.href = url;
+    a.href = `/api/routers/${routerId}/ros-script`;
     a.download = `netpulse-vpn-router-${routerId}.rsc`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
-  const downloadServerConf = async () => {
-    const res = await fetch("/api/infrastructure/vpn/server-conf", {
-      headers: { ...companyScopeRequest?.headers },
-    });
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+  const downloadServerConf = () => {
     const a = document.createElement("a");
-    a.href = url;
+    a.href = "/api/infrastructure/vpn/server-conf";
     a.download = "netpulse-vpn-server.conf";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   const revokeClientCert = async (routerId: number) => {
-    await fetch(`/api/infrastructure/vpn/client/${routerId}`, {
-      method: "DELETE",
-      headers: { ...companyScopeRequest?.headers },
-    });
+    await fetch(`/api/infrastructure/vpn/client/${routerId}`, { method: "DELETE" });
     await loadStatus();
   };
 
@@ -353,19 +312,6 @@ export function InfrastructureTab({
 
   return (
     <div className="space-y-5">
-      <CompanyScopePicker
-        scope={scope}
-        id="infrastructure-company-scope"
-        title="Choose a company for infrastructure"
-        description="Choose the company whose routers and infrastructure settings you want to view or manage."
-      />
-      {!scopeReady ? (
-        <CompanyScopeEmptyState
-          title="Choose a company to manage infrastructure"
-          description="Select a customer company above before viewing or changing its infrastructure settings."
-        />
-      ) : (
-        <>
       {/* ── RADIUS SERVER ────────────────────────────────────────────────── */}
       <SectionCard
         icon={Shield}
@@ -790,7 +736,6 @@ sudo netfilter-persistent save`} />
           clientCertMsg={clientCertMsg}
           onGenerate={generateClientCertFn}
           onRefresh={loadStatus}
-          companyScopeRequest={companyScopeRequest}
         />
 
         <InstallGuide title="How to apply the .rsc script on MikroTik">
@@ -834,15 +779,13 @@ ftp ROUTER_IP  # then put the file`} />
           </Step>
         </InstallGuide>
       </SectionCard>
-        </>
-      )}
     </div>
   );
 }
 
 // ─── Routers without certs table ─────────────────────────────────────────────
 function RoutersWithoutCerts({
-  status, vpnReady, generatingClientCert, clientCertMsg, onGenerate, onRefresh, companyScopeRequest,
+  status, vpnReady, generatingClientCert, clientCertMsg, onGenerate, onRefresh,
 }: {
   status: InfraStatus | null;
   vpnReady: boolean;
@@ -850,12 +793,11 @@ function RoutersWithoutCerts({
   clientCertMsg: Record<number, string>;
   onGenerate: (id: number) => void;
   onRefresh: () => void;
-  companyScopeRequest: { headers: { "x-netpulse-company-id": string } } | undefined;
 }) {
   const [routers, setRouters] = useState<Array<{ id: number; name: string; routerType: string }>>([]);
 
   useEffect(() => {
-    fetch("/api/routers", { headers: { ...companyScopeRequest?.headers } })
+    fetch("/api/routers")
       .then((r) => r.json())
       .then((data: unknown) => {
         if (Array.isArray(data)) {
@@ -863,7 +805,7 @@ function RoutersWithoutCerts({
         }
       })
       .catch(() => {});
-  }, [status, companyScopeRequest]);
+  }, [status]);
 
   const certRouterIds = new Set((status?.routerCerts ?? []).filter((c) => !c.revoked).map((c) => c.routerId));
   const withoutCert = routers.filter((r) => !certRouterIds.has(r.id));

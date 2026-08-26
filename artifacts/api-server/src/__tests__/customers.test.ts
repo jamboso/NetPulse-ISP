@@ -4,7 +4,6 @@ import request from "supertest";
 
 const mockExec = vi.hoisted(() => vi.fn());
 const mockDbDelete = vi.hoisted(() => vi.fn());
-const mockRemoveRadnas = vi.hoisted(() => vi.fn());
 const mockTables = vi.hoisted(() => ({
   customersTable: {
     id: {}, name: {}, email: {}, phone: {}, status: {}, createdAt: {},
@@ -16,8 +15,6 @@ const mockTables = vi.hoisted(() => ({
   ticketsTable: { id: {}, customerId: {} },
   ticketRepliesTable: { ticketId: {} },
   radcheckTable: { id: {}, username: {}, attribute: {} },
-  routersTable: { id: {}, customerId: {}, ipAddress: {}, radiusSecret: {} },
-  hotspotVouchersTable: { routerId: {} },
 }));
 
 vi.mock("@workspace/db", () => {
@@ -47,10 +44,6 @@ vi.mock("@workspace/db", () => {
   chain["then"] = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
     mockExec().then(resolve, reject);
   chain["catch"] = (reject: (e: unknown) => unknown) => mockExec().catch(reject);
-  // The real db.transaction hands the callback a `tx` client; the mock chain
-  // plays that role directly so all queries inside the callback still route
-  // through the same mockExec/mockDbDelete spies.
-  chain["transaction"] = async (fn: (tx: typeof chain) => unknown) => fn(chain);
 
   return {
     db: chain,
@@ -65,10 +58,6 @@ vi.mock("@workspace/db", () => {
 
 vi.mock("../lib/audit.js", () => ({
   writeAuditLog: vi.fn(),
-}));
-
-vi.mock("../lib/radiusSync", () => ({
-  removeRadnas: mockRemoveRadnas,
 }));
 
 vi.mock("../middlewares/companyScope", () => ({
@@ -310,7 +299,6 @@ describe("DELETE /customers/:id", () => {
     mockExec.mockResolvedValueOnce([]);               // tickets select
     mockExec.mockResolvedValueOnce([]);               // invoices select
     mockExec.mockResolvedValueOnce([]);               // delete subscriptions
-    mockExec.mockResolvedValueOnce([]);               // select assigned routers
     mockExec.mockResolvedValueOnce([]);               // delete customers
 
     const res = await request(buildApp()).delete("/customers/1");
@@ -329,7 +317,6 @@ describe("DELETE /customers/:id", () => {
     mockExec.mockResolvedValueOnce([]);               // delete payments
     mockExec.mockResolvedValueOnce([]);               // delete invoices
     mockExec.mockResolvedValueOnce([]);               // delete subscriptions
-    mockExec.mockResolvedValueOnce([]);               // select assigned routers
     mockExec.mockResolvedValueOnce([]);               // delete customer
 
     const res = await request(buildApp()).delete("/customers/1");
@@ -341,78 +328,6 @@ describe("DELETE /customers/:id", () => {
       mockTables.subscriptionsTable,
       mockTables.customersTable,
     ]);
-  });
-
-  it("deletes routers assigned to the customer and removes their RADIUS NAS entries", async () => {
-    mockExec.mockResolvedValueOnce([sampleCustomer]); // select before
-    mockExec.mockResolvedValueOnce([]);               // tickets select
-    mockExec.mockResolvedValueOnce([]);               // invoices select
-    mockExec.mockResolvedValueOnce([]);               // delete subscriptions
-    mockExec.mockResolvedValueOnce([                  // select assigned routers
-      { id: 10, ipAddress: "10.0.0.1", radiusSecret: "nas-secret" },
-      { id: 11, ipAddress: "10.0.0.2", radiusSecret: null },
-    ]);
-    mockExec.mockResolvedValueOnce([]);               // delete hotspot vouchers for those routers
-    mockExec.mockResolvedValueOnce([]);               // delete routers
-    mockExec.mockResolvedValueOnce([]);               // delete customer
-
-    const res = await request(buildApp()).delete("/customers/1");
-
-    expect(res.status).toBe(204);
-    expect(mockDbDelete.mock.calls.map(([table]) => table)).toEqual([
-      mockTables.subscriptionsTable,
-      mockTables.hotspotVouchersTable,
-      mockTables.routersTable,
-      mockTables.customersTable,
-    ]);
-    await vi.waitFor(() => expect(mockRemoveRadnas).toHaveBeenCalledWith("10.0.0.1"));
-    expect(mockRemoveRadnas).toHaveBeenCalledTimes(1); // the router without a radiusSecret is skipped
-  });
-
-  it("clears hotspot vouchers tied to an assigned router before the router row is deleted, in one transaction", async () => {
-    // hotspot_vouchers.router_id has no cascading FK — deleting the router
-    // first would fail with a foreign-key violation while a voucher still
-    // references it, and without a transaction that failure would leave the
-    // customer's subscriptions already deleted. This locks in the fix.
-    mockExec.mockResolvedValueOnce([sampleCustomer]); // select before
-    mockExec.mockResolvedValueOnce([]);               // tickets select
-    mockExec.mockResolvedValueOnce([]);               // invoices select
-    mockExec.mockResolvedValueOnce([]);               // delete subscriptions
-    mockExec.mockResolvedValueOnce([                  // select assigned routers
-      { id: 10, ipAddress: "10.0.0.1", radiusSecret: "nas-secret" },
-    ]);
-    mockExec.mockResolvedValueOnce([]);               // delete hotspot vouchers
-    mockExec.mockResolvedValueOnce([]);               // delete routers
-    mockExec.mockResolvedValueOnce([]);               // delete customer
-
-    const res = await request(buildApp()).delete("/customers/1");
-
-    expect(res.status).toBe(204);
-    const deleteOrder = mockDbDelete.mock.calls.map(([table]) => table);
-    const vouchersIdx = deleteOrder.indexOf(mockTables.hotspotVouchersTable);
-    const routersIdx = deleteOrder.indexOf(mockTables.routersTable);
-    expect(vouchersIdx).toBeGreaterThanOrEqual(0);
-    expect(vouchersIdx).toBeLessThan(routersIdx); // vouchers must clear before the router row is removed
-  });
-
-  it("does not touch the routers table when the customer has no assigned routers", async () => {
-    mockExec.mockResolvedValueOnce([sampleCustomer]); // select before
-    mockExec.mockResolvedValueOnce([]);               // tickets select
-    mockExec.mockResolvedValueOnce([]);               // invoices select
-    mockExec.mockResolvedValueOnce([]);               // delete subscriptions
-    mockExec.mockResolvedValueOnce([]);               // select assigned routers — none found
-    mockExec.mockResolvedValueOnce([]);               // delete customer
-
-    const res = await request(buildApp()).delete("/customers/1");
-
-    expect(res.status).toBe(204);
-    // Unassigned/unrelated routers are never deleted alongside a customer —
-    // the routers table delete only runs when rows were actually found above.
-    expect(mockDbDelete.mock.calls.map(([table]) => table)).toEqual([
-      mockTables.subscriptionsTable,
-      mockTables.customersTable,
-    ]);
-    expect(mockRemoveRadnas).not.toHaveBeenCalled();
   });
 
   it("returns 403 for billing role on DELETE", async () => {
@@ -470,7 +385,6 @@ describe("Audit log — customers", () => {
     mockExec.mockResolvedValueOnce([]);               // tickets select
     mockExec.mockResolvedValueOnce([]);               // invoices select
     mockExec.mockResolvedValueOnce([]);               // delete subscriptions
-    mockExec.mockResolvedValueOnce([]);               // select assigned routers
     mockExec.mockResolvedValueOnce([]);               // delete customers
 
     await request(buildApp()).delete("/customers/1");

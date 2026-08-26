@@ -159,20 +159,9 @@ check_listener_conflict() {
 }
 
 assert_loopback_listener() {
-  local port="$1" label="$2" unit="${3:-}" addresses="" attempt
-  # A freshly (re)started service may take a moment to finish connecting to
-  # MongoDB and open its listening socket. Poll briefly before judging the
-  # bind address so a slow-but-healthy start isn't mistaken for a public
-  # bind and isn't reported with a misleading security error.
-  for attempt in $(seq 1 20); do
-    addresses="$(ss -H -ltn "( sport = :${port} )" 2>/dev/null | awk '{print $4}' | sort -u)"
-    [[ -n "${addresses}" ]] && break
-    sleep 0.5
-  done
-  if [[ -z "${addresses}" ]]; then
-    die "${label} is not listening on port ${port} after 10s.${unit:+ Check: journalctl -u ${unit} -n 100}"
-  fi
-  [[ "${addresses}" != *"0.0.0.0:${port}"* && "${addresses}" != *"[::]:${port}"* ]] \
+  local port="$1" label="$2" addresses
+  addresses="$(ss -H -ltn "( sport = :${port} )" 2>/dev/null | awk '{print $4}' | sort -u)"
+  [[ -n "${addresses}" && "${addresses}" != *"0.0.0.0:${port}"* && "${addresses}" != *"[::]:${port}"* ]] \
     || die "${label} is not restricted to localhost."
   printf '%s\n' "${addresses}" | grep -Eq "(127\.0\.0\.1|::1):${port}$" \
     || die "${label} is not restricted to localhost."
@@ -447,10 +436,10 @@ for service in genieacs-cwmp genieacs-nbi genieacs-fs genieacs-ui; do
   systemctl restart "${service}"
   systemctl is-active --quiet "${service}" || die "${service} failed to start. Check: journalctl -u ${service} -n 100"
 done
-assert_loopback_listener "${NBI_PORT}" "GenieACS NBI" "genieacs-nbi"
-assert_loopback_listener "${FS_PORT}" "GenieACS file server" "genieacs-fs"
-assert_loopback_listener "${UI_PORT}" "GenieACS UI" "genieacs-ui"
-assert_loopback_listener "27017" "MongoDB" "mongod"
+assert_loopback_listener "${NBI_PORT}" "GenieACS NBI"
+assert_loopback_listener "${FS_PORT}" "GenieACS file server"
+assert_loopback_listener "${UI_PORT}" "GenieACS UI"
+assert_loopback_listener "27017" "MongoDB"
 ok "All GenieACS services are enabled and running"
 
 if [[ -e "${GENIEACS_NGINX}" ]] && ! grep -q '^# Managed by NetPulse GenieACS$' "${GENIEACS_NGINX}"; then

@@ -22,9 +22,4 @@ export interface RouterDeviceInput {
   enabled?: boolean;
   radiusSecret?: string;
   radiusPort?: number;
-  /**
-     * Customer this router is assigned to, or null/omitted to leave it unassigned.
-     * @nullable
-     */
-  customerId?: number | null;
 }

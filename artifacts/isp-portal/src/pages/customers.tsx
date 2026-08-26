@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { useListCustomers, useDeleteCustomer, listRouters, type RouterDevice } from "@workspace/api-client-react";
+import { useListCustomers, useDeleteCustomer } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useBulkSelect } from "@/hooks/useBulkSelect";
@@ -16,10 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDate } from "@/lib/formatDate";
 
@@ -292,31 +288,16 @@ export default function Customers() {
 
   const [dialog, setDialog] = useState<{ open: boolean; id?: number; initial?: CustomerForm }>({ open: false });
   const [bulkWorking, setBulkWorking] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    open: boolean;
-    mode: "single" | "bulk";
-    ids: number[];
-    label: string;
-    loadingRouters: boolean;
-    routersByCustomer: Map<number, RouterDevice[]>;
-  } | null>(null);
 
   const customers = customersData?.data ?? [];
   const ids = customers.map(c => c.id);
   const { selected, toggle, toggleAll, clear, isAllSelected, isIndeterminate } = useBulkSelect(ids);
 
-  const openDeleteConfirm = async (targetIds: number[], label: string, mode: "single" | "bulk") => {
-    setDeleteConfirm({ open: true, mode, ids: targetIds, label, loadingRouters: true, routersByCustomer: new Map() });
-    try {
-      const perCustomer = await Promise.all(targetIds.map(async (id) => [id, await listRouters({ customerId: id })] as const));
-      setDeleteConfirm(prev => prev && prev.open ? { ...prev, loadingRouters: false, routersByCustomer: new Map(perCustomer) } : prev);
-    } catch {
-      // If the router check fails, fall back to an unqualified warning rather than silently hiding the risk.
-      setDeleteConfirm(prev => prev && prev.open ? { ...prev, loadingRouters: false } : prev);
-    }
+  const handleDelete = async (id: number, name: string) => {
+    if (!confirm(`Delete customer "${name}"? This cannot be undone.`)) return;
+    await deleteMutation.mutateAsync({ id });
+    qc.invalidateQueries({ queryKey: ["/api/customers"] });
   };
-
-  const handleDelete = (id: number, name: string) => openDeleteConfirm([id], name, "single");
 
   const handleStatusChange = async (id: number, status: string) => {
     await fetch(`${API}/api/customers/${id}`, {
@@ -326,17 +307,13 @@ export default function Customers() {
     qc.invalidateQueries({ queryKey: ["/api/customers"] });
   };
 
-  const handleBulkDelete = () => openDeleteConfirm([...selected], `${selected.size} customer(s)`, "bulk");
-
-  const confirmDelete = async () => {
-    if (!deleteConfirm) return;
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selected.size} customer(s)? This cannot be undone.`)) return;
     setBulkWorking(true);
     try {
-      await Promise.all(deleteConfirm.ids.map(id => deleteMutation.mutateAsync({ id })));
-      if (deleteConfirm.mode === "bulk") clear();
+      await Promise.all([...selected].map(id => deleteMutation.mutateAsync({ id })));
+      clear();
       qc.invalidateQueries({ queryKey: ["/api/customers"] });
-      qc.invalidateQueries({ queryKey: ["/api/routers"] });
-      setDeleteConfirm(null);
     } finally { setBulkWorking(false); }
   };
 
@@ -536,45 +513,6 @@ export default function Customers() {
         initial={dialog.initial}
         customerId={dialog.id}
       />
-
-      <AlertDialog open={!!deleteConfirm?.open} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {deleteConfirm?.label}?</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p>This cannot be undone.</p>
-                {deleteConfirm?.loadingRouters ? (
-                  <p className="text-gray-400">Checking for assigned routers…</p>
-                ) : (() => {
-                  const allRouters = [...(deleteConfirm?.routersByCustomer.values() ?? [])].flat();
-                  if (allRouters.length === 0) return null;
-                  return (
-                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-                      <p className="flex items-center gap-1.5 font-medium text-amber-800">
-                        <AlertTriangle className="w-4 h-4" /> {allRouters.length} router{allRouters.length === 1 ? "" : "s"} will also be deleted
-                      </p>
-                      <ul className="mt-1.5 list-disc pl-5 text-amber-700">
-                        {allRouters.map(r => <li key={r.id}>{r.name}</li>)}
-                      </ul>
-                    </div>
-                  );
-                })()}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteConfirm(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); void confirmDelete(); }}
-              disabled={bulkWorking}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {bulkWorking ? "Deleting…" : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

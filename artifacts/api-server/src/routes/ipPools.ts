@@ -5,7 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
-import { resolveCompanyScope, NO_COMPANY_SCOPE } from "../middlewares/companyScope";
+import { resolveCompanyScope } from "../middlewares/companyScope";
 import { writeAuditLog } from "../lib/audit";
 
 function ipv4ToInteger(ipAddress: string): number {
@@ -111,21 +111,17 @@ router.use(resolveCompanyScope);
 function scopedIpPoolWhere(req: import("express").Request, id: number) {
   return req.companyId != null
     ? and(eq(ipPoolsTable.id, id), eq(ipPoolsTable.companyId, req.companyId))
-    : NO_COMPANY_SCOPE;
+    : eq(ipPoolsTable.id, id);
 }
 
 router.get("/ip-pools", async (req, res) => {
   const pools = req.companyId != null
     ? await db.select().from(ipPoolsTable).where(eq(ipPoolsTable.companyId, req.companyId)).orderBy(ipPoolsTable.createdAt)
-    : [];
+    : await db.select().from(ipPoolsTable).orderBy(ipPoolsTable.createdAt);
   res.json(pools);
 });
 
 router.post("/ip-pools", requireRole("admin", "technician"), validateBody(createIpPoolSchema), async (req, res) => {
-  if (req.companyId == null) {
-    res.status(403).json({ error: "Forbidden: no company scope for this account" });
-    return;
-  }
   const body = req.body;
   const prefix = Number(body.network.split("/")[1]);
   const totalIps = prefix <= 30 ? 2 ** (32 - prefix) - 2 : 2 ** (32 - prefix);

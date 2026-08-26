@@ -3,8 +3,6 @@ import { routersTable } from "./routers";
 
 export const splittersTable = pgTable("splitters", {
   id:          serial("id").primaryKey(),
-  // Legacy single-tenant rows default to company 1, matching routers/customers/equipment.
-  companyId:   integer("company_id").notNull().default(1),
   name:        text("name").notNull(),
   description: text("description"),
   latitude:    doublePrecision("latitude"),
@@ -16,7 +14,6 @@ export const splittersTable = pgTable("splitters", {
   createdAt:   timestamp("created_at").notNull().defaultNow(),
 }, t => [
   index("splitters_router_id_idx").on(t.routerId),
-  index("splitters_company_id_idx").on(t.companyId),
 ]);
 
 export type Splitter = typeof splittersTable.$inferSelect;

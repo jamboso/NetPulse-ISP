@@ -13,10 +13,8 @@ import { routersTable, sessionLogsTable, subscriptionsTable, customersTable } fr
 import { gte, desc, isNotNull, and, eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { getRouterManagementHost } from "../lib/routerManagement";
-import { resolveCompanyScope } from "../middlewares/companyScope";
 
 const router = Router();
-router.use(resolveCompanyScope);
 
 // ── RouterOS ping helper (3-second timeout) ───────────────────────────────────
 
@@ -66,32 +64,27 @@ interface OnuEvent {
   usernames:  string[];
 }
 
-async function detectOnuFailures(companyId: number | null, thresholdCount = 5): Promise<OnuEvent[]> {
-  // Router names are not tenant-unique — two companies can name a router
-  // the same thing — so tenant scope must come from a real foreign key
-  // (session_logs.subscription_id -> subscriptions.company_id), never from
-  // matching router-name strings against an allow-list.
-  if (companyId == null) return [];
-
+async function detectOnuFailures(thresholdCount = 5, allowedRouterNames?: Set<string>): Promise<OnuEvent[]> {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  // Pull all closed sessions in last 24 h where we know which router,
-  // scoped to this company's own subscriptions via an inner join.
-  const rows = await db
+  // Pull all closed sessions in last 24 h where we know which router
+  const allRows = await db
     .select({
       routerName:   sessionLogsTable.routerName,
       pppoeUsername: sessionLogsTable.pppoeUsername,
       sessionEnd:   sessionLogsTable.sessionEnd,
     })
     .from(sessionLogsTable)
-    .innerJoin(subscriptionsTable, eq(sessionLogsTable.subscriptionId, subscriptionsTable.id))
     .where(and(
       gte(sessionLogsTable.sessionEnd, since),
       isNotNull(sessionLogsTable.sessionEnd),
       isNotNull(sessionLogsTable.routerName),
-      eq(subscriptionsTable.companyId, companyId),
     ))
     .orderBy(sessionLogsTable.sessionEnd);
+
+  const rows = allowedRouterNames
+    ? allRows.filter(r => r.routerName != null && allowedRouterNames.has(r.routerName))
+    : allRows;
 
   // Group into 5-minute buckets per router
   type Bucket = { count: number; usernames: string[] };
@@ -136,15 +129,11 @@ interface FlappingAccount {
   lastSeen:      string;
 }
 
-async function detectFlapping(companyId: number | null, thresholdCount = 5): Promise<FlappingAccount[]> {
-  // Same tenant-scoping rule as detectOnuFailures: scope via the real
-  // subscriptions.company_id foreign key, not by matching router names.
-  if (companyId == null) return [];
-
+async function detectFlapping(thresholdCount = 5, allowedRouterNames?: Set<string>): Promise<FlappingAccount[]> {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  // Count sessions per subscription in last 24 h, scoped to this company.
-  const rows = await db
+  // Count sessions per subscription in last 24 h
+  const allRows = await db
     .select({
       subscriptionId: sessionLogsTable.subscriptionId,
       pppoeUsername:  sessionLogsTable.pppoeUsername,
@@ -153,13 +142,13 @@ async function detectFlapping(companyId: number | null, thresholdCount = 5): Pro
       lastSeen:       sql<string>`max(${sessionLogsTable.sessionStart})`,
     })
     .from(sessionLogsTable)
-    .innerJoin(subscriptionsTable, eq(sessionLogsTable.subscriptionId, subscriptionsTable.id))
-    .where(and(
-      gte(sessionLogsTable.sessionStart, since),
-      eq(subscriptionsTable.companyId, companyId),
-    ))
+    .where(gte(sessionLogsTable.sessionStart, since))
     .groupBy(sessionLogsTable.subscriptionId, sessionLogsTable.pppoeUsername, sessionLogsTable.routerName)
     .orderBy(desc(sql`count(*)`));
+
+  const rows = allowedRouterNames
+    ? allRows.filter(r => r.routerName != null && allowedRouterNames.has(r.routerName))
+    : allRows;
 
   const flapping = rows.filter(r => r.count > thresholdCount);
   if (flapping.length === 0) return [];
@@ -203,9 +192,7 @@ router.get("/monitoring/overview", async (req, res) => {
   const onu_threshold   = parseInt(req.query.onu_threshold   as string || "5");
   const flap_threshold  = parseInt(req.query.flap_threshold  as string || "5");
 
-  // Load routers scoped to the requesting company. An owner who hasn't
-  // picked a company yet (req.companyId is null) sees nothing — never all
-  // companies' routers or session logs.
+  // Load routers scoped to the requesting company (owners with no companyId see all)
   const allRouters = req.companyId != null
     ? await db
         .select({
@@ -225,7 +212,27 @@ router.get("/monitoring/overview", async (req, res) => {
         .from(routersTable)
         .where(eq(routersTable.companyId, req.companyId))
         .orderBy(routersTable.name)
-    : [];
+    : await db
+        .select({
+          id:        routersTable.id,
+          name:      routersTable.name,
+          ipAddress: routersTable.ipAddress,
+          apiSsl:    routersTable.apiSsl,
+          username:  routersTable.username,
+          password:  routersTable.password,
+          enabled:   routersTable.enabled,
+          location:  routersTable.location,
+          routerType: routersTable.routerType,
+          lastSeen:  routersTable.lastSeen,
+          vpnIp:        routersTable.vpnIp,
+          vpnConnected: routersTable.vpnConnected,
+        })
+        .from(routersTable)
+        .orderBy(routersTable.name);
+
+  const allowedRouterNames = req.companyId != null
+    ? new Set(allRouters.map(r => r.name))
+    : undefined;
 
   // Ping all RouterOS routers in parallel; non-ROS just show as unknown
   const [pinged, onuEvents, flapping] = await Promise.all([
@@ -242,8 +249,8 @@ router.get("/monitoring/overview", async (req, res) => {
         return { ...r, ...stats };
       })
     ),
-    detectOnuFailures(req.companyId ?? null, onu_threshold),
-    detectFlapping(req.companyId ?? null, flap_threshold),
+    detectOnuFailures(onu_threshold, allowedRouterNames),
+    detectFlapping(flap_threshold, allowedRouterNames),
   ]);
 
   const onlineCount  = pinged.filter(r => r.online).length;

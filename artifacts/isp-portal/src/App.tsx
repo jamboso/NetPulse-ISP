@@ -131,18 +131,18 @@ function ProtectedRoutes() {
             <Route path="/mpesa">{() => <RoleRoute component={MpesaTransactions} roles={["admin", "billing"]} />}</Route>
             <Route path="/tickets">{() => <RoleRoute component={Tickets} roles={["admin", "support"]} />}</Route>
             <Route path="/tickets/:id">{() => <RoleRoute component={TicketDetail} roles={["admin", "support"]} />}</Route>
-            <Route path="/network">{() => <RoleRoute component={Network} roles={["owner", "admin", "technician"]} />}</Route>
-            <Route path="/network/routers/:id">{() => <RoleRoute component={RouterOSDashboard} roles={["owner", "admin", "technician"]} />}</Route>
-            <Route path="/network/routers/:id/pppoe">{() => <RoleRoute component={PPPoESetup} roles={["owner", "admin", "technician"]} />}</Route>
-            <Route path="/network/routers/:id/hotspot">{() => <RoleRoute component={HotspotManager} roles={["owner", "admin", "technician"]} />}</Route>
+            <Route path="/network">{() => <RoleRoute component={Network} roles={["admin", "technician"]} />}</Route>
+            <Route path="/network/routers/:id">{() => <RoleRoute component={RouterOSDashboard} roles={["admin", "technician"]} />}</Route>
+            <Route path="/network/routers/:id/pppoe">{() => <RoleRoute component={PPPoESetup} roles={["admin", "technician"]} />}</Route>
+            <Route path="/network/routers/:id/hotspot">{() => <RoleRoute component={HotspotManager} roles={["admin", "technician"]} />}</Route>
             <Route path="/settings">{() => <RoleRoute component={Settings} roles={["owner", "admin"]} />}</Route>
             <Route path="/staff">{() => <RoleRoute component={Staff} roles={["admin"]} />}</Route>
             <Route path="/audit-logs">{() => <RoleRoute component={AuditLogs} roles={["owner", "admin", "billing", "support", "technician"]} />}</Route>
             <Route path="/sales">{() => <RoleRoute component={Sales} roles={["admin", "billing"]} />}</Route>
             <Route path="/compliance">{() => <RoleRoute component={Compliance} roles={["admin"]} />}</Route>
             <Route path="/sms">{() => <RoleRoute component={SmsManager} roles={["admin"]} />}</Route>
-            <Route path="/monitoring">{() => <RoleRoute component={Monitoring} roles={["owner", "admin", "technician"]} />}</Route>
-            <Route path="/map">{() => <RoleRoute component={NetworkMap} roles={["owner", "admin", "technician"]} />}</Route>
+            <Route path="/monitoring">{() => <RoleRoute component={Monitoring} roles={["admin", "technician"]} />}</Route>
+            <Route path="/map">{() => <RoleRoute component={NetworkMap} roles={["admin", "technician"]} />}</Route>
             <Route path="/companies">{() => <RoleRoute component={Companies} roles={["owner"]} />}</Route>
             <Route>
               <div className="p-8 text-center text-gray-500">Page not found.</div>

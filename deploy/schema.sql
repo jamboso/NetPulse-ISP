@@ -167,20 +167,11 @@ ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "vpn_ip" text;
 --> statement-breakpoint
 ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "bridge_ports" text DEFAULT '["ether2"]';
 --> statement-breakpoint
-ALTER TABLE "routers" ADD COLUMN IF NOT EXISTS "customer_id" integer;
---> statement-breakpoint
 --> statement-breakpoint
 DO $$ BEGIN
         ALTER TABLE "routers" ADD CONSTRAINT "routers_provision_token_unique" UNIQUE("provision_token");
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
---> statement-breakpoint
-DO $$ BEGIN
-        ALTER TABLE "routers" ADD CONSTRAINT "routers_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
---> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "routers_customer_id_idx" ON "routers" ("customer_id");
 --> statement-breakpoint
 
 -- ── Fiber access / OLT and ONU management ─────────────────────────────────────
@@ -459,10 +450,6 @@ CREATE TABLE "splitters" (
         "fiber_color" text,
         "created_at" timestamp DEFAULT now() NOT NULL
 );
---> statement-breakpoint
-ALTER TABLE "splitters" ADD COLUMN IF NOT EXISTS "company_id" integer NOT NULL DEFAULT 1;
---> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "splitters_company_id_idx" ON "splitters" ("company_id");
 --> statement-breakpoint
 CREATE TABLE "router_vpn_certs" (
         "id" serial PRIMARY KEY NOT NULL,

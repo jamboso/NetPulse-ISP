@@ -47,7 +47,7 @@ router.get("/dashboard/summary", async (req, res) => {
     ),
   ]);
 
-  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("Cache-Control", "public, max-age=30");
   res.json({
     totalCustomers: Number(customerCount[0]?.count ?? 0),
     activeSubscriptions: Number(activeSubCount[0]?.count ?? 0),
@@ -82,7 +82,7 @@ router.get("/dashboard/revenue", async (req, res) => {
       revenue: Number(r.revenue),
       invoiceCount: Number(r.invoice_count),
     }));
-  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("Cache-Control", "public, max-age=60");
   res.json(data);
 });
 
@@ -101,7 +101,7 @@ router.get("/dashboard/activity", async (req, res) => {
     LIMIT 20
   `);
 
-  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("Cache-Control", "public, max-age=30");
   res.json((rows.rows as Array<{ id: number; type: string; description: string; ts: string; entity_id: number; entity_type: string }>).map((r, i) => ({
     id: i + 1,
     type: r.type,
@@ -119,7 +119,7 @@ router.get("/dashboard/subscription-breakdown", async (req, res) => {
     ${companyId != null ? sql`WHERE company_id = ${companyId}` : sql``}
     GROUP BY status
   `);
-  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("Cache-Control", "public, max-age=30");
   res.json((rows.rows as Array<{ status: string; count: string }>).map(r => ({
     status: r.status,
     count: Number(r.count),

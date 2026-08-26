@@ -1622,13 +1622,6 @@ paths:
       operationId: listRouters
       tags: [routers]
       summary: List all managed routers
-      parameters:
-        - name: customerId
-          in: query
-          required: false
-          description: Filter to routers assigned to this customer.
-          schema:
-            type: integer
       responses:
         "200":
           description: Routers list
@@ -3603,9 +3596,6 @@ components:
           type: ["string", "null"]
         radiusPort:
           type: ["integer", "null"]
-        customerId:
-          type: ["integer", "null"]
-          description: Customer this router is assigned to, or null if unassigned.
         createdAt:
           type: string
 
@@ -3642,9 +3632,6 @@ components:
           type: string
         radiusPort:
           type: integer
-        customerId:
-          type: ["integer", "null"]
-          description: Customer this router is assigned to, or null/omitted to leave it unassigned.
 
     RouterStatus:
       type: object
@@ -3706,9 +3693,6 @@ components:
           type: ["string", "null"]
         radiusPort:
           type: ["integer", "null"]
-        customerId:
-          type: ["integer", "null"]
-          description: Customer this router is assigned to, or null to unassign it.
 
     RosLiveData:
       type: object

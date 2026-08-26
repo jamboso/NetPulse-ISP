@@ -72,7 +72,6 @@ export * from './listEquipmentParams';
 export * from './listInvoicesParams';
 export * from './listOnusParams';
 export * from './listPaymentsParams';
-export * from './listRoutersParams';
 export * from './listSecurityEvents200';
 export * from './listSecurityEventsParams';
 export * from './listSubscriptionsParams';

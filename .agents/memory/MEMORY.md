@@ -31,3 +31,4 @@
 - [Owner tenant workspace scope](owner-tenant-workspace-scope.md) — owner-operated tenant tools require explicit company selection; never infer a fallback tenant.
 - [Ubuntu firewall persistence](netfilter-persistent-firewall.md) — this control plane uses iptables-nft with netfilter-persistent; UFW is absent and INPUT policy is ACCEPT.
 - [GenieACS firewall transactions](genieacs-firewall-transactions.md) — CWMP changes must retain staged source restrictions and rollback snapshots through full install validation.
+- [RouterOS /tool fetch POST reliability](routeros-fetch-post-reliability.md) — provisioning "call home" callbacks should use GET, not POST+http-data; POST silently failed on real hardware.

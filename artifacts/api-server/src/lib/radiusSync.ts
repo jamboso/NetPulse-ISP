@@ -4,7 +4,7 @@ import {
   radgroupreplyTable, radnasTable,
   subscriptionsTable, customersTable, plansTable,
 } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, like } from "drizzle-orm";
 import { logger } from "./logger";
 
 export function planGroupName(planId: number): string {
@@ -53,6 +53,26 @@ export async function syncPlanRadiusGroup(plan: {
     await upsertGroupReplyAttr(group, "WISPr-Bandwidth-Max-Up",   ":=", String(wispBwUp(plan.uploadSpeed)));
   } catch (err) {
     logger.error({ err, planId: plan.id }, "radiusSync: failed to sync plan group");
+  }
+}
+
+/**
+ * Move a subscriber from their old plan's RADIUS group to the new one.
+ * Package changes only ever touched `subscriptions.planId` in Postgres —
+ * the user stayed in the old `np-plan-{oldId}` radusergroup, so RADIUS kept
+ * replying with the old Mikrotik-Rate-Limit even after a redial.
+ */
+export async function syncSubscriptionPlanChange(username: string, newPlanId: number): Promise<void> {
+  try {
+    await db.delete(radusergroupTable).where(and(
+      eq(radusergroupTable.username, username),
+      like(radusergroupTable.groupname, "np-plan-%"),
+    ));
+    await db.insert(radusergroupTable).values({
+      username, groupname: planGroupName(newPlanId), priority: 0,
+    });
+  } catch (err) {
+    logger.error({ err, username, newPlanId }, "radiusSync: failed to move subscriber to new plan group");
   }
 }
 

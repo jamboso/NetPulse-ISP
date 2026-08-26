@@ -13,6 +13,7 @@ import {
   syncSubscriptionReactivate,
   syncSubscriptionCancel,
   syncPlanRadiusGroup,
+  syncSubscriptionPlanChange,
 } from "../lib/radiusSync";
 import { getRouterManagementHost } from "../lib/routerManagement";
 
@@ -195,6 +196,52 @@ async function deletePPPoESecret(routerId: number, username: string, reqLog?: an
     }
   } catch (e: any) {
     reqLog?.error({ err: e.message, username }, "Failed to delete PPPoE secret");
+  }
+}
+
+/**
+ * Update the RouterOS PPP secret's profile (rate limit) when a subscriber's
+ * plan changes. Without this, a plan-based RouterOS profile keeps enforcing
+ * the OLD speed indefinitely — RADIUS group membership alone isn't enough
+ * when the router assigns rate limits via PPP profile instead.
+ */
+async function updatePPPoESecretProfile(routerId: number, username: string, profileName: string, reqLog?: any): Promise<void> {
+  const [r] = await db.select().from(routersTable).where(eq(routersTable.id, routerId));
+  if (!r) return;
+  const managementIp = getRouterManagementHost(r);
+  if (!managementIp) return;
+  try {
+    const id = await findSecretId(managementIp, r.apiSsl ?? false, r.username, r.password, username);
+    if (id) {
+      await rosReq(managementIp, r.apiSsl ?? false, r.username, r.password, "PATCH", `/ppp/secret/${id}`, { profile: profileName || "default" });
+      reqLog?.info({ username, routerId, profileName }, "PPPoE secret profile updated on RouterOS for plan change");
+    }
+  } catch (e: any) {
+    reqLog?.error({ err: e.message, username }, "Failed to update PPPoE secret profile");
+  }
+}
+
+/**
+ * Kick a subscriber's active PPPoE session so the new plan/profile applies
+ * immediately instead of waiting for them to notice and redial themselves.
+ * Best-effort — a currently-offline user simply has no active session to drop.
+ */
+async function kickActivePPPoESession(routerId: number, username: string, reqLog?: any): Promise<void> {
+  const [r] = await db.select().from(routersTable).where(eq(routersTable.id, routerId));
+  if (!r) return;
+  const managementIp = getRouterManagementHost(r);
+  if (!managementIp) return;
+  try {
+    const active = await rosReq(managementIp, r.apiSsl ?? false, r.username, r.password, "GET", `/ppp/active?name=${encodeURIComponent(username)}`);
+    if (Array.isArray(active) && active.length > 0) {
+      const sessionId = (active[0] as Record<string, string>)[".id"];
+      if (sessionId) {
+        await rosReq(managementIp, r.apiSsl ?? false, r.username, r.password, "DELETE", `/ppp/active/${sessionId}`);
+        reqLog?.info({ username, routerId }, "Kicked active PPPoE session after plan change");
+      }
+    }
+  } catch (e: any) {
+    reqLog?.error({ err: e.message, username }, "Failed to kick active PPPoE session after plan change");
   }
 }
 
@@ -403,6 +450,25 @@ router.patch("/subscriptions/:id", requireRole("admin", "billing"), validateBody
       if (username) void syncSubscriptionSuspend(username);
     } else if (newStatus === "cancelled") {
       if (username) void syncSubscriptionCancel(username);
+    }
+  }
+
+  // ── Plan change sync (runs whenever planId actually changes) ────────────────
+  // Changing `subscriptions.planId` alone never touched RADIUS group
+  // membership or the router's PPP profile, so an active/redialing user kept
+  // getting the OLD plan's rate limit indefinitely.
+  const planChanged = body.planId !== undefined && body.planId !== existing.planId;
+  if (planChanged && existing.status !== "cancelled") {
+    const username = (update.pppoeUsername as string | undefined) ?? existing.pppoeUsername;
+    if (username) {
+      void syncSubscriptionPlanChange(username, body.planId!);
+      if (effectiveRouterId) {
+        (async () => {
+          const [plan] = await db.select().from(plansTable).where(eq(plansTable.id, body.planId!));
+          await updatePPPoESecretProfile(effectiveRouterId, username, plan?.rosProfileName ?? "default", req.log);
+          await kickActivePPPoESession(effectiveRouterId, username, req.log);
+        })().catch(err => req.log?.error({ err }, "Failed to apply plan change on RouterOS"));
+      }
     }
   }
 

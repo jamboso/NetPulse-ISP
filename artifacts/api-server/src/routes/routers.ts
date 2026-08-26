@@ -123,7 +123,7 @@ router.get("/routers/status", async (req, res) => {
   // bucket too).
   const cacheKey = req.companyId ?? "owner";
   if (statusCache?.[cacheKey] && now < statusCache[cacheKey]!.expiresAt) {
-    res.setHeader("Cache-Control", "public, max-age=15");
+    res.setHeader("Cache-Control", "private, no-store");
     res.json(statusCache[cacheKey]!.data);
     return;
   }
@@ -178,7 +178,7 @@ router.get("/routers/status", async (req, res) => {
   );
 
   statusCache[cacheKey] = { data: results, expiresAt: now + STATUS_TTL_MS };
-  res.setHeader("Cache-Control", "public, max-age=15");
+  res.setHeader("Cache-Control", "private, no-store");
   res.json(results);
 });
 
@@ -193,7 +193,7 @@ router.get("/routers", async (req, res) => {
     }
   }
   const rows = await db.select().from(routersTable).where(where).orderBy(routersTable.createdAt);
-  res.setHeader("Cache-Control", "public, max-age=10");
+  res.setHeader("Cache-Control", "private, no-store");
   res.json(rows);
 });
 

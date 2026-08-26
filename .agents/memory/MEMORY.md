@@ -32,3 +32,5 @@
 - [Ubuntu firewall persistence](netfilter-persistent-firewall.md) — this control plane uses iptables-nft with netfilter-persistent; UFW is absent and INPUT policy is ACCEPT.
 - [GenieACS firewall transactions](genieacs-firewall-transactions.md) — CWMP changes must retain staged source restrictions and rollback snapshots through full install validation.
 - [RouterOS /tool fetch POST reliability](routeros-fetch-post-reliability.md) — provisioning "call home" callbacks should use GET, not POST+http-data; POST silently failed on real hardware.
+- [RouterOS version string breaks URL fetch](routeros-version-string-url-fetch.md) — raw `/system resource get version` has spaces/parens; must extract major version number before embedding in a fetch URL.
+- [Stale VPN route breaks reachability monitoring](openvpn-stale-route-reachability.md) — leftover host route on an orphaned tun device can override the live session's subnet route for ping/reachability checks only.

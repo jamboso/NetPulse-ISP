@@ -74,7 +74,7 @@ describe("router CRUD", () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual([expect.objectContaining({ id: 4, name: "Edge router" })]);
-    expect(response.headers["cache-control"]).toBe("public, max-age=10");
+    expect(response.headers["cache-control"]).toBe("private, no-store");
   });
 
   it("does not create a router when the user has no company scope", async () => {

@@ -127,7 +127,7 @@ describe("GET /dashboard/summary", () => {
 
     const res = await request(buildApp()).get("/dashboard/summary");
 
-    expect(res.headers["cache-control"]).toMatch(/max-age=30/);
+    expect(res.headers["cache-control"]).toBe("private, no-store");
   });
 
   it("returns exactly 8 top-level KPI keys", async () => {
@@ -238,7 +238,7 @@ describe("GET /dashboard/revenue", () => {
 
     const res = await request(buildApp()).get("/dashboard/revenue");
 
-    expect(res.headers["cache-control"]).toMatch(/max-age=60/);
+    expect(res.headers["cache-control"]).toBe("private, no-store");
   });
 });
 
@@ -290,7 +290,7 @@ describe("GET /dashboard/activity", () => {
 
     const res = await request(buildApp()).get("/dashboard/activity");
 
-    expect(res.headers["cache-control"]).toMatch(/max-age=30/);
+    expect(res.headers["cache-control"]).toBe("private, no-store");
   });
 });
 
@@ -342,6 +342,6 @@ describe("GET /dashboard/subscription-breakdown", () => {
 
     const res = await request(buildApp()).get("/dashboard/subscription-breakdown");
 
-    expect(res.headers["cache-control"]).toMatch(/max-age=30/);
+    expect(res.headers["cache-control"]).toBe("private, no-store");
   });
 });

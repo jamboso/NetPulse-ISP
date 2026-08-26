@@ -1,13 +1,13 @@
 import { Router } from "express";
 import * as net from "net";
 import { randomUUID } from "crypto";
-import { db, routersTable, routerVpnCertsTable, vpnConfigTable } from "@workspace/db";
+import { db, routersTable, routerVpnCertsTable, vpnConfigTable, customersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { upsertRadnas, removeRadnas } from "../lib/radiusSync";
 import { generateClientCert } from "../lib/certGen";
 import { getRouterManagementHost } from "../lib/routerManagement";
 import type { RouterVpnCert } from "@workspace/db";
-import { resolveCompanyScope } from "../middlewares/companyScope";
+import { resolveCompanyScope, NO_COMPANY_SCOPE } from "../middlewares/companyScope";
 
 const router = Router();
 router.use(resolveCompanyScope);
@@ -15,7 +15,21 @@ router.use(resolveCompanyScope);
 function scopedRouterWhere(req: import("express").Request, id: number) {
   return req.companyId != null
     ? and(eq(routersTable.id, id), eq(routersTable.companyId, req.companyId))
-    : eq(routersTable.id, id);
+    : NO_COMPANY_SCOPE;
+}
+
+// Validates that `customerId` (if present) is a same-company customer.
+// Returns an error message to send back, or null if the value is OK to use.
+async function validateCustomerAssignment(companyId: number, customerId: unknown): Promise<string | null> {
+  if (customerId === undefined || customerId === null || customerId === "") return null;
+  const id = Number(customerId);
+  if (!Number.isFinite(id)) return "Invalid customerId";
+  const [customer] = await db.select({ id: customersTable.id, companyId: customersTable.companyId })
+    .from(customersTable).where(eq(customersTable.id, id));
+  if (!customer || customer.companyId !== companyId) {
+    return "Customer not found in this company";
+  }
+  return null;
 }
 
 // ── TCP probe ─────────────────────────────────────────────────────────────────
@@ -116,7 +130,7 @@ router.get("/routers/status", async (req, res) => {
 
   const rows = req.companyId != null
     ? await db.select().from(routersTable).where(eq(routersTable.companyId, req.companyId)).orderBy(routersTable.name)
-    : await db.select().from(routersTable).orderBy(routersTable.name);
+    : [];
   const checkedAt = new Date().toISOString();
 
   const results = await Promise.all(
@@ -169,9 +183,16 @@ router.get("/routers/status", async (req, res) => {
 });
 
 router.get("/routers", async (req, res) => {
-  const rows = req.companyId != null
-    ? await db.select().from(routersTable).where(eq(routersTable.companyId, req.companyId)).orderBy(routersTable.createdAt)
-    : await db.select().from(routersTable).orderBy(routersTable.createdAt);
+  let where = req.companyId != null ? eq(routersTable.companyId, req.companyId) : NO_COMPANY_SCOPE;
+  if (req.query["customerId"] !== undefined) {
+    const customerId = Number(req.query["customerId"]);
+    if (Number.isFinite(customerId)) {
+      where = req.companyId != null
+        ? and(where, eq(routersTable.customerId, customerId))!
+        : NO_COMPANY_SCOPE;
+    }
+  }
+  const rows = await db.select().from(routersTable).where(where).orderBy(routersTable.createdAt);
   res.setHeader("Cache-Control", "public, max-age=10");
   res.json(rows);
 });
@@ -182,6 +203,12 @@ router.post("/routers", async (req, res) => {
 
   if (req.companyId == null) {
     res.status(403).json({ error: "Forbidden: no company scope for this account" });
+    return;
+  }
+
+  const customerIdError = await validateCustomerAssignment(req.companyId, body.customerId);
+  if (customerIdError) {
+    res.status(400).json({ error: customerIdError });
     return;
   }
 
@@ -206,6 +233,7 @@ router.post("/routers", async (req, res) => {
     enabled: body.enabled !== undefined ? body.enabled : true,
     radiusSecret: body.radiusSecret ?? null,
     radiusPort: body.radiusPort ?? null,
+    customerId: body.customerId != null && body.customerId !== "" ? Number(body.customerId) : null,
     provisionToken,
     provisionStatus: "pending",
   }).returning();
@@ -328,6 +356,15 @@ router.patch("/routers/:id", async (req, res) => {
   statusCache = {};
   const id = parseInt(req.params.id!);
   const body = req.body;
+
+  if (body.customerId !== undefined && req.companyId != null) {
+    const customerIdError = await validateCustomerAssignment(req.companyId, body.customerId);
+    if (customerIdError) {
+      res.status(400).json({ error: customerIdError });
+      return;
+    }
+  }
+
   const update: Record<string, unknown> = {};
   const fields = [
     "name", "routerType", "ipAddress", "port", "username", "password",
@@ -336,6 +373,9 @@ router.patch("/routers/:id", async (req, res) => {
   ] as const;
   for (const f of fields) {
     if (body[f] !== undefined) update[f] = body[f];
+  }
+  if (body.customerId !== undefined) {
+    update["customerId"] = body.customerId === null || body.customerId === "" ? null : Number(body.customerId);
   }
   const [updated] = await db.update(routersTable).set(update).where(scopedRouterWhere(req, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }

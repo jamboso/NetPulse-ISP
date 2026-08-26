@@ -5,7 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
 import { validateBody } from "../middlewares/validateBody";
-import { resolveCompanyScope } from "../middlewares/companyScope";
+import { resolveCompanyScope, NO_COMPANY_SCOPE } from "../middlewares/companyScope";
 import { writeAuditLog } from "../lib/audit";
 
 const EQUIPMENT_TYPES = ["router", "switch", "olt", "onu", "other"] as const;
@@ -31,14 +31,14 @@ router.use(resolveCompanyScope);
 function scopedEquipmentWhere(req: import("express").Request, id: number) {
   return req.companyId != null
     ? and(eq(equipmentTable.id, id), eq(equipmentTable.companyId, req.companyId))
-    : eq(equipmentTable.id, id);
+    : NO_COMPANY_SCOPE;
 }
 
 router.get("/equipment", async (req, res) => {
   const { status, type } = req.query as Record<string, string>;
   const rows = req.companyId != null
     ? await db.select().from(equipmentTable).where(eq(equipmentTable.companyId, req.companyId)).orderBy(equipmentTable.createdAt)
-    : await db.select().from(equipmentTable).orderBy(equipmentTable.createdAt);
+    : [];
   const filtered = rows.filter(r => {
     if (status && r.status !== status) return false;
     if (type && r.type !== type) return false;
@@ -48,6 +48,10 @@ router.get("/equipment", async (req, res) => {
 });
 
 router.post("/equipment", requireRole("admin", "technician"), validateBody(createEquipmentSchema), async (req, res) => {
+  if (req.companyId == null) {
+    res.status(403).json({ error: "Forbidden: no company scope for this account" });
+    return;
+  }
   const body = req.body;
   const [eq_] = await db.insert(equipmentTable).values({
     companyId: req.companyId!,

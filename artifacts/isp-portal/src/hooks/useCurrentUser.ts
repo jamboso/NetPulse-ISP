@@ -40,8 +40,11 @@ export function useCurrentUser(): CurrentUser {
     canDeleteCustomers:      role === "admin",
     canManageBilling:        role === "admin" || role === "billing",
     canDeleteBillingRecords: role === "admin",
-    canManageNetwork:        role === "admin" || role === "technician",
-    canDeleteNetworkRecords: role === "admin",
+    // Owners can manage network tools too, but only once they've explicitly
+    // scoped to a company (enforced by useOwnerCompanyScope + the backend);
+    // this flag just governs button visibility, not data access.
+    canManageNetwork:        role === "admin" || role === "technician" || role === "owner",
+    canDeleteNetworkRecords: role === "admin" || role === "owner",
     canManageTickets:        role === "admin" || role === "support",
   };
 }

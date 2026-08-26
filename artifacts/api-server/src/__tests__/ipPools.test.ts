@@ -112,7 +112,7 @@ describe("GET /ip-pools", () => {
   it("returns a list of IP pools", async () => {
     mockExec.mockResolvedValueOnce([samplePool]);
 
-    const res = await request(buildApp()).get("/ip-pools");
+    const res = await request(buildApp()).get("/ip-pools?companyId=1");
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
@@ -122,10 +122,20 @@ describe("GET /ip-pools", () => {
   it("returns empty array when no pools exist", async () => {
     mockExec.mockResolvedValueOnce([]);
 
+    const res = await request(buildApp()).get("/ip-pools?companyId=1");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it("returns empty array for an owner who has not selected a company, even if rows exist", async () => {
+    mockExec.mockResolvedValueOnce([samplePool]);
+
     const res = await request(buildApp()).get("/ip-pools");
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
+    expect(mockExec).not.toHaveBeenCalled();
   });
 });
 
@@ -155,11 +165,20 @@ describe("POST /ip-pools", () => {
     mockExec.mockResolvedValueOnce([samplePool]);
 
     const res = await request(buildApp())
-      .post("/ip-pools")
+      .post("/ip-pools?companyId=1")
       .send({ name: "Main Pool", network: "192.168.1.0/24", gateway: "192.168.1.1", subnetMask: "255.255.255.0" });
 
     expect(res.status).toBe(201);
     expect(res.body.id).toBe(1);
+  });
+
+  it("returns 403 when an owner has not selected a company", async () => {
+    const res = await request(buildApp())
+      .post("/ip-pools")
+      .send({ name: "Main Pool", network: "192.168.1.0/24", gateway: "192.168.1.1", subnetMask: "255.255.255.0" });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain("no company scope");
   });
 
   it("calculates totalIps from the CIDR prefix (/24 = 254)", async () => {
@@ -167,7 +186,7 @@ describe("POST /ip-pools", () => {
     mockExec.mockResolvedValueOnce([poolWith254]);
 
     const res = await request(buildApp())
-      .post("/ip-pools")
+      .post("/ip-pools?companyId=1")
       .send({ name: "Pool A", network: "10.0.0.0/24", gateway: "10.0.0.1", subnetMask: "255.255.255.0" });
 
     expect(res.status).toBe(201);
@@ -178,7 +197,7 @@ describe("POST /ip-pools", () => {
     const poolWithOne = { ...samplePool, totalIps: 1 };
     mockExec.mockResolvedValueOnce([poolWithOne]);
     const res = await request(buildApp())
-      .post("/ip-pools")
+      .post("/ip-pools?companyId=1")
       .send({ name: "Pool B", network: "10.0.0.1/32", gateway: "10.0.0.1", subnetMask: "255.255.255.255" });
 
     expect(res.status).toBe(201);
@@ -461,7 +480,7 @@ describe("Audit log — ip_pool", () => {
     mockExec.mockResolvedValueOnce([samplePool]);
 
     await request(buildApp())
-      .post("/ip-pools")
+      .post("/ip-pools?companyId=1")
       .send({ name: "Main Pool", network: "192.168.1.0/24", gateway: "192.168.1.1", subnetMask: "255.255.255.0" });
 
     expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();

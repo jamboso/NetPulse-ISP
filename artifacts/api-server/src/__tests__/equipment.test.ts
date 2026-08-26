@@ -112,7 +112,7 @@ describe("GET /equipment", () => {
   it("returns a list of equipment", async () => {
     mockExec.mockResolvedValueOnce([sampleEquipment]);
 
-    const res = await request(buildApp()).get("/equipment");
+    const res = await request(buildApp()).get("/equipment?companyId=1");
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
@@ -122,10 +122,20 @@ describe("GET /equipment", () => {
   it("returns empty array when no equipment exists", async () => {
     mockExec.mockResolvedValueOnce([]);
 
+    const res = await request(buildApp()).get("/equipment?companyId=1");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it("returns empty array for an owner who has not selected a company, even if rows exist", async () => {
+    mockExec.mockResolvedValueOnce([sampleEquipment]);
+
     const res = await request(buildApp()).get("/equipment");
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
+    expect(mockExec).not.toHaveBeenCalled();
   });
 
   it("filters by status query param", async () => {
@@ -134,7 +144,7 @@ describe("GET /equipment", () => {
       { ...sampleEquipment, id: 2, status: "offline" },
     ]);
 
-    const res = await request(buildApp()).get("/equipment?status=online");
+    const res = await request(buildApp()).get("/equipment?companyId=1&status=online");
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
@@ -147,7 +157,7 @@ describe("GET /equipment", () => {
       { ...sampleEquipment, id: 2, type: "switch" },
     ]);
 
-    const res = await request(buildApp()).get("/equipment?type=router");
+    const res = await request(buildApp()).get("/equipment?companyId=1&type=router");
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
@@ -161,7 +171,7 @@ describe("GET /equipment", () => {
       { ...sampleEquipment, id: 3, type: "router", status: "offline" },
     ]);
 
-    const res = await request(buildApp()).get("/equipment?type=router&status=online");
+    const res = await request(buildApp()).get("/equipment?companyId=1&type=router&status=online");
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
@@ -174,7 +184,7 @@ describe("GET /equipment", () => {
       { ...sampleEquipment, status: "offline" },
     ]);
 
-    const res = await request(buildApp()).get("/equipment?status=online");
+    const res = await request(buildApp()).get("/equipment?companyId=1&status=online");
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(0);
@@ -207,11 +217,20 @@ describe("POST /equipment", () => {
     mockExec.mockResolvedValueOnce([sampleEquipment]);
 
     const res = await request(buildApp())
-      .post("/equipment")
+      .post("/equipment?companyId=1")
       .send({ name: "Core Router", model: "RB4011", ipAddress: "192.168.1.1" });
 
     expect(res.status).toBe(201);
     expect(res.body.id).toBe(1);
+  });
+
+  it("returns 403 when an owner has not selected a company", async () => {
+    const res = await request(buildApp())
+      .post("/equipment")
+      .send({ name: "Core Router", model: "RB4011", ipAddress: "192.168.1.1" });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain("no company scope");
   });
 
   it("creates equipment as technician role", async () => {
@@ -406,7 +425,7 @@ describe("Audit log — equipment", () => {
     mockExec.mockResolvedValueOnce([sampleEquipment]);
 
     await request(buildApp())
-      .post("/equipment")
+      .post("/equipment?companyId=1")
       .send({ name: "Core Router", model: "RB4011", ipAddress: "192.168.1.1" });
 
     expect(vi.mocked(writeAuditLog)).toHaveBeenCalledOnce();

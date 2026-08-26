@@ -36,3 +36,6 @@
 - [Stale VPN route breaks reachability monitoring](openvpn-stale-route-reachability.md) — leftover host route on an orphaned tun device can override the live session's subnet route for ping/reachability checks only.
 - [RADIUS plan-group duplicate membership](radius-plan-group-duplicate.md) — package changes/recreates that add a new RADIUS group without removing the old one leave customers stuck on a stale speed indefinitely.
 - [Self-hosted deploy killed by its own PM2 restart](self-hosted-deploy-treekill.md) — web-triggered deploys freeze at "restarting"; run update.sh directly over SSH as a reliable workaround.
+- [Owner company-scope picker pattern](owner-company-scope-picker-pattern.md) — reuse the existing scope gate for new owner-facing tenant screens; audit every read AND write call when adding it to one
+- [Company-scope route test mocking](company-scope-route-test-mocking.md) — adding fail-closed tenant scoping to a route silently invalidates its pre-existing tests; re-audit them, don't just chase failures
+- [Cascade delete transaction safety](cascade-delete-transaction-safety.md) — a hard-delete cascade must run in one transaction, with every non-cascading FK-dependent table audited and cleared first

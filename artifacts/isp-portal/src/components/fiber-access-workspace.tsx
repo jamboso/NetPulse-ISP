@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   useCreateOlt, useCreateOltServiceProfile, useDeleteOlt, useDeleteOltServiceProfile,
   useDiscoverOltInventory, useListOltProvisioningJobs, useListOltServiceProfiles,
@@ -11,9 +11,10 @@ import {
   type OltInput, type OltServiceProfileInput,
   type Tr069AcsConfigInput, type Tr069DeviceEnrollment, type Tr069CommandInput,
 } from "@workspace/api-client-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Activity, Box, Cable, CheckCircle2, Circle, Loader2, Plus, Radio, RefreshCw, ShieldCheck, Trash2, Server, Settings2, Play, AlertCircle, Clock, Wifi, HardDrive } from "lucide-react";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useOwnerCompanyScope } from "@/hooks/useOwnerCompanyScope";
+import { CompanyScopePicker, CompanyScopeEmptyState } from "@/components/company-scope-picker";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -58,21 +59,6 @@ const PROFILE_DEFAULTS: ProfileForm = {
   name: "", vlanId: "", accessMode: "bridge", downstreamKbps: "", upstreamKbps: "", tr069InformIntervalSeconds: "",
 };
 
-type CompanyOption = {
-  id: number;
-  name: string;
-  username: string;
-};
-
-async function fetchOwnerCompanies(): Promise<CompanyOption[]> {
-  const response = await fetch("/api/companies", { credentials: "include" });
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(payload?.error ?? `Could not load companies (${response.status}).`);
-  }
-  return Array.isArray(payload?.data) ? payload.data : [];
-}
-
 function healthBadge(state: string) {
   if (state === "online") return <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50"><CheckCircle2 className="mr-1 h-3 w-3" />Online</Badge>;
   if (state === "offline") return <Badge className="bg-red-50 text-red-700 border border-red-200 hover:bg-red-50"><Circle className="mr-1 h-3 w-3" />Offline</Badge>;
@@ -80,24 +66,9 @@ function healthBadge(state: string) {
 }
 
 export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords }: { canManageNetwork: boolean; canDeleteNetworkRecords: boolean }) {
-  const { isOwner } = useCurrentUser();
   const queryClient = useQueryClient();
-  const [selectedCompanyId, setSelectedCompanyId] = useState("");
-  const { data: ownerCompanies, isLoading: ownerCompaniesLoading, error: ownerCompaniesError } = useQuery({
-    queryKey: ["fiber-access-owner-companies"],
-    queryFn: fetchOwnerCompanies,
-    enabled: isOwner,
-  });
-  const scopeReady = !isOwner || selectedCompanyId.length > 0;
-  const companyScopeRequest = isOwner && selectedCompanyId
-    ? { headers: { "x-netpulse-company-id": selectedCompanyId } }
-    : undefined;
-
-  useEffect(() => {
-    if (isOwner && ownerCompanies?.length === 1 && !selectedCompanyId) {
-      setSelectedCompanyId(String(ownerCompanies[0]!.id));
-    }
-  }, [isOwner, ownerCompanies, selectedCompanyId]);
+  const scope = useOwnerCompanyScope("fiber-access");
+  const { selectedCompanyId, scopeReady, companyScopeRequest } = scope;
 
   const { data: olts, isLoading: oltsLoading, isError: oltsError } = useListOlts({
     query: { queryKey: [...getListOltsQueryKey(), { companyId: selectedCompanyId }], enabled: scopeReady },
@@ -337,34 +308,18 @@ export function FiberAccessWorkspace({ canManageNetwork, canDeleteNetworkRecords
 
   return (
     <div className="space-y-5">
-      {isOwner && (
-        <section className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="font-semibold text-indigo-950">Choose a customer company</h2>
-              <p className="mt-1 max-w-2xl text-sm text-indigo-800">Fiber Access and TR-069 records belong to one company. Choose the company before viewing or saving its OLTs, ONUs, router settings, or ACS configuration.</p>
-            </div>
-            <div className="w-full sm:w-72">
-              <Label htmlFor="fiber-access-company" className="text-xs text-indigo-900">Company</Label>
-              <Select value={selectedCompanyId || undefined} onValueChange={setSelectedCompanyId} disabled={ownerCompaniesLoading}>
-                <SelectTrigger id="fiber-access-company" className="mt-1 bg-white"><SelectValue placeholder={ownerCompaniesLoading ? "Loading companies…" : "Select a company"} /></SelectTrigger>
-                <SelectContent>
-                  {ownerCompanies?.map((company) => <SelectItem key={company.id} value={String(company.id)}>{company.name} ({company.username})</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          {ownerCompaniesError && <p className="mt-3 text-sm text-red-700">{ownerCompaniesError.message}</p>}
-          {!ownerCompaniesLoading && !ownerCompaniesError && !ownerCompanies?.length && <p className="mt-3 text-sm text-amber-800">No customer companies are available yet. Create one first, then return here to manage its fiber equipment.</p>}
-        </section>
-      )}
+      <CompanyScopePicker
+        scope={scope}
+        id="fiber-access-company"
+        title="Choose a customer company"
+        description="Fiber Access and TR-069 records belong to one company. Choose the company before viewing or saving its OLTs, ONUs, router settings, or ACS configuration."
+      />
 
       {!scopeReady ? (
-        <section className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
-          <Cable className="mx-auto h-8 w-8 text-gray-400" />
-          <h2 className="mt-3 font-semibold text-gray-900">Select a company to open Fiber Access</h2>
-          <p className="mx-auto mt-1 max-w-lg text-sm text-gray-600">This prevents OLT, ONU, and TR-069 settings from being created in the wrong customer company.</p>
-        </section>
+        <CompanyScopeEmptyState
+          title="Select a company to open Fiber Access"
+          description="This prevents OLT, ONU, and TR-069 settings from being created in the wrong customer company."
+        />
       ) : (
         <>
       <div className="rounded-xl border border-sky-200 bg-gradient-to-r from-sky-50 to-white p-5">

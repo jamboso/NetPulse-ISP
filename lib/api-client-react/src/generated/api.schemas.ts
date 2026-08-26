@@ -1504,6 +1504,11 @@ export interface RouterDevice {
   radiusSecret?: string | null;
   /** @nullable */
   radiusPort?: number | null;
+  /**
+     * Customer this router is assigned to, or null if unassigned.
+     * @nullable
+     */
+  customerId?: number | null;
   createdAt: string;
 }
 
@@ -1531,6 +1536,11 @@ export interface RouterDeviceInput {
   enabled?: boolean;
   radiusSecret?: string;
   radiusPort?: number;
+  /**
+     * Customer this router is assigned to, or null/omitted to leave it unassigned.
+     * @nullable
+     */
+  customerId?: number | null;
 }
 
 export type RouterStatusRouterType = typeof RouterStatusRouterType[keyof typeof RouterStatusRouterType];
@@ -1592,6 +1602,11 @@ export interface RouterDeviceUpdate {
   radiusSecret?: string | null;
   /** @nullable */
   radiusPort?: number | null;
+  /**
+     * Customer this router is assigned to, or null to unassign it.
+     * @nullable
+     */
+  customerId?: number | null;
 }
 
 export type RosLiveDataIdentity = { [key: string]: unknown };
@@ -2162,6 +2177,13 @@ priority?: string;
 export type ListEquipmentParams = {
 status?: string;
 type?: string;
+};
+
+export type ListRoutersParams = {
+/**
+ * Filter to routers assigned to this customer.
+ */
+customerId?: number;
 };
 
 export type ListSecurityEventsParams = {

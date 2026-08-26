@@ -30,4 +30,9 @@ export interface RouterDeviceUpdate {
   radiusSecret?: string | null;
   /** @nullable */
   radiusPort?: number | null;
+  /**
+     * Customer this router is assigned to, or null to unassign it.
+     * @nullable
+     */
+  customerId?: number | null;
 }

@@ -5,12 +5,15 @@ import request from "supertest";
 const mockExec = vi.hoisted(() => vi.fn());
 const mockUpsertRadnas = vi.hoisted(() => vi.fn());
 const mockRemoveRadnas = vi.hoisted(() => vi.fn());
+const mockWhereCalls = vi.hoisted(() => [] as unknown[]);
+const NO_COMPANY_SCOPE_MARKER = vi.hoisted(() => Symbol("NO_COMPANY_SCOPE"));
 
 vi.mock("@workspace/db", () => {
   const chain: Record<string, unknown> = {};
-  for (const method of ["select", "insert", "update", "delete", "from", "where", "orderBy", "values", "set", "limit"]) {
+  for (const method of ["select", "insert", "update", "delete", "from", "orderBy", "values", "set", "limit"]) {
     chain[method] = () => chain;
   }
+  chain.where = (arg: unknown) => { mockWhereCalls.push(arg); return chain; };
   chain.returning = () => Promise.resolve(mockExec());
   chain.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
     Promise.resolve(mockExec()).then(resolve, reject);
@@ -19,15 +22,19 @@ vi.mock("@workspace/db", () => {
     routersTable: {
       id: {}, companyId: {}, name: {}, createdAt: {}, ipAddress: {}, radiusSecret: {},
       bridgePorts: {}, routerType: {}, provisionToken: {}, provisionStatus: {}, macAddress: {},
-      rosVersion: {}, vpnConnected: {}, vpnIp: {}, lastCallbackAt: {},
+      rosVersion: {}, vpnConnected: {}, vpnIp: {}, lastCallbackAt: {}, customerId: {},
     },
     routerVpnCertsTable: { routerId: {}, vpnIp: {} },
     vpnConfigTable: {},
+    customersTable: { id: {}, companyId: {} },
   };
 });
 
 vi.mock("../middlewares/companyScope.js", () => ({
   resolveCompanyScope: (req: Request, _res: Response, next: NextFunction) => next(),
+  // Real fail-closed sentinel behavior, tagged so tests can identify it by
+  // reference without depending on drizzle's internal SQL representation.
+  NO_COMPANY_SCOPE: NO_COMPANY_SCOPE_MARKER,
 }));
 vi.mock("../lib/radiusSync.js", () => ({
   upsertRadnas: mockUpsertRadnas,
@@ -86,6 +93,60 @@ describe("router CRUD", () => {
     expect(response.body.error).toContain("no company scope");
   });
 
+  it("scopes the router list to fail-closed emptiness for an owner with no company selected", async () => {
+    // Even if the mocked DB layer were to return every company's routers,
+    // the route must have built a WHERE clause that matches nothing.
+    mockExec.mockResolvedValueOnce([routerRecord]);
+
+    const response = await request(buildApp(null)).get("/routers");
+
+    expect(response.status).toBe(200);
+    expect(mockWhereCalls).toContain(NO_COMPANY_SCOPE_MARKER);
+  });
+
+  it("keeps the fail-closed scope even when a customerId filter is also requested", async () => {
+    mockExec.mockResolvedValueOnce([routerRecord]);
+
+    const response = await request(buildApp(null)).get("/routers?customerId=5");
+
+    expect(response.status).toBe(200);
+    expect(mockWhereCalls).toContain(NO_COMPANY_SCOPE_MARKER);
+  });
+
+  it("rejects assigning a router to a customer from a different company", async () => {
+    mockExec.mockResolvedValueOnce([{ id: 99, companyId: 999 }]); // customer belongs to a different company
+
+    const response = await request(buildApp(12))
+      .post("/routers")
+      .send({ name: "Edge router", routerType: "juniper", ipAddress: "203.0.113.4", customerId: 99 });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("not found in this company");
+  });
+
+  it("rejects assigning a router to a customer that does not exist", async () => {
+    mockExec.mockResolvedValueOnce([]); // no matching customer
+
+    const response = await request(buildApp(12))
+      .post("/routers")
+      .send({ name: "Edge router", routerType: "juniper", ipAddress: "203.0.113.4", customerId: 12345 });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("not found in this company");
+  });
+
+  it("creates a router assigned to a same-company customer", async () => {
+    mockExec.mockResolvedValueOnce([{ id: 7, companyId: 12 }]); // customer lookup — same company
+    mockExec.mockResolvedValueOnce([{ ...routerRecord, customerId: 7 }]); // insert
+
+    const response = await request(buildApp(12))
+      .post("/routers")
+      .send({ name: "Edge router", routerType: "juniper", ipAddress: "203.0.113.4", customerId: 7 });
+
+    expect(response.status).toBe(201);
+    expect(response.body.customerId).toBe(7);
+  });
+
   it("creates a router with a provisioning token", async () => {
     mockExec.mockResolvedValueOnce([routerRecord]);
 
@@ -103,6 +164,25 @@ describe("router CRUD", () => {
     const response = await request(buildApp()).get("/routers/404");
 
     expect(response.status).toBe(404);
+  });
+
+  it("rejects reassigning a router to a customer from a different company on PATCH", async () => {
+    mockExec.mockResolvedValueOnce([]); // no matching customer in this company
+
+    const response = await request(buildApp(12)).patch("/routers/4").send({ customerId: 999 });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("not found in this company");
+  });
+
+  it("reassigns a router to a same-company customer on PATCH", async () => {
+    mockExec.mockResolvedValueOnce([{ id: 7, companyId: 12 }]); // customer lookup — same company
+    mockExec.mockResolvedValueOnce([{ ...routerRecord, customerId: 7 }]); // update
+
+    const response = await request(buildApp(12)).patch("/routers/4").send({ customerId: 7 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.customerId).toBe(7);
   });
 
   it("updates supported router fields and synchronizes a new RADIUS NAS", async () => {

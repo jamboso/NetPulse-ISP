@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { customersTable, subscriptionsTable, invoicesTable, paymentsTable, ticketsTable, ticketRepliesTable, radcheckTable } from "@workspace/db";
+import { customersTable, subscriptionsTable, invoicesTable, paymentsTable, ticketsTable, ticketRepliesTable, radcheckTable, routersTable, hotspotVouchersTable } from "@workspace/db";
 import { eq, ilike, or, sql, inArray, and } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireRole } from "../middlewares/requireRole";
@@ -8,6 +8,7 @@ import { validateBody } from "../middlewares/validateBody";
 import { resolveCompanyScope } from "../middlewares/companyScope";
 import { writeAuditLog } from "../lib/audit";
 import { getSettings, sendSms } from "../lib/sms.js";
+import { removeRadnas } from "../lib/radiusSync";
 
 const CUSTOMER_STATUSES = ["active", "inactive", "suspended"] as const;
 
@@ -202,23 +203,48 @@ router.delete("/customers/:id", requireRole("admin"), async (req, res) => {
   const [before] = await db.select().from(customersTable).where(scopedCustomerWhere(req, id));
   if (!before) { res.status(404).json({ error: "Not found" }); return; }
 
-  // Cascade: ticket_replies → tickets → payments → invoices → subscriptions → customer
-  const tickets = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(eq(ticketsTable.customerId, id));
-  if (tickets.length > 0) {
-    const ticketIds = tickets.map(t => t.id);
-    await db.delete(ticketRepliesTable).where(inArray(ticketRepliesTable.ticketId, ticketIds));
-    await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
-  }
+  // The full cascade runs in one transaction: if any step fails (e.g. an
+  // unexpected FK constraint), the whole deletion rolls back instead of
+  // leaving the customer's records partially deleted.
+  const assignedRouters = await db.transaction(async (tx) => {
+    // Cascade: ticket_replies → tickets → payments → invoices → subscriptions → customer
+    const tickets = await tx.select({ id: ticketsTable.id }).from(ticketsTable).where(eq(ticketsTable.customerId, id));
+    if (tickets.length > 0) {
+      const ticketIds = tickets.map(t => t.id);
+      await tx.delete(ticketRepliesTable).where(inArray(ticketRepliesTable.ticketId, ticketIds));
+      await tx.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
+    }
 
-  const invoices = await db.select({ id: invoicesTable.id }).from(invoicesTable).where(eq(invoicesTable.customerId, id));
-  if (invoices.length > 0) {
-    const invoiceIds = invoices.map(i => i.id);
-    await db.delete(paymentsTable).where(inArray(paymentsTable.invoiceId, invoiceIds));
-    await db.delete(invoicesTable).where(inArray(invoicesTable.id, invoiceIds));
-  }
+    const invoices = await tx.select({ id: invoicesTable.id }).from(invoicesTable).where(eq(invoicesTable.customerId, id));
+    if (invoices.length > 0) {
+      const invoiceIds = invoices.map(i => i.id);
+      await tx.delete(paymentsTable).where(inArray(paymentsTable.invoiceId, invoiceIds));
+      await tx.delete(invoicesTable).where(inArray(invoicesTable.id, invoiceIds));
+    }
 
-  await db.delete(subscriptionsTable).where(eq(subscriptionsTable.customerId, id));
-  await db.delete(customersTable).where(scopedCustomerWhere(req, id));
+    await tx.delete(subscriptionsTable).where(eq(subscriptionsTable.customerId, id));
+
+    // Routers explicitly assigned to this customer are removed with them.
+    // Unassigned/company-level routers are never touched here — only rows
+    // whose customerId points at this exact customer.
+    const routers = await tx.select({ id: routersTable.id, ipAddress: routersTable.ipAddress, radiusSecret: routersTable.radiusSecret })
+      .from(routersTable).where(eq(routersTable.customerId, id));
+    if (routers.length > 0) {
+      const routerIds = routers.map(r => r.id);
+      // hotspot_vouchers.router_id has no cascading FK action, so it must be
+      // cleared explicitly before the router row can be deleted.
+      await tx.delete(hotspotVouchersTable).where(inArray(hotspotVouchersTable.routerId, routerIds));
+      await tx.delete(routersTable).where(eq(routersTable.customerId, id));
+    }
+
+    await tx.delete(customersTable).where(scopedCustomerWhere(req, id));
+
+    return routers;
+  });
+
+  for (const r of assignedRouters) {
+    if (r.radiusSecret) void removeRadnas(r.ipAddress);
+  }
 
   void writeAuditLog({
     companyId:  req.companyId,

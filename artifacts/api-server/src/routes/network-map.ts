@@ -16,7 +16,7 @@ import {
   sessionLogsTable, routersTable, splittersTable,
 } from "@workspace/db";
 import { eq, isNotNull, isNull, and } from "drizzle-orm";
-import { resolveCompanyScope } from "../middlewares/companyScope";
+import { resolveCompanyScope, NO_COMPANY_SCOPE } from "../middlewares/companyScope";
 
 const router = Router();
 router.use(resolveCompanyScope);
@@ -42,6 +42,11 @@ async function getVendor(mac: string | null): Promise<string | null> {
 
 router.get("/network-map", async (req, res) => {
   const companyId = req.companyId;
+  if (companyId == null) {
+    res.json({ clients: [], splitters: [] });
+    return;
+  }
+
   // Customers with coords
   const customers = await db
     .select({
@@ -57,11 +62,11 @@ router.get("/network-map", async (req, res) => {
     .where(and(
       isNotNull(customersTable.latitude),
       isNotNull(customersTable.longitude),
-      companyId != null ? eq(customersTable.companyId, companyId) : undefined,
+      eq(customersTable.companyId, companyId),
     ));
 
   if (customers.length === 0) {
-    const splitters = await db.select().from(splittersTable);
+    const splitters = await db.select().from(splittersTable).where(eq(splittersTable.companyId, companyId));
     res.json({ clients: [], splitters });
     return;
   }
@@ -165,14 +170,25 @@ router.get("/network-map", async (req, res) => {
       fiberColor:  splittersTable.fiberColor,
     })
     .from(splittersTable)
-    .where(and(isNotNull(splittersTable.latitude), isNotNull(splittersTable.longitude)));
+    .where(and(
+      isNotNull(splittersTable.latitude),
+      isNotNull(splittersTable.longitude),
+      eq(splittersTable.companyId, companyId),
+    ));
 
   res.json({ clients, splitters });
 });
 
 // ── Splitter CRUD ─────────────────────────────────────────────────────────────
 
-router.get("/splitters", async (_req, res) => {
+function scopedSplitterWhere(req: import("express").Request, id: number) {
+  return req.companyId != null
+    ? and(eq(splittersTable.id, id), eq(splittersTable.companyId, req.companyId))
+    : NO_COMPANY_SCOPE;
+}
+
+router.get("/splitters", async (req, res) => {
+  if (req.companyId == null) { res.json([]); return; }
   const rows = await db
     .select({
       s: splittersTable,
@@ -180,15 +196,29 @@ router.get("/splitters", async (_req, res) => {
     })
     .from(splittersTable)
     .leftJoin(routersTable, eq(splittersTable.routerId, routersTable.id))
+    .where(eq(splittersTable.companyId, req.companyId))
     .orderBy(splittersTable.name);
   res.json(rows.map(r => ({ ...r.s, routerName: r.routerName ?? null })));
 });
 
 router.post("/splitters", async (req, res) => {
+  if (req.companyId == null) {
+    res.status(403).json({ error: "Forbidden: no company scope for this account" });
+    return;
+  }
   const { name, description, latitude, longitude, routerId, capacity, location, fiberColor } =
     req.body as Partial<{ name: string; description: string; latitude: number; longitude: number; routerId: number; capacity: number; location: string; fiberColor: string }>;
   if (!name?.trim()) { res.status(400).json({ error: "name required" }); return; }
+
+  // routerId, if provided, must belong to the same company.
+  if (routerId != null) {
+    const [router_] = await db.select({ id: routersTable.id }).from(routersTable)
+      .where(and(eq(routersTable.id, routerId), eq(routersTable.companyId, req.companyId)));
+    if (!router_) { res.status(400).json({ error: "Router not found in this company" }); return; }
+  }
+
   const [row] = await db.insert(splittersTable).values({
+    companyId: req.companyId,
     name, description: description ?? null,
     latitude: latitude ?? null, longitude: longitude ?? null,
     routerId: routerId ?? null, capacity: capacity ?? 8,
@@ -200,6 +230,13 @@ router.post("/splitters", async (req, res) => {
 router.put("/splitters/:id", async (req, res) => {
   const id = parseInt(req.params.id!);
   const body = req.body as Partial<{ name: string; description: string; latitude: number; longitude: number; routerId: number; capacity: number; location: string; fiberColor: string }>;
+
+  if (body.routerId != null && req.companyId != null) {
+    const [router_] = await db.select({ id: routersTable.id }).from(routersTable)
+      .where(and(eq(routersTable.id, body.routerId), eq(routersTable.companyId, req.companyId)));
+    if (!router_) { res.status(400).json({ error: "Router not found in this company" }); return; }
+  }
+
   const [row] = await db.update(splittersTable)
     .set({
       ...(body.name        !== undefined && { name:        body.name }),
@@ -211,14 +248,17 @@ router.put("/splitters/:id", async (req, res) => {
       ...(body.location    !== undefined && { location:    body.location }),
       ...(body.fiberColor  !== undefined && { fiberColor:  body.fiberColor }),
     })
-    .where(eq(splittersTable.id, id))
+    .where(scopedSplitterWhere(req, id))
     .returning();
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(row);
 });
 
 router.delete("/splitters/:id", async (req, res) => {
-  await db.delete(splittersTable).where(eq(splittersTable.id, parseInt(req.params.id!)));
+  const id = parseInt(req.params.id!);
+  const [existing] = await db.select({ id: splittersTable.id }).from(splittersTable).where(scopedSplitterWhere(req, id));
+  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+  await db.delete(splittersTable).where(scopedSplitterWhere(req, id));
   res.status(204).end();
 });
 
@@ -232,7 +272,7 @@ router.patch("/customers/:id/location", async (req, res) => {
     .where(
       req.companyId != null
         ? and(eq(customersTable.id, id), eq(customersTable.companyId, req.companyId))
-        : eq(customersTable.id, id),
+        : NO_COMPANY_SCOPE,
     )
     .returning();
   if (!row) { res.status(404).json({ error: "Not found" }); return; }

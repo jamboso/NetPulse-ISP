@@ -55,6 +55,11 @@ function buildApp(role = "owner") {
   return app;
 }
 
+// Owners must explicitly select a company (via the same header
+// resolveCompanyScope reads) before company-scoped infrastructure data is
+// returned; this mirrors how the real owner workspace picker works.
+const OWNER_COMPANY_HEADER = "x-netpulse-company-id";
+
 beforeEach(() => {
   vi.resetAllMocks();
 });
@@ -66,14 +71,28 @@ describe("infrastructure read operations", () => {
       .mockResolvedValueOnce([{ value: "radius.example.test" }])
       .mockResolvedValueOnce([{ value: "shared-secret" }])
       .mockResolvedValueOnce([{ id: 1 }, { id: 2 }])
-      .mockResolvedValueOnce([{ id: 8, routerId: 1, routerName: "Edge", vpnIp: "10.8.0.2", createdAt: "today", revokedAt: null }]);
+      .mockResolvedValueOnce([{ cert: { id: 8, routerId: 1, routerName: "Edge", vpnIp: "10.8.0.2", createdAt: "today", revokedAt: null } }]);
 
-    const response = await request(buildApp()).get("/infrastructure/status");
+    const response = await request(buildApp()).get("/infrastructure/status").set(OWNER_COMPANY_HEADER, "1");
 
     expect(response.status).toBe(200);
     expect(response.body.radius).toEqual({ configured: true, server: "radius.example.test" });
     expect(response.body.vpn.certsGenerated).toBe(true);
     expect(response.body.routerCount).toBe(2);
+  });
+
+  it("reports zero routers and no client certificates when an owner has not selected a company", async () => {
+    mockExec
+      .mockResolvedValueOnce([{ isConfigured: true, caCert: "ca", serverPublicIp: "vpn.example.test", vpnPort: 443 }])
+      .mockResolvedValueOnce([{ value: "radius.example.test" }])
+      .mockResolvedValueOnce([{ value: "shared-secret" }]);
+
+    // No company header set — an unscoped owner request.
+    const response = await request(buildApp()).get("/infrastructure/status");
+
+    expect(response.status).toBe(200);
+    expect(response.body.routerCount).toBe(0);
+    expect(response.body.routerCerts).toEqual([]);
   });
 
   it("reports missing RADIUS configuration without attempting a network connection", async () => {
@@ -112,14 +131,22 @@ describe("infrastructure read operations", () => {
 
   it("lists VPN clients without exposing their certificate material", async () => {
     mockExec.mockResolvedValueOnce([
-      { id: 2, routerId: 4, routerName: "Edge", vpnIp: "10.8.0.2", createdAt: "today", revokedAt: null, clientKey: "private" },
+      { cert: { id: 2, routerId: 4, routerName: "Edge", vpnIp: "10.8.0.2", createdAt: "today", revokedAt: null, clientKey: "private" } },
     ]);
 
-    const response = await request(buildApp()).get("/infrastructure/vpn/clients");
+    const response = await request(buildApp()).get("/infrastructure/vpn/clients").set(OWNER_COMPANY_HEADER, "1");
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual([expect.objectContaining({ routerName: "Edge", revoked: false })]);
     expect(response.body[0]).not.toHaveProperty("clientKey");
+  });
+
+  it("returns no VPN clients when an owner has not selected a company", async () => {
+    const response = await request(buildApp()).get("/infrastructure/vpn/clients");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
+    expect(mockExec).not.toHaveBeenCalled();
   });
 });
 
@@ -232,9 +259,60 @@ describe("infrastructure write operations", () => {
   });
 
   it("revokes a router client certificate", async () => {
-    const response = await request(buildApp()).delete("/infrastructure/vpn/client/9");
+    mockExec
+      .mockResolvedValueOnce([{ id: 9, companyId: 1, name: "Edge" }]) // requireOwnedRouter lookup
+      .mockResolvedValueOnce([]); // update revokedAt
+
+    const response = await request(buildApp())
+      .delete("/infrastructure/vpn/client/9")
+      .set(OWNER_COMPANY_HEADER, "1");
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ success: true });
+  });
+
+  it("refuses to revoke a certificate when the owner has not selected a company", async () => {
+    const response = await request(buildApp()).delete("/infrastructure/vpn/client/9");
+
+    expect(response.status).toBe(403);
+    expect(mockExec).not.toHaveBeenCalled();
+  });
+
+  it("refuses to revoke a certificate for a router outside the selected company", async () => {
+    mockExec.mockResolvedValueOnce([]); // requireOwnedRouter finds no matching row
+
+    const response = await request(buildApp())
+      .delete("/infrastructure/vpn/client/9")
+      .set(OWNER_COMPANY_HEADER, "1");
+
+    expect(response.status).toBe(404);
+  });
+
+  it("refuses to export RADIUS users when the owner has not selected a company", async () => {
+    const response = await request(buildApp()).post("/infrastructure/radius/export-users");
+
+    expect(response.status).toBe(403);
+    expect(mockExec).not.toHaveBeenCalled();
+  });
+
+  it("exports only the selected company's subscriptions and NAS routers", async () => {
+    mockExec
+      .mockResolvedValueOnce([
+        { username: "customer@example.test", password: 42, planName: "Home 20M", speedDown: 20000, speedUp: 5000, status: "active" },
+      ]) // scoped subscriptions join
+      .mockResolvedValueOnce([{ value: "shared-secret" }]) // radiusSecret setting
+      .mockResolvedValueOnce([{ id: 1, ipAddress: "10.0.0.1", name: "Edge-1" }]); // scoped NAS routers
+
+    const response = await request(buildApp())
+      .post("/infrastructure/radius/export-users")
+      .set(OWNER_COMPANY_HEADER, "1");
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("customer@example.test");
+    expect(response.text).toContain("Edge-1");
+    // The subscription/customer join and the NAS router lookup must both be
+    // scoped queries — a company-scoped export must never fall back to an
+    // unscoped `db.select().from(...)` with no `where` at all.
+    expect(mockExec).toHaveBeenCalledTimes(3);
   });
 });

@@ -33,5 +33,10 @@ export interface RouterDevice {
   radiusSecret?: string | null;
   /** @nullable */
   radiusPort?: number | null;
+  /**
+     * Customer this router is assigned to, or null if unassigned.
+     * @nullable
+     */
+  customerId?: number | null;
   createdAt: string;
 }

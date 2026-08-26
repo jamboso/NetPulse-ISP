@@ -59,6 +59,7 @@ import type {
   ListInvoicesParams,
   ListOnusParams,
   ListPaymentsParams,
+  ListRoutersParams,
   ListSecurityEvents200,
   ListSecurityEventsParams,
   ListSubscriptionsParams,
@@ -6104,20 +6105,27 @@ export function useGetRoutersStatus<TData = Awaited<ReturnType<typeof getRouters
 
 
 
-export const getListRoutersUrl = () => {
+export const getListRoutersUrl = (params?: ListRoutersParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/routers`
+  return stringifiedParams.length > 0 ? `/api/routers?${stringifiedParams}` : `/api/routers`
 }
 
 /**
  * @summary List all managed routers
  */
-export const listRouters = async ( options?: RequestInit): Promise<RouterDevice[]> => {
+export const listRouters = async (params?: ListRoutersParams, options?: RequestInit): Promise<RouterDevice[]> => {
 
-  return customFetch<RouterDevice[]>(getListRoutersUrl(),
+  return customFetch<RouterDevice[]>(getListRoutersUrl(params),
   {
     ...options,
     method: 'GET'
@@ -6130,23 +6138,23 @@ export const listRouters = async ( options?: RequestInit): Promise<RouterDevice[
 
 
 
-export const getListRoutersQueryKey = () => {
+export const getListRoutersQueryKey = (params?: ListRoutersParams,) => {
     return [
-    `/api/routers`
+    `/api/routers`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListRoutersQueryOptions = <TData = Awaited<ReturnType<typeof listRouters>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRouters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListRoutersQueryOptions = <TData = Awaited<ReturnType<typeof listRouters>>, TError = ErrorType<unknown>>(params?: ListRoutersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRouters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListRoutersQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListRoutersQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRouters>>> = ({ signal }) => listRouters({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRouters>>> = ({ signal }) => listRouters(params, { signal, ...requestOptions });
 
 
 
@@ -6164,11 +6172,11 @@ export type ListRoutersQueryError = ErrorType<unknown>
  */
 
 export function useListRouters<TData = Awaited<ReturnType<typeof listRouters>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRouters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListRoutersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRouters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListRoutersQueryOptions(options)
+  const queryOptions = getListRoutersQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

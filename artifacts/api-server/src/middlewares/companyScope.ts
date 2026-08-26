@@ -1,6 +1,14 @@
 import type { Request, Response, NextFunction } from "express";
 import { db, companiesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql, type SQL } from "drizzle-orm";
+
+/**
+ * A WHERE fragment that matches no rows. Use this — never `undefined` or a
+ * bare id filter — as the fallback when `req.companyId` is null (an owner
+ * who hasn't picked a company yet). It keeps unscoped requests fail-safe:
+ * they see/affect nothing instead of every tenant's data.
+ */
+export const NO_COMPANY_SCOPE: SQL = sql`false`;
 
 /**
  * Resolves the effective companyId to scope tenant-owned queries by.

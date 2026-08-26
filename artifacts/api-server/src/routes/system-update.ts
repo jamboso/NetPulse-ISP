@@ -42,7 +42,34 @@ function git(args: string[], cwd: string): string {
   }).trim();
 }
 
-function trackedRelease(cwd: string): ReleaseInfo {
+function parseGithubOwnerRepo(remoteUrl: string): { owner: string; repo: string } | null {
+  const match = remoteUrl.match(/github\.com[:/]+([^/]+)\/([^/]+?)(\.git)?$/);
+  if (!match) return null;
+  return { owner: match[1], repo: match[2] };
+}
+
+async function fetchGithubCommitMeta(
+  owner: string,
+  repo: string,
+  sha: string,
+): Promise<{ message: string; date: string } | null> {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits/${sha}`, {
+      headers: { "User-Agent": "netpulse-update-check", Accept: "application/vnd.github+json" },
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { commit?: { message?: string; committer?: { date?: string }; author?: { date?: string } } };
+    const message = data.commit?.message?.split("\n")[0]?.trim();
+    const date = data.commit?.committer?.date ?? data.commit?.author?.date;
+    if (!message || !date) return null;
+    return { message, date };
+  } catch {
+    return null;
+  }
+}
+
+async function trackedRelease(cwd: string): Promise<ReleaseInfo> {
   const checkoutBranch = git(["symbolic-ref", "--quiet", "--short", "HEAD"], cwd);
   const remote = git(["config", "--get", `branch.${checkoutBranch}.remote`], cwd);
   const mergeRef = git(["config", "--get", `branch.${checkoutBranch}.merge`], cwd);
@@ -52,17 +79,30 @@ function trackedRelease(cwd: string): ReleaseInfo {
     throw new Error("The deployed checkout does not track a production branch.");
   }
 
-  // Fetch only the configured tracked branch. This refreshes Git metadata but
-  // never changes the checkout, files, or active application process.
-  git(["fetch", "--quiet", "--no-tags", remote, `refs/heads/${remoteBranch}`], cwd);
+  // `ls-remote` only talks to the network and prints refs — unlike `fetch`, it
+  // never writes FETCH_HEAD or updates local refs, so it works even though the
+  // app process (unlike the root-run updater) only has read access to a
+  // root-owned checkout.
+  const lsRemoteOutput = git(["ls-remote", "--exit-code", remote, `refs/heads/${remoteBranch}`], cwd);
+  const candidateCommit = lsRemoteOutput.split(/\s+/)[0];
+  if (!candidateCommit) {
+    throw new Error("The remote did not report a commit for the tracked branch.");
+  }
+
+  // Commit message/date are cosmetic, so fetch them best-effort from GitHub's
+  // API (read-only, unauthenticated, no local write) rather than requiring a
+  // local `git fetch` just to render a subject line.
+  const remoteUrl = git(["remote", "get-url", remote], cwd);
+  const ghInfo = parseGithubOwnerRepo(remoteUrl);
+  const meta = ghInfo ? await fetchGithubCommitMeta(ghInfo.owner, ghInfo.repo, candidateCommit) : null;
 
   return {
     localCommit: git(["rev-parse", "HEAD"], cwd),
     branch: remoteBranch,
     remote,
-    candidateCommit: git(["rev-parse", "FETCH_HEAD"], cwd),
-    commitMessage: git(["log", "-1", "--format=%s", "FETCH_HEAD"], cwd),
-    commitDate: git(["log", "-1", "--format=%ai", "FETCH_HEAD"], cwd),
+    candidateCommit,
+    commitMessage: meta?.message ?? "(commit message unavailable)",
+    commitDate: meta?.date ?? "",
   };
 }
 
@@ -105,7 +145,7 @@ router.get("/system/version", requireRole("owner"), async (req: Request, res: Re
   const appDir = process.env["NETPULSE_DIR"] ?? "/opt/netpulse";
 
   try {
-    const release = trackedRelease(appDir);
+    const release = await trackedRelease(appDir);
     const previousDeployment = readUpdateStatus();
     const retryAvailable =
       previousDeployment.state === "failed" &&
@@ -141,7 +181,7 @@ router.get("/system/update/status", requireRole("owner"), async (_req: Request, 
 // The target SHA must be the current candidate on the configured tracked
 // branch. The script repeats this preflight immediately before changing code,
 // protecting against a branch moving between confirmation and deployment.
-router.post("/system/update", requireRole("owner"), (req: Request, res: Response): void => {
+router.post("/system/update", requireRole("owner"), async (req: Request, res: Response): Promise<void> => {
   const parsed = DeployUpdateBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "A full target commit and matching confirmation are required." });
@@ -161,7 +201,7 @@ router.post("/system/update", requireRole("owner"), (req: Request, res: Response
   const appDir = process.env["NETPULSE_DIR"] ?? "/opt/netpulse";
   let release: ReleaseInfo;
   try {
-    release = trackedRelease(appDir);
+    release = await trackedRelease(appDir);
   } catch (error) {
     req.log?.warn({ err: error }, "Deployment rejected during preflight");
     res.status(503).json({ error: "Deployment preflight failed. No code was changed." });

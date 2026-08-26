@@ -353,12 +353,14 @@ ${ovpnProtocolLine}    certificate="netpulse-client" \\
   const callbackBlock = params.token && params.serverUrl
     ? `
 # ── 8/8  Signal provisioning complete ────────────────────────────────────────
+# Runs only after the tunnel-up retry loop below has given the OpenVPN client
+# time to negotiate and be assigned its real local-address — reporting too
+# early here previously sent an empty vpnIp, so the server fell back to its
+# pre-reserved placeholder IP instead of the router's actual tunnel address.
 :put "[8/8] Calling home to NetPulse..."
 
 :local mac2 [/interface ethernet get 0 mac-address]
 :local ver2 [:tonum [:pick [/system resource get version] 0 1]]
-:local vpnIp2 ""
-:do { :set vpnIp2 [/interface ovpn-client get [find name="netpulse-vpn"] local-address] } on-error={}
 
 :do {
   /tool fetch \\
@@ -541,12 +543,21 @@ ${ovpnClientBlock}
     comment="netpulse-radius-in" \\
     place-before=0
 } on-error={}
-${callbackBlock}
-# ── Verify ────────────────────────────────────────────────────────────────────
-:delay 3s
-:local running false
-:do { :set running [/interface ovpn-client get [find name="netpulse-vpn"] running] } on-error={}
 
+# ── Verify tunnel is up before reporting its address ─────────────────────────
+# Poll for up to ~12s (OpenVPN negotiation can take longer than a fixed 3s
+# wait) so the callback below reports the tunnel's real assigned IP instead
+# of firing before local-address is populated.
+:local running false
+:local vpnIp2 ""
+:local attempt 0
+:while ($attempt < 6 && $running = false) do={
+  :delay 2s
+  :do { :set running [/interface ovpn-client get [find name="netpulse-vpn"] running] } on-error={}
+  :set attempt ($attempt + 1)
+}
+:do { :set vpnIp2 [/interface ovpn-client get [find name="netpulse-vpn"] local-address] } on-error={}
+${callbackBlock}
 :put ""
 :put "======================================"
 :if ($running = true) do={

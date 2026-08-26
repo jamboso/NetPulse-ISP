@@ -100,16 +100,17 @@ export async function syncSubscriptionCreate(params: {
 
     await removeRejectCheck(username);
 
+    // Clear any stale plan-group membership first (e.g. a re-created
+    // subscription for a username that previously belonged to a different
+    // plan) so the user is never in two np-plan-* groups at once — RADIUS
+    // then applies whichever group's Mikrotik-Rate-Limit it evaluates last,
+    // which can silently keep enforcing an old, wrong speed indefinitely.
     const group = planGroupName(planId);
-    const [ugExisting] = await db.select({ id: radusergroupTable.id })
-      .from(radusergroupTable)
-      .where(and(
-        eq(radusergroupTable.username, username),
-        eq(radusergroupTable.groupname, group),
-      ));
-    if (!ugExisting) {
-      await db.insert(radusergroupTable).values({ username, groupname: group, priority: 0 });
-    }
+    await db.delete(radusergroupTable).where(and(
+      eq(radusergroupTable.username, username),
+      like(radusergroupTable.groupname, "np-plan-%"),
+    ));
+    await db.insert(radusergroupTable).values({ username, groupname: group, priority: 0 });
   } catch (err) {
     logger.error({ err, username }, "radiusSync: failed to sync subscription create");
   }
